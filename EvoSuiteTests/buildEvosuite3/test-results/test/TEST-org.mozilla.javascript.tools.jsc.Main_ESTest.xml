@@ -1,0 +1,1664 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mozilla.javascript.tools.jsc.Main_ESTest" tests="23" skipped="0" failures="0" errors="0" timestamp="2018-08-05T05:01:00" hostname="cobb" time="1.716">
+  <properties/>
+  <testcase name="test02" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.188"/>
+  <testcase name="test13" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.077"/>
+  <testcase name="test03" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.099"/>
+  <testcase name="test14" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.084"/>
+  <testcase name="test04" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.031"/>
+  <testcase name="test15" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.039"/>
+  <testcase name="test05" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.041"/>
+  <testcase name="test16" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.05"/>
+  <testcase name="test20" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.053"/>
+  <testcase name="test10" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.064"/>
+  <testcase name="test21" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.044"/>
+  <testcase name="test00" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.084"/>
+  <testcase name="test11" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.079"/>
+  <testcase name="test22" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.044"/>
+  <testcase name="test01" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.055"/>
+  <testcase name="test12" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.214"/>
+  <testcase name="test06" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.054"/>
+  <testcase name="test17" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.029"/>
+  <testcase name="test07" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.061"/>
+  <testcase name="test18" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.137"/>
+  <testcase name="test08" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.049"/>
+  <testcase name="test19" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.037"/>
+  <testcase name="test09" classname="org.mozilla.javascript.tools.jsc.Main_ESTest" time="0.036"/>
+  <system-out><![CDATA[A file name must be specified to compile.
+Usage: java org.mozilla.javascript.tools.jsc.Main [OPTION]... SOURCE...
+Valid options are: 
+  -version VERSION   Use the specified language version.
+                       VERSION should be one of 100|110|120|130|140|150|160|170.
+  -opt LEVEL         Use optimization with the specified level.
+                       LEVEL should be one of 0..9.
+  -debug, -g         Include debug information.
+  -nosource          Do not include source to function objects.
+                       It makes f.toString() useless and violates ECMAScript
+                       standard but makes generated classes smaller and
+                       saves memory.
+  -o CLASSNAME       Use specified name as the last component of the main
+                       generated class name. When specified, only one script
+                       SOURCE is allowed. If omitted, it defaults to source
+                       name with stripped .js suffix.
+  -package PACKAGE   Place generated classes in the specified package.
+  -d DIRECTORY       Use DIRECTORY as destination directory for generated
+                       classes. If omitted, it defaults to parent directory
+                       of SOURCE.
+  -encoding charset  Sets the character encoding of the source files. 
+  -extends CLASS     The main generated class will extend the specified
+                       class CLASS.
+  -implements INTERFACE1,INTERFACE2,... The main generated class will
+                       implement the specified list of interfaces.
+  -main-method-class CLASS Specify the class name used for main method 
+                       implementation. The class must have a method matching
+                       "public static void main(Script sc, String[] args)"
+  -observe-instruction-count Generate code that contains callbacks to 
+                       accumulate counts of executed instructions. Code 
+                       compiled with this flag can be monitored using 
+                       Context.setInstructionObserverThreshold. 
+  -help, --help, -h  Print this help and exit.
+
+]]></system-out>
+  <system-err><![CDATA[Aug 04, 2018 10:00:48 PM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.jsc.Main_ESTest
+Aug 04, 2018 10:00:48 PM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.jsc.Main_ESTest'.
+Aug 04, 2018 10:00:49 PM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.jsc.Main_ESTest_scaffolding
+Aug 04, 2018 10:00:49 PM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.jsc.Main_ESTest_scaffolding'.
+Aug 04, 2018 10:00:49 PM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.tools.jsc.Main_ESTest_scaffolding
+Aug 04, 2018 10:00:49 PM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.tools.jsc.Main_ESTest
+Aug 05, 2018 5:00:50 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeBoolean
+Aug 05, 2018 5:00:50 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeBoolean'.
+Aug 05, 2018 5:00:50 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeBoolean
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeBoolean
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript, -1130473355
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.IdScriptableObject
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.IdScriptableObject'.
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdScriptableObject
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdScriptableObject
+Aug 05, 2018 5:00:52 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.IdFunctionCall
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.IdFunctionCall'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.IdFunctionCall
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptableObject'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Scriptable
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Scriptable'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Scriptable
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.SymbolScriptable
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.SymbolScriptable'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.SymbolScriptable
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.debug.DebuggableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.debug.DebuggableObject'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.debug, -203100262
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.debug.DebuggableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ConstProperties
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ConstProperties'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ConstProperties
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.IdScriptableObject
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeBoolean
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.EvaluatorException
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.EvaluatorException'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EvaluatorException
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EvaluatorException
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.RhinoException
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.RhinoException'.
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/RhinoException
+Aug 05, 2018 5:00:53 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/RhinoException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.RhinoException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.EvaluatorException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.SlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.SlotMapContainer'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/SlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LARGE_HASH_SIZE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.SlotMap
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.SlotMap'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.SlotMap
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.SlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ThreadSafeSlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ThreadSafeSlotMapContainer'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ThreadSafeSlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ThreadSafeSlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ThreadSafeSlotMapContainer
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.EcmaError
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.EcmaError'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EcmaError
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EcmaError
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.EcmaError
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.BaseFunction
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.BaseFunction'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/BaseFunction
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/BaseFunction
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Function
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Function'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Callable
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Callable'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Callable
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Function
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.BaseFunction
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.FunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.FunctionObject'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/FunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/FunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VARARGS_METHOD
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VARARGS_CTOR
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field sawSecurityException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_UNSUPPORTED_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_STRING_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_INT_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_BOOLEAN_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_DOUBLE_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_SCRIPTABLE_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_OBJECT_TYPE
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.FunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeObject'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.JavaScriptException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.JavaScriptException'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaScriptException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/JavaScriptException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.JavaScriptException
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.IdFunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.IdFunctionObject'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdFunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdFunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.IdFunctionObject
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.IdFunctionObjectES6
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.IdFunctionObjectES6'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdFunctionObjectES6
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdFunctionObjectES6
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_length
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_name
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.IdFunctionObjectES6
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Symbol
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Symbol'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Symbol
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Context
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Context'.
+Aug 05, 2018 5:00:54 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Context
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Context
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Context
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ExternalArrayData
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ExternalArrayData'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ExternalArrayData
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptableObject$KeyComparator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptableObject$KeyComparator'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$KeyComparator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptableObject$KeyComparator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptableObject$KeyComparator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Interpreter
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Interpreter'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Interpreter
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Evaluator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Evaluator'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Evaluator
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Icode
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Icode'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Icode
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Icode
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DELNAME
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DUP
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DUP2
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SWAP
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_POP
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_POP_RESULT
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_IFEQ_POP
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_VAR_INC_DEC
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_NAME_INC_DEC
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_PROP_INC_DEC
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ELEM_INC_DEC
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REF_INC_DEC
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SCOPE_LOAD
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SCOPE_SAVE
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_TYPEOFNAME
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_NAME_AND_THIS
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_PROP_AND_THIS
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ELEM_AND_THIS
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_VALUE_AND_THIS
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CLOSURE_EXPR
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CLOSURE_STMT
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CALLSPECIAL
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_RETUNDEF
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GOSUB
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_STARTSUB
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_RETSUB
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LINE
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SHORTNUMBER
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_INTNUMBER
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_NEW
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_SET
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SPARE_ARRAYLIT
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C0
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C2
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C3
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C4
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C5
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND2
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND4
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C0
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C2
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C3
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR2
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR4
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GETVAR1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETVAR1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_UNDEF
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ZERO
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ONE
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ENTERDQ
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LEAVEDQ
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_TAIL_CALL
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LOCAL_CLEAR
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_GETTER
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_SETTER
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONST
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONSTVAR
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONSTVAR1
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GENERATOR
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GENERATOR_END
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DEBUGGER
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MIN_ICODE
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Icode
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Interpreter
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeContinuation
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeContinuation'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeContinuation
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeContinuation
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeContinuation
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Script
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Script'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Script
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.debug.DebuggableScript
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.debug.DebuggableScript'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.debug.DebuggableScript
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeFunction
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeFunction'.
+Aug 05, 2018 5:00:55 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.InterpretedFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.InterpretedFunction'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterpretedFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterpretedFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.InterpretedFunction
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContextListener
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContextListener'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContextFactory$Listener
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContextFactory$Listener'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContextFactory$Listener
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContextListener
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptStackElement
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptStackElement'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptStackElement
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptStackElement
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptStackElement
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.jsc.Main
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.jsc.Main'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/jsc/Main
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/jsc/Main
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.tools.jsc.Main
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ErrorReporter'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.ScriptNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.ScriptNode'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ScriptNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ScriptNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.ast, 473528713
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.Scope
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.Scope'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Scope
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Scope
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.Jump
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.Jump'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Jump
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Jump
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.AstNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.AstNode'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/AstNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/AstNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Node
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Node'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Node
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Node
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Node
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.AstNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.Jump
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.Scope
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.ScriptNode
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.NumberLiteral
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.NumberLiteral'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/NumberLiteral
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/NumberLiteral
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.NumberLiteral
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.Name
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.Name'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Name
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Name
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.Name
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.NodeVisitor
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.NodeVisitor'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.NodeVisitor
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.StackStyle
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.StackStyle'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/StackStyle
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/StackStyle
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.StackStyle
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.DefaultErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.DefaultErrorReporter'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/DefaultErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/DefaultErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.DefaultErrorReporter
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeSymbol
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeSymbol'.
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeSymbol
+Aug 05, 2018 5:00:56 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeSymbol
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeSymbol
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptableObject$SlotAccess
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptableObject$SlotAccess'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$SlotAccess
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptableObject$SlotAccess
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptableObject$SlotAccess
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.UniqueTag
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.UniqueTag'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/UniqueTag
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/UniqueTag
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.UniqueTag
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContextFactory
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContextFactory'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContextFactory
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ContextFactory
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContextFactory
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContextFactory$GlobalSetter
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContextFactory$GlobalSetter'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContextFactory$GlobalSetter
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.GeneratedClassLoader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.GeneratedClassLoader'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.GeneratedClassLoader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.debug.Debugger
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.debug.Debugger'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.debug.Debugger
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Context$ClassShutterSetter
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Context$ClassShutterSetter'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Context$ClassShutterSetter
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.classfile.ConstantPool
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.classfile.ConstantPool'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ConstantPool
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ConstantPool
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ConstantPoolSize
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Class
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Fieldref
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Methodref
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_InterfaceMethodref
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_String
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Integer
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Float
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Long
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Double
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_NameAndType
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Utf8
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_MethodType
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_MethodHandle
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_InvokeDynamic
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_UTF_ENCODING_SIZE
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.classfile, 2026480364
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.classfile.ConstantPool
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime$MessageProvider
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime$MessageProvider'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime$MessageProvider
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.RegExpProxy
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.RegExpProxy'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.RegExpProxy
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.SourceReader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.SourceReader'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/SourceReader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/SourceReader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.tools, -188013790
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.tools.SourceReader
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Wrapper
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Wrapper'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Wrapper
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime$NoSuchMethodShim
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime$NoSuchMethodShim'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$NoSuchMethodShim
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$NoSuchMethodShim
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime$NoSuchMethodShim
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ObjArray
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ObjArray'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjArray
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ObjArray
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FIELDS_STORE_SIZE
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ObjArray
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.SymbolKey
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.SymbolKey'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SymbolKey
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/SymbolKey
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.SymbolKey
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.classfile.ClassFileWriter$MHandle
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.classfile.ClassFileWriter$MHandle'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$MHandle
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$MHandle
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.classfile.ClassFileWriter$MHandle
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime'.
+Aug 05, 2018 5:00:57 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptRuntime
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime$1
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime$1'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$1
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime$1
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeString
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeString'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeString
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeString
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeString
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeNumber
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeNumber'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeNumber
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeNumber
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeNumber
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.WrappedException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.WrappedException'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/WrappedException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/WrappedException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.WrappedException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ImporterTopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ImporterTopLevel'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ImporterTopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ImporterTopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.TopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.TopLevel'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.TopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ImporterTopLevel
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Kit
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Kit'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Kit
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Kit
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Kit
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContextAction
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContextAction'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContextAction
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeArray
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeArray'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeArray
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeArray
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.optimizer.Codegen
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.optimizer.Codegen'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/Codegen
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/optimizer/Codegen
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.optimizer, 204039932
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.optimizer.Codegen
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.classfile.ClassFileWriter$ClassFileFormatException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.classfile.ClassFileWriter$ClassFileFormatException'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$ClassFileFormatException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$ClassFileFormatException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.classfile.ClassFileWriter$ClassFileFormatException
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.FunctionNode
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.FunctionNode'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/FunctionNode
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/FunctionNode
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.FunctionNode
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime$DefaultMessageProvider
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime$DefaultMessageProvider'.
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$DefaultMessageProvider
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$DefaultMessageProvider
+Aug 05, 2018 5:00:58 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime$DefaultMessageProvider
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Ref
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Ref'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Ref
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Ref
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Ref
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.RegExpLiteral
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.RegExpLiteral'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/RegExpLiteral
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/RegExpLiteral
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.RegExpLiteral
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeJavaPackage
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeJavaPackage'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaPackage
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaPackage
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeJavaPackage
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.classfile.ExceptionTableEntry
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.classfile.ExceptionTableEntry'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ExceptionTableEntry
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ExceptionTableEntry
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.classfile.ExceptionTableEntry
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Interpreter$CallFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Interpreter$CallFrame'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter$CallFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Interpreter$CallFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Interpreter$CallFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeJavaObject
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeJavaObject'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaObject
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeJavaObject
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeJavaObject
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.JavaAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.JavaAdapter'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/JavaAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.JavaAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ObjToIntMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ObjToIntMap'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjToIntMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ObjToIntMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ObjToIntMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.optimizer.OptFunctionNode
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.optimizer.OptFunctionNode'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/OptFunctionNode
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/OptFunctionNode
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.optimizer.OptFunctionNode
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ContinuationPending
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ContinuationPending'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContinuationPending
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ContinuationPending
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ContinuationPending
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeJavaClass
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeJavaClass'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaClass
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaClass
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field javaClassPropertyName
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeJavaClass
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.UintMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.UintMap'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/UintMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/UintMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field A
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EMPTY
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DELETED
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field check
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.UintMap
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.InterfaceAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.InterfaceAdapter'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterfaceAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterfaceAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.InterfaceAdapter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.debug.DebugFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.debug.DebugFrame'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.debug.DebugFrame
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.TopLevel$NativeErrors
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.TopLevel$NativeErrors'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel$NativeErrors
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel$NativeErrors
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.TopLevel$NativeErrors
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.Comment
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.Comment'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Comment
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Comment
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.Comment
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeArray$StringLikeComparator
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeArray$StringLikeComparator'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray$StringLikeComparator
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeArray$StringLikeComparator
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeArray$StringLikeComparator
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ClassShutter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ClassShutter'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ClassShutter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.jdk15.VMBridge_jdk15
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.jdk15.VMBridge_jdk15'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/jdk15/VMBridge_jdk15
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/jdk15/VMBridge_jdk15
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.jdk15, -197582436
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/VMBridge
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/VMBridge
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.VMBridge
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.jdk15.VMBridge_jdk15
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.jdk18.VMBridge_jdk18
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.jdk18.VMBridge_jdk18'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/jdk18/VMBridge_jdk18
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/jdk18/VMBridge_jdk18
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.jdk18, -197582433
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.jdk18.VMBridge_jdk18
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Token$CommentType
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Token$CommentType'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Token$CommentType
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Token$CommentType
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Token$CommentType
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.Symbol
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.Symbol'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Symbol
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Symbol
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.Symbol
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptableObject$Slot
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptableObject$Slot'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$Slot
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptableObject$Slot
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptableObject$Slot
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.ToolErrorReporter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.ToolErrorReporter'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/ToolErrorReporter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/ToolErrorReporter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field messagePrefix
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.tools.ToolErrorReporter
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.TopLevel$Builtins
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.TopLevel$Builtins'.
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel$Builtins
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel$Builtins
+Aug 05, 2018 5:00:59 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.TopLevel$Builtins
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeArray$ElementComparator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeArray$ElementComparator'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray$ElementComparator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeArray$ElementComparator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeArray$ElementComparator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.classfile.ClassFileWriter
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.classfile.ClassFileWriter'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/classfile/ClassFileWriter
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.classfile.ClassFileWriter
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.LazilyLoadedCtor
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.LazilyLoadedCtor'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/LazilyLoadedCtor
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/LazilyLoadedCtor
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_BEFORE_INIT
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_INITIALIZING
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_WITH_VALUE
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.LazilyLoadedCtor
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.MemberBox
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.MemberBox'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/MemberBox
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/MemberBox
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.MemberBox
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Interpreter$GeneratorState
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Interpreter$GeneratorState'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter$GeneratorState
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Interpreter$GeneratorState
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Interpreter$GeneratorState
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ScriptRuntime$IdEnumeration
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ScriptRuntime$IdEnumeration'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$IdEnumeration
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$IdEnumeration
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ScriptRuntime$IdEnumeration
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.InterpreterData
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.InterpreterData'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterpreterData
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterpreterData
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_MAX_ICODE_LENGTH
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_STRINGTABLE_SIZE
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_NUMBERTABLE_SIZE
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.InterpreterData
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.NativeCall
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.NativeCall'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeCall
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeCall
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.NativeCall
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.xml.XMLLib$Factory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.xml.XMLLib$Factory'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib$Factory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xml/XMLLib$Factory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader createPackageDefinition
+INFO: Defined package (3): package org.mozilla.javascript.xml, 473550622
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.xml.XMLLib$Factory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.xml.XMLLib$Factory$1
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.xml.XMLLib$Factory$1'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib$Factory$1
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.xml.XMLLib$Factory$1
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.Node$PropListItem
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.Node$PropListItem'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Node$PropListItem
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Node$PropListItem
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.Node$PropListItem
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.xml.XMLLib
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.xml.XMLLib'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xml/XMLLib
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.xml.XMLLib
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.SecurityController
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.SecurityController'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SecurityController
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/SecurityController
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field global
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.SecurityController
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.WrapFactory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.WrapFactory'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/WrapFactory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/WrapFactory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.WrapFactory
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ObjToIntMap$Iterator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ObjToIntMap$Iterator'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjToIntMap$Iterator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ObjToIntMap$Iterator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ObjToIntMap$Iterator
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.CompilerEnvirons
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.CompilerEnvirons'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/CompilerEnvirons
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/CompilerEnvirons
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.CompilerEnvirons
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.optimizer.ClassCompiler
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.optimizer.ClassCompiler'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/ClassCompiler
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/ClassCompiler
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.optimizer.ClassCompiler
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.ast.AstRoot
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.ast.AstRoot'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/AstRoot
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/AstRoot
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Keeping class: org.mozilla.javascript.ast.AstRoot
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:00 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.resources.Messages
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.resources.Messages'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/tools/resources/Messages.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.tools.resources.Messages_en
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.tools.resources.Messages_en'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/tools/resources/Messages_en.class' should be in target project, but could not be found!
+Didn't understand "null". 
+For more information, try java org.mozilla.javascript.tools.jsc.Main -h
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Didn't understand "null". 
+For more information, try java org.mozilla.javascript.tools.jsc.Main -h
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: -implements
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class '-implements'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class '-implements.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: File "msg.couldn.open" is not a valid class file name.
+js: Cannot compile multiple js files to "msg.couldn.open".
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: File "Ry+>(/UCT]GxzOo-A" is not a valid class file name.
+js: File ".class" is not a valid class file name.
+js: File "-o" is not a valid class file name.
+js: File "" is not a valid class file name.
+Didn't understand "-o". 
+For more information, try java org.mozilla.javascript.tools.jsc.Main -h
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Didn't understand "-observe-instruction-count". 
+For more information, try java org.mozilla.javascript.tools.jsc.Main -h
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: java.io.IOException: Simulated IOException
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: File "-o" is not a valid js file name.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: File "/home/mmotwani/rhino/buildGradle/libs/evosuite_3/.js" not found.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:01 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: +.+d"{#!O_Xe7%Xe@
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class '+.+d"{#!O_Xe7%Xe@'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class '+/+d"{#!O_Xe7%Xe@.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: Couldn't open file "/home/mmotwani/rhino/buildGradle/libs/evosuite_3/.js".
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+js: "" is not a valid package name.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader loadClass
+INFO: Seeing class for first time: org.mozilla.javascript.VMBridge_custom
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Instrumenting class 'org.mozilla.javascript.VMBridge_custom'.
+Aug 05, 2018 5:01:02 AM org.evosuite.runtime.instrumentation.EvoClassLoader instrumentClass
+INFO: Error while loading class: java.lang.ClassNotFoundException: Class 'org/mozilla/javascript/VMBridge_custom.class' should be in target project, but could not be found!
+]]></system-err>
+</testsuite>
