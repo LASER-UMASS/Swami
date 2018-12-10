@@ -39,42 +39,64 @@ from generateExecutableTests import ExecutableTest
 class Swami(object):
 	def __init__(self, inputfile, outputdir):
 		self.input_spec = inputfile
-		self.output_test_dir = outputdir 
-		self.rel_sec = RelevantSection()
-		self.test_template = TestTemplate()
-		self.executable_test = ExecutableTest()
+		self.output_dir = outputdir 
+		self.rel_sec_extractor = RelevantSection()
+		self.test_template_generator = TestTemplate()
+		self.executable_test_generator = ExecutableTest()
 
-	def extractRelevantSections(okapi=False):
+	# returns a dictionary of relevant sections (sections that deal 
+	# with exceptions of boundary conditions) where key is the heading 
+	# and value is the body of the section
+	def extractRelevantSections(self, okapi=False):
+		filepath = self.output_dir + "/" + self.input_spec.split("/")[-1].split(".")[0] + "_relevant_sections.txt"
+		print("Extracting relevant sections from: ", self.input_spec, " and storing them in: ", filepath)
+		print("begin extracting relevant sections .....................................")
+		rel_sec_file = open(filepath, "w")
+		extracted_sections = self.rel_sec_extractor.getRelevantSections(self.input_spec)
+		print("finished extracting relevant sections ..................................")
+		for header in sorted(extracted_sections):
+			sectionid = header.split()[0]
+			summary = " ".join(header.split()[1:])
+			body = extracted_sections[header]
+			rel_sec_file.write("##########################################\n")
+			rel_sec_file.write("ID= " +  sectionid + "\n")
+			rel_sec_file.write("Summary= " +  summary + "\n")
+			rel_sec_file.write("Description= " + body + "\n") 
+			rel_sec_file.write("##########################################\n")
+		rel_sec_file.close()
+		self.rel_sec_extractor.nlp.close()
+		print("finished writing relevant sections to file .............................")
+		print("Total number of relevant sections extracted = ", len(extracted_sections))
+	
+	
+	
+	def extractTestTemplates(self):
 		pass
 
-	def extractTestTemplate():
-		pass
-
-	def generateExecutableTests():
+	def generateExecutableTests(self):
 		pass
 
 
 if __name__ == '__main__':
-	if len(sys.argv) < 3 or len(sys.argv) > 3:
-		print("USAGE: python swami.py <path-to-ECMA-262_v8.txt> <path-to-output-test-directory> \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../RhinoTestSuite")
+	if len(sys.argv) < 3 or len(sys.argv) > 4:
+		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-output-directory> <[getRelSection | genTemplates | genTests]> \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../RhinoTestSuite/")	
 		sys.exit(1)
-	
-	input_spec_file = sys.argv[1]
-	output_dir = sys.argv[2]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	specification_path = sys.argv[1]
+	output_dir_path = sys.argv[2]
+	test_generator = Swami(specification_path, output_dir_path)
+	# extract relevant sections only and write to file
+	if sys.argv[3] == "getRelSections":
+		test_generator.extractRelevantSections()
+	# only generate test templates
+	elif sys.argv[3] == "genTemplates":
+		test_generator.extractRelevantSections()
+		test_generator.extractTestTemplates()
+	# generate full test suites
+	elif sys.argv[3] == "genTests":
+		test_generator.extractRelevantSections()
+		test_generator.extractTestTemplates()
+		test_generator.extractExecutableTests()
+	else:
+		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-output-directory> <[getRelSection | genTemplates | genTests]> \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../RhinoTestSuite/")	
+		sys.exit(1)
