@@ -23,80 +23,157 @@
 #
 # This is the main driver program that is used to generate tests
 # from natural-language specifications.
-# INPUT: ECMA-262 document in txt format
-# OUTPUT: Directory containing executable test-files for JavaScript
+# INPUT: path to ECMA-262 document in text format, path to output directory
+# OUTPUT: executable test-files for JavaScript in the output directory
 # TO RUN: python swami.py <path-to-specification-doc> <path-to-output-directory>
 #
 # ==============================================================================
 
-
+import os
 import sys
 import argparse
 from extractRelevantSections import RelevantSection 
-from extractTestTemplate import TestTemplate 
+from generateTestTemplates import TestTemplate 
 from generateExecutableTests import ExecutableTest
+from printprogress import printProgressBar
+from time import sleep
 
 class Swami(object):
-	def __init__(self, inputfile, outputdir):
-		self.input_spec = inputfile
+	def __init__(self, inputfilepath, abstractfunfilepath, outputdir):
+		self.input_spec = inputfilepath
+		self.abstractfunc_file_path = abstractfunfilepath
 		self.output_dir = outputdir 
+		self.templatefilepath = self.output_dir + "/ecma262_templates.js"
 		self.rel_sec_extractor = RelevantSection()
-		self.test_template_generator = TestTemplate()
-		self.executable_test_generator = ExecutableTest()
+		self.relevant_spec = self.output_dir + "/" + self.input_spec.split("/")[-1].split(".")[0] + "_relevant_sections.txt"
+		self.relevant_spec_exists = os.path.isfile(self.relevant_spec)
+		self.test_template_generator = TestTemplate(self.relevant_spec)
+		self.executable_test_generator = ExecutableTest(self.templatefilepath, self.output_dir)
+		self.extracted_sections = {}
 
 	# returns a dictionary of relevant sections (sections that deal 
 	# with exceptions of boundary conditions) where key is the heading 
 	# and value is the body of the section
 	def extractRelevantSections(self, okapi=False):
-		filepath = self.output_dir + "/" + self.input_spec.split("/")[-1].split(".")[0] + "_relevant_sections.txt"
-		print("Extracting relevant sections from: ", self.input_spec, " and storing them in: ", filepath)
+		print("Extracting relevant sections from: ", self.input_spec)
+		filepath = self.relevant_spec
 		print("begin extracting relevant sections .....................................")
 		rel_sec_file = open(filepath, "w")
 		extracted_sections = self.rel_sec_extractor.getRelevantSections(self.input_spec)
-		print("finished extracting relevant sections ..................................")
+		section_count = 0
+		numofsec = len(extracted_sections)
+		printProgressBar(0, numofsec, prefix = 'Writing Relevant Sections to the File Progress:', suffix = 'Complete', length = 50)
 		for header in sorted(extracted_sections):
+			section_count += 1
+			sleep(1)
+			printProgressBar(section_count + 1, numofsec, prefix = 'Writing Relevant Sections to the File Progress:', suffix = 'Complete', length = 50)
 			sectionid = header.split()[0]
 			summary = " ".join(header.split()[1:])
 			body = extracted_sections[header]
-			rel_sec_file.write("##########################################\n")
+			rel_sec_file.write("############# BEGIN ## " + str(section_count) + " ###########################\n")
 			rel_sec_file.write("ID= " +  sectionid + "\n")
 			rel_sec_file.write("Summary= " +  summary + "\n")
 			rel_sec_file.write("Description= " + body + "\n") 
-			rel_sec_file.write("##########################################\n")
+			rel_sec_file.write("#############  END  ## " + str(section_count) + " ###########################\n")
+			if header not in self.extracted_sections:
+				self.extracted_sections[header] = body
 		rel_sec_file.close()
 		self.rel_sec_extractor.nlp.close()
-		print("finished writing relevant sections to file .............................")
+		print()
 		print("Total number of relevant sections extracted = ", len(extracted_sections))
+		print("Output is available in: ", filepath)
 	
-	
-	
-	def extractTestTemplates(self):
-		pass
+	def readRelevantSections(self):
+		if self.relevant_spec_exists is True:	
+			rel_sec_file = open(self.relevant_spec)
+			startsec = False
+			for line in rel_sec_file:
+				if startsec is False and "############# BEGIN ##" in line:
+					startsec = True
+					body = ""
+					header = ""
+				elif "ID= " in line:
+					header += line.split("=")[1].strip()		
+				elif "Summary= " in line:
+					header += " " + line.split("=")[1].strip() + "\n"		
+				elif "Description= " in line:
+					body += line.split("=")[1].strip() + "\n"
+				elif "#############  END  ## "in line:
+					if header not in self.extracted_sections:
+						self.extracted_sections[header] = body
+					startsec = False
+				elif startsec is True and len(line)>1:
+					body += line.strip() + "\n"		
 
-	def generateExecutableTests(self):
-		pass
+	def addAbstractFunctions(self):
+		template_file = open(self.templatefilepath, "w+")
+		abstract_func_file = open(self.abstractfunc_file_path)
+		abstract_functions = abstract_func_file.read()
+		template_file.write(abstract_functions)
+		abstract_func_file.close()
+		template_file.close()
+
+
+	def generateTemplates(self, extracted_sections):
+		self.addAbstractFunctions()
+		templates = self.test_template_generator.generateTestTemplates(extracted_sections)
+		template_file = open(self.templatefilepath, "a")
+		template_file.write("\n\n/*TEST TEMPLATES GENERATED AUTOMATICALLY*/\n\n")
+		for header in templates:
+			template_file.write("\n\n")
+			if len(templates[header][0].split("{")[1])<2:
+				continue
+			for line in templates[header]:
+				template_file.write(line)
+			template_file.write("\n\n")
+		template_file.close()
+		#print("Total number of test templates generated = ", len(templates.keys()))
+		print("Generated templates are available in file: ", self.templatefilepath)
+
+	def generateTests(self):
+		self.executable_test_generator.generateExecutableTests()
+		print("Test files generated for Rhino are available in: " + self.output_dir + "/Rhino_ECMA262_Tests" )
+		print("Test files generated for Node.js are available in: " + self.output_dir + "/Node_ECMA262_Tests" )
 
 
 if __name__ == '__main__':
-	if len(sys.argv) < 3 or len(sys.argv) > 4:
-		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-output-directory> <[getRelSection | genTemplates | genTests]> \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../RhinoTestSuite/")	
+	if len(sys.argv) < 4 or len(sys.argv) > 5:
+		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-abstract-functions-code> <path-to-output-directory> <[getRelSections | genTemplates | genTests]> \
+		     \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/")	
 		sys.exit(1)
 
 	specification_path = sys.argv[1]
-	output_dir_path = sys.argv[2]
-	test_generator = Swami(specification_path, output_dir_path)
+	abstract_func_path = sys.argv[2]
+	output_dir_path = sys.argv[3]
+	test_generator = Swami(specification_path, abstract_func_path, output_dir_path)
+	
+
 	# extract relevant sections only and write to file
-	if sys.argv[3] == "getRelSections":
+	if sys.argv[4] == "getRelSections":
 		test_generator.extractRelevantSections()
-	# only generate test templates
-	elif sys.argv[3] == "genTemplates":
-		test_generator.extractRelevantSections()
-		test_generator.extractTestTemplates()
-	# generate full test suites
-	elif sys.argv[3] == "genTests":
-		test_generator.extractRelevantSections()
-		test_generator.extractTestTemplates()
-		test_generator.extractExecutableTests()
+	
+
+	# extract (or use existing) relevant sections and generate test templates
+	elif sys.argv[4] == "genTemplates":
+		if not test_generator.relevant_spec_exists:
+			test_generator.extractRelevantSections()
+		else:
+			print("Reading relevant sections from existing file...............")
+			test_generator.readRelevantSections()
+		test_generator.generateTemplates(test_generator.extracted_sections)
+	
+
+	# generate full test suites from scratch
+	elif sys.argv[4] == "genTests":
+		if not test_generator.relevant_spec_exists:
+			test_generator.extractRelevantSections()
+		else:
+			print("Reading relevant sections from existing file...............")
+			test_generator.readRelevantSections()
+		if not os.path.isfile(test_generator.templatefilepath):
+			test_generator.generateTemplates(test_generator.extracted_sections)
+		test_generator.generateTests()
 	else:
-		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-output-directory> <[getRelSection | genTemplates | genTests]> \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../RhinoTestSuite/")	
+		print("Invalid Command Error!\nUSAGE: python swami.py <path-to-specification-file> <path-to-abstract-functions-code> <path-to-output-directory> <[getRelSections | genTemplates | genTests]> \
+		     \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/")	
 		sys.exit(1)
