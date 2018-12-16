@@ -29,10 +29,16 @@
 from stanfordcorenlp import StanfordCoreNLP
 import sys
 import re
+from time import sleep
+from printprogress import printProgressBar
+
+
 conditionalpattern1 = re.compile("If .* return .*")
 conditionalpattern2 = re.compile("If .* the result is .*")
 exceptionpattern = re.compile("throw a .* exception")
 DEBUG = False
+
+
 class RelevantSection(object):
 	def __init__(self):
 		self.relevant_sections = {}	# dictionary that stores the relevant sections extrated from specification document
@@ -41,6 +47,18 @@ class RelevantSection(object):
 	def tokenize(self, sentence):
 		postags = self.nlp.pos_tag(sentence)
 		return postags
+	
+	"""
+	# Print iterations progress
+	def printProgressBar (self, iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+		percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+		filledLength = int(length * iteration // total)
+		bar = fill * filledLength + '-' * (length - filledLength)
+		print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+		# Print New Line on Complete
+		if iteration == total: 
+			print()
+	"""
 
 	def checkIfRelevantHeader(self, line, pos_tokens):
 		relsec = False
@@ -66,9 +84,13 @@ class RelevantSection(object):
 		body = ""
 		document = ""
 		linecount = 0
+		doclen = len(spec_doc.read().split("\n"))
+		spec_doc = open(path_to_spec_doc)
+		printProgressBar(0, doclen, prefix = 'Extracting Header Progress:', suffix = 'Complete', length = 50)
 		# loop through the document to extract the header sentences and store all the content
 		for line in spec_doc:
 			linecount += 1
+			printProgressBar(linecount + 1, doclen, prefix = 'Extracting Header Progress:', suffix = 'Complete', length = 50)
 			document += line 	
 			if len(line) > 1:
 				pos_tokens = self.tokenize(line.strip().replace("[", "").replace("]", ""))
@@ -83,7 +105,9 @@ class RelevantSection(object):
 		body = ""
 		header = ""
 		doclines = document.split("\n")
+		printProgressBar(0, len(doclines), prefix = 'Extracting Body Progress:', suffix = 'Complete', length = 50)
 		for idx in range(len(doclines)):
+			printProgressBar(idx + 1, len(doclines), prefix = 'Extracting Body Progress:', suffix = 'Complete', length = 50)
 			line = doclines[idx]
 			if line.strip() in headers or idx == len(doclines) - 1:
 				if header != "":
@@ -130,7 +154,11 @@ class RelevantSection(object):
 	
 	def getRelevantSections(self, path_to_spec_doc):
 		extracted_sections = self.extractSections(path_to_spec_doc)
+		printProgressBar(0, len(extracted_sections), prefix = 'Extracting Relevant Specifications Progress:', suffix = 'Complete', length = 50)
+		count = 0
 		for header in sorted(extracted_sections):
+			count += 1
+			printProgressBar(count + 1, len(extracted_sections), prefix = 'Extracting Relevant Specifications Progress:', suffix = 'Complete', length = 50)
 			body = extracted_sections[header]
 			if self.isSectionRelevant(header, body):
 				self.relevant_sections[header] = body
@@ -141,4 +169,5 @@ class RelevantSection(object):
 					print("=====  BODY  ==================================== ")
 					print(body)
 					print("#########################################################\n")
+		sleep(1)
 		return self.relevant_sections
