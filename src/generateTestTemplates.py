@@ -28,18 +28,20 @@ argpattern = re.compile("\(([^()]*)\)")
 exceptionpattern = re.compile("throw a .* exception")
 returnpattern = re.compile("return .*")
 assignmentpattern = re.compile("Let .+\?*")
-relevantstmtpattern1 = re.compile(".* If .* return .*")
-relevantstmtpattern2 = re.compile(".* If .* the result is .*")
+relevantstmtpattern1 = re.compile("If .* return .*")
+relevantstmtpattern2 = re.compile("If .* the result is .*")
+
 from printprogress import printProgressBar
 
 
 
 class TestTemplate(object):
-	def __init__(self, relspecpath):
+	def __init__(self, relspecpath, compiler):
 		self.template_content = {}
 		self.test_templates = {}
 		self.variable_dataset = {}
 		self.relevant_spec_path = relspecpath
+		self.compiler = compiler
 
 	# method to check if a statement is an assignment
 	# and if it is then store the variable and its value
@@ -55,24 +57,21 @@ class TestTemplate(object):
 		if "(" in value and ")" in value:
 			funcval = True
 		if funcval is True:
-			args = re.search(argpattern, value)
-		if funcval and args:
-			funcname = value.split("(")[0].replace("?", "")
-			funcargs = args.group()
-			return variable, funcname+funcargs
+			value = value.replace("?", "").strip()
+			value = value.replace("!", "").strip()
+			if value.endswith("."):
+				return variable, value[:-1]
+			else:			
+				return variable, value
 		else:
 			return variable, value
-
+		
 	
 	# method to simplify the conditional statements extracted from the body of 
 	# relevant sections by translating English phrases in to syntaxtically valid code
 	# and substituting the assignment variables with their values stored in dictionary  
 	# the order of substitution matters!
 	def substituteVars(self, text, sectionid):
-		args = re.search(argpattern, text)		
-		if args:
-			funcname = text.split("(")[0].strip()
-			funcargs = args.group()
 
 		if text[0].isdigit() or ". " in text:
 			text = "".join(text.split(". ")[1:])		
@@ -84,7 +83,19 @@ class TestTemplate(object):
 		if text.endswith("."):
 			text = text[:-1]
 		if "otherwise return" in text:
-			text = text.replace("otherwise return", "else return");
+			text = text.replace("otherwise return", "else return");	
+		if "but greater than or equal to" in text:
+			var = text.split("is")[0].split()[-1].strip()
+			text = text.replace("but greater than or equal to", " && " + var + " >=");		
+		if "but greater than" in text:
+			var = text.split("is")[0].split()[-1].strip()
+			text = text.replace("but greater than", " && " + var + " >");	
+		if "but less than or equal to" in text:
+			var = text.split("is")[0].split()[-1].strip()
+			text = text.replace("but less than or equal to", " && " + var + " >=");		
+		if "but less than" in text:
+			var = text.split("is")[0].split()[-1].strip()
+			text = text.replace("but less than", " && " + var + " >");	
 		if "is not greater than" in text:
 			text = text.replace("is not greater than", "<");		
 		if "is not less than" in text:
@@ -93,34 +104,60 @@ class TestTemplate(object):
 			text = text.replace("is greater than", ">");		
 		if "is less than" in text:
 			text = text.replace("is less than", "<");		
-		if "but less than" in text:
-			var = text.split("</var>")[0].split("<var>")[1].strip()
-			text = text.replace("but less than", " && " + var  + " <");		
-		if "but greater than" in text:
-			var = text.split("</var>")[0].split("<var>")[1].strip()
-			text = text.replace("but greater than", " && " + var + " >");		
+		if "is negative" in text:
+			text = text.replace("is negative", "< 0");		
+		if "is positive" in text:
+			text = text.replace("is positive", "> 0");		
 		if "is not equal to" in text:
-			text = text.replace("is not equal to", "!=");		
+			text = text.replace("is not equal to", " != ");		
 		if " is equal to" in text:
 			text = text.replace(" is equal to", " === ");
 		if "is not" in text:
-			text = text.replace("is not", "!=");		
+			text = text.replace("is not", " != ");		
 		if " or " in text:
-			text = text.replace(" or ", "|| ")
+			if "," in text.split(" or ")[0]:
+				variable = ""
+				values = []
+				result = ""
+				if "is " in text:
+					variable = text.split("is ")[0].split()[-1]
+					if "return" in text:
+						values = text.split("is ")[1].split("return")[0].split(",")
+						result = "return" + text.split("return")[1]
+					elif "throw" in text:
+						values = text.split("is ")[1].split("throw")[0].split(",")
+						result = "throw" + text.split("throw")[1]
+					
+				if "=== " in text:
+					variable = text.split("=== ")[0].split()[-1]
+					if "return" in text:
+						values = text.split("=== ")[1].split("return")[0].split(",")
+						result = "return" + text.split("return")[1]
+					elif "throw" in text:
+						values = text.split("=== ")[1].split("throw")[0].split(",")
+						result = "return" + text.split("return")[1]
+				if len(values) > 0:
+					string = ""
+					for v in values:
+						if v.strip() != "":
+							string = string + variable + " === " + v.strip() + " || "	
+							text = text.replace(v.strip(), "")
+					text = text.split(variable)[0] + string[:-4] + " ) " + result
+					text = text.replace(",", "")
+					text = text.replace(" or ", "")
+			else:
+				text = text.replace(" or ", " || ")
 		if " and " in text:
-			text = text.replace(" and ", "&& ")
+			text = text.replace(" and ", " && ")
 		if ", return" in text:
 			text = text.replace(", return", ") return")	
 		if ", throw" in text:
 			text = text.replace(", throw", ") throw")
-		if "one of" in text:
-#			print("SEE WHAT TO DO IN ", text)
-			variable = text.split("one of ")[0].strip()
-			values = text.split("one of")[1].split(")")[0].split(",")
+		if "is one of" in text:
+			variable = text.split("is one of ")[0].split()[-1]
+			values = text.split("is one of")[1].split(")")[0].split(",")
 			string = ""
-#			print("VAR:", variable)
-#			print("VAL:", values)
-			for v in values[1:]:
+			for v in values:
 				string = string + variable + " === " + v + " || "	
 				text = text.replace(v, "")
 			text = text.replace(",", "")
@@ -143,10 +180,12 @@ class TestTemplate(object):
 			text = text.replace(" is exactly", " === ");
 		if " is " in text:
 			text = text.replace(" is ", " === ");
-		text = text.strip() 
+
+		text = text.strip().replace("(", " ( ").replace(")", " ) ").replace(",", " , ").replace("+", " + ").replace(">", " > ").replace(".length", " .length")
 		for (variable,sid) in self.variable_dataset:
 			if variable in text and sid==sectionid and variable not in self.variable_dataset[(variable,sid)]:
 				text = text.replace(variable, self.variable_dataset[(variable,sid)])
+
 		return text
 
 	# method used to extract the method signature and create a callable 
@@ -156,6 +195,7 @@ class TestTemplate(object):
 		sectionid = header.split()[0]
 		summary = " ".join(header.split()[1:]).replace("...", "")
 		args = re.search(argpattern, summary)		
+		callablefunction = "unknown(unknown)"
 		if "Number" in summary:	
 			if "prototype" in summary:
 				callablefunction = "var output = Number(randominput)." + summary.strip().split(".")[-1].replace(" ", "") + ";"
@@ -176,9 +216,9 @@ class TestTemplate(object):
 		elif "String" in summary:
 			callablefunction = "var output = new String(randominput)." + summary.strip().split(".")[-1].replace(" ", "") + ";"		
 		elif "WeakMap" in summary:
-			callablefunction = "const weakmap1 = new WeakMap(); var output = weakmap1." + summary.strip().split(".")[-1].replace(" ", "") + ";"
+			callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"
 		elif "Map" in summary:
-			callablefunction = "const map1 = new Map(); var output = map1." + summary.strip().split(".")[-1].replace(" ", "") + ";"
+			callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"
 		elif "SharedArrayBuffer" in summary:
 			if args is None:
 				callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
@@ -204,7 +244,7 @@ class TestTemplate(object):
 			elif "Runtime Semantics: " in summary:
 				callablefunction = callablefunction.split(".")[0] + "." + summary.split("Runtime Semantics: ")[-1].replace(" ", "") + ";"
 		elif "Set" in summary:
-			callablefunction = "const set1 = new Set(); var output = set1." + summary.strip().split(".")[-1].replace(" ", "") + ";"
+			callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"
 		return callablefunction
 	
 
@@ -223,8 +263,12 @@ class TestTemplate(object):
 			statement = statement.replace("\xa0", " ")
 			isassignment = re.search(assignmentpattern, statement.strip())
 			if isassignment:
-			#	print("ASSIGNMENT:", statement)
 				var, value = self.getAssignment(statement)
+				var = " " + var + " "
+				if "." in value and ".length" not in value:
+					value = value.split(".")[0]
+				if "the number of elements in" in value:
+					value = value.replace("the number of elements in", "").strip() + ".length"
 				self.variable_dataset[var,sectionid] = value
 				numvars += 1
 
@@ -255,49 +299,98 @@ class TestTemplate(object):
 					self.template_content[header].append(updatedstatement)
 				else:
 					self.template_content[header].append(updatedstatement)	
+	
 
 
-	def preprocess(self, text):
+	# method to process specific symbols and phrases in the
+	# extracted natural language conditional statements in to
+	# valid JavaScript symbols and variables 
+	def convertTextToCode(self, text):
+		text = ' '.join(text.split())
+		text = text.replace("this value.", "randominput")
 		text = text.replace("this value", "randominput")
-		text = text.replace("if ", "")
-		text = text.replace("the", "")
-		text = text.replace("Type(", "typeof(")
-	#       text = text.replace("thisTimeValue", "")
-	#       text = text.replace("thisNumberValue", "")
+		text = text.replace("result of ", "")
+		text = text.replace("if", "")
+		text = text.replace(" the ", "")
+		text = text.replace("Type (", "typeof (")
+		text = text.replace(" Object ", " \"object\" ")
+		text = text.replace(" Number ", " \"number\" ")
 		text = text.replace("empty String", "\"\"")
 		text = text.replace("empty string", "\"\"")
 		text = text.replace("String \"NaN\"", "\"NaN\"")
 		text = text.replace("+∞", "Infinity")
 		text = text.replace("-∞", "-Infinity")
 		text = text.replace("∞", "Infinity")
+		text = text.replace("‑", "-")
 		text = text.replace("+0", "0")
+		text = text.replace("‑0", "-0")
 		text = text.replace("≥", ">=")
+		text = text.replace("> =", ">=")
+		text = text.replace("< =", "<=")
 		text = text.replace("≤", "<=")
 		text = text.replace("! ", "")
 		text = text.replace("× ", "*")
 		text = text.replace(" ≠ ", "!=")
-		text = text.replace("min(", "Math.min(")
-		text = text.replace("max(", "Math.max(")
-		text = text.replace("number of elements in ToString(RequireObjectCoercible(randominput))", "ToString(RequireObjectCoercible(randominput)).length")
-		text = text.replace("number of elements in ToString(searchString)", "ToString(searchString).length")
+		text = text.replace("! =", "!=")
+		text = text.replace("min (", "Math.min (")
+		text = text.replace("max (", "Math.max (")
+		if "already an integer" in text:
+			var = text.split("===")[0].split("(")[1]
+			text = text.replace("already an integer", "parseInt(" + var +", 10)")
+		if "number of elements in" in text:
+			text =  text.split("number of elements in")[0] + text.split("number of elements in")[1].replace(") ) )", ") ).length )")		
 
 		if text[-1]==".":
 			text = text[:-1]
-		if " === " in text:
-			lhs = text.split("===")[0].strip()
-			rhs = text.split("===")[1].strip()
+	
+		if "===" in text and ("NaN" in text or "-0" in text or "+0" in text):
+			if "&&" in text:
+				newtext = "("
+				clauses = text.split("&&")
+				for idx, clause in enumerate(clauses):
+					if " === " in clause:
+						lhs = clause.split("===")[0].strip()
+						rhs = clause.split("===")[1].strip()
+						if "NaN" in rhs or "-0" in rhs or "+0" in rhs:
+							if idx == 0:
+								clause = "Object.is" + lhs + "," + rhs + ")"
+							else:
+								clause = "Object.is(" + lhs + "," + rhs + ")"
+					if idx < len(clauses)-1:
+						newtext += clause + " && "
+					else:
+						newtext += clause
+				text = newtext
+			elif "||" in text:
+				newtext = "("
+				clauses = text.split("||")
+				for idx, clause in enumerate(clauses):
+					if " === " in clause:
+						lhs = clause.split("===")[0].strip()
+						rhs = clause.split("===")[1].strip()
+						if "NaN" in rhs or "-0" in rhs or "+0" in rhs:
+							if idx == 0:
+								clause = "Object.is" + lhs + "," + rhs + ")"
+							else:
+								clause = "Object.is(" + lhs + "," + rhs + ")"
+					if idx < len(clauses)-1:
+						newtext += clause + " && "
+					else:
+						newtext += clause
+				text = newtext
+			
 
-			if "NaN" in rhs or "-0" in rhs or "+0" in rhs:
-				text = "Object.is" + lhs + "," + rhs
 			else:
-				text = lhs + "===" + rhs
+				lhs = text.split("===")[0].strip()
+				rhs = text.split("===")[1].strip()
+				text = "Object.is" + lhs + "," + rhs				
 		return text
 
 
 
-	# method to generate a compilable test template function
-	# for a given relevant section  using its callable function 
-	# and conditional statements identified using above defined methods
+	# method to generate a compilable test template function using 
+	# the method call and natural language conditional statements identified 
+	# identified using above defined methods for a given relevant section
 	def generateCompilableTemplate(self, header):
 		testtemplate = self.template_content[header]
 		methodname = " ".join(header.split()[1:]).split("(")[0].strip()
@@ -305,6 +398,8 @@ class TestTemplate(object):
 		templates = []
 		testname = methodname.replace(".","_").replace("-","_").replace(" ", "_").lower()
 		vardecl = testtemplate[0]
+
+
 		if "..." in vardecl:
 			vardecl = vardecl.replace("...", "")
 
@@ -316,20 +411,20 @@ class TestTemplate(object):
 		else:
 			args = ""
 		if "." in vardecl:
-			a = re.search(argpattern,vardecl.split(".")[0])
-			b = re.search(argpattern,vardecl.split(".")[1])
-			if a and len(a.group()) >2:
+			arg1 = re.search(argpattern,vardecl.split(".")[0])
+			arg2 = re.search(argpattern,vardecl.split(".")[1])
+			if arg1 and len(arg1.group()) >2:
 				if len(args) > 0:
-					args = args + "," + a.group().replace("(", "").replace(")", "")
+					args = args + "," + arg1.group().replace("(", "").replace(")", "")
 				else:
-					args = args + a.group().replace("(", "").replace(")", "")
-			if a and b and len(b.group()) >2:
-					args = args + "," + b.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
-			elif b and len(b.group()) >2:
+					args = args + arg1.group().replace("(", "").replace(")", "")
+			if arg1 and arg2 and len(arg2.group()) >2:
+					args = args + "," + arg2.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+			elif arg2 and len(arg2.group()) >2:
 				if len(args) > 0:
-					args = args + ","  + b.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+					args = args + ","  + arg2.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
 				else:
-					args = args + b.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+					args = args + arg2.group().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
 		else:
 			if len(args) > 0:
 				args = args + "," +  vardecl.split("(")[1].split(")")[0]
@@ -338,59 +433,86 @@ class TestTemplate(object):
 
 		if "arguments" in args:
 			args = args.replace("arguments", "args")
+		if "randominput" not in args and "randominput" in vardecl:
+			if args=="":
+				args = "randominput"
+			else:
+				args = "randominput," + args
 
-		testfunction = "function test_" + testname + "("+ args + "){" # to put all if conditions in one function
+		testfunction = "function test_" + testname + "("+ args + "){" 
 		for i in range(1, len(testtemplate)):
 			templatecount += 1
-		#       testfunction = "function test_" + testname + "_" + str(i)+ "("+ args + "){" to put if conditions in separate functions
-			if "if " not in testtemplate[i]:
+
+			if "if " not in testtemplate[i]: 
 				continue
+			
+			# comment out following two lines to generate templates for more sections
+			# this was made possible by modifying existing patterns and adding more patterns
+			if "weak" in testfunction or "set_prototype" in testfunction or "regexp_prototype" in testfunction or "get_sharedarraybuffer" in testfunction or "get_map" in testfunction or "number_prototype_tofixed" in testfunction or "sharedarraybuffer" in testfunction or "array_prototype_concat" in testfunction or "array_prototype_push" in testfunction or "array_prototype_sort" in testfunction or "array_prototype_splice" in testfunction or "atomics_wait" in testfunction:
+				continue 
+
 			test = ""
 			testcondition = testtemplate[i]
 			if "return" in testcondition:
-				expectedinput = testcondition.split("return")[0].strip()
-				expectedinput = self.preprocess(expectedinput)
-				expectedoutput = self.preprocess(testcondition.split("return")[1].strip())
-				test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", " + expectedoutput + ", output);\n\t\ttest();\n\t\treturn;\n\t\t}"
-				testfunction = testfunction + "\n\t" + test # + "\n}" to put if conditions in separate functions
-				#print(testfunction)
-				# templates.append(testfunction)
+				expectedinput = testcondition.split("return")[0].strip().split("if")[1].strip()
+				expectedinput = self.convertTextToCode(expectedinput)
+				expectedoutput = self.convertTextToCode(testcondition.split("return")[1].strip())
+				if self.compiler == "rhino":
+					test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", " + expectedoutput + ", output);\n\t\ttest();\n\t\treturn;\n\t\t}"
+				elif self.compiler == "node":
+					test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "assert.strictEqual(" + expectedoutput + ", output);\n\t\treturn;\n\t\t}"
+				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or "atomics_wait" in test: 
+					continue
+				testfunction = testfunction + "\n\t" + test
 			if "throw" in testcondition:
-				expectedinput = testcondition.split("throw")[0].strip()
-				expectedinput = self.preprocess(expectedinput)
-				expectedoutput = self.preprocess(testcondition.split("throw")[1].strip())
-				test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t}catch(e){\n\t\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", true, eval(e instanceof "  + expectedoutput + "));\n\t\t\ttest();\n\t\t\treturn;\n\t\t}\n\t}" 
+				expectedinput = testcondition.split("throw")[0].split("if")[1].strip()
+				expectedinput = self.convertTextToCode(expectedinput)
+				expectedoutput = self.convertTextToCode(testcondition.split("throw")[1].strip())
+				if self.compiler == "rhino":
+					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", true, eval(e instanceof "  + expectedoutput + "));\n\t\t\ttest();\n\t\t\treturn;\n\t\t}\n\t}" 
+				elif self.compiler == "node":
+					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "assert.strictEqual(true, eval(e instanceof "  + expectedoutput + "));\n\t\t\treturn;\n\t\t}\n\t}" 
+				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or  "atomics_wait" in test:
+					continue 
 				testfunction = testfunction + "\n\t" + test # + "\n}" to put if conditions in separate functions
-				#print(testfunction)
-				# templates.append(testfunction)
-		testfunction = testfunction + "\n}"  # to put all if conditions in one function
+		testfunction = testfunction + "\n}"  
 		templates.append(testfunction)
-		if len(testtemplate) > 2:
-#			print("##################\n",testfunction,"\n#################")
-#			print("content len=", len(testtemplate))
-			self.test_templates[header] = templates
+		template = ''.join(templates)
+		if len(testtemplate) > 1 and len(template.split("){")[1])>5 and "unknown" not in template.split("){")[0] and  "NewTarget" not in template:
+			self.test_templates[header] = template
 
+	# method to filter out sections that do not encode 
+	# testable behavior or that cannot be invoked directly
+	# in JavaScript such as abstract operations	
+	def isTestable(self, header, body):
+		if ": " in header or "@@" in header or "%" in header:
+				return False
+		if (int(header.split(".")[0]) < 20): 
+				return False
+		if (")" in header and header.split(")")[1].strip() != ""):
+				return False
+		if "The abstract operation " in body:
+			if body.split("The abstract operation")[1].split()[0].strip() in header:
+				return False
+		return True
+		
 
-
-
+	# This is the main method for this class. For each relevant section
+	# identified, it first checks is the relevant sections is testable 
+	# for example, it skips the sections describing abstract operations.
+	# Next, if the section is testable, it extracts the method signature,
+	# extracts the assignments and conditional statements, and finally
+	# uses these to produce combilable test templates
 	def generateTestTemplates(self, extracted_sections):
 		numofsec = len(extracted_sections.keys())
 		printProgressBar(0, numofsec, prefix = 'Generating Test Templates Progress:', suffix = 'Complete', length = 50)
 		for idx, header in enumerate(sorted(extracted_sections)):
-			printProgressBar(idx+1, numofsec, prefix = 'Generating Test Templates Progress:', suffix = 'Complete', length = 50)
-#			print("################## START #################", idx)
-#			print(header)
-			if "21.1.3.19" in header or "21.2.5.6" in header:
-				continue
+			header = header.replace("\xa0", " ")
 			body = extracted_sections[header]
-#			print(body)
+			printProgressBar(idx+1, numofsec, prefix = 'Generating Test Templates Progress:', suffix = 'Complete', length = 50)
+			if self.isTestable(header, body) is False:
+					continue
 			method_signature = self.getMethodSignature(header)
-#			print(method_signature)
 			self.extractAssignmentAndConditionals(header, body, method_signature)
-#			print("identified template content")
 			self.generateCompilableTemplate(header)
-#			print("created compilable template")
-#			print(self.test_templates[header])
-#			print("################## END #################", idx)
-#			print(len(extracted_sections.keys()))
 		return self.test_templates	
