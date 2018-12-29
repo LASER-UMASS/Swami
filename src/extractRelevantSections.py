@@ -48,18 +48,6 @@ class RelevantSection(object):
 		postags = self.nlp.pos_tag(sentence)
 		return postags
 	
-	"""
-	# Print iterations progress
-	def printProgressBar (self, iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
-		percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-		filledLength = int(length * iteration // total)
-		bar = fill * filledLength + '-' * (length - filledLength)
-		print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
-		# Print New Line on Complete
-		if iteration == total: 
-			print()
-	"""
-
 	def checkIfRelevantHeader(self, line, pos_tokens):
 		relsec = False
 		s = 0
@@ -99,15 +87,14 @@ class RelevantSection(object):
 					header = line.strip()
 					headers.append(header)
 					continue	
+					
 
 		# loop through the document (stored in memory) to extract the body correspoding to headers extracted
 		startsection = False
 		body = ""
 		header = ""
 		doclines = document.split("\n")
-		printProgressBar(0, len(doclines), prefix = 'Extracting Body Progress:', suffix = 'Complete', length = 50)
 		for idx in range(len(doclines)):
-			printProgressBar(idx + 1, len(doclines), prefix = 'Extracting Body Progress:', suffix = 'Complete', length = 50)
 			line = doclines[idx]
 			if line.strip() in headers or idx == len(doclines) - 1:
 				if header != "":
@@ -118,7 +105,7 @@ class RelevantSection(object):
 				continue
 			elif len(line) > 1:
 				body += line.strip() + "\n"
-			
+		
 		return extracted_sections
 
 	# use more patterns to determine if a section contains boundary condition or exception
@@ -126,19 +113,20 @@ class RelevantSection(object):
 		isrelhead = False
 		isrelbody = False
 		if len(header.split())>=3:
-			if "." not in header.split()[1] and "." not in header.split()[2]: 
+			if "[[" in header.split()[1]:
+				return False
+
+			if "(" not in header and ")" not in header and "." not in header.split()[1] and "." not in header.split()[2]: 
 				return False
 			else:
 				isrelhead = True	
+		
 		if isrelhead is False and "." not in header.split()[1]:
 			return False
 			
-		if "%" in header or "Object." in header or "Function." in header or "Error." in header or "Symbol." in header or "JSON" in header or "Atomics" in header or "Promise" in header or "Reflect" in header or "DataView" in header:
-			return False
-		
 		for line in body.split("\n"):
 			line = line.replace("\xa0", " ")
-			if (re.search(conditionalpattern1, line) or re.search(conditionalpattern1, line) or re.search(exceptionpattern, line))  and isrelhead is True:	
+			if (re.search(conditionalpattern1, line) or re.search(conditionalpattern2, line) or re.search(exceptionpattern, line))  and isrelhead is True:	
 				isrelbody = True
 				break
 		if isrelbody is False:
@@ -169,5 +157,5 @@ class RelevantSection(object):
 					print("=====  BODY  ==================================== ")
 					print(body)
 					print("#########################################################\n")
-		sleep(1)
+		sleep(0.2)
 		return self.relevant_sections
