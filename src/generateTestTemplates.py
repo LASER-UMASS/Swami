@@ -86,24 +86,24 @@ class TestTemplate(object):
 			text = text.replace("otherwise return", "else return");	
 		if "but greater than or equal to" in text:
 			var = text.split("is")[0].split()[-1].strip()
-			text = text.replace("but greater than or equal to", " && " + var + " >=");		
+			text = text.replace("but greater than or equal to", " && " + var + " >= ");		
 		if "but greater than" in text:
 			var = text.split("is")[0].split()[-1].strip()
 			text = text.replace("but greater than", " && " + var + " >");	
 		if "but less than or equal to" in text:
 			var = text.split("is")[0].split()[-1].strip()
-			text = text.replace("but less than or equal to", " && " + var + " >=");		
+			text = text.replace("but less than or equal to", " && " + var + " <= ");		
 		if "but less than" in text:
 			var = text.split("is")[0].split()[-1].strip()
-			text = text.replace("but less than", " && " + var + " >");	
+			text = text.replace("but less than", " && " + var + " < ");	
 		if "is not greater than" in text:
-			text = text.replace("is not greater than", "<");		
+			text = text.replace("is not greater than", "< ");		
 		if "is not less than" in text:
-			text = text.replace("is not less than", ">");		
+			text = text.replace("is not less than", "> ");		
 		if "is greater than" in text:
-			text = text.replace("is greater than", ">");		
+			text = text.replace("is greater than", "> ");		
 		if "is less than" in text:
-			text = text.replace("is less than", "<");		
+			text = text.replace("is less than", "< ");		
 		if "is negative" in text:
 			text = text.replace("is negative", "< 0");		
 		if "is positive" in text:
@@ -146,7 +146,13 @@ class TestTemplate(object):
 					text = text.replace(",", "")
 					text = text.replace(" or ", "")
 			else:
-				text = text.replace(" or ", " || ")
+				if "is " in text:
+					var = text.split("is ")[0].split()[-1]
+					values = text.split("is ")[1].split(")")[0].split("or")
+					if len(values) == 2:
+						text = text.split("is ")[0] + " === " + values[0] + " || " + var + " === " + values[1] + ")" + ''.join(text.split(")")[1:])
+				else:
+					text = text.replace(" or ", " || ")
 		if " and " in text:
 			text = text.replace(" and ", " && ")
 		if ", return" in text:
@@ -181,7 +187,9 @@ class TestTemplate(object):
 		if " is " in text:
 			text = text.replace(" is ", " === ");
 
-		text = text.strip().replace("(", " ( ").replace(")", " ) ").replace(",", " , ").replace("+", " + ").replace(">", " > ").replace(".length", " .length")
+		text = text.replace("≥", ">= ")
+		text = text.replace("-", "- ")
+		text = text.strip().replace("(", " ( ").replace(")", " ) ").replace(",", " , ").replace("+", " + ").replace(">", " > ").replace(".length", " .length").replace(">=", " >= ").replace("<", " < ").replace("<=", " <= ").replace("≤", " ≤ ") + " "
 		for (variable,sid) in self.variable_dataset:
 			if variable in text and sid==sectionid and variable not in self.variable_dataset[(variable,sid)]:
 				text = text.replace(variable, self.variable_dataset[(variable,sid)])
@@ -225,24 +233,29 @@ class TestTemplate(object):
 			else:	
 				callablefunction = "var output = new SharedArrayBuffer(randominput)." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
 		elif "ArrayBuffer" in summary:
-			args = re.search(argpattern, summary)		
-			if args is None:
+			args = re.search(argpattern, summary)	
+			print(summary)	
+			if args is None or "prototype" in summary:
 				callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
+			elif args and "prototype" not in summary:
+				callablefunction = "var output = ArrayBuffer." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
 			else:
 				callablefunction = "var output = new ArrayBuffer(randominput)." + summary.strip().split(".")[-1].replace(" ", "") + ";"
 		elif "Array" in summary:
-			if  ".prototype" in summary:
+			if  "prototype" not in summary and "." in summary:
+				callablefunction = "var output = Array." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
+			else:
 				summary = summary.strip().replace(".prototype", "")
 								
-			if "Array." in summary and "(" in summary:
-				funcall = summary.strip().split("Array")[1].split("(")[0].replace(" ", "").strip()
-				funarg = summary.strip().split("(")[1]	
-				callablefunction = "var output = new Array(randominput)" + funcall + "(" + funarg + ";"	
-			elif "Array" in summary and "(" in summary:
-				callablefunction = "var output = new " + summary.strip().replace("\d.*", "").replace(".","") + ";"
-				callablefunction = re.sub(" \d+", " ", callablefunction)									
-			elif "Runtime Semantics: " in summary:
-				callablefunction = callablefunction.split(".")[0] + "." + summary.split("Runtime Semantics: ")[-1].replace(" ", "") + ";"
+				if "Array." in summary and "(" in summary:
+					funcall = summary.strip().split("Array")[1].split("(")[0].replace(" ", "").strip()
+					funarg = summary.strip().split("(")[1]	
+					callablefunction = "var output = new Array(randominput)" + funcall + "(" + funarg + ";"	
+				elif "Array" in summary and "(" in summary:
+					callablefunction = "var output = new " + summary.strip().replace("\d.*", "").replace(".","") + ";"
+					callablefunction = re.sub(" \d+", " ", callablefunction)									
+				elif "Runtime Semantics: " in summary:
+					callablefunction = callablefunction.split(".")[0] + "." + summary.split("Runtime Semantics: ")[-1].replace(" ", "") + ";"
 		elif "Set" in summary:
 			callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"
 		return callablefunction
@@ -318,22 +331,24 @@ class TestTemplate(object):
 		text = text.replace("empty String", "\"\"")
 		text = text.replace("empty string", "\"\"")
 		text = text.replace("String \"NaN\"", "\"NaN\"")
-		text = text.replace("+∞", "Infinity")
+		text = text.replace("+∞", "+Infinity")
 		text = text.replace("-∞", "-Infinity")
 		text = text.replace("∞", "Infinity")
 		text = text.replace("‑", "-")
 		text = text.replace("+0", "0")
 		text = text.replace("‑0", "-0")
-		text = text.replace("≥", ">=")
-		text = text.replace("> =", ">=")
-		text = text.replace("< =", "<=")
-		text = text.replace("≤", "<=")
+		text = text.replace("≥", ">= ")
+		text = text.replace("> =", ">= ")
+		text = text.replace("< =", "<= ")
+		text = text.replace("≤", "<= ")
 		text = text.replace("! ", "")
 		text = text.replace("× ", "*")
-		text = text.replace(" ≠ ", "!=")
-		text = text.replace("! =", "!=")
+		text = text.replace(" ≠ ", "!= ")
+		text = text.replace("! =", "!= ")
+		text = text.replace("! ", "")
 		text = text.replace("min (", "Math.min (")
 		text = text.replace("max (", "Math.max (")
+		text = text.replace("abs (", "Math.abs (")
 		if "already an integer" in text:
 			var = text.split("===")[0].split("(")[1]
 			text = text.replace("already an integer", "parseInt(" + var +", 10)")
@@ -343,7 +358,7 @@ class TestTemplate(object):
 		if text[-1]==".":
 			text = text[:-1]
 	
-		if "===" in text and ("NaN" in text or "-0" in text or "+0" in text):
+		if "===" in text and ("NaN" in text or "-0" in text or "+ 0" in text):
 			if "&&" in text:
 				newtext = "("
 				clauses = text.split("&&")
@@ -351,7 +366,7 @@ class TestTemplate(object):
 					if " === " in clause:
 						lhs = clause.split("===")[0].strip()
 						rhs = clause.split("===")[1].strip()
-						if "NaN" in rhs or "-0" in rhs or "+0" in rhs:
+						if "NaN" in rhs or "-0" in rhs or "+ 0" in rhs:
 							if idx == 0:
 								clause = "Object.is" + lhs + "," + rhs + ")"
 							else:
@@ -368,7 +383,7 @@ class TestTemplate(object):
 					if " === " in clause:
 						lhs = clause.split("===")[0].strip()
 						rhs = clause.split("===")[1].strip()
-						if "NaN" in rhs or "-0" in rhs or "+0" in rhs:
+						if "NaN" in rhs or "-0" in rhs or "+ 0" in rhs:
 							if idx == 0:
 								clause = "Object.is" + lhs + "," + rhs + ")"
 							else:
@@ -442,13 +457,12 @@ class TestTemplate(object):
 		testfunction = "function test_" + testname + "("+ args + "){" 
 		for i in range(1, len(testtemplate)):
 			templatecount += 1
-
 			if "if " not in testtemplate[i]: 
 				continue
 			
 			# comment out following two lines to generate templates for more sections
 			# this was made possible by modifying existing patterns and adding more patterns
-			if "weak" in testfunction or "set_prototype" in testfunction or "regexp_prototype" in testfunction or "get_sharedarraybuffer" in testfunction or "get_map" in testfunction or "number_prototype_tofixed" in testfunction or "sharedarraybuffer" in testfunction or "array_prototype_concat" in testfunction or "array_prototype_push" in testfunction or "array_prototype_sort" in testfunction or "array_prototype_splice" in testfunction or "atomics_wait" in testfunction:
+			if "weak" in testfunction or "set_prototype" in testfunction or "regexp_prototype" in testfunction or "get_sharedarraybuffer" in testfunction or "get_map" in testfunction or "number_prototype_tofixed" in testfunction or "sharedarraybuffer" in testfunction or "array_prototype_concat" in testfunction or "array_prototype_push" in testfunction or "array_prototype_sort" in testfunction or "array_prototype_splice" in testfunction or "atomics_wait" in testfunction or "test_number_prototype_tostring" in testfunction or "test_string_raw" in testfunction:
 				continue 
 
 			test = ""
@@ -460,8 +474,8 @@ class TestTemplate(object):
 				if self.compiler == "rhino":
 					test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", " + expectedoutput + ", output);\n\t\ttest();\n\t\treturn;\n\t\t}"
 				elif self.compiler == "node":
-					test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "assert.strictEqual(" + expectedoutput + ", output);\n\t\treturn;\n\t\t}"
-				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or "atomics_wait" in test: 
+					test = "if (" + expectedinput + "){\n\t\t" + vardecl + "\n\t\t" + "assert.strictEqual(" + expectedoutput + ", output);\n\t\tconsole.log(\"Good Test\");\n\t\treturn;\n\t\t}"
+				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or "atomics_wait" in test or "concatenation" in test or "filler" in test or "searchLength" in test or "-searchStr" in test or " not " in test or "unit value of" in test: 
 					continue
 				testfunction = testfunction + "\n\t" + test
 			if "throw" in testcondition:
@@ -471,15 +485,21 @@ class TestTemplate(object):
 				if self.compiler == "rhino":
 					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", true, eval(e instanceof "  + expectedoutput + "));\n\t\t\ttest();\n\t\t\treturn;\n\t\t}\n\t}" 
 				elif self.compiler == "node":
-					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "assert.strictEqual(true, eval(e instanceof "  + expectedoutput + "));\n\t\t\treturn;\n\t\t}\n\t}" 
-				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or  "atomics_wait" in test:
+					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\tconsole.log(\"Bad Test\");\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "assert.strictEqual(true, eval(e instanceof "  + expectedoutput + "));\n\t\t\tconsole.log(\"Good Test\");\n\t\t\treturn;\n\t\t}\n\t}" 
+				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or  "atomics_wait" in test or "concatenation" in test or "filler" in test or "searchLength" in test or "-searchStr" in test or " not " in test or "unit value of" in test:
 					continue 
-				testfunction = testfunction + "\n\t" + test # + "\n}" to put if conditions in separate functions
-		testfunction = testfunction + "\n}"  
+				testfunction = testfunction + "\n\t" + test
+		if self.compiler == "node":
+			testfunction = testfunction + "\n\t\tconsole.log(\"OK Test\")\n}"  
+		elif self.compiler == "rhino":	
+			testfunction = testfunction + "\n}"  
 		templates.append(testfunction)
 		template = ''.join(templates)
-		if len(testtemplate) > 1 and len(template.split("){")[1])>5 and "unknown" not in template.split("){")[0] and  "NewTarget" not in template:
+		if len(testtemplate) > 1 and "if" in template and "unknown" not in template.split("){")[0] and  "NewTarget" not in template:
 			self.test_templates[header] = template
+		#if "test_math_sin" in testfunction:
+		#	print(template)
+		#	sys.exit(1)
 
 	# method to filter out sections that do not encode 
 	# testable behavior or that cannot be invoked directly

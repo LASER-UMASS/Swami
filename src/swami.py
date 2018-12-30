@@ -41,7 +41,7 @@ from printprogress import printProgressBar
 from time import sleep
 
 class Swami(object):
-	def __init__(self, inputfilepath, abstractfunfilepath, outputdir, compiler="rhino"):
+	def __init__(self, inputfilepath, abstractfunfilepath, outputdir, compiler):
 		self.input_spec = inputfilepath
 		self.abstractfunc_file_path = abstractfunfilepath
 		self.output_dir = outputdir 
@@ -50,8 +50,9 @@ class Swami(object):
 		self.relevant_spec = self.output_dir + "/" + self.input_spec.split("/")[-1].split(".")[0] + "_relevant_sections.txt"
 		self.relevant_spec_exists = os.path.isfile(self.relevant_spec)
 		self.test_template_generator = TestTemplate(self.relevant_spec, compiler)
-		self.executable_test_generator = ExecutableTest(self.templatefilepath, self.output_dir)
+		self.executable_test_generator = ExecutableTest(self.templatefilepath, self.output_dir, compiler)
 		self.extracted_sections = {}
+		self.compiler = compiler
 
 	# returns a dictionary of relevant sections (sections that deal 
 	# with exceptions of boundary conditions) where key is the heading 
@@ -142,14 +143,16 @@ class Swami(object):
 
 	def generateTests(self, numtests):
 		self.executable_test_generator.generateExecutableTests(numtests)
-		print("Test files generated for Rhino are available in: " + self.output_dir + "/Rhino_ECMA262_Tests" )
-		print("Test files generated for Node.js are available in: " + self.output_dir + "/Node_ECMA262_Tests" )
+		if self.compiler == "rhino":
+			print("Test files generated for Rhino are available in: " + self.output_dir + "/Rhino_ECMA262_Tests" )
+		if self.compiler == "node":
+			print("Test files generated for Node.js are available in: " + self.output_dir + "/Node_ECMA262_Tests" )
 
 
 if __name__ == '__main__':
-	if len(sys.argv) != 6:
+	if len(sys.argv) != 7:
 		print("Error! Invalid Command \nUSAGE: python swami.py <path-to-specification-file> <path-to-abstract-functions-code> <path-to-output-directory> <[getRelSections | genTemplates | genTests]> \
-		     < rhino | node > \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/ genTests rhino")	
+		     < rhino | node > <#tests>\nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/ genTests rhino 1000")	
 		sys.exit(1)
 
 	specification_path = sys.argv[1]
@@ -178,7 +181,8 @@ if __name__ == '__main__':
 
 	# generate full test suites from scratch
 	elif task == "genTests":
-		numtests = int(sys.argv[5])
+		numtests = int(sys.argv[6])
+
 		if not test_generator.relevant_spec_exists:
 			test_generator.extractRelevantSections()
 		else:
@@ -189,5 +193,5 @@ if __name__ == '__main__':
 		test_generator.generateTests(numtests)
 	else:
 		print("Error! Invalid Command \nUSAGE: python swami.py <path-to-specification-file> <path-to-abstract-functions-code> <path-to-output-directory> <[getRelSections | genTemplates | genTests]> \
-		     < rhino | node > \nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/ genTests rhino")	
+		     < rhino | node > <#tests>\nEXAMPLE USAGE: python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../RhinoTestSuite/ genTests rhino 1000")	
 		sys.exit(1)
