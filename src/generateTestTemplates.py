@@ -234,7 +234,6 @@ class TestTemplate(object):
 				callablefunction = "var output = new SharedArrayBuffer(randominput)." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
 		elif "ArrayBuffer" in summary:
 			args = re.search(argpattern, summary)	
-			print(summary)	
 			if args is None or "prototype" in summary:
 				callablefunction = "var output = randominput." + summary.strip().split(".")[-1].replace(" ", "") + ";"	
 			elif args and "prototype" not in summary:
@@ -272,7 +271,6 @@ class TestTemplate(object):
 		for statement in body.split("\n"):
 			if len(statement) > 100:
 				continue
-			#print(self.variable_dataset)
 			statement = statement.replace("\xa0", " ")
 			isassignment = re.search(assignmentpattern, statement.strip())
 			if isassignment:
@@ -497,9 +495,6 @@ class TestTemplate(object):
 		template = ''.join(templates)
 		if len(testtemplate) > 1 and "if" in template and "unknown" not in template.split("){")[0] and  "NewTarget" not in template:
 			self.test_templates[header] = template
-		#if "test_math_sin" in testfunction:
-		#	print(template)
-		#	sys.exit(1)
 
 	# method to filter out sections that do not encode 
 	# testable behavior or that cannot be invoked directly
