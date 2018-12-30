@@ -14,7 +14,7 @@ function RequireObjectCoercible(argument){
 function ToString(argument){
         if (typeof argument == "undefined")
                 return "undefined"
-        else if(typeof argument == "null")
+        else if(argument == null)
                 return "null"
         else if(typeof argument == "boolean"){
                 if (argument == true)
@@ -29,7 +29,8 @@ function ToString(argument){
                 return Number(argument).toString()
         else if(typeof argument == "symbol")
                 throw new TypeError("TypeError in ToString")
-
+        else if(typeof argument == "object")
+                return argument.toString()
 
 }
 
@@ -88,4 +89,16 @@ function ToObject(argument){
                 return argument
 }
 
+function thisNumberValue(argument){
+	return Number(argument)
+}
 
+function thisTimeValue(argument){
+	return Date(argument)
+}
+function Get(argument, property){
+	return argument
+}
+function SameValueZero(x,y){
+	return x===y
+}
