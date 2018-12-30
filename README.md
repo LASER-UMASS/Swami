@@ -28,7 +28,7 @@ Swami allows you to run in three different modes that correspond to following th
 * **Description:** This module is used to extract the relevant specification sections (sections which encode testable behavior) from the input specification document.  
 * **Input:** Input specification file in **text** format (ECMA-262_v8.txt), path to implemented abstract functions source code, and the path to output directory
 * **Output:** Text file listing all the relevant sections describing *ID* (section id), *Summary* (section heading), and *Description* (section body) for each of the extracted sections. 
-* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ getRelSections`
+* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ getRelSections node 1000`
 
 #### Generating Test Templates
 * **Description:** This module is used to generate *Test Templates* from the specifications that encode the testable behavior. 
@@ -38,7 +38,7 @@ that describe either of these system properties.
 This module reuses the file listing relevant sections extracted from input specification if it already exists otherwise runs the above module
 to extract relevant sections.  
 * **Output:** The JavaScript file (`ecma262_templates.js`) generated inside the output directory. 
-* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTemplates`
+* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTemplates node 1000`
 
 #### Generating Executable Tests
 * **Description:** This module is used to generate executable JavaScript test files by instantiating the test templates individually using randomly generated test inputs.  
@@ -46,7 +46,7 @@ to extract relevant sections.
 * **Output:** Test files generated for Rhino are available in: `<path-to-output-directory>/Rhino_ECMA262_Tests`
 Test files generated for Node.js are available in: `<path-to-output-directory>/Node_ECMA262_Tests`
 
-* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests 100`
+* **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests node 1000`
 
 ## How to compare Swami’s outputs to outputs described in the paper.
 <TODO>
