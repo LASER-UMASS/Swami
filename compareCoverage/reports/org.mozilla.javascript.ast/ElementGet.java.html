@@ -1,0 +1,140 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ElementGet.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ElementGet.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for an indexed property reference, such as {@code foo['bar']} or
+ * {@code foo[2]}.  This is sometimes called an "element-get" operation, hence
+ * the name of the node.<p>
+ *
+ * Node type is {@link Token#GETELEM}.<p>
+ *
+ * The node bounds extend from the beginning position of the target through the
+ * closing right-bracket.  In the presence of a syntax error, the right bracket
+ * position is -1, and the node ends at the end of the element expression.
+ */
+public class ElementGet extends AstNode {
+
+    private AstNode target;
+    private AstNode element;
+<span class='upc' id='L26' title='3|3|3 - Total: 12'>    private int lb = -1;
+</span><span class='upc' id='L27' title='3|3|3 - Total: 12'>    private int rb = -1;
+</span>
+    {
+<span class='upc' id='L30' title='3|3|3 - Total: 12'>        type = Token.GETELEM;
+</span>    }
+
+<span class='nc' id='L33' title='0|0|0 - Total: 2'>    public ElementGet() {
+</span><span class='nc' id='L34' title='0|0|0 - Total: 1'>    }
+</span>
+    public ElementGet(int pos) {
+<span class='nc' id='L37' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L38' title='0|0|0 - Total: 1'>    }
+</span>
+    public ElementGet(int pos, int len) {
+<span class='uc' id='L41' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L42' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='nc' id='L44' title='0|0|0 - Total: 2'>    public ElementGet(AstNode target, AstNode element) {
+</span><span class='nc' id='L45' title='0|0|0 - Total: 3'>        setTarget(target);
+</span><span class='nc' id='L46' title='0|0|0 - Total: 3'>        setElement(element);
+</span><span class='nc' id='L47' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns the object on which the element is being fetched.
+     */
+    public AstNode getTarget() {
+<span class='uc' id='L53' title='3|3|3 - Total: 3'>        return target;
+</span>    }
+
+    /**
+     * Sets target object, and sets its parent to this node.
+     * @param target expression evaluating to the object upon which
+     * to do the element lookup
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setTarget(AstNode target) {
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        assertNotNull(target);
+</span><span class='uc' id='L64' title='3|3|3 - Total: 3'>        this.target = target;
+</span><span class='uc' id='L65' title='3|3|3 - Total: 3'>        target.setParent(this);
+</span><span class='uc' id='L66' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the element being accessed
+     */
+    public AstNode getElement() {
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        return element;
+</span>    }
+
+    /**
+     * Sets the element being accessed, and sets its parent to this node.
+     * @throws IllegalArgumentException if element is {@code null}
+     */
+    public void setElement(AstNode element) {
+<span class='uc' id='L80' title='3|3|3 - Total: 3'>        assertNotNull(element);
+</span><span class='uc' id='L81' title='3|3|3 - Total: 3'>        this.element = element;
+</span><span class='uc' id='L82' title='3|3|3 - Total: 3'>        element.setParent(this);
+</span><span class='uc' id='L83' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns left bracket position
+     */
+    public int getLb() {
+<span class='nc' id='L89' title='0|0|0 - Total: 3'>        return lb;
+</span>    }
+
+    /**
+     * Sets left bracket position
+     */
+    public void setLb(int lb) {
+<span class='nc' id='L96' title='0|0|0 - Total: 3'>        this.lb = lb;
+</span><span class='nc' id='L97' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns right bracket position, -1 if missing
+     */
+    public int getRb() {
+<span class='nc' id='L103' title='0|0|0 - Total: 3'>        return rb;
+</span>    }
+
+    /**
+     * Sets right bracket position, -1 if not present
+     */
+    public void setRb(int rb) {
+<span class='nc' id='L110' title='0|0|0 - Total: 3'>        this.rb = rb;
+</span><span class='nc' id='L111' title='0|0|0 - Total: 1'>    }
+</span>
+    public void setParens(int lb, int rb) {
+<span class='uc' id='L114' title='3|3|3 - Total: 3'>        this.lb = lb;
+</span><span class='uc' id='L115' title='3|3|3 - Total: 3'>        this.rb = rb;
+</span><span class='uc' id='L116' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L120' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L121' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='uc' id='L122' title='7|7|7 - Total: 7'>        sb.append(target.toSource(0));
+</span><span class='uc' id='L123' title='4|4|4 - Total: 4'>        sb.append("[");
+</span><span class='uc' id='L124' title='7|7|7 - Total: 7'>        sb.append(element.toSource(0));
+</span><span class='uc' id='L125' title='4|4|4 - Total: 4'>        sb.append("]");
+</span><span class='uc' id='L126' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the target, and the index expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L134' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L135' title='0|0|0 - Total: 4'>            target.visit(v);
+</span><span class='nc' id='L136' title='0|0|0 - Total: 4'>            element.visit(v);
+</span>        }
+<span class='nc' id='L138' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.LetNode.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.LetNode.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for let statements and expressions.
+ * Node type is {@link Token#LET} or {@link Token#LETEXPR}.<p>
+ *
+ * <pre> <i>LetStatement</i>:
+ *     <b>let</b> ( VariableDeclarationList ) Block
+ * <i>LetExpression</i>:
+ *     <b>let</b> ( VariableDeclarationList ) Expression</pre>
+ *
+ * Note that standalone let-statements with no parens or body block,
+ * such as {@code let x=6, y=7;}, are represented as a
+ * {@link VariableDeclaration} node of type {@code Token.LET},
+ * wrapped with an {@link ExpressionStatement}.<p>
+ */
+public class LetNode extends Scope {
+
+    private VariableDeclaration variables;
+    private AstNode body;
+<span class='upc' id='L29' title='3|3|3 - Total: 9'>    private int lp = -1;
+</span><span class='upc' id='L30' title='3|3|3 - Total: 9'>    private int rp = -1;
+</span>
+    {
+<span class='upc' id='L33' title='3|3|3 - Total: 9'>        type = Token.LETEXPR;
+</span>    }
+
+<span class='nc' id='L36' title='0|0|0 - Total: 2'>    public LetNode() {
+</span><span class='nc' id='L37' title='0|0|0 - Total: 1'>    }
+</span>
+    public LetNode(int pos) {
+<span class='uc' id='L40' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L41' title='1|1|1 - Total: 1'>    }
+</span>
+    public LetNode(int pos, int len) {
+<span class='nc' id='L44' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L45' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns variable list
+     */
+    public VariableDeclaration getVariables() {
+<span class='uc' id='L51' title='3|3|3 - Total: 3'>        return variables;
+</span>    }
+
+    /**
+     * Sets variable list.  Sets list parent to this node.
+     * @throws IllegalArgumentException if variables is {@code null}
+     */
+    public void setVariables(VariableDeclaration variables) {
+<span class='uc' id='L59' title='3|3|3 - Total: 3'>        assertNotNull(variables);
+</span><span class='uc' id='L60' title='3|3|3 - Total: 3'>        this.variables = variables;
+</span><span class='uc' id='L61' title='3|3|3 - Total: 3'>        variables.setParent(this);
+</span><span class='uc' id='L62' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns body statement or expression.  Body is {@code null} if the
+     * form of the let statement is similar to a VariableDeclaration, with no
+     * curly-brace.  (This form is used to define let-bound variables in the
+     * scope of the current block.)<p>
+     *
+     * @return the body form
+     */
+    public AstNode getBody() {
+<span class='uc' id='L73' title='3|3|3 - Total: 3'>        return body;
+</span>    }
+
+    /**
+     * Sets body statement or expression.  Also sets the body parent to this
+     * node.
+     * @param body the body statement or expression.  May be
+     * {@code null}.
+     */
+    public void setBody(AstNode body) {
+<span class='uc' id='L83' title='3|3|3 - Total: 3'>        this.body = body;
+</span><span class='upc' id='L84' title='1|1|1 - Total: 2'>        if (body != null)
+</span><span class='uc' id='L85' title='3|3|3 - Total: 3'>            body.setParent(this);
+</span><span class='uc' id='L86' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns left paren position, -1 if missing
+     */
+    public int getLp() {
+<span class='nc' id='L92' title='0|0|0 - Total: 3'>        return lp;
+</span>    }
+
+    /**
+     * Sets left paren position
+     */
+    public void setLp(int lp) {
+<span class='uc' id='L99' title='3|3|3 - Total: 3'>        this.lp = lp;
+</span><span class='uc' id='L100' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns right paren position, -1 if missing
+     */
+    public int getRp() {
+<span class='nc' id='L106' title='0|0|0 - Total: 3'>        return rp;
+</span>    }
+
+    /**
+     * Sets right paren position
+     */
+    public void setRp(int rp) {
+<span class='uc' id='L113' title='3|3|3 - Total: 3'>        this.rp = rp;
+</span><span class='uc' id='L114' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class='nc' id='L120' title='0|0|0 - Total: 3'>        this.lp = lp;
+</span><span class='nc' id='L121' title='0|0|0 - Total: 3'>        this.rp = rp;
+</span><span class='nc' id='L122' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L126' title='0|0|0 - Total: 4'>        String pad = makeIndent(depth);
+</span><span class='nc' id='L127' title='0|0|0 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='nc' id='L128' title='0|0|0 - Total: 4'>        sb.append(pad);
+</span><span class='nc' id='L129' title='0|0|0 - Total: 4'>        sb.append("let (");
+</span><span class='nc' id='L130' title='0|0|0 - Total: 6'>        printList(variables.getVariables(), sb);
+</span><span class='nc' id='L131' title='0|0|0 - Total: 4'>        sb.append(") ");
+</span><span class='nc' id='L132' title='0|0|0 - Total: 2'>        if (body != null) {
+</span><span class='nc' id='L133' title='0|0|0 - Total: 7'>            sb.append(body.toSource(depth));
+</span>        }
+<span class='nc' id='L135' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the variable list, and if present, the body
+     * expression or statement.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L144' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L145' title='0|0|0 - Total: 4'>            variables.visit(v);
+</span><span class='nc' id='L146' title='0|0|0 - Total: 2'>            if (body != null) {
+</span><span class='nc' id='L147' title='0|0|0 - Total: 4'>                body.visit(v);
+</span>            }
+        }
+<span class='nc' id='L150' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

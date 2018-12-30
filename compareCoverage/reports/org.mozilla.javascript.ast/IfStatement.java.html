@@ -1,0 +1,187 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.IfStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.IfStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * If-else statement.  Node type is {@link Token#IF}.<p>
+ *
+ * <pre><i>IfStatement</i> :
+ *       <b>if</b> ( Expression ) Statement <b>else</b> Statement
+ *       <b>if</b> ( Expression ) Statement</pre>
+ */
+public class IfStatement extends AstNode {
+
+    private AstNode condition;
+    private AstNode thenPart;
+<span class='upc' id='L22' title='3|3|3 - Total: 9'>    private int elsePosition = -1;
+</span>    private AstNode elsePart;
+<span class='upc' id='L24' title='3|3|3 - Total: 9'>    private int lp = -1;
+</span><span class='upc' id='L25' title='3|3|3 - Total: 9'>    private int rp = -1;
+</span>
+    {
+<span class='upc' id='L28' title='3|3|3 - Total: 9'>        type = Token.IF;
+</span>    }
+
+<span class='nc' id='L31' title='0|0|0 - Total: 2'>    public IfStatement() {
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    public IfStatement(int pos) {
+<span class='nc' id='L35' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L36' title='0|0|0 - Total: 1'>    }
+</span>
+    public IfStatement(int pos, int len) {
+<span class='uc' id='L39' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L40' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns if condition
+     */
+    public AstNode getCondition() {
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>        return condition;
+</span>    }
+
+    /**
+     * Sets if condition.
+     * @throws IllegalArgumentException if {@code condition} is {@code null}.
+     */
+    public void setCondition(AstNode condition) {
+<span class='uc' id='L54' title='3|3|3 - Total: 3'>        assertNotNull(condition);
+</span><span class='uc' id='L55' title='3|3|3 - Total: 3'>        this.condition = condition;
+</span><span class='uc' id='L56' title='3|3|3 - Total: 3'>        condition.setParent(this);
+</span><span class='uc' id='L57' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns statement to execute if condition is true
+     */
+    public AstNode getThenPart() {
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        return thenPart;
+</span>    }
+
+    /**
+     * Sets statement to execute if condition is true
+     * @throws IllegalArgumentException if thenPart is {@code null}
+     */
+    public void setThenPart(AstNode thenPart) {
+<span class='uc' id='L71' title='3|3|3 - Total: 3'>        assertNotNull(thenPart);
+</span><span class='uc' id='L72' title='3|3|3 - Total: 3'>        this.thenPart = thenPart;
+</span><span class='uc' id='L73' title='3|3|3 - Total: 3'>        thenPart.setParent(this);
+</span><span class='uc' id='L74' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns statement to execute if condition is false
+     */
+    public AstNode getElsePart() {
+<span class='uc' id='L80' title='3|3|3 - Total: 3'>        return elsePart;
+</span>    }
+
+    /**
+     * Sets statement to execute if condition is false
+     * @param elsePart statement to execute if condition is false.
+     * Can be {@code null}.
+     */
+    public void setElsePart(AstNode elsePart) {
+<span class='uc' id='L89' title='3|3|3 - Total: 3'>        this.elsePart = elsePart;
+</span><span class='uc' id='L90' title='2|2|2 - Total: 2'>        if (elsePart != null)
+</span><span class='uc' id='L91' title='3|3|3 - Total: 3'>            elsePart.setParent(this);
+</span><span class='uc' id='L92' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of "else" keyword, or -1
+     */
+    public int getElsePosition() {
+<span class='nc' id='L98' title='0|0|0 - Total: 3'>        return elsePosition;
+</span>    }
+
+    /**
+     * Sets position of "else" keyword, -1 if not present
+     */
+    public void setElsePosition(int elsePosition) {
+<span class='uc' id='L105' title='3|3|3 - Total: 3'>        this.elsePosition = elsePosition;
+</span><span class='uc' id='L106' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns left paren offset
+     */
+    public int getLp() {
+<span class='nc' id='L112' title='0|0|0 - Total: 3'>        return lp;
+</span>    }
+
+    /**
+     * Sets left paren offset
+     */
+    public void setLp(int lp) {
+<span class='nc' id='L119' title='0|0|0 - Total: 3'>        this.lp = lp;
+</span><span class='nc' id='L120' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns right paren position, -1 if missing
+     */
+    public int getRp() {
+<span class='nc' id='L126' title='0|0|0 - Total: 3'>        return rp;
+</span>    }
+
+    /**
+     * Sets right paren position, -1 if missing
+     */
+    public void setRp(int rp) {
+<span class='nc' id='L133' title='0|0|0 - Total: 3'>        this.rp = rp;
+</span><span class='nc' id='L134' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class='uc' id='L140' title='3|3|3 - Total: 3'>        this.lp = lp;
+</span><span class='uc' id='L141' title='3|3|3 - Total: 3'>        this.rp = rp;
+</span><span class='uc' id='L142' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L146' title='4|4|4 - Total: 4'>        String pad = makeIndent(depth);
+</span><span class='uc' id='L147' title='5|5|5 - Total: 5'>        StringBuilder sb = new StringBuilder(32);
+</span><span class='uc' id='L148' title='4|4|4 - Total: 4'>        sb.append(pad);
+</span><span class='uc' id='L149' title='4|4|4 - Total: 4'>        sb.append("if (");
+</span><span class='uc' id='L150' title='7|7|7 - Total: 7'>        sb.append(condition.toSource(0));
+</span><span class='uc' id='L151' title='4|4|4 - Total: 4'>        sb.append(") ");
+</span><span class='uc' id='L152' title='2|2|2 - Total: 2'>        if (thenPart.getType() != Token.BLOCK) {
+</span><span class='uc' id='L153' title='10|10|10 - Total: 10'>            sb.append("\n").append(makeIndent(depth + 1));
+</span>        }
+<span class='uc' id='L155' title='8|8|8 - Total: 8'>        sb.append(thenPart.toSource(depth).trim());
+</span><span class='uc' id='L156' title='2|2|2 - Total: 2'>        if (elsePart != null) {
+</span><span class='uc' id='L157' title='2|2|2 - Total: 2'>            if (thenPart.getType() != Token.BLOCK) {
+</span><span class='uc' id='L158' title='9|9|9 - Total: 9'>                sb.append("\n").append(pad).append("else ");
+</span>            } else {
+<span class='uc' id='L160' title='4|4|4 - Total: 4'>                sb.append(" else ");
+</span>            }
+<span class='uc' id='L162' title='2|2|2 - Total: 2'>            if (elsePart.getType() != Token.BLOCK
+</span><span class='uc' id='L163' title='2|2|2 - Total: 2'>                    && elsePart.getType() != Token.IF) {
+</span><span class='uc' id='L164' title='10|10|10 - Total: 10'>                sb.append("\n").append(makeIndent(depth + 1));
+</span>            }
+<span class='uc' id='L166' title='8|8|8 - Total: 8'>            sb.append(elsePart.toSource(depth).trim());
+</span>        }
+<span class='uc' id='L168' title='4|4|4 - Total: 4'>        sb.append("\n");
+</span><span class='uc' id='L169' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the condition, the then-part, and
+     * if supplied, the else-part.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L178' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L179' title='0|0|0 - Total: 4'>            condition.visit(v);
+</span><span class='nc' id='L180' title='0|0|0 - Total: 4'>            thenPart.visit(v);
+</span><span class='nc' id='L181' title='0|0|0 - Total: 2'>            if (elsePart != null) {
+</span><span class='nc' id='L182' title='0|0|0 - Total: 4'>                elsePart.visit(v);
+</span>            }
+        }
+<span class='nc' id='L185' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

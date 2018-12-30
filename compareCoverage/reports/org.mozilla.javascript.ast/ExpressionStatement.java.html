@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ExpressionStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ExpressionStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node representing an expression in a statement context.  The node type is
+ * {@link Token#EXPR_VOID} if inside a function, or else
+ * {@link Token#EXPR_RESULT} if inside a script.
+ */
+public class ExpressionStatement extends AstNode {
+
+    private AstNode expr;
+
+    {
+<span class='upc' id='L21' title='3|3|3 - Total: 9'>        type = Token.EXPR_VOID;
+</span>    }
+
+    /**
+     * Called by the parser to set node type to EXPR_RESULT
+     * if this node is not within a Function.
+     */
+    public void setHasResult() {
+<span class='uc' id='L29' title='3|3|3 - Total: 3'>        type = Token.EXPR_RESULT;
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='nc' id='L32' title='0|0|0 - Total: 2'>    public ExpressionStatement() {
+</span><span class='nc' id='L33' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new {@code ExpressionStatement} wrapping
+     * the specified expression.  Sets this node's position to the
+     * position of the wrapped node, and sets the wrapped node's
+     * position to zero.  Sets this node's length to the length of
+     * the wrapped node.
+     * @param expr the wrapped expression
+     * @param hasResult {@code true} if this expression has side
+     * effects.  If true, sets node type to EXPR_RESULT, else to EXPR_VOID.
+     */
+    public ExpressionStatement(AstNode expr, boolean hasResult) {
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>        this(expr);
+</span><span class='uc' id='L47' title='2|2|2 - Total: 2'>        if (hasResult) setHasResult();
+</span><span class='uc' id='L48' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new {@code ExpressionStatement} wrapping
+     * the specified expression.  Sets this node's position to the
+     * position of the wrapped node, and sets the wrapped node's
+     * position to zero.  Sets this node's length to the length of
+     * the wrapped node.
+     * @param expr the wrapped expression
+     */
+    public ExpressionStatement(AstNode expr) {
+<span class='uc' id='L59' title='7|7|7 - Total: 7'>        this(expr.getPosition(), expr.getLength(), expr);
+</span><span class='uc' id='L60' title='1|1|1 - Total: 1'>    }
+</span>
+    public ExpressionStatement(int pos, int len) {
+<span class='nc' id='L63' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L64' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new {@code ExpressionStatement}
+     * @param expr the wrapped {@link AstNode}.
+     * The {@code ExpressionStatement}'s bounds are set to those of expr,
+     * and expr's parent is set to this node.
+     * @throws IllegalArgumentException if {@code expr} is null
+     */
+    public ExpressionStatement(int pos, int len, AstNode expr) {
+<span class='uc' id='L74' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L75' title='3|3|3 - Total: 3'>        setExpression(expr);
+</span><span class='uc' id='L76' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the wrapped expression
+     */
+    public AstNode getExpression() {
+<span class='uc' id='L82' title='3|3|3 - Total: 3'>        return expr;
+</span>    }
+
+    /**
+     * Sets the wrapped expression, and sets its parent to this node.
+     * @throws IllegalArgumentException} if expression is {@code null}
+     */
+    public void setExpression(AstNode expression) {
+<span class='uc' id='L90' title='3|3|3 - Total: 3'>        assertNotNull(expression);
+</span><span class='uc' id='L91' title='3|3|3 - Total: 3'>        expr = expression;
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>        expression.setParent(this);
+</span><span class='uc' id='L93' title='4|4|4 - Total: 4'>        setLineno(expression.getLineno());
+</span><span class='uc' id='L94' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns true if this node has side effects
+     * @throws IllegalStateException if expression has not yet
+     * been set.
+     */
+    @Override
+    public boolean hasSideEffects() {
+<span class='upc' id='L103' title='1|1|1 - Total: 4'>        return type == Token.EXPR_RESULT || expr.hasSideEffects();
+</span>    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L108' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L109' title='7|7|7 - Total: 7'>        sb.append(expr.toSource(depth));
+</span><span class='uc' id='L110' title='4|4|4 - Total: 4'>        sb.append(";\n");
+</span><span class='uc' id='L111' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then the wrapped statement.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='upc' id='L119' title='1|1|1 - Total: 2'>        if (v.visit(this)) {
+</span><span class='uc' id='L120' title='4|4|4 - Total: 4'>            expr.visit(v);
+</span>        }
+<span class='uc' id='L122' title='1|1|1 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

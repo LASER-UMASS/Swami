@@ -1,0 +1,978 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NativeJavaObject.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NativeJavaObject.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.*;
+import java.lang.reflect.*;
+import java.util.Map;
+import java.util.Date;
+
+/**
+ * This class reflects non-Array Java objects into the JavaScript environment.  It
+ * reflect fields directly, and uses NativeJavaMethod objects to reflect (possibly
+ * overloaded) methods.<p>
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaPackage
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaObject implements Scriptable, Wrapper, Serializable
+{
+    static final long serialVersionUID = -6948590651130498591L;
+
+<span class='nc' id='L29' title='0|0|0 - Total: 3'>    public NativeJavaObject() { }
+</span>
+    public NativeJavaObject(Scriptable scope, Object javaObject,
+                            Class<?> staticType)
+    {
+<span class='uc' id='L34' title='6|6|6 - Total: 6'>        this(scope, javaObject, staticType, false);
+</span><span class='uc' id='L35' title='1|1|1 - Total: 1'>    }
+</span>
+    public NativeJavaObject(Scriptable scope, Object javaObject,
+                            Class<?> staticType, boolean isAdapter)
+<span class='uc' id='L39' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L40' title='3|3|3 - Total: 3'>        this.parent = scope;
+</span><span class='uc' id='L41' title='3|3|3 - Total: 3'>        this.javaObject = javaObject;
+</span><span class='uc' id='L42' title='3|3|3 - Total: 3'>        this.staticType = staticType;
+</span><span class='uc' id='L43' title='3|3|3 - Total: 3'>        this.isAdapter = isAdapter;
+</span><span class='uc' id='L44' title='2|2|2 - Total: 2'>        initMembers();
+</span><span class='uc' id='L45' title='1|1|1 - Total: 1'>    }
+</span>
+    protected void initMembers() {
+        Class<?> dynamicType;
+<span class='uc' id='L49' title='2|2|2 - Total: 2'>        if (javaObject != null) {
+</span><span class='uc' id='L50' title='5|5|5 - Total: 5'>            dynamicType = javaObject.getClass();
+</span>        } else {
+<span class='uc' id='L52' title='3|3|3 - Total: 3'>            dynamicType = staticType;
+</span>        }
+<span class='uc' id='L54' title='10|10|10 - Total: 10'>        members = JavaMembers.lookupClass(parent, dynamicType, staticType,
+</span>                                          isAdapter);
+<span class='uc' id='L56' title='7|7|7 - Total: 7'>        fieldAndMethods
+</span><span class='uc' id='L57' title='2|2|2 - Total: 2'>            = members.getFieldAndMethodsObjects(this, javaObject, false);
+</span><span class='uc' id='L58' title='1|1|1 - Total: 1'>    }
+</span>
+    public boolean has(String name, Scriptable start) {
+<span class='uc' id='L61' title='6|6|6 - Total: 6'>        return members.has(name, false);
+</span>    }
+
+    public boolean has(int index, Scriptable start) {
+<span class='nc' id='L65' title='0|0|0 - Total: 2'>        return false;
+</span>    }
+
+    public Object get(String name, Scriptable start) {
+<span class='uc' id='L69' title='2|2|2 - Total: 2'>        if (fieldAndMethods != null) {
+</span><span class='uc' id='L70' title='5|5|5 - Total: 5'>            Object result = fieldAndMethods.get(name);
+</span><span class='upc' id='L71' title='1|1|1 - Total: 2'>            if (result != null) {
+</span><span class='nc' id='L72' title='0|0|0 - Total: 2'>                return result;
+</span>            }
+        }
+        // TODO: passing 'this' as the scope is bogus since it has
+        //  no parent scope
+<span class='uc' id='L77' title='9|9|9 - Total: 9'>        return members.get(this, name, javaObject, false);
+</span>    }
+
+    public Object get(int index, Scriptable start) {
+<span class='nc' id='L81' title='0|0|0 - Total: 6'>        throw members.reportMemberNotFound(Integer.toString(index));
+</span>    }
+
+    public void put(String name, Scriptable start, Object value) {
+        // We could be asked to modify the value of a property in the
+        // prototype. Since we can't add a property to a Java object,
+        // we modify it in the prototype rather than copy it down.
+<span class='upc' id='L88' title='1|1|1 - Total: 4'>        if (prototype == null || members.has(name, false))
+</span><span class='uc' id='L89' title='10|10|10 - Total: 10'>            members.put(this, name, javaObject, value, false);
+</span>        else
+<span class='nc' id='L91' title='0|0|0 - Total: 7'>            prototype.put(name, prototype, value);
+</span><span class='uc' id='L92' title='1|1|1 - Total: 1'>    }
+</span>
+    public void put(int index, Scriptable start, Object value) {
+<span class='nc' id='L95' title='0|0|0 - Total: 6'>        throw members.reportMemberNotFound(Integer.toString(index));
+</span>    }
+
+    public boolean hasInstance(Scriptable value) {
+        // This is an instance of a Java class, so always return false
+<span class='nc' id='L100' title='0|0|0 - Total: 2'>        return false;
+</span>    }
+
+    public void delete(String name) {
+<span class='uc' id='L104' title='1|1|1 - Total: 1'>    }
+</span>
+    public void delete(int index) {
+<span class='nc' id='L107' title='0|0|0 - Total: 1'>    }
+</span>
+    public Scriptable getPrototype() {
+<span class='upc' id='L110' title='3|3|3 - Total: 4'>        if (prototype == null && javaObject instanceof String) {
+</span><span class='uc' id='L111' title='4|4|4 - Total: 4'>            return TopLevel.getBuiltinPrototype(
+</span><span class='uc' id='L112' title='2|2|2 - Total: 2'>                    ScriptableObject.getTopLevelScope(parent),
+</span>                    TopLevel.Builtins.String);
+        }
+<span class='uc' id='L115' title='3|3|3 - Total: 3'>        return prototype;
+</span>    }
+
+    /**
+     * Sets the prototype of the object.
+     */
+    public void setPrototype(Scriptable m) {
+<span class='uc' id='L122' title='3|3|3 - Total: 3'>        prototype = m;
+</span><span class='uc' id='L123' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the parent (enclosing) scope of the object.
+     */
+    public Scriptable getParentScope() {
+<span class='uc' id='L129' title='3|3|3 - Total: 3'>        return parent;
+</span>    }
+
+    /**
+     * Sets the parent (enclosing) scope of the object.
+     */
+    public void setParentScope(Scriptable m) {
+<span class='uc' id='L136' title='3|3|3 - Total: 3'>        parent = m;
+</span><span class='uc' id='L137' title='1|1|1 - Total: 1'>    }
+</span>
+    public Object[] getIds() {
+<span class='nc' id='L140' title='0|0|0 - Total: 5'>        return members.getIds(false);
+</span>    }
+
+    /**
+     * @deprecated Use {@link Context#getWrapFactory()} together with calling {@link
+     * WrapFactory#wrap(Context, Scriptable, Object, Class)}
+     */
+    @Deprecated
+    public static Object wrap(Scriptable scope, Object obj, Class<?> staticType) {
+
+<span class='nc' id='L150' title='0|0|0 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='nc' id='L151' title='0|0|0 - Total: 8'>        return cx.getWrapFactory().wrap(cx, scope, obj, staticType);
+</span>    }
+
+    public Object unwrap() {
+<span class='uc' id='L155' title='3|3|3 - Total: 3'>        return javaObject;
+</span>    }
+
+    public String getClassName() {
+<span class='nc' id='L159' title='0|0|0 - Total: 2'>        return "JavaObject";
+</span>    }
+
+    public Object getDefaultValue(Class<?> hint)
+    {
+        Object value;
+<span class='uc' id='L165' title='2|2|2 - Total: 2'>        if (hint == null) {
+</span><span class='uc' id='L166' title='2|2|2 - Total: 2'>            if (javaObject instanceof Boolean) {
+</span><span class='uc' id='L167' title='2|2|2 - Total: 2'>                hint = ScriptRuntime.BooleanClass;
+</span>            }
+        }
+<span class='uc' id='L170' title='4|4|4 - Total: 4'>        if (hint == null || hint == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L171' title='5|5|5 - Total: 5'>            value = javaObject.toString();
+</span>        } else {
+            String converterName;
+<span class='uc' id='L174' title='2|2|2 - Total: 2'>            if (hint == ScriptRuntime.BooleanClass) {
+</span><span class='uc' id='L175' title='3|3|3 - Total: 3'>                converterName = "booleanValue";
+</span><span class='upc' id='L176' title='1|1|1 - Total: 2'>            } else if (hint == ScriptRuntime.NumberClass) {
+</span><span class='uc' id='L177' title='3|3|3 - Total: 3'>                converterName = "doubleValue";
+</span>            } else {
+<span class='nc' id='L179' title='0|0|0 - Total: 3'>                throw Context.reportRuntimeError0("msg.default.value");
+</span>            }
+<span class='uc' id='L181' title='5|5|5 - Total: 5'>            Object converterObject = get(converterName, this);
+</span><span class='upc' id='L182' title='1|1|1 - Total: 2'>            if (converterObject instanceof Function) {
+</span><span class='uc' id='L183' title='3|3|3 - Total: 3'>                Function f = (Function)converterObject;
+</span><span class='uc' id='L184' title='8|8|8 - Total: 8'>                value = f.call(Context.getContext(), f.getParentScope(),
+</span>                               this, ScriptRuntime.emptyArgs);
+<span class='uc' id='L186' title='1|1|1 - Total: 1'>            } else {
+</span><span class='nc' id='L187' title='0|0|0 - Total: 4'>                if (hint == ScriptRuntime.NumberClass
+</span>                    && javaObject instanceof Boolean)
+                {
+<span class='nc' id='L190' title='0|0|0 - Total: 5'>                    boolean b = ((Boolean)javaObject).booleanValue();
+</span><span class='nc' id='L191' title='0|0|0 - Total: 2'>                    value = ScriptRuntime.wrapNumber(b ? 1.0 : 0.0);
+</span><span class='nc' id='L192' title='0|0|0 - Total: 1'>                } else {
+</span><span class='nc' id='L193' title='0|0|0 - Total: 4'>                    value = javaObject.toString();
+</span>                }
+            }
+        }
+<span class='uc' id='L197' title='2|2|2 - Total: 2'>        return value;
+</span>    }
+
+    /**
+     * Determine whether we can/should convert between the given type and the
+     * desired one.  This should be superceded by a conversion-cost calculation
+     * function, but for now I'll hide behind precedent.
+     */
+    public static boolean canConvert(Object fromObj, Class<?> to) {
+<span class='uc' id='L206' title='4|4|4 - Total: 4'>        int weight = getConversionWeight(fromObj, to);
+</span>
+<span class='uc' id='L208' title='2|2|2 - Total: 2'>        return (weight < CONVERSION_NONE);
+</span>    }
+
+    private static final int JSTYPE_UNDEFINED   = 0; // undefined type
+    private static final int JSTYPE_NULL        = 1; // null
+    private static final int JSTYPE_BOOLEAN     = 2; // boolean
+    private static final int JSTYPE_NUMBER      = 3; // number
+    private static final int JSTYPE_STRING      = 4; // string
+    private static final int JSTYPE_JAVA_CLASS  = 5; // JavaClass
+    private static final int JSTYPE_JAVA_OBJECT = 6; // JavaObject
+    private static final int JSTYPE_JAVA_ARRAY  = 7; // JavaArray
+    private static final int JSTYPE_OBJECT      = 8; // Scriptable
+
+    static final byte CONVERSION_TRIVIAL      = 1;
+    static final byte CONVERSION_NONTRIVIAL   = 0;
+    static final byte CONVERSION_NONE         = 99;
+
+    /**
+     * Derive a ranking based on how "natural" the conversion is.
+     * The special value CONVERSION_NONE means no conversion is possible,
+     * and CONVERSION_NONTRIVIAL signals that more type conformance testing
+     * is required.
+     * Based on
+     * <a href="http://www.mozilla.org/js/liveconnect/lc3_method_overloading.html">
+     * "preferred method conversions" from Live Connect 3</a>
+     */
+    static int getConversionWeight(Object fromObj, Class<?> to) {
+<span class='uc' id='L235' title='3|3|3 - Total: 3'>        int fromCode = getJSTypeCode(fromObj);
+</span>
+<span class='upc' id='L237' title='7|7|7 - Total: 9'>        switch (fromCode) {
+</span>
+        case JSTYPE_UNDEFINED:
+<span class='nc' id='L240' title='0|0|0 - Total: 4'>            if (to == ScriptRuntime.StringClass ||
+</span>                to == ScriptRuntime.ObjectClass) {
+<span class='nc' id='L242' title='0|0|0 - Total: 2'>                return 1;
+</span>            }
+            break;
+
+        case JSTYPE_NULL:
+<span class='uc' id='L247' title='2|2|2 - Total: 2'>            if (!to.isPrimitive()) {
+</span><span class='uc' id='L248' title='2|2|2 - Total: 2'>                return 1;
+</span>            }
+            break;
+
+        case JSTYPE_BOOLEAN:
+            // "boolean" is #1
+<span class='uc' id='L254' title='2|2|2 - Total: 2'>            if (to == Boolean.TYPE) {
+</span><span class='uc' id='L255' title='2|2|2 - Total: 2'>                return 1;
+</span>            }
+<span class='upc' id='L257' title='1|1|1 - Total: 2'>            else if (to == ScriptRuntime.BooleanClass) {
+</span><span class='nc' id='L258' title='0|0|0 - Total: 2'>                return 2;
+</span>            }
+<span class='uc' id='L260' title='2|2|2 - Total: 2'>            else if (to == ScriptRuntime.ObjectClass) {
+</span><span class='uc' id='L261' title='2|2|2 - Total: 2'>                return 3;
+</span>            }
+<span class='uc' id='L263' title='2|2|2 - Total: 2'>            else if (to == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L264' title='2|2|2 - Total: 2'>                return 4;
+</span>            }
+            break;
+
+        case JSTYPE_NUMBER:
+<span class='uc' id='L269' title='2|2|2 - Total: 2'>            if (to.isPrimitive()) {
+</span><span class='uc' id='L270' title='2|2|2 - Total: 2'>                if (to == Double.TYPE) {
+</span><span class='uc' id='L271' title='2|2|2 - Total: 2'>                    return 1;
+</span>                }
+<span class='uc' id='L273' title='2|2|2 - Total: 2'>                else if (to != Boolean.TYPE) {
+</span><span class='uc' id='L274' title='5|5|5 - Total: 5'>                    return 1 + getSizeRank(to);
+</span>                }
+            }
+            else {
+<span class='uc' id='L278' title='2|2|2 - Total: 2'>                if (to == ScriptRuntime.StringClass) {
+</span>                    // native numbers are #1-8
+<span class='uc' id='L280' title='2|2|2 - Total: 2'>                    return 9;
+</span>                }
+<span class='uc' id='L282' title='2|2|2 - Total: 2'>                else if (to == ScriptRuntime.ObjectClass) {
+</span><span class='uc' id='L283' title='2|2|2 - Total: 2'>                    return 10;
+</span>                }
+<span class='upc' id='L285' title='1|1|1 - Total: 2'>                else if (ScriptRuntime.NumberClass.isAssignableFrom(to)) {
+</span>                    // "double" is #1
+<span class='nc' id='L287' title='0|0|0 - Total: 2'>                    return 2;
+</span>                }
+            }
+            break;
+
+        case JSTYPE_STRING:
+<span class='uc' id='L293' title='2|2|2 - Total: 2'>            if (to == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L294' title='2|2|2 - Total: 2'>                return 1;
+</span>            }
+<span class='uc' id='L296' title='2|2|2 - Total: 2'>            else if (to.isInstance(fromObj)) {
+</span><span class='uc' id='L297' title='2|2|2 - Total: 2'>                return 2;
+</span>            }
+<span class='uc' id='L299' title='2|2|2 - Total: 2'>            else if (to.isPrimitive()) {
+</span><span class='uc' id='L300' title='2|2|2 - Total: 2'>                if (to == Character.TYPE) {
+</span><span class='uc' id='L301' title='2|2|2 - Total: 2'>                    return 3;
+</span><span class='uc' id='L302' title='2|2|2 - Total: 2'>                } else if (to != Boolean.TYPE) {
+</span><span class='uc' id='L303' title='2|2|2 - Total: 2'>                    return 4;
+</span>                }
+            }
+            break;
+
+        case JSTYPE_JAVA_CLASS:
+<span class='upc' id='L309' title='1|1|1 - Total: 2'>            if (to == ScriptRuntime.ClassClass) {
+</span><span class='uc' id='L310' title='2|2|2 - Total: 2'>                return 1;
+</span>            }
+<span class='nc' id='L312' title='0|0|0 - Total: 2'>            else if (to == ScriptRuntime.ObjectClass) {
+</span><span class='nc' id='L313' title='0|0|0 - Total: 2'>                return 3;
+</span>            }
+<span class='nc' id='L315' title='0|0|0 - Total: 2'>            else if (to == ScriptRuntime.StringClass) {
+</span><span class='nc' id='L316' title='0|0|0 - Total: 2'>                return 4;
+</span>            }
+            break;
+
+        case JSTYPE_JAVA_OBJECT:
+        case JSTYPE_JAVA_ARRAY:
+<span class='uc' id='L322' title='2|2|2 - Total: 2'>            Object javaObj = fromObj;
+</span><span class='uc' id='L323' title='2|2|2 - Total: 2'>            if (javaObj instanceof Wrapper) {
+</span><span class='uc' id='L324' title='4|4|4 - Total: 4'>                javaObj = ((Wrapper)javaObj).unwrap();
+</span>            }
+<span class='uc' id='L326' title='2|2|2 - Total: 2'>            if (to.isInstance(javaObj)) {
+</span><span class='uc' id='L327' title='2|2|2 - Total: 2'>                return CONVERSION_NONTRIVIAL;
+</span>            }
+<span class='uc' id='L329' title='2|2|2 - Total: 2'>            if (to == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L330' title='2|2|2 - Total: 2'>                return 2;
+</span>            }
+<span class='upc' id='L332' title='3|3|3 - Total: 4'>            else if (to.isPrimitive() && to != Boolean.TYPE) {
+</span><span class='nc' id='L333' title='0|0|0 - Total: 2'>                return (fromCode == JSTYPE_JAVA_ARRAY)
+</span><span class='nc' id='L334' title='0|0|0 - Total: 2'>                       ? CONVERSION_NONE : 2 + getSizeRank(to);
+</span>            }
+            break;
+
+        case JSTYPE_OBJECT:
+            // Other objects takes #1-#3 spots
+<span class='uc' id='L340' title='4|4|4 - Total: 4'>            if (to != ScriptRuntime.ObjectClass && to.isInstance(fromObj)) {
+</span>                // No conversion required, but don't apply for java.lang.Object
+<span class='uc' id='L342' title='2|2|2 - Total: 2'>                return 1;
+</span>            }
+<span class='uc' id='L344' title='2|2|2 - Total: 2'>            if (to.isArray()) {
+</span><span class='uc' id='L345' title='2|2|2 - Total: 2'>                if (fromObj instanceof NativeArray) {
+</span>                    // This is a native array conversion to a java array
+                    // Array conversions are all equal, and preferable to object
+                    // and string conversion, per LC3.
+<span class='uc' id='L349' title='2|2|2 - Total: 2'>                    return 2;
+</span>                }
+            }
+<span class='uc' id='L352' title='2|2|2 - Total: 2'>            else if (to == ScriptRuntime.ObjectClass) {
+</span><span class='uc' id='L353' title='2|2|2 - Total: 2'>                return 3;
+</span>            }
+<span class='uc' id='L355' title='2|2|2 - Total: 2'>            else if (to == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L356' title='2|2|2 - Total: 2'>                return 4;
+</span>            }
+<span class='upc' id='L358' title='1|1|1 - Total: 2'>            else if (to == ScriptRuntime.DateClass) {
+</span><span class='nc' id='L359' title='0|0|0 - Total: 2'>                if (fromObj instanceof NativeDate) {
+</span>                    // This is a native date to java date conversion
+<span class='nc' id='L361' title='0|0|0 - Total: 2'>                    return 1;
+</span>                }
+            }
+<span class='uc' id='L364' title='2|2|2 - Total: 2'>            else if (to.isInterface()) {
+</span>
+<span class='uc' id='L366' title='2|2|2 - Total: 2'>                if (fromObj instanceof NativeFunction) {
+</span>                    // See comments in createInterfaceAdapter
+<span class='uc' id='L368' title='2|2|2 - Total: 2'>                    return 1;
+</span>                }
+<span class='uc' id='L370' title='2|2|2 - Total: 2'>                if (fromObj instanceof NativeObject) {
+</span><span class='uc' id='L371' title='2|2|2 - Total: 2'>                    return 2;
+</span>                }
+<span class='uc' id='L373' title='2|2|2 - Total: 2'>                return 12;
+</span>            }
+<span class='upc' id='L375' title='3|3|3 - Total: 4'>            else if (to.isPrimitive() && to != Boolean.TYPE) {
+</span><span class='uc' id='L376' title='5|5|5 - Total: 5'>                return 4 + getSizeRank(to);
+</span>            }
+            break;
+        }
+
+<span class='uc' id='L381' title='2|2|2 - Total: 2'>        return CONVERSION_NONE;
+</span>    }
+
+    static int getSizeRank(Class<?> aType) {
+<span class='upc' id='L385' title='1|1|1 - Total: 2'>        if (aType == Double.TYPE) {
+</span><span class='nc' id='L386' title='0|0|0 - Total: 2'>            return 1;
+</span>        }
+<span class='uc' id='L388' title='2|2|2 - Total: 2'>        else if (aType == Float.TYPE) {
+</span><span class='uc' id='L389' title='2|2|2 - Total: 2'>            return 2;
+</span>        }
+<span class='uc' id='L391' title='2|2|2 - Total: 2'>        else if (aType == Long.TYPE) {
+</span><span class='uc' id='L392' title='2|2|2 - Total: 2'>            return 3;
+</span>        }
+<span class='uc' id='L394' title='2|2|2 - Total: 2'>        else if (aType == Integer.TYPE) {
+</span><span class='uc' id='L395' title='2|2|2 - Total: 2'>            return 4;
+</span>        }
+<span class='uc' id='L397' title='2|2|2 - Total: 2'>        else if (aType == Short.TYPE) {
+</span><span class='uc' id='L398' title='2|2|2 - Total: 2'>            return 5;
+</span>        }
+<span class='uc' id='L400' title='2|2|2 - Total: 2'>        else if (aType == Character.TYPE) {
+</span><span class='uc' id='L401' title='2|2|2 - Total: 2'>            return 6;
+</span>        }
+<span class='upc' id='L403' title='1|1|1 - Total: 2'>        else if (aType == Byte.TYPE) {
+</span><span class='uc' id='L404' title='2|2|2 - Total: 2'>            return 7;
+</span>        }
+<span class='nc' id='L406' title='0|0|0 - Total: 2'>        else if (aType == Boolean.TYPE) {
+</span><span class='nc' id='L407' title='0|0|0 - Total: 2'>            return CONVERSION_NONE;
+</span>        }
+        else {
+<span class='nc' id='L410' title='0|0|0 - Total: 2'>            return 8;
+</span>        }
+    }
+
+    private static int getJSTypeCode(Object value) {
+<span class='uc' id='L415' title='2|2|2 - Total: 2'>        if (value == null) {
+</span><span class='uc' id='L416' title='2|2|2 - Total: 2'>            return JSTYPE_NULL;
+</span>        }
+<span class='upc' id='L418' title='1|1|1 - Total: 2'>        else if (value == Undefined.instance) {
+</span><span class='nc' id='L419' title='0|0|0 - Total: 2'>            return JSTYPE_UNDEFINED;
+</span>        }
+<span class='uc' id='L421' title='2|2|2 - Total: 2'>        else if (value instanceof CharSequence) {
+</span><span class='uc' id='L422' title='2|2|2 - Total: 2'>            return JSTYPE_STRING;
+</span>        }
+<span class='uc' id='L424' title='2|2|2 - Total: 2'>        else if (value instanceof Number) {
+</span><span class='uc' id='L425' title='2|2|2 - Total: 2'>            return JSTYPE_NUMBER;
+</span>        }
+<span class='uc' id='L427' title='2|2|2 - Total: 2'>        else if (value instanceof Boolean) {
+</span><span class='uc' id='L428' title='2|2|2 - Total: 2'>            return JSTYPE_BOOLEAN;
+</span>        }
+<span class='uc' id='L430' title='2|2|2 - Total: 2'>        else if (value instanceof Scriptable) {
+</span><span class='uc' id='L431' title='2|2|2 - Total: 2'>            if (value instanceof NativeJavaClass) {
+</span><span class='uc' id='L432' title='2|2|2 - Total: 2'>                return JSTYPE_JAVA_CLASS;
+</span>            }
+<span class='uc' id='L434' title='2|2|2 - Total: 2'>            else if (value instanceof NativeJavaArray) {
+</span><span class='uc' id='L435' title='2|2|2 - Total: 2'>                return JSTYPE_JAVA_ARRAY;
+</span>            }
+<span class='uc' id='L437' title='2|2|2 - Total: 2'>            else if (value instanceof Wrapper) {
+</span><span class='uc' id='L438' title='2|2|2 - Total: 2'>                return JSTYPE_JAVA_OBJECT;
+</span>            }
+            else {
+<span class='uc' id='L441' title='2|2|2 - Total: 2'>                return JSTYPE_OBJECT;
+</span>            }
+        }
+<span class='upc' id='L444' title='1|1|1 - Total: 2'>        else if (value instanceof Class) {
+</span><span class='nc' id='L445' title='0|0|0 - Total: 2'>            return JSTYPE_JAVA_CLASS;
+</span>        }
+        else {
+<span class='uc' id='L448' title='3|3|3 - Total: 3'>            Class<?> valueClass = value.getClass();
+</span><span class='upc' id='L449' title='1|1|1 - Total: 2'>            if (valueClass.isArray()) {
+</span><span class='nc' id='L450' title='0|0|0 - Total: 2'>                return JSTYPE_JAVA_ARRAY;
+</span>            }
+            else {
+<span class='uc' id='L453' title='2|2|2 - Total: 2'>                return JSTYPE_JAVA_OBJECT;
+</span>            }
+        }
+    }
+
+    /**
+     * Not intended for public use. Callers should use the
+     * public API Context.toType.
+     * @deprecated as of 1.5 Release 4
+     * @see org.mozilla.javascript.Context#jsToJava(Object, Class)
+     */
+    @Deprecated
+    public static Object coerceType(Class<?> type, Object value)
+    {
+<span class='nc' id='L467' title='0|0|0 - Total: 4'>        return coerceTypeImpl(type, value);
+</span>    }
+
+    /**
+     * Type-munging for field setting and method invocation.
+     * Conforms to LC3 specification
+     */
+    static Object coerceTypeImpl(Class<?> type, Object value)
+    {
+<span class='uc' id='L476' title='4|4|4 - Total: 4'>        if (value != null && value.getClass() == type) {
+</span><span class='uc' id='L477' title='2|2|2 - Total: 2'>            return value;
+</span>        }
+
+<span class='upc' id='L480' title='7|7|7 - Total: 9'>        switch (getJSTypeCode(value)) {
+</span>
+        case JSTYPE_NULL:
+            // raise error if type.isPrimitive()
+<span class='upc' id='L484' title='1|1|1 - Total: 2'>            if (type.isPrimitive()) {
+</span><span class='nc' id='L485' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+<span class='uc' id='L487' title='2|2|2 - Total: 2'>            return null;
+</span>
+        case JSTYPE_UNDEFINED:
+<span class='nc' id='L490' title='0|0|0 - Total: 4'>            if (type == ScriptRuntime.StringClass ||
+</span>                type == ScriptRuntime.ObjectClass) {
+<span class='nc' id='L492' title='0|0|0 - Total: 2'>                return "undefined";
+</span>            }
+            else {
+<span class='nc' id='L495' title='0|0|0 - Total: 3'>                reportConversionError("undefined", type);
+</span>            }
+<span class='nc' id='L497' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_BOOLEAN:
+            // Under LC3, only JS Booleans can be coerced into a Boolean value
+<span class='upc' id='L501' title='4|4|4 - Total: 6'>            if (type == Boolean.TYPE ||
+</span>                type == ScriptRuntime.BooleanClass ||
+                type == ScriptRuntime.ObjectClass) {
+<span class='uc' id='L504' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+<span class='nc' id='L506' title='0|0|0 - Total: 2'>            else if (type == ScriptRuntime.StringClass) {
+</span><span class='nc' id='L507' title='0|0|0 - Total: 3'>                return value.toString();
+</span>            }
+            else {
+<span class='nc' id='L510' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+<span class='nc' id='L512' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_NUMBER:
+<span class='upc' id='L515' title='1|1|1 - Total: 2'>            if (type == ScriptRuntime.StringClass) {
+</span><span class='nc' id='L516' title='0|0|0 - Total: 3'>                return ScriptRuntime.toString(value);
+</span>            }
+<span class='uc' id='L518' title='2|2|2 - Total: 2'>            else if (type == ScriptRuntime.ObjectClass) {
+</span><span class='uc' id='L519' title='2|2|2 - Total: 2'>                Context context = Context.getCurrentContext();
+</span><span class='uc' id='L520' title='2|2|2 - Total: 2'>                if(context.hasFeature(Context.FEATURE_INTEGER_WITHOUT_DECIMAL_PLACE)) {
+</span>                    //to process numbers like 2.0 as 2 without decimal place
+<span class='uc' id='L522' title='4|4|4 - Total: 4'>                    long roundedValue = Math.round(toDouble(value));
+</span><span class='upc' id='L523' title='1|1|1 - Total: 2'>                    if(roundedValue == toDouble(value)) {
+</span><span class='uc' id='L524' title='4|4|4 - Total: 4'>                        return coerceToNumber(Long.TYPE, value);
+</span>                    }
+                }
+<span class='uc' id='L527' title='4|4|4 - Total: 4'>                return coerceToNumber(Double.TYPE, value);
+</span>            }
+<span class='upc' id='L529' title='2|2|2 - Total: 4'>            else if ((type.isPrimitive() && type != Boolean.TYPE) ||
+</span><span class='nc' id='L530' title='0|0|0 - Total: 2'>                     ScriptRuntime.NumberClass.isAssignableFrom(type)) {
+</span><span class='uc' id='L531' title='4|4|4 - Total: 4'>                return coerceToNumber(type, value);
+</span>            }
+            else {
+<span class='nc' id='L534' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+<span class='nc' id='L536' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_STRING:
+<span class='upc' id='L539' title='3|3|3 - Total: 4'>            if (type == ScriptRuntime.StringClass || type.isInstance(value)) {
+</span><span class='uc' id='L540' title='3|3|3 - Total: 3'>                return value.toString();
+</span>            }
+<span class='upc' id='L542' title='3|3|3 - Total: 4'>            else if (type == Character.TYPE
+</span>                     || type == ScriptRuntime.CharacterClass)
+            {
+                // Special case for converting a single char string to a
+                // character
+                // Placed here because it applies *only* to JS strings,
+                // not other JS objects converted to strings
+<span class='upc' id='L549' title='1|1|1 - Total: 2'>                if (((CharSequence)value).length() == 1) {
+</span><span class='uc' id='L550' title='6|6|6 - Total: 6'>                    return Character.valueOf(((CharSequence)value).charAt(0));
+</span>                }
+                else {
+<span class='nc' id='L553' title='0|0|0 - Total: 4'>                    return coerceToNumber(type, value);
+</span>                }
+            }
+<span class='upc' id='L556' title='2|2|2 - Total: 4'>            else if ((type.isPrimitive() && type != Boolean.TYPE)
+</span><span class='nc' id='L557' title='0|0|0 - Total: 2'>                     || ScriptRuntime.NumberClass.isAssignableFrom(type))
+</span>            {
+<span class='uc' id='L559' title='4|4|4 - Total: 4'>                return coerceToNumber(type, value);
+</span>            }
+            else {
+<span class='nc' id='L562' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+<span class='nc' id='L564' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_JAVA_CLASS:
+<span class='upc' id='L567' title='1|1|1 - Total: 2'>            if (value instanceof Wrapper) {
+</span><span class='uc' id='L568' title='4|4|4 - Total: 4'>                value = ((Wrapper)value).unwrap();
+</span>            }
+
+<span class='upc' id='L571' title='1|1|1 - Total: 4'>            if (type == ScriptRuntime.ClassClass ||
+</span>                type == ScriptRuntime.ObjectClass) {
+<span class='uc' id='L573' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+<span class='nc' id='L575' title='0|0|0 - Total: 2'>            else if (type == ScriptRuntime.StringClass) {
+</span><span class='nc' id='L576' title='0|0|0 - Total: 3'>                return value.toString();
+</span>            }
+            else {
+<span class='nc' id='L579' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+<span class='nc' id='L581' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_JAVA_OBJECT:
+        case JSTYPE_JAVA_ARRAY:
+<span class='upc' id='L585' title='1|1|1 - Total: 2'>            if (value instanceof Wrapper) {
+</span><span class='uc' id='L586' title='4|4|4 - Total: 4'>              value = ((Wrapper)value).unwrap();
+</span>            }
+<span class='upc' id='L588' title='1|1|1 - Total: 2'>            if (type.isPrimitive()) {
+</span><span class='nc' id='L589' title='0|0|0 - Total: 2'>                if (type == Boolean.TYPE) {
+</span><span class='nc' id='L590' title='0|0|0 - Total: 3'>                    reportConversionError(value, type);
+</span>                }
+<span class='nc' id='L592' title='0|0|0 - Total: 4'>                return coerceToNumber(type, value);
+</span>            }
+            else {
+<span class='uc' id='L595' title='2|2|2 - Total: 2'>              if (type == ScriptRuntime.StringClass) {
+</span><span class='uc' id='L596' title='3|3|3 - Total: 3'>                    return value.toString();
+</span>                }
+                else {
+<span class='upc' id='L599' title='1|1|1 - Total: 2'>                    if (type.isInstance(value)) {
+</span><span class='uc' id='L600' title='2|2|2 - Total: 2'>                        return value;
+</span>                    }
+                    else {
+<span class='nc' id='L603' title='0|0|0 - Total: 3'>                        reportConversionError(value, type);
+</span>                    }
+                }
+            }
+<span class='nc' id='L607' title='0|0|0 - Total: 1'>            break;
+</span>
+        case JSTYPE_OBJECT:
+<span class='upc' id='L610' title='1|1|1 - Total: 2'>            if (type == ScriptRuntime.StringClass) {
+</span><span class='nc' id='L611' title='0|0|0 - Total: 3'>                return ScriptRuntime.toString(value);
+</span>            }
+<span class='upc' id='L613' title='1|1|1 - Total: 2'>            else if (type.isPrimitive()) {
+</span><span class='nc' id='L614' title='0|0|0 - Total: 2'>                if (type == Boolean.TYPE) {
+</span><span class='nc' id='L615' title='0|0|0 - Total: 3'>                    reportConversionError(value, type);
+</span>                }
+<span class='nc' id='L617' title='0|0|0 - Total: 4'>                return coerceToNumber(type, value);
+</span>            }
+<span class='uc' id='L619' title='2|2|2 - Total: 2'>            else if (type.isInstance(value)) {
+</span><span class='uc' id='L620' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+<span class='upc' id='L622' title='1|1|1 - Total: 4'>            else if (type == ScriptRuntime.DateClass
+</span>                     && value instanceof NativeDate)
+            {
+<span class='nc' id='L625' title='0|0|0 - Total: 4'>                double time = ((NativeDate)value).getJSTimeValue();
+</span>                // XXX: This will replace NaN by 0
+<span class='nc' id='L627' title='0|0|0 - Total: 6'>                return new Date((long)time);
+</span>            }
+<span class='upc' id='L629' title='3|3|3 - Total: 4'>            else if (type.isArray() && value instanceof NativeArray) {
+</span>                // Make a new java array, and coerce the JS array components
+                // to the target (component) type.
+<span class='uc' id='L632' title='3|3|3 - Total: 3'>                NativeArray array = (NativeArray) value;
+</span><span class='uc' id='L633' title='3|3|3 - Total: 3'>                long length = array.getLength();
+</span><span class='uc' id='L634' title='3|3|3 - Total: 3'>                Class<?> arrayType = type.getComponentType();
+</span><span class='uc' id='L635' title='5|5|5 - Total: 5'>                Object Result = Array.newInstance(arrayType, (int)length);
+</span><span class='uc' id='L636' title='2|2|2 - Total: 2'>                for (int i = 0 ; i < length ; ++i) {
+</span>                    try  {
+<span class='uc' id='L638' title='8|8|8 - Total: 8'>                        Array.set(Result, i, coerceTypeImpl(
+</span><span class='uc' id='L639' title='1|1|1 - Total: 1'>                                arrayType, array.get(i, array)));
+</span>                    }
+<span class='nc' id='L641' title='0|0|0 - Total: 1'>                    catch (EvaluatorException ee) {
+</span><span class='nc' id='L642' title='0|0|0 - Total: 3'>                        reportConversionError(value, type);
+</span><span class='uc' id='L643' title='1|1|1 - Total: 1'>                    }
+</span>                }
+
+<span class='uc' id='L646' title='2|2|2 - Total: 2'>                return Result;
+</span>            }
+<span class='upc' id='L648' title='1|1|1 - Total: 2'>            else if (value instanceof Wrapper) {
+</span><span class='nc' id='L649' title='0|0|0 - Total: 4'>                value = ((Wrapper)value).unwrap();
+</span><span class='nc' id='L650' title='0|0|0 - Total: 2'>                if (type.isInstance(value))
+</span><span class='nc' id='L651' title='0|0|0 - Total: 2'>                    return value;
+</span><span class='nc' id='L652' title='0|0|0 - Total: 4'>                reportConversionError(value, type);
+</span>            }
+<span class='upc' id='L654' title='3|3|3 - Total: 6'>            else if (type.isInterface() && (value instanceof NativeObject
+</span>                    || value instanceof NativeFunction)) {
+                // Try to use function/object as implementation of Java interface.
+<span class='uc' id='L657' title='5|5|5 - Total: 5'>                return createInterfaceAdapter(type, (ScriptableObject) value);
+</span>            } else {
+<span class='nc' id='L659' title='0|0|0 - Total: 3'>                reportConversionError(value, type);
+</span>            }
+            break;
+        }
+
+<span class='nc' id='L664' title='0|0|0 - Total: 2'>        return value;
+</span>    }
+
+    protected static Object createInterfaceAdapter(Class<?>type, ScriptableObject so) {
+        // XXX: Currently only instances of ScriptableObject are
+        // supported since the resulting interface proxies should
+        // be reused next time conversion is made and generic
+        // Callable has no storage for it. Weak references can
+        // address it but for now use this restriction.
+
+<span class='uc' id='L674' title='4|4|4 - Total: 4'>        Object key = Kit.makeHashKeyFromPair(COERCED_INTERFACE_KEY, type);
+</span><span class='uc' id='L675' title='4|4|4 - Total: 4'>        Object old = so.getAssociatedValue(key);
+</span><span class='upc' id='L676' title='1|1|1 - Total: 2'>        if (old != null) {
+</span>            // Function was already wrapped
+<span class='nc' id='L678' title='0|0|0 - Total: 2'>            return old;
+</span>        }
+<span class='uc' id='L680' title='2|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='uc' id='L681' title='5|5|5 - Total: 5'>        Object glue = InterfaceAdapter.create(cx, type, so);
+</span>        // Store for later retrieval
+<span class='uc' id='L683' title='5|5|5 - Total: 5'>        glue = so.associateValue(key, glue);
+</span><span class='uc' id='L684' title='2|2|2 - Total: 2'>        return glue;
+</span>    }
+
+    private static Object coerceToNumber(Class<?> type, Object value)
+    {
+<span class='uc' id='L689' title='3|3|3 - Total: 3'>        Class<?> valueClass = value.getClass();
+</span>
+        // Character
+<span class='upc' id='L692' title='3|3|3 - Total: 4'>        if (type == Character.TYPE || type == ScriptRuntime.CharacterClass) {
+</span><span class='upc' id='L693' title='1|1|1 - Total: 2'>            if (valueClass == ScriptRuntime.CharacterClass) {
+</span><span class='nc' id='L694' title='0|0|0 - Total: 2'>                return value;
+</span>            }
+<span class='uc' id='L696' title='9|9|9 - Total: 9'>            return Character.valueOf((char)toInteger(value,
+</span>                                                 ScriptRuntime.CharacterClass,
+                                                 Character.MIN_VALUE,
+                                                 Character.MAX_VALUE));
+        }
+
+        // Double, Float
+<span class='upc' id='L703' title='4|4|4 - Total: 6'>        if (type == ScriptRuntime.ObjectClass ||
+</span>            type == ScriptRuntime.DoubleClass || type == Double.TYPE) {
+<span class='uc' id='L705' title='2|2|2 - Total: 2'>            return valueClass == ScriptRuntime.DoubleClass
+</span>                ? value
+<span class='uc' id='L707' title='2|2|2 - Total: 2'>                : new Double(toDouble(value));
+</span>        }
+
+<span class='upc' id='L710' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.FloatClass || type == Float.TYPE) {
+</span><span class='upc' id='L711' title='1|1|1 - Total: 2'>            if (valueClass == ScriptRuntime.FloatClass) {
+</span><span class='nc' id='L712' title='0|0|0 - Total: 2'>                return value;
+</span>            }
+            else {
+<span class='uc' id='L715' title='3|3|3 - Total: 3'>                double number = toDouble(value);
+</span><span class='upc' id='L716' title='5|5|5 - Total: 6'>                if (Double.isInfinite(number) || Double.isNaN(number)
+</span>                    || number == 0.0) {
+<span class='uc' id='L718' title='6|6|6 - Total: 6'>                    return new Float((float)number);
+</span>                }
+                else {
+<span class='uc' id='L721' title='3|3|3 - Total: 3'>                    double absNumber = Math.abs(number);
+</span><span class='upc' id='L722' title='1|1|1 - Total: 2'>                    if (absNumber < Float.MIN_VALUE) {
+</span><span class='nc' id='L723' title='0|0|0 - Total: 2'>                        return new Float((number > 0.0) ? +0.0 : -0.0);
+</span>                    }
+<span class='upc' id='L725' title='1|1|1 - Total: 2'>                    else if (absNumber > Float.MAX_VALUE) {
+</span><span class='nc' id='L726' title='0|0|0 - Total: 2'>                        return new Float((number > 0.0) ?
+</span>                                         Float.POSITIVE_INFINITY :
+                                         Float.NEGATIVE_INFINITY);
+                    }
+                    else {
+<span class='uc' id='L731' title='6|6|6 - Total: 6'>                        return new Float((float)number);
+</span>                    }
+                }
+            }
+        }
+
+        // Integer, Long, Short, Byte
+<span class='upc' id='L738' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.IntegerClass || type == Integer.TYPE) {
+</span><span class='uc' id='L739' title='2|2|2 - Total: 2'>            if (valueClass == ScriptRuntime.IntegerClass) {
+</span><span class='uc' id='L740' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+            else {
+<span class='uc' id='L743' title='8|8|8 - Total: 8'>                return Integer.valueOf((int)toInteger(value,
+</span>                                                  ScriptRuntime.IntegerClass,
+                                                  Integer.MIN_VALUE,
+                                                  Integer.MAX_VALUE));
+            }
+        }
+
+<span class='upc' id='L750' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.LongClass || type == Long.TYPE) {
+</span><span class='upc' id='L751' title='1|1|1 - Total: 2'>            if (valueClass == ScriptRuntime.LongClass) {
+</span><span class='nc' id='L752' title='0|0|0 - Total: 2'>                return value;
+</span>            } else {
+                /* Long values cannot be expressed exactly in doubles.
+                 * We thus use the largest and smallest double value that
+                 * has a value expressible as a long value. We build these
+                 * numerical values from their hexidecimal representations
+                 * to avoid any problems caused by attempting to parse a
+                 * decimal representation.
+                 */
+<span class='uc' id='L761' title='3|3|3 - Total: 3'>                final double max = Double.longBitsToDouble(0x43dfffffffffffffL);
+</span><span class='uc' id='L762' title='3|3|3 - Total: 3'>                final double min = Double.longBitsToDouble(0xc3e0000000000000L);
+</span><span class='uc' id='L763' title='7|7|7 - Total: 7'>                return Long.valueOf(toInteger(value,
+</span>                                          ScriptRuntime.LongClass,
+                                          min,
+                                          max));
+            }
+        }
+
+<span class='upc' id='L770' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.ShortClass || type == Short.TYPE) {
+</span><span class='upc' id='L771' title='1|1|1 - Total: 2'>            if (valueClass == ScriptRuntime.ShortClass) {
+</span><span class='nc' id='L772' title='0|0|0 - Total: 2'>                return value;
+</span>            }
+            else {
+<span class='uc' id='L775' title='9|9|9 - Total: 9'>                return Short.valueOf((short)toInteger(value,
+</span>                                                  ScriptRuntime.ShortClass,
+                                                  Short.MIN_VALUE,
+                                                  Short.MAX_VALUE));
+            }
+        }
+
+<span class='upc' id='L782' title='2|2|2 - Total: 4'>        if (type == ScriptRuntime.ByteClass || type == Byte.TYPE) {
+</span><span class='uc' id='L783' title='2|2|2 - Total: 2'>            if (valueClass == ScriptRuntime.ByteClass) {
+</span><span class='uc' id='L784' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+            else {
+<span class='uc' id='L787' title='9|9|9 - Total: 9'>                return Byte.valueOf((byte)toInteger(value,
+</span>                                                ScriptRuntime.ByteClass,
+                                                Byte.MIN_VALUE,
+                                                Byte.MAX_VALUE));
+            }
+        }
+
+<span class='nc' id='L794' title='0|0|0 - Total: 6'>        return new Double(toDouble(value));
+</span>    }
+
+
+    private static double toDouble(Object value)
+    {
+<span class='uc' id='L800' title='2|2|2 - Total: 2'>        if (value instanceof Number) {
+</span><span class='uc' id='L801' title='4|4|4 - Total: 4'>            return ((Number)value).doubleValue();
+</span>        }
+<span class='upc' id='L803' title='1|1|1 - Total: 2'>        else if (value instanceof String) {
+</span><span class='uc' id='L804' title='4|4|4 - Total: 4'>            return ScriptRuntime.toNumber((String)value);
+</span>        }
+<span class='nc' id='L806' title='0|0|0 - Total: 2'>        else if (value instanceof Scriptable) {
+</span><span class='nc' id='L807' title='0|0|0 - Total: 2'>            if (value instanceof Wrapper) {
+</span>                // XXX: optimize tail-recursion?
+<span class='nc' id='L809' title='0|0|0 - Total: 5'>                return toDouble(((Wrapper)value).unwrap());
+</span>            }
+            else {
+<span class='nc' id='L812' title='0|0|0 - Total: 3'>                return ScriptRuntime.toNumber(value);
+</span>            }
+        }
+        else {
+            Method meth;
+            try {
+<span class='nc' id='L818' title='0|0|0 - Total: 7'>                meth = value.getClass().getMethod("doubleValue", (Class [])null);
+</span>            }
+<span class='nc' id='L820' title='0|0|0 - Total: 1'>            catch (NoSuchMethodException e) {
+</span><span class='nc' id='L821' title='0|0|0 - Total: 2'>                meth = null;
+</span>            }
+<span class='nc' id='L823' title='0|0|0 - Total: 1'>            catch (SecurityException e) {
+</span><span class='nc' id='L824' title='0|0|0 - Total: 2'>                meth = null;
+</span><span class='nc' id='L825' title='0|0|0 - Total: 2'>            }
+</span><span class='nc' id='L826' title='0|0|0 - Total: 2'>            if (meth != null) {
+</span>                try {
+<span class='nc' id='L828' title='0|0|0 - Total: 8'>                    return ((Number)meth.invoke(value, (Object [])null)).doubleValue();
+</span>                }
+<span class='nc' id='L830' title='0|0|0 - Total: 1'>                catch (IllegalAccessException e) {
+</span>                    // XXX: ignore, or error message?
+<span class='nc' id='L832' title='0|0|0 - Total: 3'>                    reportConversionError(value, Double.TYPE);
+</span>                }
+<span class='nc' id='L834' title='0|0|0 - Total: 1'>                catch (InvocationTargetException e) {
+</span>                    // XXX: ignore, or error message?
+<span class='nc' id='L836' title='0|0|0 - Total: 3'>                    reportConversionError(value, Double.TYPE);
+</span><span class='nc' id='L837' title='0|0|0 - Total: 1'>                }
+</span>            }
+<span class='nc' id='L839' title='0|0|0 - Total: 4'>            return ScriptRuntime.toNumber(value.toString());
+</span>        }
+    }
+
+    private static long toInteger(Object value, Class<?> type,
+                                  double min, double max)
+    {
+<span class='uc' id='L846' title='3|3|3 - Total: 3'>        double d = toDouble(value);
+</span>
+<span class='upc' id='L848' title='3|3|3 - Total: 4'>        if (Double.isInfinite(d) || Double.isNaN(d)) {
+</span>            // Convert to string first, for more readable message
+<span class='nc' id='L850' title='0|0|0 - Total: 4'>            reportConversionError(ScriptRuntime.toString(value), type);
+</span>        }
+
+<span class='uc' id='L853' title='2|2|2 - Total: 2'>        if (d > 0.0) {
+</span><span class='uc' id='L854' title='4|4|4 - Total: 4'>            d = Math.floor(d);
+</span>        }
+        else {
+<span class='uc' id='L857' title='3|3|3 - Total: 3'>            d = Math.ceil(d);
+</span>        }
+
+<span class='upc' id='L860' title='2|2|2 - Total: 4'>        if (d < min || d > max) {
+</span>            // Convert to string first, for more readable message
+<span class='nc' id='L862' title='0|0|0 - Total: 4'>            reportConversionError(ScriptRuntime.toString(value), type);
+</span>        }
+<span class='uc' id='L864' title='3|3|3 - Total: 3'>        return (long)d;
+</span>    }
+
+    static void reportConversionError(Object value, Class<?> type)
+    {
+        // It uses String.valueOf(value), not value.toString() since
+        // value can be null, bug 282447.
+<span class='uc' id='L871' title='4|4|4 - Total: 4'>        throw Context.reportRuntimeError2(
+</span>            "msg.conversion.not.allowed",
+<span class='uc' id='L873' title='2|2|2 - Total: 2'>            String.valueOf(value),
+</span><span class='uc' id='L874' title='1|1|1 - Total: 1'>            JavaMembers.javaSignature(type));
+</span>    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class='uc' id='L880' title='2|2|2 - Total: 2'>        out.defaultWriteObject();
+</span>
+<span class='uc' id='L882' title='4|4|4 - Total: 4'>        out.writeBoolean(isAdapter);
+</span><span class='upc' id='L883' title='1|1|1 - Total: 2'>        if (isAdapter) {
+</span><span class='nc' id='L884' title='0|0|0 - Total: 2'>            if (adapter_writeAdapterObject == null) {
+</span><span class='nc' id='L885' title='0|0|0 - Total: 4'>                throw new IOException();
+</span>            }
+<span class='nc' id='L887' title='0|0|0 - Total: 12'>            Object[] args = { javaObject, out };
+</span>            try {
+<span class='nc' id='L889' title='0|0|0 - Total: 5'>                adapter_writeAdapterObject.invoke(null, args);
+</span><span class='nc' id='L890' title='0|0|0 - Total: 1'>            } catch (Exception ex) {
+</span><span class='nc' id='L891' title='0|0|0 - Total: 4'>                throw new IOException();
+</span><span class='nc' id='L892' title='0|0|0 - Total: 1'>            }
+</span><span class='nc' id='L893' title='0|0|0 - Total: 1'>        } else {
+</span><span class='uc' id='L894' title='4|4|4 - Total: 4'>            out.writeObject(javaObject);
+</span>        }
+
+<span class='upc' id='L897' title='1|1|1 - Total: 2'>        if (staticType != null) {
+</span><span class='nc' id='L898' title='0|0|0 - Total: 7'>            out.writeObject(staticType.getClass().getName());
+</span>        } else {
+<span class='uc' id='L900' title='3|3|3 - Total: 3'>            out.writeObject(null);
+</span>        }
+<span class='uc' id='L902' title='1|1|1 - Total: 1'>    }
+</span>
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='uc' id='L907' title='2|2|2 - Total: 2'>        in.defaultReadObject();
+</span>
+<span class='uc' id='L909' title='4|4|4 - Total: 4'>        isAdapter = in.readBoolean();
+</span><span class='upc' id='L910' title='1|1|1 - Total: 2'>        if (isAdapter) {
+</span><span class='nc' id='L911' title='0|0|0 - Total: 2'>            if (adapter_readAdapterObject == null)
+</span><span class='nc' id='L912' title='0|0|0 - Total: 4'>                throw new ClassNotFoundException();
+</span><span class='nc' id='L913' title='0|0|0 - Total: 11'>            Object[] args = { this, in };
+</span>            try {
+<span class='nc' id='L915' title='0|0|0 - Total: 6'>                javaObject = adapter_readAdapterObject.invoke(null, args);
+</span><span class='nc' id='L916' title='0|0|0 - Total: 1'>            } catch (Exception ex) {
+</span><span class='nc' id='L917' title='0|0|0 - Total: 4'>                throw new IOException();
+</span><span class='nc' id='L918' title='0|0|0 - Total: 1'>            }
+</span><span class='nc' id='L919' title='0|0|0 - Total: 1'>        } else {
+</span><span class='uc' id='L920' title='4|4|4 - Total: 4'>            javaObject = in.readObject();
+</span>        }
+
+<span class='uc' id='L923' title='4|4|4 - Total: 4'>        String className = (String)in.readObject();
+</span><span class='upc' id='L924' title='1|1|1 - Total: 2'>        if (className != null) {
+</span><span class='nc' id='L925' title='0|0|0 - Total: 5'>            staticType = Class.forName(className);
+</span>        } else {
+<span class='uc' id='L927' title='3|3|3 - Total: 3'>            staticType = null;
+</span>        }
+
+<span class='uc' id='L930' title='2|2|2 - Total: 2'>        initMembers();
+</span><span class='uc' id='L931' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * The prototype of this object.
+     */
+    protected Scriptable prototype;
+
+    /**
+     * The parent scope of this object.
+     */
+    protected Scriptable parent;
+
+    protected transient Object javaObject;
+
+    protected transient Class<?> staticType;
+    protected transient JavaMembers members;
+    private transient Map<String,FieldAndMethods> fieldAndMethods;
+    protected transient boolean isAdapter;
+
+<span class='uc' id='L950' title='2|2|2 - Total: 2'>    private static final Object COERCED_INTERFACE_KEY = "Coerced Interface";
+</span>    private static Method adapter_writeAdapterObject;
+    private static Method adapter_readAdapterObject;
+
+    static {
+        // Reflection in java is verbose
+<span class='uc' id='L956' title='3|3|3 - Total: 3'>        Class<?>[] sig2 = new Class[2];
+</span><span class='uc' id='L957' title='3|3|3 - Total: 3'>        Class<?> cl = Kit.classOrNull("org.mozilla.javascript.JavaAdapter");
+</span><span class='upc' id='L958' title='1|1|1 - Total: 2'>        if (cl != null) {
+</span>            try {
+<span class='uc' id='L960' title='4|4|4 - Total: 4'>                sig2[0] = ScriptRuntime.ObjectClass;
+</span><span class='uc' id='L961' title='5|5|5 - Total: 5'>                sig2[1] = Kit.classOrNull("java.io.ObjectOutputStream");
+</span><span class='uc' id='L962' title='5|5|5 - Total: 5'>                adapter_writeAdapterObject = cl.getMethod("writeAdapterObject",
+</span>                                                          sig2);
+
+<span class='uc' id='L965' title='4|4|4 - Total: 4'>                sig2[0] = ScriptRuntime.ScriptableClass;
+</span><span class='uc' id='L966' title='5|5|5 - Total: 5'>                sig2[1] = Kit.classOrNull("java.io.ObjectInputStream");
+</span><span class='uc' id='L967' title='5|5|5 - Total: 5'>                adapter_readAdapterObject = cl.getMethod("readAdapterObject",
+</span>                                                         sig2);
+
+<span class='nc' id='L970' title='0|0|0 - Total: 1'>            } catch (NoSuchMethodException e) {
+</span><span class='nc' id='L971' title='0|0|0 - Total: 2'>                adapter_writeAdapterObject = null;
+</span><span class='nc' id='L972' title='0|0|0 - Total: 2'>                adapter_readAdapterObject = null;
+</span><span class='uc' id='L973' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='uc' id='L975' title='1|1|1 - Total: 1'>    }
+</span>
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.commonjs.module.ModuleScript.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.commonjs.module.ModuleScript.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module;
+
+import java.io.Serializable;
+import java.net.URI;
+
+import org.mozilla.javascript.Script;
+
+/**
+ * Represents a compiled CommonJS module script. The {@link Require} functions
+ * use them and obtain them through a {@link ModuleScriptProvider}. Instances
+ * are immutable.
+ * @author Attila Szegedi
+ * @version $Id: ModuleScript.java,v 1.3 2011/04/07 20:26:11 hannes%helma.at Exp $
+ */
+public class ModuleScript implements Serializable
+{
+    private static final long serialVersionUID = 1L;
+
+    private final Script script;
+    private final URI uri;
+    private final URI base;
+
+    /**
+     * Creates a new CommonJS module.
+     * @param script the script representing the code of the module.
+     * @param uri the URI of the module.
+     * @param base the base URI, or null.
+     */
+<span class='uc' id='L33' title='2|2|2 - Total: 2'>    public ModuleScript(Script script, URI uri, URI base) {
+</span><span class='uc' id='L34' title='3|3|3 - Total: 3'>        this.script = script;
+</span><span class='uc' id='L35' title='3|3|3 - Total: 3'>        this.uri = uri;
+</span><span class='uc' id='L36' title='3|3|3 - Total: 3'>        this.base = base;
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the script object representing the code of the module.
+     * @return the script object representing the code of the module.
+     */
+    public Script getScript(){
+<span class='uc' id='L44' title='3|3|3 - Total: 3'>        return script;
+</span>    }
+
+    /**
+     * Returns the URI of the module.
+     * @return the URI of the module.
+     */
+    public URI getUri() {
+<span class='uc' id='L52' title='3|3|3 - Total: 3'>        return uri;
+</span>    }
+
+    /**
+     * Returns the base URI from which this module source was loaded, or null
+     * if it was loaded from an absolute URI.
+     * @return the base URI, or null.
+     */
+    public URI getBase() {
+<span class='uc' id='L61' title='3|3|3 - Total: 3'>        return base;
+</span>    }
+
+    /**
+     * Returns true if this script has a base URI and has a source URI that
+     * is contained within that base URI.
+     * @return true if this script is contained within its sandbox base URI.
+     */
+    public boolean isSandboxed() {
+<span class='upc' id='L70' title='2|2|2 - Total: 4'>        return base != null
+</span>                && uri != null
+<span class='upc' id='L72' title='1|1|1 - Total: 2'>                && !base.relativize(uri).isAbsolute();
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

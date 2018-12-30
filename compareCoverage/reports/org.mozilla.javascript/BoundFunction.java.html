@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.BoundFunction.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.BoundFunction.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * The class for results of the Function.bind operation
+ * EcmaScript 5 spec, 15.3.4.5
+ * @author Raphael Speyer
+ */
+public class BoundFunction extends BaseFunction {
+    
+  static final long serialVersionUID = 2118137342826470729L;
+    
+  private final Callable targetFunction;
+  private final Scriptable boundThis;
+  private final Object[] boundArgs;
+  private final int length;
+
+  public BoundFunction(Context cx, Scriptable scope, Callable targetFunction, Scriptable boundThis,
+                       Object[] boundArgs)
+<span class='uc' id='L25' title='2|2|2 - Total: 2'>  {
+</span><span class='uc' id='L26' title='3|3|3 - Total: 3'>    this.targetFunction = targetFunction;
+</span><span class='uc' id='L27' title='3|3|3 - Total: 3'>    this.boundThis = boundThis;
+</span><span class='uc' id='L28' title='3|3|3 - Total: 3'>    this.boundArgs = boundArgs;
+</span><span class='upc' id='L29' title='1|1|1 - Total: 2'>    if (targetFunction instanceof BaseFunction) {
+</span><span class='uc' id='L30' title='11|11|11 - Total: 11'>      length = Math.max(0, ((BaseFunction) targetFunction).getLength() - boundArgs.length);
+</span>    } else {
+<span class='nc' id='L32' title='0|0|0 - Total: 3'>      length = 0;
+</span>    }
+
+<span class='uc' id='L35' title='3|3|3 - Total: 3'>    ScriptRuntime.setFunctionProtoAndParent(this, scope);
+</span>
+<span class='uc' id='L37' title='3|3|3 - Total: 3'>    Function thrower = ScriptRuntime.typeErrorThrower(cx);
+</span><span class='uc' id='L38' title='4|4|4 - Total: 4'>    NativeObject throwing = new NativeObject();
+</span><span class='uc' id='L39' title='5|5|5 - Total: 5'>    throwing.put("get", throwing, thrower);
+</span><span class='uc' id='L40' title='5|5|5 - Total: 5'>    throwing.put("set", throwing, thrower);
+</span><span class='uc' id='L41' title='6|6|6 - Total: 6'>    throwing.put("enumerable", throwing, false);
+</span><span class='uc' id='L42' title='6|6|6 - Total: 6'>    throwing.put("configurable", throwing, false);
+</span><span class='uc' id='L43' title='2|2|2 - Total: 2'>    throwing.preventExtensions();
+</span>
+<span class='uc' id='L45' title='6|6|6 - Total: 6'>    this.defineOwnProperty(cx, "caller", throwing, false);
+</span><span class='uc' id='L46' title='6|6|6 - Total: 6'>    this.defineOwnProperty(cx, "arguments", throwing, false);
+</span><span class='uc' id='L47' title='1|1|1 - Total: 1'>  }
+</span>
+  @Override
+  public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] extraArgs)
+  {
+<span class='upc' id='L52' title='1|1|1 - Total: 2'>    Scriptable callThis = boundThis != null ? boundThis : ScriptRuntime.getTopCallScope(cx);
+</span><span class='uc' id='L53' title='12|12|12 - Total: 12'>    return targetFunction.call(cx, scope, callThis, concat(boundArgs, extraArgs));
+</span>  }
+
+  @Override
+  public Scriptable construct(Context cx, Scriptable scope, Object[] extraArgs) {
+<span class='upc' id='L58' title='1|1|1 - Total: 2'>    if (targetFunction instanceof Function) {
+</span><span class='uc' id='L59' title='12|12|12 - Total: 12'>      return ((Function) targetFunction).construct(cx, scope, concat(boundArgs, extraArgs));
+</span>    }
+<span class='nc' id='L61' title='0|0|0 - Total: 3'>    throw ScriptRuntime.typeError0("msg.not.ctor");
+</span>  }
+
+  @Override
+  public boolean hasInstance(Scriptable instance) {
+<span class='upc' id='L66' title='1|1|1 - Total: 2'>    if (targetFunction instanceof Function) {
+</span><span class='uc' id='L67' title='6|6|6 - Total: 6'>      return ((Function) targetFunction).hasInstance(instance);
+</span>    }
+<span class='nc' id='L69' title='0|0|0 - Total: 3'>    throw ScriptRuntime.typeError0("msg.not.ctor");
+</span>  }
+
+  @Override
+  public int getLength() {
+<span class='uc' id='L74' title='3|3|3 - Total: 3'>    return length;
+</span>  }
+
+  private Object[] concat(Object[] first, Object[] second) {
+<span class='uc' id='L78' title='7|7|7 - Total: 7'>    Object[] args = new Object[first.length + second.length];
+</span><span class='uc' id='L79' title='7|7|7 - Total: 7'>    System.arraycopy(first, 0, args, 0, first.length);
+</span><span class='uc' id='L80' title='8|8|8 - Total: 8'>    System.arraycopy(second, 0, args, first.length, second.length);
+</span><span class='uc' id='L81' title='2|2|2 - Total: 2'>    return args;
+</span>  }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

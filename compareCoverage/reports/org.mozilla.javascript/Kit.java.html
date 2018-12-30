@@ -1,0 +1,439 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.Kit.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.Kit.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.lang.reflect.Method;
+import java.util.Map;
+
+/**
+ * Collection of utilities
+ */
+
+<span class='nc' id='L19' title='0|0|0 - Total: 3'>public class Kit
+</span>{
+    /**
+     * Reflection of Throwable.initCause(Throwable) from JDK 1.4
+     * or nul if it is not available.
+     */
+<span class='uc' id='L25' title='2|2|2 - Total: 2'>    private static Method Throwable_initCause = null;
+</span>
+    static {
+        // Are we running on a JDK 1.4 or later system?
+        try {
+<span class='uc' id='L30' title='3|3|3 - Total: 3'>            Class<?> ThrowableClass = Kit.classOrNull("java.lang.Throwable");
+</span><span class='uc' id='L31' title='7|7|7 - Total: 7'>            Class<?>[] signature = { ThrowableClass };
+</span><span class='uc' id='L32' title='3|3|3 - Total: 3'>            Throwable_initCause
+</span><span class='uc' id='L33' title='2|2|2 - Total: 2'>                = ThrowableClass.getMethod("initCause", signature);
+</span><span class='nc' id='L34' title='0|0|0 - Total: 1'>        } catch (Exception ex) {
+</span>            // Assume any exceptions means the method does not exist.
+<span class='uc' id='L36' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    public static Class<?> classOrNull(String className)
+    {
+        try {
+<span class='uc' id='L42' title='3|3|3 - Total: 3'>            return Class.forName(className);
+</span><span class='uc' id='L43' title='1|1|1 - Total: 1'>        } catch  (ClassNotFoundException ex) {
+</span><span class='nc' id='L44' title='0|0|0 - Total: 1'>        } catch  (SecurityException ex) {
+</span><span class='nc' id='L45' title='0|0|0 - Total: 1'>        } catch  (LinkageError ex) {
+</span><span class='nc' id='L46' title='0|0|0 - Total: 1'>        } catch (IllegalArgumentException e) {
+</span>            // Can be thrown if name has characters that a class name
+            // can not contain
+<span class='upc' id='L49' title='1|1|1 - Total: 3'>        }
+</span><span class='uc' id='L50' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Attempt to load the class of the given name. Note that the type parameter
+     * isn't checked.
+     */
+    public static Class<?> classOrNull(ClassLoader loader, String className)
+    {
+        try {
+<span class='uc' id='L60' title='4|4|4 - Total: 4'>            return loader.loadClass(className);
+</span><span class='uc' id='L61' title='1|1|1 - Total: 1'>        } catch (ClassNotFoundException ex) {
+</span><span class='nc' id='L62' title='0|0|0 - Total: 1'>        } catch (SecurityException ex) {
+</span><span class='nc' id='L63' title='0|0|0 - Total: 1'>        } catch (LinkageError ex) {
+</span><span class='nc' id='L64' title='0|0|0 - Total: 1'>        } catch (IllegalArgumentException e) {
+</span>            // Can be thrown if name has characters that a class name
+            // can not contain
+<span class='upc' id='L67' title='1|1|1 - Total: 3'>        }
+</span><span class='uc' id='L68' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    static Object newInstanceOrNull(Class<?> cl)
+    {
+        try {
+<span class='uc' id='L74' title='3|3|3 - Total: 3'>            return cl.newInstance();
+</span><span class='nc' id='L75' title='0|0|0 - Total: 1'>        } catch (SecurityException x) {
+</span><span class='nc' id='L76' title='0|0|0 - Total: 1'>        } catch  (LinkageError ex) {
+</span><span class='nc' id='L77' title='0|0|0 - Total: 1'>        } catch (InstantiationException x) {
+</span><span class='nc' id='L78' title='0|0|0 - Total: 1'>        } catch (IllegalAccessException x) {
+</span><span class='nc' id='L79' title='0|0|0 - Total: 3'>        }
+</span><span class='nc' id='L80' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Check that testClass is accessible from the given loader.
+     */
+    static boolean testIfCanLoadRhinoClasses(ClassLoader loader)
+    {
+<span class='uc' id='L88' title='2|2|2 - Total: 2'>        Class<?> testClass = ScriptRuntime.ContextFactoryClass;
+</span><span class='uc' id='L89' title='5|5|5 - Total: 5'>        Class<?> x = Kit.classOrNull(loader, testClass.getName());
+</span><span class='upc' id='L90' title='1|1|1 - Total: 2'>        if (x != testClass) {
+</span>            // The check covers the case when x == null =>
+            // loader does not know about testClass or the case
+            // when x != null && x != testClass =>
+            // loader loads a class unrelated to testClass
+<span class='nc' id='L95' title='0|0|0 - Total: 2'>            return false;
+</span>        }
+<span class='uc' id='L97' title='2|2|2 - Total: 2'>        return true;
+</span>    }
+
+    /**
+     * If initCause methods exists in Throwable, call
+     * <tt>ex.initCause(cause)</tt> or otherwise do nothing.
+     * @return The <tt>ex</tt> argument.
+     */
+    public static RuntimeException initCause(RuntimeException ex,
+                                             Throwable cause)
+    {
+<span class='upc' id='L108' title='1|1|1 - Total: 2'>        if (Throwable_initCause != null) {
+</span><span class='uc' id='L109' title='7|7|7 - Total: 7'>            Object[] args = { cause };
+</span>            try {
+<span class='uc' id='L111' title='5|5|5 - Total: 5'>                Throwable_initCause.invoke(ex, args);
+</span><span class='nc' id='L112' title='0|0|0 - Total: 1'>            } catch (Exception e) {
+</span>                // Ignore any exceptions
+<span class='uc' id='L114' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='uc' id='L116' title='2|2|2 - Total: 2'>        return ex;
+</span>    }
+
+    /**
+     * If character <tt>c</tt> is a hexadecimal digit, return
+     * <tt>accumulator</tt> * 16 plus corresponding
+     * number. Otherise return -1.
+     */
+    public static int xDigitToInt(int c, int accumulator)
+    {
+        check: {
+            // Use 0..9 < A..Z < a..z
+<span class='uc' id='L128' title='2|2|2 - Total: 2'>            if (c <= '9') {
+</span><span class='uc' id='L129' title='1|1|1 - Total: 1'>                c -= '0';
+</span><span class='uc' id='L130' title='2|2|2 - Total: 2'>                if (0 <= c) { break check; }
+</span><span class='uc' id='L131' title='2|2|2 - Total: 2'>            } else if (c <= 'F') {
+</span><span class='uc' id='L132' title='2|2|2 - Total: 2'>                if ('A' <= c) {
+</span><span class='uc' id='L133' title='1|1|1 - Total: 1'>                    c -= ('A' - 10);
+</span><span class='uc' id='L134' title='1|1|1 - Total: 1'>                    break check;
+</span>                }
+<span class='uc' id='L136' title='2|2|2 - Total: 2'>            } else if (c <= 'f') {
+</span><span class='uc' id='L137' title='2|2|2 - Total: 2'>                if ('a' <= c) {
+</span><span class='uc' id='L138' title='1|1|1 - Total: 1'>                    c -= ('a' - 10);
+</span><span class='uc' id='L139' title='1|1|1 - Total: 1'>                    break check;
+</span>                }
+            }
+<span class='uc' id='L142' title='2|2|2 - Total: 2'>            return -1;
+</span>        }
+<span class='uc' id='L144' title='6|6|6 - Total: 6'>        return (accumulator << 4) | c;
+</span>    }
+
+    /**
+     * Add <i>listener</i> to <i>bag</i> of listeners.
+     * The function does not modify <i>bag</i> and return a new collection
+     * containing <i>listener</i> and all listeners from <i>bag</i>.
+     * Bag without listeners always represented as the null value.
+     * <p>
+     * Usage example:
+     * <pre>
+     *     private volatile Object changeListeners;
+     *
+     *     public void addMyListener(PropertyChangeListener l)
+     *     {
+     *         synchronized (this) {
+     *             changeListeners = Kit.addListener(changeListeners, l);
+     *         }
+     *     }
+     *
+     *     public void removeTextListener(PropertyChangeListener l)
+     *     {
+     *         synchronized (this) {
+     *             changeListeners = Kit.removeListener(changeListeners, l);
+     *         }
+     *     }
+     *
+     *     public void fireChangeEvent(Object oldValue, Object newValue)
+     *     {
+     *     // Get immune local copy
+     *         Object listeners = changeListeners;
+     *         if (listeners != null) {
+     *             PropertyChangeEvent e = new PropertyChangeEvent(
+     *                 this, "someProperty" oldValue, newValue);
+     *             for (int i = 0; ; ++i) {
+     *                 Object l = Kit.getListener(listeners, i);
+     *                 if (l == null)
+     *                     break;
+     *                 ((PropertyChangeListener)l).propertyChange(e);
+     *             }
+     *         }
+     *     }
+     * </pre>
+     *
+     * @param listener Listener to add to <i>bag</i>
+     * @param bag Current collection of listeners.
+     * @return A new bag containing all listeners from <i>bag</i> and
+     *          <i>listener</i>.
+     * @see #removeListener(Object bag, Object listener)
+     * @see #getListener(Object bag, int index)
+     */
+    public static Object addListener(Object bag, Object listener)
+    {
+<span class='nc' id='L197' title='0|0|0 - Total: 2'>        if (listener == null) throw new IllegalArgumentException();
+</span><span class='nc' id='L198' title='0|0|0 - Total: 2'>        if (listener instanceof Object[]) throw new IllegalArgumentException();
+</span>
+<span class='nc' id='L200' title='0|0|0 - Total: 2'>        if (bag == null) {
+</span><span class='nc' id='L201' title='0|0|0 - Total: 3'>            bag = listener;
+</span><span class='nc' id='L202' title='0|0|0 - Total: 2'>        } else if (!(bag instanceof Object[])) {
+</span><span class='nc' id='L203' title='0|0|0 - Total: 12'>            bag = new Object[] { bag, listener };
+</span>        } else {
+<span class='nc' id='L205' title='0|0|0 - Total: 4'>            Object[] array = (Object[])bag;
+</span><span class='nc' id='L206' title='0|0|0 - Total: 3'>            int L = array.length;
+</span>            // bag has at least 2 elements if it is array
+<span class='nc' id='L208' title='0|0|0 - Total: 2'>            if (L < 2) throw new IllegalArgumentException();
+</span><span class='nc' id='L209' title='0|0|0 - Total: 5'>            Object[] tmp = new Object[L + 1];
+</span><span class='nc' id='L210' title='0|0|0 - Total: 6'>            System.arraycopy(array, 0, tmp, 0, L);
+</span><span class='nc' id='L211' title='0|0|0 - Total: 4'>            tmp[L] = listener;
+</span><span class='nc' id='L212' title='0|0|0 - Total: 2'>            bag = tmp;
+</span>        }
+
+<span class='nc' id='L215' title='0|0|0 - Total: 2'>        return bag;
+</span>    }
+
+    /**
+     * Remove <i>listener</i> from <i>bag</i> of listeners.
+     * The function does not modify <i>bag</i> and return a new collection
+     * containing all listeners from <i>bag</i> except <i>listener</i>.
+     * If <i>bag</i> does not contain <i>listener</i>, the function returns
+     * <i>bag</i>.
+     * <p>
+     * For usage example, see {@link #addListener(Object bag, Object listener)}.
+     *
+     * @param listener Listener to remove from <i>bag</i>
+     * @param bag Current collection of listeners.
+     * @return A new bag containing all listeners from <i>bag</i> except
+     *          <i>listener</i>.
+     * @see #addListener(Object bag, Object listener)
+     * @see #getListener(Object bag, int index)
+     */
+    public static Object removeListener(Object bag, Object listener)
+    {
+<span class='nc' id='L236' title='0|0|0 - Total: 2'>        if (listener == null) throw new IllegalArgumentException();
+</span><span class='nc' id='L237' title='0|0|0 - Total: 2'>        if (listener instanceof Object[]) throw new IllegalArgumentException();
+</span>
+<span class='nc' id='L239' title='0|0|0 - Total: 2'>        if (bag == listener) {
+</span><span class='nc' id='L240' title='0|0|0 - Total: 3'>            bag = null;
+</span><span class='nc' id='L241' title='0|0|0 - Total: 2'>        } else if (bag instanceof Object[]) {
+</span><span class='nc' id='L242' title='0|0|0 - Total: 4'>            Object[] array = (Object[])bag;
+</span><span class='nc' id='L243' title='0|0|0 - Total: 3'>            int L = array.length;
+</span>            // bag has at least 2 elements if it is array
+<span class='nc' id='L245' title='0|0|0 - Total: 2'>            if (L < 2) throw new IllegalArgumentException();
+</span><span class='nc' id='L246' title='0|0|0 - Total: 2'>            if (L == 2) {
+</span><span class='nc' id='L247' title='0|0|0 - Total: 2'>                if (array[1] == listener) {
+</span><span class='nc' id='L248' title='0|0|0 - Total: 5'>                    bag = array[0];
+</span><span class='nc' id='L249' title='0|0|0 - Total: 2'>                } else if (array[0] == listener) {
+</span><span class='nc' id='L250' title='0|0|0 - Total: 5'>                    bag = array[1];
+</span>                }
+            } else {
+<span class='nc' id='L253' title='0|0|0 - Total: 2'>                int i = L;
+</span>                do {
+<span class='nc' id='L255' title='0|0|0 - Total: 1'>                    --i;
+</span><span class='nc' id='L256' title='0|0|0 - Total: 2'>                    if (array[i] == listener) {
+</span><span class='nc' id='L257' title='0|0|0 - Total: 5'>                        Object[] tmp = new Object[L - 1];
+</span><span class='nc' id='L258' title='0|0|0 - Total: 6'>                        System.arraycopy(array, 0, tmp, 0, i);
+</span><span class='nc' id='L259' title='0|0|0 - Total: 12'>                        System.arraycopy(array, i + 1, tmp, i, L - (i + 1));
+</span><span class='nc' id='L260' title='0|0|0 - Total: 2'>                        bag = tmp;
+</span><span class='nc' id='L261' title='0|0|0 - Total: 1'>                        break;
+</span>                    }
+<span class='nc' id='L263' title='0|0|0 - Total: 2'>                } while (i != 0);
+</span>            }
+        }
+
+<span class='nc' id='L267' title='0|0|0 - Total: 2'>        return bag;
+</span>    }
+
+    /**
+     * Get listener at <i>index</i> position in <i>bag</i> or null if
+     * <i>index</i> equals to number of listeners in <i>bag</i>.
+     * <p>
+     * For usage example, see {@link #addListener(Object bag, Object listener)}.
+     *
+     * @param bag Current collection of listeners.
+     * @param index Index of the listener to access.
+     * @return Listener at the given index or null.
+     * @see #addListener(Object bag, Object listener)
+     * @see #removeListener(Object bag, Object listener)
+     */
+    public static Object getListener(Object bag, int index)
+    {
+<span class='upc' id='L284' title='1|1|1 - Total: 2'>        if (index == 0) {
+</span><span class='upc' id='L285' title='1|1|1 - Total: 2'>            if (bag == null)
+</span><span class='uc' id='L286' title='2|2|2 - Total: 2'>                return null;
+</span><span class='nc' id='L287' title='0|0|0 - Total: 2'>            if (!(bag instanceof Object[]))
+</span><span class='nc' id='L288' title='0|0|0 - Total: 2'>                return bag;
+</span><span class='nc' id='L289' title='0|0|0 - Total: 4'>            Object[] array = (Object[])bag;
+</span>            // bag has at least 2 elements if it is array
+<span class='nc' id='L291' title='0|0|0 - Total: 2'>            if (array.length < 2) throw new IllegalArgumentException();
+</span><span class='nc' id='L292' title='0|0|0 - Total: 4'>            return array[0];
+</span><span class='nc' id='L293' title='0|0|0 - Total: 2'>        } else if (index == 1) {
+</span><span class='nc' id='L294' title='0|0|0 - Total: 2'>            if (!(bag instanceof Object[])) {
+</span><span class='nc' id='L295' title='0|0|0 - Total: 2'>                if (bag == null) throw new IllegalArgumentException();
+</span><span class='nc' id='L296' title='0|0|0 - Total: 2'>                return null;
+</span>            }
+<span class='nc' id='L298' title='0|0|0 - Total: 4'>            Object[] array = (Object[])bag;
+</span>            // the array access will check for index on its own
+<span class='nc' id='L300' title='0|0|0 - Total: 4'>            return array[1];
+</span>        } else {
+            // bag has to array
+<span class='nc' id='L303' title='0|0|0 - Total: 4'>            Object[] array = (Object[])bag;
+</span><span class='nc' id='L304' title='0|0|0 - Total: 3'>            int L = array.length;
+</span><span class='nc' id='L305' title='0|0|0 - Total: 2'>            if (L < 2) throw new IllegalArgumentException();
+</span><span class='nc' id='L306' title='0|0|0 - Total: 2'>            if (index == L)
+</span><span class='nc' id='L307' title='0|0|0 - Total: 2'>                return null;
+</span><span class='nc' id='L308' title='0|0|0 - Total: 4'>            return array[index];
+</span>        }
+    }
+
+    static Object initHash(Map<Object,Object> h, Object key, Object initialValue)
+    {
+<span class='uc' id='L314' title='4|4|4 - Total: 4'>        synchronized (h) {
+</span><span class='uc' id='L315' title='4|4|4 - Total: 4'>            Object current = h.get(key);
+</span><span class='uc' id='L316' title='2|2|2 - Total: 2'>            if (current == null) {
+</span><span class='uc' id='L317' title='6|6|6 - Total: 6'>                h.put(key, initialValue);
+</span>            } else {
+<span class='uc' id='L319' title='2|2|2 - Total: 2'>                initialValue = current;
+</span>            }
+<span class='upc' id='L321' title='3|3|3 - Total: 8'>        }
+</span><span class='uc' id='L322' title='2|2|2 - Total: 2'>        return initialValue;
+</span>    }
+
+    private final static class ComplexKey
+    {
+        private Object key1;
+        private Object key2;
+        private int hash;
+
+        ComplexKey(Object key1, Object key2)
+        {
+            this.key1 = key1;
+            this.key2 = key2;
+        }
+
+        @Override
+        public boolean equals(Object anotherObj)
+        {
+            if (!(anotherObj instanceof ComplexKey))
+                return false;
+            ComplexKey another = (ComplexKey)anotherObj;
+            return key1.equals(another.key1) && key2.equals(another.key2);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            if (hash == 0) {
+                hash = key1.hashCode() ^ key2.hashCode();
+            }
+            return hash;
+        }
+    }
+
+    public static Object makeHashKeyFromPair(Object key1, Object key2)
+    {
+<span class='upc' id='L358' title='1|1|1 - Total: 2'>        if (key1 == null) throw new IllegalArgumentException();
+</span><span class='upc' id='L359' title='1|1|1 - Total: 2'>        if (key2 == null) throw new IllegalArgumentException();
+</span><span class='uc' id='L360' title='6|6|6 - Total: 6'>        return new ComplexKey(key1, key2);
+</span>    }
+
+    public static String readReader(Reader r)
+        throws IOException
+    {
+<span class='nc' id='L366' title='0|0|0 - Total: 3'>        char[] buffer = new char[512];
+</span><span class='nc' id='L367' title='0|0|0 - Total: 2'>        int cursor = 0;
+</span>        for (;;) {
+<span class='nc' id='L369' title='0|0|0 - Total: 9'>            int n = r.read(buffer, cursor, buffer.length - cursor);
+</span><span class='nc' id='L370' title='0|0|0 - Total: 2'>            if (n < 0) { break; }
+</span><span class='nc' id='L371' title='0|0|0 - Total: 4'>            cursor += n;
+</span><span class='nc' id='L372' title='0|0|0 - Total: 2'>            if (cursor == buffer.length) {
+</span><span class='nc' id='L373' title='0|0|0 - Total: 6'>                char[] tmp = new char[buffer.length * 2];
+</span><span class='nc' id='L374' title='0|0|0 - Total: 6'>                System.arraycopy(buffer, 0, tmp, 0, cursor);
+</span><span class='nc' id='L375' title='0|0|0 - Total: 2'>                buffer = tmp;
+</span>            }
+<span class='nc' id='L377' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L378' title='0|0|0 - Total: 7'>        return new String(buffer, 0, cursor);
+</span>    }
+
+    public static byte[] readStream(InputStream is, int initialBufferCapacity)
+        throws IOException
+    {
+<span class='upc' id='L384' title='1|1|1 - Total: 2'>        if (initialBufferCapacity <= 0) {
+</span><span class='nc' id='L385' title='0|0|0 - Total: 12'>            throw new IllegalArgumentException(
+</span>                "Bad initialBufferCapacity: "+initialBufferCapacity);
+        }
+<span class='uc' id='L388' title='3|3|3 - Total: 3'>        byte[] buffer = new byte[initialBufferCapacity];
+</span><span class='uc' id='L389' title='2|2|2 - Total: 2'>        int cursor = 0;
+</span>        for (;;) {
+<span class='uc' id='L391' title='9|9|9 - Total: 9'>            int n = is.read(buffer, cursor, buffer.length - cursor);
+</span><span class='uc' id='L392' title='2|2|2 - Total: 2'>            if (n < 0) { break; }
+</span><span class='uc' id='L393' title='4|4|4 - Total: 4'>            cursor += n;
+</span><span class='upc' id='L394' title='1|1|1 - Total: 2'>            if (cursor == buffer.length) {
+</span><span class='uc' id='L395' title='6|6|6 - Total: 6'>                byte[] tmp = new byte[buffer.length * 2];
+</span><span class='uc' id='L396' title='6|6|6 - Total: 6'>                System.arraycopy(buffer, 0, tmp, 0, cursor);
+</span><span class='uc' id='L397' title='2|2|2 - Total: 2'>                buffer = tmp;
+</span>            }
+<span class='uc' id='L399' title='1|1|1 - Total: 1'>        }
+</span><span class='upc' id='L400' title='1|1|1 - Total: 2'>        if (cursor != buffer.length) {
+</span><span class='uc' id='L401' title='3|3|3 - Total: 3'>            byte[] tmp = new byte[cursor];
+</span><span class='uc' id='L402' title='6|6|6 - Total: 6'>            System.arraycopy(buffer, 0, tmp, 0, cursor);
+</span><span class='uc' id='L403' title='2|2|2 - Total: 2'>            buffer = tmp;
+</span>        }
+<span class='uc' id='L405' title='2|2|2 - Total: 2'>        return buffer;
+</span>    }
+
+    /**
+     * Throws RuntimeException to indicate failed assertion.
+     * The function never returns and its return type is RuntimeException
+     * only to be able to write <tt>throw Kit.codeBug()</tt> if plain
+     * <tt>Kit.codeBug()</tt> triggers unreachable code error.
+     */
+    public static RuntimeException codeBug()
+        throws RuntimeException
+    {
+<span class='nc' id='L417' title='0|0|0 - Total: 5'>        RuntimeException ex = new IllegalStateException("FAILED ASSERTION");
+</span>        // Print stack trace ASAP
+<span class='nc' id='L419' title='0|0|0 - Total: 3'>        ex.printStackTrace(System.err);
+</span><span class='nc' id='L420' title='0|0|0 - Total: 2'>        throw ex;
+</span>    }
+
+    /**
+     * Throws RuntimeException to indicate failed assertion.
+     * The function never returns and its return type is RuntimeException
+     * only to be able to write <tt>throw Kit.codeBug()</tt> if plain
+     * <tt>Kit.codeBug()</tt> triggers unreachable code error.
+     */
+    public static RuntimeException codeBug(String msg)
+        throws RuntimeException
+    {
+<span class='nc' id='L432' title='0|0|0 - Total: 9'>        msg = "FAILED ASSERTION: " + msg;
+</span><span class='nc' id='L433' title='0|0|0 - Total: 5'>        RuntimeException ex = new IllegalStateException(msg);
+</span>        // Print stack trace ASAP
+<span class='nc' id='L435' title='0|0|0 - Total: 3'>        ex.printStackTrace(System.err);
+</span><span class='nc' id='L436' title='0|0|0 - Total: 2'>        throw ex;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

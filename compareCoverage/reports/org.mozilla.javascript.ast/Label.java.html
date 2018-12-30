@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.Label.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.Label.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node representing a label.  It is a distinct node type so it can
+ * record its length and position for code-processing tools.
+ * Node type is {@link Token#LABEL}.<p>
+ */
+public class Label extends Jump {
+
+    private String name;
+
+    {
+<span class='upc' id='L21' title='3|3|3 - Total: 6'>        type = Token.LABEL;
+</span>    }
+
+<span class='nc' id='L24' title='0|0|0 - Total: 2'>    public Label() {
+</span><span class='nc' id='L25' title='0|0|0 - Total: 1'>    }
+</span>
+    public Label(int pos) {
+<span class='nc' id='L28' title='0|0|0 - Total: 4'>        this(pos, -1);
+</span><span class='nc' id='L29' title='0|0|0 - Total: 1'>    }
+</span>
+<span class='uc' id='L31' title='2|2|2 - Total: 2'>    public Label(int pos, int len) {
+</span>        // can't call super (Jump) for historical reasons
+<span class='uc' id='L33' title='3|3|3 - Total: 3'>        position = pos;
+</span><span class='uc' id='L34' title='3|3|3 - Total: 3'>        length = len;
+</span><span class='uc' id='L35' title='1|1|1 - Total: 1'>    }
+</span>
+    public Label(int pos, int len, String name) {
+<span class='nc' id='L38' title='0|0|0 - Total: 4'>        this(pos, len);
+</span><span class='nc' id='L39' title='0|0|0 - Total: 3'>        setName(name);
+</span><span class='nc' id='L40' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns the label text
+     */
+    public String getName() {
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>        return name;
+</span>    }
+
+    /**
+     * Sets the label text
+     * @throws IllegalArgumentException if name is {@code null} or the
+     * empty string.
+     */
+    public void setName(String name) {
+<span class='upc' id='L55' title='1|1|1 - Total: 2'>        name = name == null ? null : name.trim();
+</span><span class='upc' id='L56' title='2|2|2 - Total: 4'>        if (name == null || "".equals(name))
+</span><span class='nc' id='L57' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException("invalid label name");
+</span><span class='uc' id='L58' title='3|3|3 - Total: 3'>        this.name = name;
+</span><span class='uc' id='L59' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L63' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L64' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='uc' id='L65' title='5|5|5 - Total: 5'>        sb.append(name);
+</span><span class='uc' id='L66' title='4|4|4 - Total: 4'>        sb.append(":\n");
+</span><span class='uc' id='L67' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this label.  There are no children to visit.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L75' title='0|0|0 - Total: 4'>        v.visit(this);
+</span><span class='nc' id='L76' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

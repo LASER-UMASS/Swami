@@ -1,0 +1,1479 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.CodeGenerator.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.CodeGenerator.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.FunctionNode;
+
+/**
+ * Generates bytecode for the Interpreter.
+ */
+<span class='uc' id='L16' title='2|2|2 - Total: 2'>class CodeGenerator extends Icode {
+</span>
+    private static final int MIN_LABEL_TABLE_SIZE = 32;
+    private static final int MIN_FIXUP_TABLE_SIZE = 40;
+
+    private CompilerEnvirons compilerEnv;
+
+    private boolean itsInFunctionFlag;
+    private boolean itsInTryFlag;
+
+    private InterpreterData itsData;
+
+    private ScriptNode scriptOrFn;
+    private int iCodeTop;
+    private int stackDepth;
+    private int lineNumber;
+    private int doubleTableTop;
+
+<span class='uc' id='L34' title='6|6|6 - Total: 6'>    private ObjToIntMap strings = new ObjToIntMap(20);
+</span>    private int localTop;
+    private int[] labelTable;
+    private int labelTableTop;
+
+    // fixupTable[i] = (label_index << 32) | fixup_site
+    private long[] fixupTable;
+    private int fixupTableTop;
+<span class='uc' id='L42' title='6|6|6 - Total: 6'>    private ObjArray literalIds = new ObjArray();
+</span>
+    private int exceptionTableTop;
+
+    // ECF_ or Expression Context Flags constants: for now only TAIL
+    private static final int ECF_TAIL = 1 << 0;
+
+    public InterpreterData compile(CompilerEnvirons compilerEnv,
+                                   ScriptNode tree,
+                                   String encodedSource,
+                                   boolean returnFunction)
+    {
+<span class='uc' id='L54' title='3|3|3 - Total: 3'>        this.compilerEnv = compilerEnv;
+</span>
+        if (Token.printTrees) {
+            System.out.println("before transform:");
+            System.out.println(tree.toStringTree(tree));
+        }
+
+<span class='uc' id='L61' title='6|6|6 - Total: 6'>        new NodeTransformer().transform(tree, compilerEnv);
+</span>
+        if (Token.printTrees) {
+            System.out.println("after transform:");
+            System.out.println(tree.toStringTree(tree));
+        }
+
+<span class='uc' id='L68' title='2|2|2 - Total: 2'>        if (returnFunction) {
+</span><span class='uc' id='L69' title='6|6|6 - Total: 6'>            scriptOrFn = tree.getFunctionNode(0);
+</span>        } else {
+<span class='uc' id='L71' title='3|3|3 - Total: 3'>            scriptOrFn = tree;
+</span>        }
+
+<span class='uc' id='L74' title='7|7|7 - Total: 7'>        itsData = new InterpreterData(compilerEnv.getLanguageVersion(),
+</span><span class='uc' id='L75' title='4|4|4 - Total: 4'>                                      scriptOrFn.getSourceName(),
+</span>                                      encodedSource,
+<span class='uc' id='L77' title='3|3|3 - Total: 3'>                                      scriptOrFn.isInStrictMode());
+</span><span class='uc' id='L78' title='4|4|4 - Total: 4'>        itsData.topLevel = true;
+</span>
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>        if (returnFunction) {
+</span><span class='uc' id='L81' title='3|3|3 - Total: 3'>            generateFunctionICode();
+</span>        } else {
+<span class='uc' id='L83' title='4|4|4 - Total: 4'>            generateICodeFromTree(scriptOrFn);
+</span>        }
+<span class='uc' id='L85' title='3|3|3 - Total: 3'>        return itsData;
+</span>    }
+
+    private void generateFunctionICode()
+    {
+<span class='uc' id='L90' title='3|3|3 - Total: 3'>        itsInFunctionFlag = true;
+</span>
+<span class='uc' id='L92' title='4|4|4 - Total: 4'>        FunctionNode theFunction = (FunctionNode)scriptOrFn;
+</span>
+<span class='uc' id='L94' title='5|5|5 - Total: 5'>        itsData.itsFunctionType = theFunction.getFunctionType();
+</span><span class='uc' id='L95' title='5|5|5 - Total: 5'>        itsData.itsNeedsActivation = theFunction.requiresActivation();
+</span><span class='uc' id='L96' title='2|2|2 - Total: 2'>        if (theFunction.getFunctionName() != null) {
+</span><span class='uc' id='L97' title='5|5|5 - Total: 5'>            itsData.itsName = theFunction.getName();
+</span>        }
+<span class='uc' id='L99' title='2|2|2 - Total: 2'>        if (theFunction.isGenerator()) {
+</span><span class='uc' id='L100' title='3|3|3 - Total: 3'>          addIcode(Icode_GENERATOR);
+</span><span class='uc' id='L101' title='6|6|6 - Total: 6'>          addUint16(theFunction.getBaseLineno() & 0xFFFF);
+</span>        }
+<span class='uc' id='L103' title='2|2|2 - Total: 2'>        if (theFunction.isInStrictMode()) {
+</span><span class='uc' id='L104' title='4|4|4 - Total: 4'>            itsData.isStrict = true;
+</span>        }
+
+<span class='uc' id='L107' title='4|4|4 - Total: 4'>        generateICodeFromTree(theFunction.getLastChild());
+</span><span class='uc' id='L108' title='1|1|1 - Total: 1'>    }
+</span>
+    private void generateICodeFromTree(Node tree)
+    {
+<span class='uc' id='L112' title='2|2|2 - Total: 2'>        generateNestedFunctions();
+</span>
+<span class='uc' id='L114' title='2|2|2 - Total: 2'>        generateRegExpLiterals();
+</span>
+<span class='uc' id='L116' title='4|4|4 - Total: 4'>        visitStatement(tree, 0);
+</span><span class='uc' id='L117' title='2|2|2 - Total: 2'>        fixLabelGotos();
+</span>        // add RETURN_RESULT only to scripts as function always ends with RETURN
+<span class='uc' id='L119' title='2|2|2 - Total: 2'>        if (itsData.itsFunctionType == 0) {
+</span><span class='uc' id='L120' title='3|3|3 - Total: 3'>            addToken(Token.RETURN_RESULT);
+</span>        }
+
+<span class='upc' id='L123' title='1|1|1 - Total: 2'>        if (itsData.itsICode.length != iCodeTop) {
+</span>            // Make itsData.itsICode length exactly iCodeTop to save memory
+            // and catch bugs with jumps beyond icode as early as possible
+<span class='uc' id='L126' title='4|4|4 - Total: 4'>            byte[] tmp = new byte[iCodeTop];
+</span><span class='uc' id='L127' title='9|9|9 - Total: 9'>            System.arraycopy(itsData.itsICode, 0, tmp, 0, iCodeTop);
+</span><span class='uc' id='L128' title='4|4|4 - Total: 4'>            itsData.itsICode = tmp;
+</span>        }
+<span class='uc' id='L130' title='2|2|2 - Total: 2'>        if (strings.size() == 0) {
+</span><span class='uc' id='L131' title='5|5|5 - Total: 5'>            itsData.itsStringTable = null;
+</span>        } else {
+<span class='uc' id='L133' title='7|7|7 - Total: 7'>            itsData.itsStringTable = new String[strings.size()];
+</span><span class='uc' id='L134' title='4|4|4 - Total: 4'>            ObjToIntMap.Iterator iter = strings.newIterator();
+</span><span class='uc' id='L135' title='2|2|2 - Total: 2'>            for (iter.start(); !iter.done(); iter.next()) {
+</span><span class='uc' id='L136' title='4|4|4 - Total: 4'>                String str = (String)iter.getKey();
+</span><span class='uc' id='L137' title='3|3|3 - Total: 3'>                int index = iter.getValue();
+</span><span class='upc' id='L138' title='1|1|1 - Total: 2'>                if (itsData.itsStringTable[index] != null) Kit.codeBug();
+</span><span class='uc' id='L139' title='6|6|6 - Total: 6'>                itsData.itsStringTable[index] = str;
+</span>            }
+        }
+<span class='uc' id='L142' title='2|2|2 - Total: 2'>        if (doubleTableTop == 0) {
+</span><span class='uc' id='L143' title='5|5|5 - Total: 5'>            itsData.itsDoubleTable = null;
+</span><span class='uc' id='L144' title='2|2|2 - Total: 2'>        } else if (itsData.itsDoubleTable.length != doubleTableTop) {
+</span><span class='uc' id='L145' title='4|4|4 - Total: 4'>            double[] tmp = new double[doubleTableTop];
+</span><span class='uc' id='L146' title='9|9|9 - Total: 9'>            System.arraycopy(itsData.itsDoubleTable, 0, tmp, 0,
+</span>                             doubleTableTop);
+<span class='uc' id='L148' title='4|4|4 - Total: 4'>            itsData.itsDoubleTable = tmp;
+</span>        }
+<span class='uc' id='L150' title='4|4|4 - Total: 4'>        if (exceptionTableTop != 0
+</span>            && itsData.itsExceptionTable.length != exceptionTableTop)
+        {
+<span class='uc' id='L153' title='4|4|4 - Total: 4'>            int[] tmp = new int[exceptionTableTop];
+</span><span class='uc' id='L154' title='9|9|9 - Total: 9'>            System.arraycopy(itsData.itsExceptionTable, 0, tmp, 0,
+</span>                             exceptionTableTop);
+<span class='uc' id='L156' title='4|4|4 - Total: 4'>            itsData.itsExceptionTable = tmp;
+</span>        }
+
+<span class='uc' id='L159' title='6|6|6 - Total: 6'>        itsData.itsMaxVars = scriptOrFn.getParamAndVarCount();
+</span>        // itsMaxFrameArray: interpret method needs this amount for its
+        // stack and sDbl arrays
+<span class='uc' id='L162' title='14|14|14 - Total: 14'>        itsData.itsMaxFrameArray = itsData.itsMaxVars
+</span>                                   + itsData.itsMaxLocals
+                                   + itsData.itsMaxStack;
+
+<span class='uc' id='L166' title='6|6|6 - Total: 6'>        itsData.argNames = scriptOrFn.getParamAndVarNames();
+</span><span class='uc' id='L167' title='6|6|6 - Total: 6'>        itsData.argIsConst = scriptOrFn.getParamAndVarConst();
+</span><span class='uc' id='L168' title='6|6|6 - Total: 6'>        itsData.argCount = scriptOrFn.getParamCount();
+</span>
+<span class='uc' id='L170' title='6|6|6 - Total: 6'>        itsData.encodedSourceStart = scriptOrFn.getEncodedSourceStart();
+</span><span class='uc' id='L171' title='6|6|6 - Total: 6'>        itsData.encodedSourceEnd = scriptOrFn.getEncodedSourceEnd();
+</span>
+<span class='uc' id='L173' title='2|2|2 - Total: 2'>        if (literalIds.size() != 0) {
+</span><span class='uc' id='L174' title='6|6|6 - Total: 6'>            itsData.literalIds = literalIds.toArray();
+</span>        }
+
+        if (Token.printICode) Interpreter.dumpICode(itsData);
+<span class='uc' id='L178' title='1|1|1 - Total: 1'>    }
+</span>
+    private void generateNestedFunctions()
+    {
+<span class='uc' id='L182' title='4|4|4 - Total: 4'>        int functionCount = scriptOrFn.getFunctionCount();
+</span><span class='uc' id='L183' title='2|2|2 - Total: 2'>        if (functionCount == 0) return;
+</span>
+<span class='uc' id='L185' title='3|3|3 - Total: 3'>        InterpreterData[] array = new InterpreterData[functionCount];
+</span><span class='uc' id='L186' title='2|2|2 - Total: 2'>        for (int i = 0; i != functionCount; i++) {
+</span><span class='uc' id='L187' title='5|5|5 - Total: 5'>            FunctionNode fn = scriptOrFn.getFunctionNode(i);
+</span><span class='uc' id='L188' title='4|4|4 - Total: 4'>            CodeGenerator gen = new CodeGenerator();
+</span><span class='uc' id='L189' title='4|4|4 - Total: 4'>            gen.compilerEnv = compilerEnv;
+</span><span class='uc' id='L190' title='3|3|3 - Total: 3'>            gen.scriptOrFn = fn;
+</span><span class='uc' id='L191' title='7|7|7 - Total: 7'>            gen.itsData = new InterpreterData(itsData);
+</span><span class='uc' id='L192' title='2|2|2 - Total: 2'>            gen.generateFunctionICode();
+</span><span class='uc' id='L193' title='5|5|5 - Total: 5'>            array[i] = gen.itsData;
+</span>        }
+<span class='uc' id='L195' title='4|4|4 - Total: 4'>        itsData.itsNestedFunctions = array;
+</span><span class='uc' id='L196' title='1|1|1 - Total: 1'>    }
+</span>
+    private void generateRegExpLiterals()
+    {
+<span class='uc' id='L200' title='4|4|4 - Total: 4'>        int N = scriptOrFn.getRegexpCount();
+</span><span class='uc' id='L201' title='2|2|2 - Total: 2'>        if (N == 0) return;
+</span>
+<span class='uc' id='L203' title='2|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='uc' id='L204' title='3|3|3 - Total: 3'>        RegExpProxy rep = ScriptRuntime.checkRegExpProxy(cx);
+</span><span class='uc' id='L205' title='3|3|3 - Total: 3'>        Object[] array = new Object[N];
+</span><span class='uc' id='L206' title='2|2|2 - Total: 2'>        for (int i = 0; i != N; i++) {
+</span><span class='uc' id='L207' title='5|5|5 - Total: 5'>            String string = scriptOrFn.getRegexpString(i);
+</span><span class='uc' id='L208' title='5|5|5 - Total: 5'>            String flags = scriptOrFn.getRegexpFlags(i);
+</span><span class='uc' id='L209' title='8|8|8 - Total: 8'>            array[i] = rep.compileRegExp(cx, string, flags);
+</span>        }
+<span class='uc' id='L211' title='4|4|4 - Total: 4'>        itsData.itsRegExpLiterals = array;
+</span><span class='uc' id='L212' title='1|1|1 - Total: 1'>    }
+</span>
+    private void updateLineNumber(Node node)
+    {
+<span class='uc' id='L216' title='3|3|3 - Total: 3'>        int lineno = node.getLineno();
+</span><span class='uc' id='L217' title='4|4|4 - Total: 4'>        if (lineno != lineNumber && lineno >= 0) {
+</span><span class='uc' id='L218' title='2|2|2 - Total: 2'>            if (itsData.firstLinePC < 0) {
+</span><span class='uc' id='L219' title='4|4|4 - Total: 4'>                itsData.firstLinePC = lineno;
+</span>            }
+<span class='uc' id='L221' title='3|3|3 - Total: 3'>            lineNumber = lineno;
+</span><span class='uc' id='L222' title='3|3|3 - Total: 3'>            addIcode(Icode_LINE);
+</span><span class='uc' id='L223' title='5|5|5 - Total: 5'>            addUint16(lineno & 0xFFFF);
+</span>        }
+<span class='uc' id='L225' title='1|1|1 - Total: 1'>    }
+</span>
+    private RuntimeException badTree(Node node)
+    {
+<span class='nc' id='L229' title='0|0|0 - Total: 6'>        throw new RuntimeException(node.toString());
+</span>    }
+
+    private void visitStatement(Node node, int initialStackDepth)
+    {
+<span class='uc' id='L234' title='3|3|3 - Total: 3'>        int type = node.getType();
+</span><span class='uc' id='L235' title='3|3|3 - Total: 3'>        Node child = node.getFirstChild();
+</span><span class='upc' id='L236' title='20|20|20 - Total: 23'>        switch (type) {
+</span>
+          case Token.FUNCTION:
+            {
+<span class='uc' id='L240' title='4|4|4 - Total: 4'>                int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);
+</span><span class='uc' id='L241' title='4|4|4 - Total: 4'>                int fnType = scriptOrFn.getFunctionNode(fnIndex).
+</span><span class='uc' id='L242' title='2|2|2 - Total: 2'>                                 getFunctionType();
+</span>                // Only function expressions or function expression
+                // statements need closure code creating new function
+                // object on stack as function statements are initialized
+                // at script/function start.
+                // In addition, function expressions can not be present here
+                // at statement level, they must only be present as expressions.
+<span class='uc' id='L249' title='2|2|2 - Total: 2'>                if (fnType == FunctionNode.FUNCTION_EXPRESSION_STATEMENT) {
+</span><span class='uc' id='L250' title='5|5|5 - Total: 5'>                    addIndexOp(Icode_CLOSURE_STMT, fnIndex);
+</span>                } else {
+<span class='upc' id='L252' title='1|1|1 - Total: 2'>                    if (fnType != FunctionNode.FUNCTION_STATEMENT) {
+</span><span class='nc' id='L253' title='0|0|0 - Total: 2'>                        throw Kit.codeBug();
+</span>                    }
+                }
+                // For function statements or function expression statements
+                // in scripts, we need to ensure that the result of the script
+                // is the function if it is the last statement in the script.
+                // For example, eval("function () {}") should return a
+                // function, not undefined.
+<span class='uc' id='L261' title='2|2|2 - Total: 2'>                if (!itsInFunctionFlag) {
+</span><span class='uc' id='L262' title='4|4|4 - Total: 4'>                    addIndexOp(Icode_CLOSURE_EXPR, fnIndex);
+</span><span class='uc' id='L263' title='3|3|3 - Total: 3'>                    stackChange(1);
+</span><span class='uc' id='L264' title='3|3|3 - Total: 3'>                    addIcode(Icode_POP_RESULT);
+</span><span class='uc' id='L265' title='3|3|3 - Total: 3'>                    stackChange(-1);
+</span>                }
+            }
+<span class='uc' id='L268' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.LABEL:
+          case Token.LOOP:
+          case Token.BLOCK:
+          case Token.EMPTY:
+          case Token.WITH:
+<span class='uc' id='L275' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span>            // fallthru
+          case Token.SCRIPT:
+<span class='uc' id='L278' title='2|2|2 - Total: 2'>            while (child != null) {
+</span><span class='uc' id='L279' title='4|4|4 - Total: 4'>                visitStatement(child, initialStackDepth);
+</span><span class='uc' id='L280' title='4|4|4 - Total: 4'>                child = child.getNext();
+</span>            }
+            break;
+
+          case Token.ENTERWITH:
+<span class='uc' id='L285' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L286' title='3|3|3 - Total: 3'>            addToken(Token.ENTERWITH);
+</span><span class='uc' id='L287' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L288' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.LEAVEWITH:
+<span class='uc' id='L291' title='3|3|3 - Total: 3'>            addToken(Token.LEAVEWITH);
+</span><span class='uc' id='L292' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.LOCAL_BLOCK:
+            {
+<span class='uc' id='L296' title='3|3|3 - Total: 3'>                int local = allocLocal();
+</span><span class='uc' id='L297' title='4|4|4 - Total: 4'>                node.putIntProp(Node.LOCAL_PROP, local);
+</span><span class='uc' id='L298' title='3|3|3 - Total: 3'>                updateLineNumber(node);
+</span><span class='uc' id='L299' title='2|2|2 - Total: 2'>                while (child != null) {
+</span><span class='uc' id='L300' title='4|4|4 - Total: 4'>                    visitStatement(child, initialStackDepth);
+</span><span class='uc' id='L301' title='4|4|4 - Total: 4'>                    child = child.getNext();
+</span>                }
+<span class='uc' id='L303' title='4|4|4 - Total: 4'>                addIndexOp(Icode_LOCAL_CLEAR, local);
+</span><span class='uc' id='L304' title='3|3|3 - Total: 3'>                releaseLocal(local);
+</span>            }
+<span class='uc' id='L306' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.DEBUGGER:
+<span class='nc' id='L309' title='0|0|0 - Total: 3'>            addIcode(Icode_DEBUGGER);
+</span><span class='nc' id='L310' title='0|0|0 - Total: 1'>            break;
+</span>
+          case Token.SWITCH:
+<span class='uc' id='L313' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span>            // See comments in IRFactory.createSwitch() for description
+            // of SWITCH node
+            {
+<span class='uc' id='L317' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L318' title='4|4|4 - Total: 4'>                for (Jump caseNode = (Jump)child.getNext();
+</span><span class='uc' id='L319' title='2|2|2 - Total: 2'>                     caseNode != null;
+</span><span class='uc' id='L320' title='5|5|5 - Total: 5'>                     caseNode = (Jump)caseNode.getNext())
+</span>                {
+<span class='upc' id='L322' title='1|1|1 - Total: 2'>                    if (caseNode.getType() != Token.CASE)
+</span><span class='nc' id='L323' title='0|0|0 - Total: 4'>                        throw badTree(caseNode);
+</span><span class='uc' id='L324' title='3|3|3 - Total: 3'>                    Node test = caseNode.getFirstChild();
+</span><span class='uc' id='L325' title='3|3|3 - Total: 3'>                    addIcode(Icode_DUP);
+</span><span class='uc' id='L326' title='3|3|3 - Total: 3'>                    stackChange(1);
+</span><span class='uc' id='L327' title='4|4|4 - Total: 4'>                    visitExpression(test, 0);
+</span><span class='uc' id='L328' title='3|3|3 - Total: 3'>                    addToken(Token.SHEQ);
+</span><span class='uc' id='L329' title='3|3|3 - Total: 3'>                    stackChange(-1);
+</span>                    // If true, Icode_IFEQ_POP will jump and remove case
+                    // value from stack
+<span class='uc' id='L332' title='5|5|5 - Total: 5'>                    addGoto(caseNode.target, Icode_IFEQ_POP);
+</span><span class='uc' id='L333' title='3|3|3 - Total: 3'>                    stackChange(-1);
+</span>                }
+<span class='uc' id='L335' title='3|3|3 - Total: 3'>                addIcode(Icode_POP);
+</span><span class='uc' id='L336' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L338' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.TARGET:
+<span class='uc' id='L341' title='3|3|3 - Total: 3'>            markTargetLabel(node);
+</span><span class='uc' id='L342' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.IFEQ :
+          case Token.IFNE :
+            {
+<span class='uc' id='L347' title='4|4|4 - Total: 4'>                Node target = ((Jump)node).target;
+</span><span class='uc' id='L348' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L349' title='4|4|4 - Total: 4'>                addGoto(target, type);
+</span><span class='uc' id='L350' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L352' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.GOTO:
+            {
+<span class='uc' id='L356' title='4|4|4 - Total: 4'>                Node target = ((Jump)node).target;
+</span><span class='uc' id='L357' title='4|4|4 - Total: 4'>                addGoto(target, type);
+</span>            }
+<span class='uc' id='L359' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.JSR:
+            {
+<span class='uc' id='L363' title='4|4|4 - Total: 4'>                Node target = ((Jump)node).target;
+</span><span class='uc' id='L364' title='4|4|4 - Total: 4'>                addGoto(target, Icode_GOSUB);
+</span>            }
+<span class='uc' id='L366' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.FINALLY:
+            {
+                // Account for incomming GOTOSUB address
+<span class='uc' id='L371' title='3|3|3 - Total: 3'>                stackChange(1);
+</span><span class='uc' id='L372' title='4|4|4 - Total: 4'>                int finallyRegister = getLocalBlockRef(node);
+</span><span class='uc' id='L373' title='4|4|4 - Total: 4'>                addIndexOp(Icode_STARTSUB, finallyRegister);
+</span><span class='uc' id='L374' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span><span class='uc' id='L375' title='2|2|2 - Total: 2'>                while (child != null) {
+</span><span class='uc' id='L376' title='4|4|4 - Total: 4'>                    visitStatement(child, initialStackDepth);
+</span><span class='uc' id='L377' title='4|4|4 - Total: 4'>                    child = child.getNext();
+</span>                }
+<span class='uc' id='L379' title='4|4|4 - Total: 4'>                addIndexOp(Icode_RETSUB, finallyRegister);
+</span>            }
+<span class='uc' id='L381' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.EXPR_VOID:
+          case Token.EXPR_RESULT:
+<span class='uc' id='L385' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span><span class='uc' id='L386' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L387' title='2|2|2 - Total: 2'>            addIcode((type == Token.EXPR_VOID) ? Icode_POP : Icode_POP_RESULT);
+</span><span class='uc' id='L388' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L389' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.TRY:
+            {
+<span class='uc' id='L393' title='3|3|3 - Total: 3'>                Jump tryNode = (Jump)node;
+</span><span class='uc' id='L394' title='4|4|4 - Total: 4'>                int exceptionObjectLocal = getLocalBlockRef(tryNode);
+</span><span class='uc' id='L395' title='3|3|3 - Total: 3'>                int scopeLocal = allocLocal();
+</span>
+<span class='uc' id='L397' title='4|4|4 - Total: 4'>                addIndexOp(Icode_SCOPE_SAVE, scopeLocal);
+</span>
+<span class='uc' id='L399' title='3|3|3 - Total: 3'>                int tryStart = iCodeTop;
+</span><span class='uc' id='L400' title='3|3|3 - Total: 3'>                boolean savedFlag = itsInTryFlag;
+</span><span class='uc' id='L401' title='3|3|3 - Total: 3'>                itsInTryFlag = true;
+</span><span class='uc' id='L402' title='2|2|2 - Total: 2'>                while (child != null) {
+</span><span class='uc' id='L403' title='4|4|4 - Total: 4'>                    visitStatement(child, initialStackDepth);
+</span><span class='uc' id='L404' title='4|4|4 - Total: 4'>                    child = child.getNext();
+</span>                }
+<span class='uc' id='L406' title='3|3|3 - Total: 3'>                itsInTryFlag = savedFlag;
+</span>
+<span class='uc' id='L408' title='3|3|3 - Total: 3'>                Node catchTarget = tryNode.target;
+</span><span class='uc' id='L409' title='2|2|2 - Total: 2'>                if (catchTarget != null) {
+</span><span class='uc' id='L410' title='4|4|4 - Total: 4'>                    int catchStartPC
+</span><span class='uc' id='L411' title='3|3|3 - Total: 3'>                        = labelTable[getTargetLabel(catchTarget)];
+</span><span class='uc' id='L412' title='8|8|8 - Total: 8'>                    addExceptionHandler(
+</span>                        tryStart, catchStartPC, catchStartPC,
+                        false, exceptionObjectLocal, scopeLocal);
+                }
+<span class='uc' id='L416' title='3|3|3 - Total: 3'>                Node finallyTarget = tryNode.getFinally();
+</span><span class='uc' id='L417' title='2|2|2 - Total: 2'>                if (finallyTarget != null) {
+</span><span class='uc' id='L418' title='4|4|4 - Total: 4'>                    int finallyStartPC
+</span><span class='uc' id='L419' title='3|3|3 - Total: 3'>                        = labelTable[getTargetLabel(finallyTarget)];
+</span><span class='uc' id='L420' title='8|8|8 - Total: 8'>                    addExceptionHandler(
+</span>                        tryStart, finallyStartPC, finallyStartPC,
+                        true, exceptionObjectLocal, scopeLocal);
+                }
+
+<span class='uc' id='L425' title='4|4|4 - Total: 4'>                addIndexOp(Icode_LOCAL_CLEAR, scopeLocal);
+</span><span class='uc' id='L426' title='3|3|3 - Total: 3'>                releaseLocal(scopeLocal);
+</span>            }
+<span class='uc' id='L428' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.CATCH_SCOPE:
+            {
+<span class='uc' id='L432' title='4|4|4 - Total: 4'>                int localIndex = getLocalBlockRef(node);
+</span><span class='uc' id='L433' title='4|4|4 - Total: 4'>                int scopeIndex = node.getExistingIntProp(Node.CATCH_SCOPE_PROP);
+</span><span class='uc' id='L434' title='3|3|3 - Total: 3'>                String name = child.getString();
+</span><span class='uc' id='L435' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L436' title='4|4|4 - Total: 4'>                visitExpression(child, 0); // load expression object
+</span><span class='uc' id='L437' title='3|3|3 - Total: 3'>                addStringPrefix(name);
+</span><span class='uc' id='L438' title='3|3|3 - Total: 3'>                addIndexPrefix(localIndex);
+</span><span class='uc' id='L439' title='3|3|3 - Total: 3'>                addToken(Token.CATCH_SCOPE);
+</span><span class='uc' id='L440' title='2|2|2 - Total: 2'>                addUint8(scopeIndex != 0 ? 1 : 0);
+</span><span class='uc' id='L441' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L443' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.THROW:
+<span class='uc' id='L446' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span><span class='uc' id='L447' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L448' title='3|3|3 - Total: 3'>            addToken(Token.THROW);
+</span><span class='uc' id='L449' title='6|6|6 - Total: 6'>            addUint16(lineNumber & 0xFFFF);
+</span><span class='uc' id='L450' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L451' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.RETHROW:
+<span class='uc' id='L454' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span><span class='uc' id='L455' title='6|6|6 - Total: 6'>            addIndexOp(Token.RETHROW, getLocalBlockRef(node));
+</span><span class='uc' id='L456' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.RETURN:
+<span class='uc' id='L459' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span><span class='uc' id='L460' title='2|2|2 - Total: 2'>            if (node.getIntProp(Node.GENERATOR_END_PROP, 0) != 0) {
+</span>                // We're in a generator, so change RETURN to GENERATOR_END
+<span class='uc' id='L462' title='3|3|3 - Total: 3'>                addIcode(Icode_GENERATOR_END);
+</span><span class='uc' id='L463' title='7|7|7 - Total: 7'>                addUint16(lineNumber & 0xFFFF);
+</span><span class='uc' id='L464' title='2|2|2 - Total: 2'>            } else if (child != null) {
+</span><span class='uc' id='L465' title='4|4|4 - Total: 4'>                visitExpression(child, ECF_TAIL);
+</span><span class='uc' id='L466' title='3|3|3 - Total: 3'>                addToken(Token.RETURN);
+</span><span class='uc' id='L467' title='4|4|4 - Total: 4'>                stackChange(-1);
+</span>            } else {
+<span class='uc' id='L469' title='3|3|3 - Total: 3'>                addIcode(Icode_RETUNDEF);
+</span>            }
+<span class='uc' id='L471' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.RETURN_RESULT:
+<span class='uc' id='L474' title='3|3|3 - Total: 3'>            updateLineNumber(node);
+</span><span class='uc' id='L475' title='3|3|3 - Total: 3'>            addToken(Token.RETURN_RESULT);
+</span><span class='uc' id='L476' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.ENUM_INIT_KEYS:
+          case Token.ENUM_INIT_VALUES:
+          case Token.ENUM_INIT_ARRAY:
+          case Token.ENUM_INIT_VALUES_IN_ORDER:
+<span class='uc' id='L482' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L483' title='6|6|6 - Total: 6'>            addIndexOp(type, getLocalBlockRef(node));
+</span><span class='uc' id='L484' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L485' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Icode_GENERATOR:
+<span class='nc' id='L488' title='0|0|0 - Total: 1'>            break;
+</span>
+          default:
+<span class='nc' id='L491' title='0|0|0 - Total: 4'>            throw badTree(node);
+</span>        }
+
+<span class='upc' id='L494' title='1|1|1 - Total: 2'>        if (stackDepth != initialStackDepth) {
+</span><span class='nc' id='L495' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+<span class='uc' id='L497' title='1|1|1 - Total: 1'>    }
+</span>
+    private void visitExpression(Node node, int contextFlags)
+    {
+<span class='uc' id='L501' title='3|3|3 - Total: 3'>        int type = node.getType();
+</span><span class='uc' id='L502' title='3|3|3 - Total: 3'>        Node child = node.getFirstChild();
+</span><span class='uc' id='L503' title='3|3|3 - Total: 3'>        int savedStackDepth = stackDepth;
+</span><span class='upc' id='L504' title='35|35|35 - Total: 36'>        switch (type) {
+</span>
+          case Token.FUNCTION:
+            {
+<span class='uc' id='L508' title='4|4|4 - Total: 4'>                int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);
+</span><span class='uc' id='L509' title='5|5|5 - Total: 5'>                FunctionNode fn = scriptOrFn.getFunctionNode(fnIndex);
+</span>                // See comments in visitStatement for Token.FUNCTION case
+<span class='uc' id='L511' title='2|2|2 - Total: 2'>                if (fn.getFunctionType() != FunctionNode.FUNCTION_EXPRESSION &&
+</span><span class='upc' id='L512' title='1|1|1 - Total: 2'>                    fn.getFunctionType() != FunctionNode.ARROW_FUNCTION) {
+</span><span class='nc' id='L513' title='0|0|0 - Total: 2'>                    throw Kit.codeBug();
+</span>                }
+<span class='uc' id='L515' title='4|4|4 - Total: 4'>                addIndexOp(Icode_CLOSURE_EXPR, fnIndex);
+</span><span class='uc' id='L516' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L518' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.LOCAL_LOAD:
+            {
+<span class='uc' id='L522' title='4|4|4 - Total: 4'>                int localIndex = getLocalBlockRef(node);
+</span><span class='uc' id='L523' title='4|4|4 - Total: 4'>                addIndexOp(Token.LOCAL_LOAD, localIndex);
+</span><span class='uc' id='L524' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L526' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.COMMA:
+            {
+<span class='uc' id='L530' title='3|3|3 - Total: 3'>                Node lastChild = node.getLastChild();
+</span><span class='uc' id='L531' title='2|2|2 - Total: 2'>                while (child != lastChild) {
+</span><span class='uc' id='L532' title='4|4|4 - Total: 4'>                    visitExpression(child, 0);
+</span><span class='uc' id='L533' title='3|3|3 - Total: 3'>                    addIcode(Icode_POP);
+</span><span class='uc' id='L534' title='3|3|3 - Total: 3'>                    stackChange(-1);
+</span><span class='uc' id='L535' title='4|4|4 - Total: 4'>                    child = child.getNext();
+</span>                }
+                // Preserve tail context flag if any
+<span class='uc' id='L538' title='6|6|6 - Total: 6'>                visitExpression(child, contextFlags & ECF_TAIL);
+</span>            }
+<span class='uc' id='L540' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.USE_STACK:
+            // Indicates that stack was modified externally,
+            // like placed catch object
+<span class='uc' id='L545' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L546' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.REF_CALL:
+          case Token.CALL:
+          case Token.NEW:
+            {
+<span class='uc' id='L552' title='2|2|2 - Total: 2'>                if (type == Token.NEW) {
+</span><span class='uc' id='L553' title='5|5|5 - Total: 5'>                    visitExpression(child, 0);
+</span>                } else {
+<span class='uc' id='L555' title='3|3|3 - Total: 3'>                    generateCallFunAndThis(child);
+</span>                }
+<span class='uc' id='L557' title='2|2|2 - Total: 2'>                int argCount = 0;
+</span><span class='uc' id='L558' title='2|2|2 - Total: 2'>                while ((child = child.getNext()) != null) {
+</span><span class='uc' id='L559' title='4|4|4 - Total: 4'>                    visitExpression(child, 0);
+</span><span class='uc' id='L560' title='2|2|2 - Total: 2'>                    ++argCount;
+</span>                }
+<span class='uc' id='L562' title='5|5|5 - Total: 5'>                int callType = node.getIntProp(Node.SPECIALCALL_PROP,
+</span>                                               Node.NON_SPECIALCALL);
+<span class='uc' id='L564' title='4|4|4 - Total: 4'>                if (type != Token.REF_CALL && callType != Node.NON_SPECIALCALL) {
+</span>                    // embed line number and source filename
+<span class='uc' id='L566' title='4|4|4 - Total: 4'>                    addIndexOp(Icode_CALLSPECIAL, argCount);
+</span><span class='uc' id='L567' title='3|3|3 - Total: 3'>                    addUint8(callType);
+</span><span class='uc' id='L568' title='2|2|2 - Total: 2'>                    addUint8(type == Token.NEW ? 1 : 0);
+</span><span class='uc' id='L569' title='7|7|7 - Total: 7'>                    addUint16(lineNumber & 0xFFFF);
+</span>                } else {
+                    // Only use the tail call optimization if we're not in a try
+                    // or we're not generating debug info (since the
+                    // optimization will confuse the debugger)
+<span class='uc' id='L574' title='4|4|4 - Total: 4'>                    if (type == Token.CALL && (contextFlags & ECF_TAIL) != 0 &&
+</span><span class='uc' id='L575' title='4|4|4 - Total: 4'>                        !compilerEnv.isGenerateDebugInfo() && !itsInTryFlag)
+</span>                    {
+<span class='uc' id='L577' title='2|2|2 - Total: 2'>                        type = Icode_TAIL_CALL;
+</span>                    }
+<span class='uc' id='L579' title='4|4|4 - Total: 4'>                    addIndexOp(type, argCount);
+</span>                }
+                // adjust stack
+<span class='uc' id='L582' title='2|2|2 - Total: 2'>                if (type == Token.NEW) {
+</span>                    // new: f, args -> result
+<span class='uc' id='L584' title='5|5|5 - Total: 5'>                    stackChange(-argCount);
+</span>                } else {
+                    // call: f, thisObj, args -> result
+                    // ref_call: f, thisObj, args -> ref
+<span class='uc' id='L588' title='5|5|5 - Total: 5'>                    stackChange(-1 - argCount);
+</span>                }
+<span class='uc' id='L590' title='2|2|2 - Total: 2'>                if (argCount > itsData.itsMaxCalleeArgs) {
+</span><span class='uc' id='L591' title='4|4|4 - Total: 4'>                    itsData.itsMaxCalleeArgs = argCount;
+</span>                }
+            }
+<span class='uc' id='L594' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.AND:
+          case Token.OR:
+            {
+<span class='uc' id='L599' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L600' title='3|3|3 - Total: 3'>                addIcode(Icode_DUP);
+</span><span class='uc' id='L601' title='3|3|3 - Total: 3'>                stackChange(1);
+</span><span class='uc' id='L602' title='3|3|3 - Total: 3'>                int afterSecondJumpStart = iCodeTop;
+</span><span class='uc' id='L603' title='2|2|2 - Total: 2'>                int jump = (type == Token.AND) ? Token.IFNE : Token.IFEQ;
+</span><span class='uc' id='L604' title='3|3|3 - Total: 3'>                addGotoOp(jump);
+</span><span class='uc' id='L605' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span><span class='uc' id='L606' title='3|3|3 - Total: 3'>                addIcode(Icode_POP);
+</span><span class='uc' id='L607' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span><span class='uc' id='L608' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span>                // Preserve tail context flag if any
+<span class='uc' id='L610' title='6|6|6 - Total: 6'>                visitExpression(child, contextFlags & ECF_TAIL);
+</span><span class='uc' id='L611' title='3|3|3 - Total: 3'>                resolveForwardGoto(afterSecondJumpStart);
+</span>            }
+<span class='uc' id='L613' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.HOOK:
+            {
+<span class='uc' id='L617' title='3|3|3 - Total: 3'>                Node ifThen = child.getNext();
+</span><span class='uc' id='L618' title='3|3|3 - Total: 3'>                Node ifElse = ifThen.getNext();
+</span><span class='uc' id='L619' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L620' title='3|3|3 - Total: 3'>                int elseJumpStart = iCodeTop;
+</span><span class='uc' id='L621' title='3|3|3 - Total: 3'>                addGotoOp(Token.IFNE);
+</span><span class='uc' id='L622' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>                // Preserve tail context flag if any
+<span class='uc' id='L624' title='6|6|6 - Total: 6'>                visitExpression(ifThen, contextFlags & ECF_TAIL);
+</span><span class='uc' id='L625' title='3|3|3 - Total: 3'>                int afterElseJumpStart = iCodeTop;
+</span><span class='uc' id='L626' title='3|3|3 - Total: 3'>                addGotoOp(Token.GOTO);
+</span><span class='uc' id='L627' title='3|3|3 - Total: 3'>                resolveForwardGoto(elseJumpStart);
+</span><span class='uc' id='L628' title='3|3|3 - Total: 3'>                stackDepth = savedStackDepth;
+</span>                // Preserve tail context flag if any
+<span class='uc' id='L630' title='6|6|6 - Total: 6'>                visitExpression(ifElse, contextFlags & ECF_TAIL);
+</span><span class='uc' id='L631' title='3|3|3 - Total: 3'>                resolveForwardGoto(afterElseJumpStart);
+</span>            }
+<span class='uc' id='L633' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.GETPROP:
+          case Token.GETPROPNOWARN:
+<span class='uc' id='L637' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L638' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L639' title='5|5|5 - Total: 5'>            addStringOp(type, child.getString());
+</span><span class='uc' id='L640' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.DELPROP:
+<span class='uc' id='L643' title='2|2|2 - Total: 2'>            boolean isName = child.getType() == Token.BINDNAME;
+</span><span class='uc' id='L644' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L645' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L646' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L647' title='2|2|2 - Total: 2'>            if (isName) {
+</span>                // special handling for delete name
+<span class='uc' id='L649' title='4|4|4 - Total: 4'>                addIcode(Icode_DELNAME);
+</span>            } else {
+<span class='uc' id='L651' title='3|3|3 - Total: 3'>                addToken(Token.DELPROP);
+</span>            }
+<span class='uc' id='L653' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L654' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.GETELEM:
+          case Token.BITAND:
+          case Token.BITOR:
+          case Token.BITXOR:
+          case Token.LSH:
+          case Token.RSH:
+          case Token.URSH:
+          case Token.ADD:
+          case Token.SUB:
+          case Token.MOD:
+          case Token.DIV:
+          case Token.MUL:
+          case Token.EQ:
+          case Token.NE:
+          case Token.SHEQ:
+          case Token.SHNE:
+          case Token.IN:
+          case Token.INSTANCEOF:
+          case Token.LE:
+          case Token.LT:
+          case Token.GE:
+          case Token.GT:
+<span class='uc' id='L678' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L679' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L680' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L681' title='3|3|3 - Total: 3'>            addToken(type);
+</span><span class='uc' id='L682' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L683' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.POS:
+          case Token.NEG:
+          case Token.NOT:
+          case Token.BITNOT:
+          case Token.TYPEOF:
+          case Token.VOID:
+<span class='uc' id='L691' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L692' title='2|2|2 - Total: 2'>            if (type == Token.VOID) {
+</span><span class='uc' id='L693' title='3|3|3 - Total: 3'>                addIcode(Icode_POP);
+</span><span class='uc' id='L694' title='4|4|4 - Total: 4'>                addIcode(Icode_UNDEF);
+</span>            } else {
+<span class='uc' id='L696' title='3|3|3 - Total: 3'>                addToken(type);
+</span>            }
+<span class='uc' id='L698' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.GET_REF:
+          case Token.DEL_REF:
+<span class='uc' id='L702' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L703' title='3|3|3 - Total: 3'>            addToken(type);
+</span><span class='uc' id='L704' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SETPROP:
+          case Token.SETPROP_OP:
+            {
+<span class='uc' id='L709' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L710' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L711' title='3|3|3 - Total: 3'>                String property = child.getString();
+</span><span class='uc' id='L712' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L713' title='2|2|2 - Total: 2'>                if (type == Token.SETPROP_OP) {
+</span><span class='uc' id='L714' title='3|3|3 - Total: 3'>                    addIcode(Icode_DUP);
+</span><span class='uc' id='L715' title='3|3|3 - Total: 3'>                    stackChange(1);
+</span><span class='uc' id='L716' title='4|4|4 - Total: 4'>                    addStringOp(Token.GETPROP, property);
+</span>                    // Compensate for the following USE_STACK
+<span class='uc' id='L718' title='3|3|3 - Total: 3'>                    stackChange(-1);
+</span>                }
+<span class='uc' id='L720' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L721' title='4|4|4 - Total: 4'>                addStringOp(Token.SETPROP, property);
+</span><span class='uc' id='L722' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L724' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SETELEM:
+          case Token.SETELEM_OP:
+<span class='uc' id='L728' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L729' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L730' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L731' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L732' title='2|2|2 - Total: 2'>            if (type == Token.SETELEM_OP) {
+</span><span class='uc' id='L733' title='3|3|3 - Total: 3'>                addIcode(Icode_DUP2);
+</span><span class='uc' id='L734' title='3|3|3 - Total: 3'>                stackChange(2);
+</span><span class='uc' id='L735' title='3|3|3 - Total: 3'>                addToken(Token.GETELEM);
+</span><span class='uc' id='L736' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>                // Compensate for the following USE_STACK
+<span class='uc' id='L738' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L740' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L741' title='3|3|3 - Total: 3'>            addToken(Token.SETELEM);
+</span><span class='uc' id='L742' title='3|3|3 - Total: 3'>            stackChange(-2);
+</span><span class='uc' id='L743' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SET_REF:
+          case Token.SET_REF_OP:
+<span class='uc' id='L747' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L748' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='upc' id='L749' title='1|1|1 - Total: 2'>            if (type == Token.SET_REF_OP) {
+</span><span class='nc' id='L750' title='0|0|0 - Total: 3'>                addIcode(Icode_DUP);
+</span><span class='nc' id='L751' title='0|0|0 - Total: 3'>                stackChange(1);
+</span><span class='nc' id='L752' title='0|0|0 - Total: 3'>                addToken(Token.GET_REF);
+</span>                // Compensate for the following USE_STACK
+<span class='nc' id='L754' title='0|0|0 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L756' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L757' title='3|3|3 - Total: 3'>            addToken(Token.SET_REF);
+</span><span class='uc' id='L758' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L759' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.STRICT_SETNAME:
+          case Token.SETNAME:
+            {
+<span class='uc' id='L764' title='3|3|3 - Total: 3'>                String name = child.getString();
+</span><span class='uc' id='L765' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L766' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L767' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L768' title='4|4|4 - Total: 4'>                addStringOp(type, name);
+</span><span class='uc' id='L769' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L771' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SETCONST:
+            {
+<span class='uc' id='L775' title='3|3|3 - Total: 3'>                String name = child.getString();
+</span><span class='uc' id='L776' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L777' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L778' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L779' title='4|4|4 - Total: 4'>                addStringOp(Icode_SETCONST, name);
+</span><span class='uc' id='L780' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span>            }
+<span class='uc' id='L782' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.TYPEOFNAME:
+            {
+<span class='uc' id='L786' title='2|2|2 - Total: 2'>                int index = -1;
+</span>                // use typeofname if an activation frame exists
+                // since the vars all exist there instead of in jregs
+<span class='uc' id='L789' title='4|4|4 - Total: 4'>                if (itsInFunctionFlag && !itsData.itsNeedsActivation)
+</span><span class='uc' id='L790' title='5|5|5 - Total: 5'>                    index = scriptOrFn.getIndexForNameNode(node);
+</span><span class='uc' id='L791' title='2|2|2 - Total: 2'>                if (index == -1) {
+</span><span class='uc' id='L792' title='5|5|5 - Total: 5'>                    addStringOp(Icode_TYPEOFNAME, node.getString());
+</span><span class='uc' id='L793' title='4|4|4 - Total: 4'>                    stackChange(1);
+</span>                } else {
+<span class='uc' id='L795' title='4|4|4 - Total: 4'>                    addVarOp(Token.GETVAR, index);
+</span><span class='uc' id='L796' title='3|3|3 - Total: 3'>                    stackChange(1);
+</span><span class='uc' id='L797' title='3|3|3 - Total: 3'>                    addToken(Token.TYPEOF);
+</span>                }
+            }
+<span class='uc' id='L800' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.BINDNAME:
+          case Token.NAME:
+          case Token.STRING:
+<span class='uc' id='L805' title='5|5|5 - Total: 5'>            addStringOp(type, node.getString());
+</span><span class='uc' id='L806' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L807' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.INC:
+          case Token.DEC:
+<span class='uc' id='L811' title='4|4|4 - Total: 4'>            visitIncDec(node, child);
+</span><span class='uc' id='L812' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.NUMBER:
+            {
+<span class='uc' id='L816' title='3|3|3 - Total: 3'>                double num = node.getDouble();
+</span><span class='uc' id='L817' title='3|3|3 - Total: 3'>                int inum = (int)num;
+</span><span class='uc' id='L818' title='2|2|2 - Total: 2'>                if (inum == num) {
+</span><span class='uc' id='L819' title='2|2|2 - Total: 2'>                    if (inum == 0) {
+</span><span class='uc' id='L820' title='3|3|3 - Total: 3'>                        addIcode(Icode_ZERO);
+</span>                        // Check for negative zero
+<span class='uc' id='L822' title='2|2|2 - Total: 2'>                        if (1.0 / num < 0.0) {
+</span><span class='uc' id='L823' title='4|4|4 - Total: 4'>                            addToken(Token.NEG);
+</span>                        }
+<span class='uc' id='L825' title='2|2|2 - Total: 2'>                    } else if (inum == 1) {
+</span><span class='uc' id='L826' title='4|4|4 - Total: 4'>                        addIcode(Icode_ONE);
+</span><span class='uc' id='L827' title='2|2|2 - Total: 2'>                    } else if ((short)inum == inum) {
+</span><span class='uc' id='L828' title='3|3|3 - Total: 3'>                        addIcode(Icode_SHORTNUMBER);
+</span>                        // write short as uin16 bit pattern
+<span class='uc' id='L830' title='6|6|6 - Total: 6'>                        addUint16(inum & 0xFFFF);
+</span>                    } else {
+<span class='uc' id='L832' title='3|3|3 - Total: 3'>                        addIcode(Icode_INTNUMBER);
+</span><span class='uc' id='L833' title='4|4|4 - Total: 4'>                        addInt(inum);
+</span>                    }
+                } else {
+<span class='uc' id='L836' title='4|4|4 - Total: 4'>                    int index = getDoubleIndex(num);
+</span><span class='uc' id='L837' title='4|4|4 - Total: 4'>                    addIndexOp(Token.NUMBER, index);
+</span>                }
+<span class='uc' id='L839' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L841' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.GETVAR:
+            {
+<span class='upc' id='L845' title='1|1|1 - Total: 2'>                if (itsData.itsNeedsActivation) Kit.codeBug();
+</span><span class='uc' id='L846' title='5|5|5 - Total: 5'>                int index = scriptOrFn.getIndexForNameNode(node);
+</span><span class='uc' id='L847' title='4|4|4 - Total: 4'>                addVarOp(Token.GETVAR, index);
+</span><span class='uc' id='L848' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L850' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SETVAR:
+            {
+<span class='upc' id='L854' title='1|1|1 - Total: 2'>                if (itsData.itsNeedsActivation) Kit.codeBug();
+</span><span class='uc' id='L855' title='5|5|5 - Total: 5'>                int index = scriptOrFn.getIndexForNameNode(child);
+</span><span class='uc' id='L856' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L857' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L858' title='4|4|4 - Total: 4'>                addVarOp(Token.SETVAR, index);
+</span>            }
+<span class='uc' id='L860' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.SETCONSTVAR:
+            {
+<span class='upc' id='L864' title='1|1|1 - Total: 2'>                if (itsData.itsNeedsActivation) Kit.codeBug();
+</span><span class='uc' id='L865' title='5|5|5 - Total: 5'>                int index = scriptOrFn.getIndexForNameNode(child);
+</span><span class='uc' id='L866' title='3|3|3 - Total: 3'>                child = child.getNext();
+</span><span class='uc' id='L867' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L868' title='4|4|4 - Total: 4'>                addVarOp(Token.SETCONSTVAR, index);
+</span>            }
+<span class='uc' id='L870' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.NULL:
+          case Token.THIS:
+          case Token.THISFN:
+          case Token.FALSE:
+          case Token.TRUE:
+<span class='uc' id='L877' title='3|3|3 - Total: 3'>            addToken(type);
+</span><span class='uc' id='L878' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L879' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.ENUM_NEXT:
+          case Token.ENUM_ID:
+<span class='uc' id='L883' title='6|6|6 - Total: 6'>            addIndexOp(type, getLocalBlockRef(node));
+</span><span class='uc' id='L884' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L885' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.REGEXP:
+            {
+<span class='uc' id='L889' title='4|4|4 - Total: 4'>                int index = node.getExistingIntProp(Node.REGEXP_PROP);
+</span><span class='uc' id='L890' title='4|4|4 - Total: 4'>                addIndexOp(Token.REGEXP, index);
+</span><span class='uc' id='L891' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L893' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.ARRAYLIT:
+          case Token.OBJECTLIT:
+<span class='uc' id='L897' title='4|4|4 - Total: 4'>            visitLiteral(node, child);
+</span><span class='uc' id='L898' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.ARRAYCOMP:
+<span class='uc' id='L901' title='6|6|6 - Total: 6'>            visitArrayComprehension(node, child, child.getNext());
+</span><span class='uc' id='L902' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.REF_SPECIAL:
+<span class='uc' id='L905' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L906' title='7|7|7 - Total: 7'>            addStringOp(type, (String)node.getProp(Node.NAME_PROP));
+</span><span class='uc' id='L907' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.REF_MEMBER:
+          case Token.REF_NS_MEMBER:
+          case Token.REF_NAME:
+          case Token.REF_NS_NAME:
+            {
+<span class='uc' id='L914' title='5|5|5 - Total: 5'>                int memberTypeFlags = node.getIntProp(Node.MEMBER_TYPE_PROP, 0);
+</span>                // generate possible target, possible namespace and member
+<span class='uc' id='L916' title='2|2|2 - Total: 2'>                int childCount = 0;
+</span>                do {
+<span class='uc' id='L918' title='4|4|4 - Total: 4'>                    visitExpression(child, 0);
+</span><span class='uc' id='L919' title='1|1|1 - Total: 1'>                    ++childCount;
+</span><span class='uc' id='L920' title='3|3|3 - Total: 3'>                    child = child.getNext();
+</span><span class='uc' id='L921' title='2|2|2 - Total: 2'>                } while (child != null);
+</span><span class='uc' id='L922' title='4|4|4 - Total: 4'>                addIndexOp(type, memberTypeFlags);
+</span><span class='uc' id='L923' title='5|5|5 - Total: 5'>                stackChange(1 - childCount);
+</span>            }
+<span class='uc' id='L925' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.DOTQUERY:
+            {
+                int queryPC;
+<span class='uc' id='L930' title='3|3|3 - Total: 3'>                updateLineNumber(node);
+</span><span class='uc' id='L931' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L932' title='3|3|3 - Total: 3'>                addIcode(Icode_ENTERDQ);
+</span><span class='uc' id='L933' title='3|3|3 - Total: 3'>                stackChange(-1);
+</span><span class='uc' id='L934' title='3|3|3 - Total: 3'>                queryPC = iCodeTop;
+</span><span class='uc' id='L935' title='5|5|5 - Total: 5'>                visitExpression(child.getNext(), 0);
+</span><span class='uc' id='L936' title='4|4|4 - Total: 4'>                addBackwardGoto(Icode_LEAVEDQ, queryPC);
+</span>            }
+<span class='uc' id='L938' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.DEFAULTNAMESPACE :
+          case Token.ESCXMLATTR :
+          case Token.ESCXMLTEXT :
+<span class='uc' id='L943' title='4|4|4 - Total: 4'>            visitExpression(child, 0);
+</span><span class='uc' id='L944' title='3|3|3 - Total: 3'>            addToken(type);
+</span><span class='uc' id='L945' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.YIELD:
+<span class='uc' id='L948' title='2|2|2 - Total: 2'>            if (child != null) {
+</span><span class='uc' id='L949' title='5|5|5 - Total: 5'>                visitExpression(child, 0);
+</span>            } else {
+<span class='uc' id='L951' title='3|3|3 - Total: 3'>                addIcode(Icode_UNDEF);
+</span><span class='uc' id='L952' title='3|3|3 - Total: 3'>                stackChange(1);
+</span>            }
+<span class='uc' id='L954' title='3|3|3 - Total: 3'>            addToken(Token.YIELD);
+</span><span class='uc' id='L955' title='6|6|6 - Total: 6'>            addUint16(node.getLineno() & 0xFFFF);
+</span><span class='uc' id='L956' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Token.WITHEXPR: {
+<span class='uc' id='L959' title='3|3|3 - Total: 3'>            Node enterWith = node.getFirstChild();
+</span><span class='uc' id='L960' title='3|3|3 - Total: 3'>            Node with = enterWith.getNext();
+</span><span class='uc' id='L961' title='5|5|5 - Total: 5'>            visitExpression(enterWith.getFirstChild(), 0);
+</span><span class='uc' id='L962' title='3|3|3 - Total: 3'>            addToken(Token.ENTERWITH);
+</span><span class='uc' id='L963' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L964' title='5|5|5 - Total: 5'>            visitExpression(with.getFirstChild(), 0);
+</span><span class='uc' id='L965' title='3|3|3 - Total: 3'>            addToken(Token.LEAVEWITH);
+</span><span class='uc' id='L966' title='1|1|1 - Total: 1'>            break;
+</span>          }
+
+          default:
+<span class='nc' id='L970' title='0|0|0 - Total: 4'>            throw badTree(node);
+</span>        }
+<span class='upc' id='L972' title='1|1|1 - Total: 2'>        if (savedStackDepth + 1 != stackDepth) {
+</span><span class='nc' id='L973' title='0|0|0 - Total: 2'>            Kit.codeBug();
+</span>        }
+<span class='uc' id='L975' title='1|1|1 - Total: 1'>    }
+</span>
+    private void generateCallFunAndThis(Node left)
+    {
+        // Generate code to place on stack function and thisObj
+<span class='uc' id='L980' title='3|3|3 - Total: 3'>        int type = left.getType();
+</span><span class='uc' id='L981' title='3|3|3 - Total: 3'>        switch (type) {
+</span>          case Token.NAME: {
+<span class='uc' id='L983' title='3|3|3 - Total: 3'>            String name = left.getString();
+</span>            // stack: ... -> ... function thisObj
+<span class='uc' id='L985' title='4|4|4 - Total: 4'>            addStringOp(Icode_NAME_AND_THIS, name);
+</span><span class='uc' id='L986' title='3|3|3 - Total: 3'>            stackChange(2);
+</span><span class='uc' id='L987' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          case Token.GETPROP:
+          case Token.GETELEM: {
+<span class='uc' id='L991' title='3|3|3 - Total: 3'>            Node target = left.getFirstChild();
+</span><span class='uc' id='L992' title='4|4|4 - Total: 4'>            visitExpression(target, 0);
+</span><span class='uc' id='L993' title='3|3|3 - Total: 3'>            Node id = target.getNext();
+</span><span class='uc' id='L994' title='2|2|2 - Total: 2'>            if (type == Token.GETPROP) {
+</span><span class='uc' id='L995' title='3|3|3 - Total: 3'>                String property = id.getString();
+</span>                // stack: ... target -> ... function thisObj
+<span class='uc' id='L997' title='4|4|4 - Total: 4'>                addStringOp(Icode_PROP_AND_THIS, property);
+</span><span class='uc' id='L998' title='3|3|3 - Total: 3'>                stackChange(1);
+</span><span class='uc' id='L999' title='1|1|1 - Total: 1'>            } else {
+</span><span class='uc' id='L1000' title='4|4|4 - Total: 4'>                visitExpression(id, 0);
+</span>                // stack: ... target id -> ... function thisObj
+<span class='uc' id='L1002' title='3|3|3 - Total: 3'>                addIcode(Icode_ELEM_AND_THIS);
+</span>            }
+<span class='uc' id='L1004' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          default:
+            // Including Token.GETVAR
+<span class='uc' id='L1008' title='4|4|4 - Total: 4'>            visitExpression(left, 0);
+</span>            // stack: ... value -> ... function thisObj
+<span class='uc' id='L1010' title='3|3|3 - Total: 3'>            addIcode(Icode_VALUE_AND_THIS);
+</span><span class='uc' id='L1011' title='3|3|3 - Total: 3'>            stackChange(1);
+</span>            break;
+        }
+<span class='uc' id='L1014' title='1|1|1 - Total: 1'>    }
+</span>
+
+    private void visitIncDec(Node node, Node child)
+    {
+<span class='uc' id='L1019' title='4|4|4 - Total: 4'>        int incrDecrMask = node.getExistingIntProp(Node.INCRDECR_PROP);
+</span><span class='uc' id='L1020' title='3|3|3 - Total: 3'>        int childType = child.getType();
+</span><span class='upc' id='L1021' title='5|5|5 - Total: 6'>        switch (childType) {
+</span>          case Token.GETVAR : {
+<span class='upc' id='L1023' title='1|1|1 - Total: 2'>            if (itsData.itsNeedsActivation) Kit.codeBug();
+</span><span class='uc' id='L1024' title='5|5|5 - Total: 5'>            int i = scriptOrFn.getIndexForNameNode(child);
+</span><span class='uc' id='L1025' title='4|4|4 - Total: 4'>            addVarOp(Icode_VAR_INC_DEC, i);
+</span><span class='uc' id='L1026' title='3|3|3 - Total: 3'>            addUint8(incrDecrMask);
+</span><span class='uc' id='L1027' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L1028' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          case Token.NAME : {
+<span class='uc' id='L1031' title='3|3|3 - Total: 3'>            String name = child.getString();
+</span><span class='uc' id='L1032' title='4|4|4 - Total: 4'>            addStringOp(Icode_NAME_INC_DEC, name);
+</span><span class='uc' id='L1033' title='3|3|3 - Total: 3'>            addUint8(incrDecrMask);
+</span><span class='uc' id='L1034' title='3|3|3 - Total: 3'>            stackChange(1);
+</span><span class='uc' id='L1035' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          case Token.GETPROP : {
+<span class='uc' id='L1038' title='3|3|3 - Total: 3'>            Node object = child.getFirstChild();
+</span><span class='uc' id='L1039' title='4|4|4 - Total: 4'>            visitExpression(object, 0);
+</span><span class='uc' id='L1040' title='4|4|4 - Total: 4'>            String property = object.getNext().getString();
+</span><span class='uc' id='L1041' title='4|4|4 - Total: 4'>            addStringOp(Icode_PROP_INC_DEC, property);
+</span><span class='uc' id='L1042' title='3|3|3 - Total: 3'>            addUint8(incrDecrMask);
+</span><span class='uc' id='L1043' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          case Token.GETELEM : {
+<span class='uc' id='L1046' title='3|3|3 - Total: 3'>            Node object = child.getFirstChild();
+</span><span class='uc' id='L1047' title='4|4|4 - Total: 4'>            visitExpression(object, 0);
+</span><span class='uc' id='L1048' title='3|3|3 - Total: 3'>            Node index = object.getNext();
+</span><span class='uc' id='L1049' title='4|4|4 - Total: 4'>            visitExpression(index, 0);
+</span><span class='uc' id='L1050' title='3|3|3 - Total: 3'>            addIcode(Icode_ELEM_INC_DEC);
+</span><span class='uc' id='L1051' title='3|3|3 - Total: 3'>            addUint8(incrDecrMask);
+</span><span class='uc' id='L1052' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L1053' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          case Token.GET_REF : {
+<span class='uc' id='L1056' title='3|3|3 - Total: 3'>            Node ref = child.getFirstChild();
+</span><span class='uc' id='L1057' title='4|4|4 - Total: 4'>            visitExpression(ref, 0);
+</span><span class='uc' id='L1058' title='3|3|3 - Total: 3'>            addIcode(Icode_REF_INC_DEC);
+</span><span class='uc' id='L1059' title='3|3|3 - Total: 3'>            addUint8(incrDecrMask);
+</span><span class='uc' id='L1060' title='1|1|1 - Total: 1'>            break;
+</span>          }
+          default : {
+<span class='nc' id='L1063' title='0|0|0 - Total: 4'>            throw badTree(node);
+</span>          }
+        }
+<span class='uc' id='L1066' title='1|1|1 - Total: 1'>    }
+</span>
+    private void visitLiteral(Node node, Node child)
+    {
+<span class='uc' id='L1070' title='3|3|3 - Total: 3'>        int type = node.getType();
+</span>        int count;
+<span class='uc' id='L1072' title='2|2|2 - Total: 2'>        Object[] propertyIds = null;
+</span><span class='uc' id='L1073' title='2|2|2 - Total: 2'>        if (type == Token.ARRAYLIT) {
+</span><span class='uc' id='L1074' title='2|2|2 - Total: 2'>            count = 0;
+</span><span class='uc' id='L1075' title='2|2|2 - Total: 2'>            for (Node n = child; n != null; n = n.getNext()) {
+</span><span class='uc' id='L1076' title='1|1|1 - Total: 1'>                ++count;
+</span>            }
+<span class='upc' id='L1078' title='1|1|1 - Total: 2'>        } else if (type == Token.OBJECTLIT) {
+</span><span class='uc' id='L1079' title='6|6|6 - Total: 6'>            propertyIds = (Object[])node.getProp(Node.OBJECT_IDS_PROP);
+</span><span class='uc' id='L1080' title='4|4|4 - Total: 4'>            count = propertyIds.length;
+</span>        } else {
+<span class='nc' id='L1082' title='0|0|0 - Total: 4'>            throw badTree(node);
+</span>        }
+<span class='uc' id='L1084' title='4|4|4 - Total: 4'>        addIndexOp(Icode_LITERAL_NEW, count);
+</span><span class='uc' id='L1085' title='3|3|3 - Total: 3'>        stackChange(2);
+</span><span class='uc' id='L1086' title='2|2|2 - Total: 2'>        while (child != null) {
+</span><span class='uc' id='L1087' title='3|3|3 - Total: 3'>            int childType = child.getType();
+</span><span class='uc' id='L1088' title='2|2|2 - Total: 2'>            if (childType == Token.GET) {
+</span><span class='uc' id='L1089' title='5|5|5 - Total: 5'>                visitExpression(child.getFirstChild(), 0);
+</span><span class='uc' id='L1090' title='4|4|4 - Total: 4'>                addIcode(Icode_LITERAL_GETTER);
+</span><span class='uc' id='L1091' title='2|2|2 - Total: 2'>            } else if (childType == Token.SET) {
+</span><span class='uc' id='L1092' title='5|5|5 - Total: 5'>                visitExpression(child.getFirstChild(), 0);
+</span><span class='uc' id='L1093' title='4|4|4 - Total: 4'>                addIcode(Icode_LITERAL_SETTER);
+</span><span class='uc' id='L1094' title='2|2|2 - Total: 2'>            } else if (childType == Token.METHOD) {
+</span><span class='uc' id='L1095' title='5|5|5 - Total: 5'>                visitExpression(child.getFirstChild(), 0);
+</span><span class='uc' id='L1096' title='4|4|4 - Total: 4'>                addIcode(Icode_LITERAL_SET);
+</span>            } else {
+<span class='uc' id='L1098' title='4|4|4 - Total: 4'>                visitExpression(child, 0);
+</span><span class='uc' id='L1099' title='3|3|3 - Total: 3'>                addIcode(Icode_LITERAL_SET);
+</span>            }
+<span class='uc' id='L1101' title='3|3|3 - Total: 3'>            stackChange(-1);
+</span><span class='uc' id='L1102' title='3|3|3 - Total: 3'>            child = child.getNext();
+</span><span class='uc' id='L1103' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L1104' title='2|2|2 - Total: 2'>        if (type == Token.ARRAYLIT) {
+</span><span class='uc' id='L1105' title='6|6|6 - Total: 6'>            int[] skipIndexes = (int[])node.getProp(Node.SKIP_INDEXES_PROP);
+</span><span class='uc' id='L1106' title='2|2|2 - Total: 2'>            if (skipIndexes == null) {
+</span><span class='uc' id='L1107' title='4|4|4 - Total: 4'>                addToken(Token.ARRAYLIT);
+</span>            } else {
+<span class='uc' id='L1109' title='4|4|4 - Total: 4'>                int index = literalIds.size();
+</span><span class='uc' id='L1110' title='4|4|4 - Total: 4'>                literalIds.add(skipIndexes);
+</span><span class='uc' id='L1111' title='4|4|4 - Total: 4'>                addIndexOp(Icode_SPARE_ARRAYLIT, index);
+</span>            }
+<span class='uc' id='L1113' title='1|1|1 - Total: 1'>        } else {
+</span><span class='uc' id='L1114' title='4|4|4 - Total: 4'>            int index = literalIds.size();
+</span><span class='uc' id='L1115' title='4|4|4 - Total: 4'>            literalIds.add(propertyIds);
+</span><span class='uc' id='L1116' title='4|4|4 - Total: 4'>            addIndexOp(Token.OBJECTLIT, index);
+</span>        }
+<span class='uc' id='L1118' title='3|3|3 - Total: 3'>        stackChange(-1);
+</span><span class='uc' id='L1119' title='1|1|1 - Total: 1'>    }
+</span>
+    private void visitArrayComprehension(Node node, Node initStmt, Node expr)
+    {
+        // A bit of a hack: array comprehensions are implemented using
+        // statement nodes for the iteration, yet they appear in an
+        // expression context. So we pass the current stack depth to
+        // visitStatement so it can check that the depth is not altered
+        // by statements.
+<span class='uc' id='L1128' title='5|5|5 - Total: 5'>        visitStatement(initStmt, stackDepth);
+</span><span class='uc' id='L1129' title='4|4|4 - Total: 4'>        visitExpression(expr, 0);
+</span><span class='uc' id='L1130' title='1|1|1 - Total: 1'>    }
+</span>
+    private int getLocalBlockRef(Node node)
+    {
+<span class='uc' id='L1134' title='5|5|5 - Total: 5'>        Node localBlock = (Node)node.getProp(Node.LOCAL_BLOCK_PROP);
+</span><span class='uc' id='L1135' title='4|4|4 - Total: 4'>        return localBlock.getExistingIntProp(Node.LOCAL_PROP);
+</span>    }
+
+    private int getTargetLabel(Node target)
+    {
+<span class='uc' id='L1140' title='3|3|3 - Total: 3'>        int label = target.labelId();
+</span><span class='uc' id='L1141' title='2|2|2 - Total: 2'>        if (label != -1) {
+</span><span class='uc' id='L1142' title='2|2|2 - Total: 2'>            return label;
+</span>        }
+<span class='uc' id='L1144' title='3|3|3 - Total: 3'>        label = labelTableTop;
+</span><span class='uc' id='L1145' title='4|4|4 - Total: 4'>        if (labelTable == null || label == labelTable.length) {
+</span><span class='uc' id='L1146' title='2|2|2 - Total: 2'>            if (labelTable == null) {
+</span><span class='uc' id='L1147' title='5|5|5 - Total: 5'>                labelTable = new int[MIN_LABEL_TABLE_SIZE];
+</span>            }else {
+<span class='uc' id='L1149' title='7|7|7 - Total: 7'>                int[] tmp = new int[labelTable.length * 2];
+</span><span class='uc' id='L1150' title='7|7|7 - Total: 7'>                System.arraycopy(labelTable, 0, tmp, 0, label);
+</span><span class='uc' id='L1151' title='3|3|3 - Total: 3'>                labelTable = tmp;
+</span>            }
+        }
+<span class='uc' id='L1154' title='5|5|5 - Total: 5'>        labelTableTop = label + 1;
+</span><span class='uc' id='L1155' title='5|5|5 - Total: 5'>        labelTable[label] = -1;
+</span>
+<span class='uc' id='L1157' title='3|3|3 - Total: 3'>        target.labelId(label);
+</span><span class='uc' id='L1158' title='2|2|2 - Total: 2'>        return label;
+</span>    }
+
+    private void markTargetLabel(Node target)
+    {
+<span class='uc' id='L1163' title='4|4|4 - Total: 4'>        int label = getTargetLabel(target);
+</span><span class='upc' id='L1164' title='1|1|1 - Total: 2'>        if (labelTable[label] != -1) {
+</span>            // Can mark label only once
+<span class='nc' id='L1166' title='0|0|0 - Total: 2'>            Kit.codeBug();
+</span>        }
+<span class='uc' id='L1168' title='6|6|6 - Total: 6'>        labelTable[label] = iCodeTop;
+</span><span class='uc' id='L1169' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addGoto(Node target, int gotoOp)
+    {
+<span class='uc' id='L1173' title='4|4|4 - Total: 4'>        int label = getTargetLabel(target);
+</span><span class='upc' id='L1174' title='1|1|1 - Total: 2'>        if (!(label < labelTableTop)) Kit.codeBug();
+</span><span class='uc' id='L1175' title='5|5|5 - Total: 5'>        int targetPC = labelTable[label];
+</span>
+<span class='uc' id='L1177' title='2|2|2 - Total: 2'>        if (targetPC != -1) {
+</span><span class='uc' id='L1178' title='5|5|5 - Total: 5'>            addBackwardGoto(gotoOp, targetPC);
+</span>        } else {
+<span class='uc' id='L1180' title='3|3|3 - Total: 3'>            int gotoPC = iCodeTop;
+</span><span class='uc' id='L1181' title='3|3|3 - Total: 3'>            addGotoOp(gotoOp);
+</span><span class='uc' id='L1182' title='3|3|3 - Total: 3'>            int top = fixupTableTop;
+</span><span class='uc' id='L1183' title='4|4|4 - Total: 4'>            if (fixupTable == null || top == fixupTable.length) {
+</span><span class='uc' id='L1184' title='2|2|2 - Total: 2'>                if (fixupTable == null) {
+</span><span class='uc' id='L1185' title='5|5|5 - Total: 5'>                    fixupTable = new long[MIN_FIXUP_TABLE_SIZE];
+</span>                } else {
+<span class='uc' id='L1187' title='7|7|7 - Total: 7'>                    long[] tmp = new long[fixupTable.length * 2];
+</span><span class='uc' id='L1188' title='7|7|7 - Total: 7'>                    System.arraycopy(fixupTable, 0, tmp, 0, top);
+</span><span class='uc' id='L1189' title='3|3|3 - Total: 3'>                    fixupTable = tmp;
+</span>                }
+            }
+<span class='uc' id='L1192' title='5|5|5 - Total: 5'>            fixupTableTop = top + 1;
+</span><span class='uc' id='L1193' title='11|11|11 - Total: 11'>            fixupTable[top] = ((long)label << 32) | gotoPC;
+</span>        }
+<span class='uc' id='L1195' title='1|1|1 - Total: 1'>    }
+</span>
+    private void fixLabelGotos()
+    {
+<span class='uc' id='L1199' title='2|2|2 - Total: 2'>        for (int i = 0; i < fixupTableTop; i++) {
+</span><span class='uc' id='L1200' title='5|5|5 - Total: 5'>            long fixup = fixupTable[i];
+</span><span class='uc' id='L1201' title='5|5|5 - Total: 5'>            int label = (int)(fixup >> 32);
+</span><span class='uc' id='L1202' title='3|3|3 - Total: 3'>            int jumpSource = (int)fixup;
+</span><span class='uc' id='L1203' title='5|5|5 - Total: 5'>            int pc = labelTable[label];
+</span><span class='upc' id='L1204' title='1|1|1 - Total: 2'>            if (pc == -1) {
+</span>                // Unlocated label
+<span class='nc' id='L1206' title='0|0|0 - Total: 2'>                throw Kit.codeBug();
+</span>            }
+<span class='uc' id='L1208' title='4|4|4 - Total: 4'>            resolveGoto(jumpSource, pc);
+</span>        }
+<span class='uc' id='L1210' title='3|3|3 - Total: 3'>        fixupTableTop = 0;
+</span><span class='uc' id='L1211' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addBackwardGoto(int gotoOp, int jumpPC)
+    {
+<span class='uc' id='L1215' title='3|3|3 - Total: 3'>        int fromPC = iCodeTop;
+</span>        // Ensure that this is a jump backward
+<span class='upc' id='L1217' title='1|1|1 - Total: 2'>        if (fromPC <= jumpPC) throw Kit.codeBug();
+</span><span class='uc' id='L1218' title='3|3|3 - Total: 3'>        addGotoOp(gotoOp);
+</span><span class='uc' id='L1219' title='4|4|4 - Total: 4'>        resolveGoto(fromPC, jumpPC);
+</span><span class='uc' id='L1220' title='1|1|1 - Total: 1'>    }
+</span>
+    private void resolveForwardGoto(int fromPC)
+    {
+        // Ensure that forward jump skips at least self bytecode
+<span class='upc' id='L1225' title='1|1|1 - Total: 2'>        if (iCodeTop < fromPC + 3) throw Kit.codeBug();
+</span><span class='uc' id='L1226' title='5|5|5 - Total: 5'>        resolveGoto(fromPC, iCodeTop);
+</span><span class='uc' id='L1227' title='1|1|1 - Total: 1'>    }
+</span>
+    private void resolveGoto(int fromPC, int jumpPC)
+    {
+<span class='uc' id='L1231' title='4|4|4 - Total: 4'>        int offset = jumpPC - fromPC;
+</span>        // Ensure that jumps do not overlap
+<span class='upc' id='L1233' title='3|3|3 - Total: 4'>        if (0 <= offset && offset <= 2) throw Kit.codeBug();
+</span><span class='uc' id='L1234' title='4|4|4 - Total: 4'>        int offsetSite = fromPC + 1;
+</span><span class='uc' id='L1235' title='2|2|2 - Total: 2'>        if (offset != (short)offset) {
+</span><span class='uc' id='L1236' title='2|2|2 - Total: 2'>            if (itsData.longJumps == null) {
+</span><span class='uc' id='L1237' title='6|6|6 - Total: 6'>                itsData.longJumps = new UintMap();
+</span>            }
+<span class='uc' id='L1239' title='6|6|6 - Total: 6'>            itsData.longJumps.put(offsetSite, jumpPC);
+</span><span class='uc' id='L1240' title='2|2|2 - Total: 2'>            offset = 0;
+</span>        }
+<span class='uc' id='L1242' title='4|4|4 - Total: 4'>        byte[] array = itsData.itsICode;
+</span><span class='uc' id='L1243' title='7|7|7 - Total: 7'>        array[offsetSite] = (byte)(offset >> 8);
+</span><span class='uc' id='L1244' title='7|7|7 - Total: 7'>        array[offsetSite + 1] = (byte)offset;
+</span><span class='uc' id='L1245' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addToken(int token)
+    {
+<span class='upc' id='L1249' title='1|1|1 - Total: 2'>        if (!Icode.validTokenCode(token)) throw Kit.codeBug();
+</span><span class='uc' id='L1250' title='3|3|3 - Total: 3'>        addUint8(token);
+</span><span class='uc' id='L1251' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addIcode(int icode)
+    {
+<span class='upc' id='L1255' title='1|1|1 - Total: 2'>        if (!Icode.validIcode(icode)) throw Kit.codeBug();
+</span>        // Write negative icode as uint8 bits
+<span class='uc' id='L1257' title='5|5|5 - Total: 5'>        addUint8(icode & 0xFF);
+</span><span class='uc' id='L1258' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addUint8(int value)
+    {
+<span class='upc' id='L1262' title='1|1|1 - Total: 2'>        if ((value & ~0xFF) != 0) throw Kit.codeBug();
+</span><span class='uc' id='L1263' title='4|4|4 - Total: 4'>        byte[] array = itsData.itsICode;
+</span><span class='uc' id='L1264' title='3|3|3 - Total: 3'>        int top = iCodeTop;
+</span><span class='uc' id='L1265' title='2|2|2 - Total: 2'>        if (top == array.length) {
+</span><span class='uc' id='L1266' title='4|4|4 - Total: 4'>            array = increaseICodeCapacity(1);
+</span>        }
+<span class='uc' id='L1268' title='5|5|5 - Total: 5'>        array[top] = (byte)value;
+</span><span class='uc' id='L1269' title='5|5|5 - Total: 5'>        iCodeTop = top + 1;
+</span><span class='uc' id='L1270' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addUint16(int value)
+    {
+<span class='upc' id='L1274' title='1|1|1 - Total: 2'>        if ((value & ~0xFFFF) != 0) throw Kit.codeBug();
+</span><span class='uc' id='L1275' title='4|4|4 - Total: 4'>        byte[] array = itsData.itsICode;
+</span><span class='uc' id='L1276' title='3|3|3 - Total: 3'>        int top = iCodeTop;
+</span><span class='uc' id='L1277' title='2|2|2 - Total: 2'>        if (top + 2 > array.length) {
+</span><span class='uc' id='L1278' title='4|4|4 - Total: 4'>            array = increaseICodeCapacity(2);
+</span>        }
+<span class='uc' id='L1280' title='7|7|7 - Total: 7'>        array[top] = (byte)(value >>> 8);
+</span><span class='uc' id='L1281' title='7|7|7 - Total: 7'>        array[top + 1] = (byte)value;
+</span><span class='uc' id='L1282' title='5|5|5 - Total: 5'>        iCodeTop = top + 2;
+</span><span class='uc' id='L1283' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addInt(int i)
+    {
+<span class='uc' id='L1287' title='4|4|4 - Total: 4'>        byte[] array = itsData.itsICode;
+</span><span class='uc' id='L1288' title='3|3|3 - Total: 3'>        int top = iCodeTop;
+</span><span class='uc' id='L1289' title='2|2|2 - Total: 2'>        if (top + 4 > array.length) {
+</span><span class='uc' id='L1290' title='4|4|4 - Total: 4'>            array = increaseICodeCapacity(4);
+</span>        }
+<span class='uc' id='L1292' title='7|7|7 - Total: 7'>        array[top] = (byte)(i >>> 24);
+</span><span class='uc' id='L1293' title='9|9|9 - Total: 9'>        array[top + 1] = (byte)(i >>> 16);
+</span><span class='uc' id='L1294' title='9|9|9 - Total: 9'>        array[top + 2] = (byte)(i >>> 8);
+</span><span class='uc' id='L1295' title='7|7|7 - Total: 7'>        array[top + 3] = (byte)i;
+</span><span class='uc' id='L1296' title='5|5|5 - Total: 5'>        iCodeTop = top + 4;
+</span><span class='uc' id='L1297' title='1|1|1 - Total: 1'>    }
+</span>
+    private int getDoubleIndex(double num)
+    {
+<span class='uc' id='L1301' title='3|3|3 - Total: 3'>        int index = doubleTableTop;
+</span><span class='uc' id='L1302' title='2|2|2 - Total: 2'>        if (index == 0) {
+</span><span class='uc' id='L1303' title='6|6|6 - Total: 6'>            itsData.itsDoubleTable = new double[64];
+</span><span class='uc' id='L1304' title='2|2|2 - Total: 2'>        } else if (itsData.itsDoubleTable.length == index) {
+</span><span class='uc' id='L1305' title='5|5|5 - Total: 5'>            double[] na = new double[index * 2];
+</span><span class='uc' id='L1306' title='8|8|8 - Total: 8'>            System.arraycopy(itsData.itsDoubleTable, 0, na, 0, index);
+</span><span class='uc' id='L1307' title='4|4|4 - Total: 4'>            itsData.itsDoubleTable = na;
+</span>        }
+<span class='uc' id='L1309' title='6|6|6 - Total: 6'>        itsData.itsDoubleTable[index] = num;
+</span><span class='uc' id='L1310' title='5|5|5 - Total: 5'>        doubleTableTop = index + 1;
+</span><span class='uc' id='L1311' title='2|2|2 - Total: 2'>        return index;
+</span>    }
+
+    private void addGotoOp(int gotoOp)
+    {
+<span class='uc' id='L1316' title='4|4|4 - Total: 4'>        byte[] array = itsData.itsICode;
+</span><span class='uc' id='L1317' title='3|3|3 - Total: 3'>        int top = iCodeTop;
+</span><span class='uc' id='L1318' title='2|2|2 - Total: 2'>        if (top + 3 > array.length) {
+</span><span class='uc' id='L1319' title='4|4|4 - Total: 4'>            array = increaseICodeCapacity(3);
+</span>        }
+<span class='uc' id='L1321' title='5|5|5 - Total: 5'>        array[top] = (byte)gotoOp;
+</span>        // Offset would written later
+<span class='uc' id='L1323' title='7|7|7 - Total: 7'>        iCodeTop = top + 1 + 2;
+</span><span class='uc' id='L1324' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addVarOp(int op, int varIndex)
+    {
+<span class='upc' id='L1328' title='3|3|3 - Total: 4'>        switch (op) {
+</span>          case Token.SETCONSTVAR:
+<span class='upc' id='L1330' title='1|1|1 - Total: 2'>            if (varIndex < 128) {
+</span><span class='uc' id='L1331' title='3|3|3 - Total: 3'>                addIcode(Icode_SETCONSTVAR1);
+</span><span class='uc' id='L1332' title='3|3|3 - Total: 3'>                addUint8(varIndex);
+</span><span class='uc' id='L1333' title='1|1|1 - Total: 1'>                return;
+</span>            }
+<span class='nc' id='L1335' title='0|0|0 - Total: 4'>            addIndexOp(Icode_SETCONSTVAR, varIndex);
+</span><span class='nc' id='L1336' title='0|0|0 - Total: 1'>            return;
+</span>          case Token.GETVAR:
+          case Token.SETVAR:
+<span class='upc' id='L1339' title='1|1|1 - Total: 2'>            if (varIndex < 128) {
+</span><span class='uc' id='L1340' title='2|2|2 - Total: 2'>                addIcode(op == Token.GETVAR ? Icode_GETVAR1 : Icode_SETVAR1);
+</span><span class='uc' id='L1341' title='3|3|3 - Total: 3'>                addUint8(varIndex);
+</span><span class='uc' id='L1342' title='1|1|1 - Total: 1'>                return;
+</span>            }
+            // fallthrough
+          case Icode_VAR_INC_DEC:
+<span class='uc' id='L1346' title='4|4|4 - Total: 4'>            addIndexOp(op, varIndex);
+</span><span class='uc' id='L1347' title='1|1|1 - Total: 1'>            return;
+</span>        }
+<span class='nc' id='L1349' title='0|0|0 - Total: 2'>        throw Kit.codeBug();
+</span>    }
+
+    private void addStringOp(int op, String str)
+    {
+<span class='uc' id='L1354' title='3|3|3 - Total: 3'>        addStringPrefix(str);
+</span><span class='uc' id='L1355' title='2|2|2 - Total: 2'>        if (Icode.validIcode(op)) {
+</span><span class='uc' id='L1356' title='4|4|4 - Total: 4'>            addIcode(op);
+</span>        } else {
+<span class='uc' id='L1358' title='3|3|3 - Total: 3'>            addToken(op);
+</span>        }
+<span class='uc' id='L1360' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addIndexOp(int op, int index)
+    {
+<span class='uc' id='L1364' title='3|3|3 - Total: 3'>        addIndexPrefix(index);
+</span><span class='uc' id='L1365' title='2|2|2 - Total: 2'>        if (Icode.validIcode(op)) {
+</span><span class='uc' id='L1366' title='4|4|4 - Total: 4'>            addIcode(op);
+</span>        } else {
+<span class='uc' id='L1368' title='3|3|3 - Total: 3'>            addToken(op);
+</span>        }
+<span class='uc' id='L1370' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addStringPrefix(String str)
+    {
+<span class='uc' id='L1374' title='6|6|6 - Total: 6'>        int index = strings.get(str, -1);
+</span><span class='uc' id='L1375' title='2|2|2 - Total: 2'>        if (index == -1) {
+</span><span class='uc' id='L1376' title='4|4|4 - Total: 4'>            index = strings.size();
+</span><span class='uc' id='L1377' title='5|5|5 - Total: 5'>            strings.put(str, index);
+</span>        }
+<span class='uc' id='L1379' title='2|2|2 - Total: 2'>        if (index < 4) {
+</span><span class='uc' id='L1380' title='6|6|6 - Total: 6'>            addIcode(Icode_REG_STR_C0 - index);
+</span><span class='uc' id='L1381' title='2|2|2 - Total: 2'>        } else if (index <= 0xFF) {
+</span><span class='uc' id='L1382' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_STR1);
+</span><span class='uc' id='L1383' title='4|4|4 - Total: 4'>            addUint8(index);
+</span><span class='uc' id='L1384' title='2|2|2 - Total: 2'>         } else if (index <= 0xFFFF) {
+</span><span class='uc' id='L1385' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_STR2);
+</span><span class='uc' id='L1386' title='4|4|4 - Total: 4'>            addUint16(index);
+</span>         } else {
+<span class='uc' id='L1388' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_STR4);
+</span><span class='uc' id='L1389' title='3|3|3 - Total: 3'>            addInt(index);
+</span>        }
+<span class='uc' id='L1391' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addIndexPrefix(int index)
+    {
+<span class='upc' id='L1395' title='1|1|1 - Total: 2'>        if (index < 0) Kit.codeBug();
+</span><span class='uc' id='L1396' title='2|2|2 - Total: 2'>        if (index < 6) {
+</span><span class='uc' id='L1397' title='6|6|6 - Total: 6'>            addIcode(Icode_REG_IND_C0 - index);
+</span><span class='uc' id='L1398' title='2|2|2 - Total: 2'>        } else if (index <= 0xFF) {
+</span><span class='uc' id='L1399' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_IND1);
+</span><span class='uc' id='L1400' title='4|4|4 - Total: 4'>            addUint8(index);
+</span><span class='uc' id='L1401' title='2|2|2 - Total: 2'>         } else if (index <= 0xFFFF) {
+</span><span class='uc' id='L1402' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_IND2);
+</span><span class='uc' id='L1403' title='4|4|4 - Total: 4'>            addUint16(index);
+</span>         } else {
+<span class='uc' id='L1405' title='3|3|3 - Total: 3'>            addIcode(Icode_REG_IND4);
+</span><span class='uc' id='L1406' title='3|3|3 - Total: 3'>            addInt(index);
+</span>        }
+<span class='uc' id='L1408' title='1|1|1 - Total: 1'>    }
+</span>
+    private void addExceptionHandler(int icodeStart, int icodeEnd,
+                                     int handlerStart, boolean isFinally,
+                                     int exceptionObjectLocal, int scopeLocal)
+    {
+<span class='uc' id='L1414' title='3|3|3 - Total: 3'>        int top = exceptionTableTop;
+</span><span class='uc' id='L1415' title='4|4|4 - Total: 4'>        int[] table = itsData.itsExceptionTable;
+</span><span class='uc' id='L1416' title='2|2|2 - Total: 2'>        if (table == null) {
+</span><span class='upc' id='L1417' title='1|1|1 - Total: 2'>            if (top != 0) Kit.codeBug();
+</span><span class='uc' id='L1418' title='3|3|3 - Total: 3'>            table = new int[Interpreter.EXCEPTION_SLOT_SIZE * 2];
+</span><span class='uc' id='L1419' title='5|5|5 - Total: 5'>            itsData.itsExceptionTable = table;
+</span><span class='uc' id='L1420' title='2|2|2 - Total: 2'>        } else if (table.length == top) {
+</span><span class='uc' id='L1421' title='6|6|6 - Total: 6'>            table = new int[table.length * 2];
+</span><span class='uc' id='L1422' title='8|8|8 - Total: 8'>            System.arraycopy(itsData.itsExceptionTable, 0, table, 0, top);
+</span><span class='uc' id='L1423' title='4|4|4 - Total: 4'>            itsData.itsExceptionTable = table;
+</span>        }
+<span class='uc' id='L1425' title='6|6|6 - Total: 6'>        table[top + Interpreter.EXCEPTION_TRY_START_SLOT]  = icodeStart;
+</span><span class='uc' id='L1426' title='6|6|6 - Total: 6'>        table[top + Interpreter.EXCEPTION_TRY_END_SLOT]    = icodeEnd;
+</span><span class='uc' id='L1427' title='6|6|6 - Total: 6'>        table[top + Interpreter.EXCEPTION_HANDLER_SLOT]    = handlerStart;
+</span><span class='uc' id='L1428' title='2|2|2 - Total: 2'>        table[top + Interpreter.EXCEPTION_TYPE_SLOT]     = isFinally ? 1 : 0;
+</span><span class='uc' id='L1429' title='6|6|6 - Total: 6'>        table[top + Interpreter.EXCEPTION_LOCAL_SLOT]    = exceptionObjectLocal;
+</span><span class='uc' id='L1430' title='6|6|6 - Total: 6'>        table[top + Interpreter.EXCEPTION_SCOPE_SLOT]    = scopeLocal;
+</span>
+<span class='uc' id='L1432' title='5|5|5 - Total: 5'>        exceptionTableTop = top + Interpreter.EXCEPTION_SLOT_SIZE;
+</span><span class='uc' id='L1433' title='1|1|1 - Total: 1'>    }
+</span>
+    private byte[] increaseICodeCapacity(int extraSize)
+    {
+<span class='uc' id='L1437' title='5|5|5 - Total: 5'>        int capacity = itsData.itsICode.length;
+</span><span class='uc' id='L1438' title='3|3|3 - Total: 3'>        int top = iCodeTop;
+</span><span class='upc' id='L1439' title='1|1|1 - Total: 2'>        if (top + extraSize <= capacity) throw Kit.codeBug();
+</span><span class='uc' id='L1440' title='4|4|4 - Total: 4'>        capacity *= 2;
+</span><span class='upc' id='L1441' title='1|1|1 - Total: 2'>        if (top + extraSize > capacity) {
+</span><span class='nc' id='L1442' title='0|0|0 - Total: 4'>            capacity = top + extraSize;
+</span>        }
+<span class='uc' id='L1444' title='3|3|3 - Total: 3'>        byte[] array = new byte[capacity];
+</span><span class='uc' id='L1445' title='8|8|8 - Total: 8'>        System.arraycopy(itsData.itsICode, 0, array, 0, top);
+</span><span class='uc' id='L1446' title='4|4|4 - Total: 4'>        itsData.itsICode = array;
+</span><span class='uc' id='L1447' title='2|2|2 - Total: 2'>        return array;
+</span>    }
+
+    private void stackChange(int change)
+    {
+<span class='uc' id='L1452' title='2|2|2 - Total: 2'>        if (change <= 0) {
+</span><span class='uc' id='L1453' title='7|7|7 - Total: 7'>            stackDepth += change;
+</span>        } else {
+<span class='uc' id='L1455' title='5|5|5 - Total: 5'>            int newDepth = stackDepth + change;
+</span><span class='uc' id='L1456' title='2|2|2 - Total: 2'>            if (newDepth > itsData.itsMaxStack) {
+</span><span class='uc' id='L1457' title='4|4|4 - Total: 4'>                itsData.itsMaxStack = newDepth;
+</span>            }
+<span class='uc' id='L1459' title='3|3|3 - Total: 3'>            stackDepth = newDepth;
+</span>        }
+<span class='uc' id='L1461' title='1|1|1 - Total: 1'>    }
+</span>
+    private int allocLocal()
+    {
+<span class='uc' id='L1465' title='3|3|3 - Total: 3'>        int localSlot = localTop;
+</span><span class='uc' id='L1466' title='6|6|6 - Total: 6'>        ++localTop;
+</span><span class='uc' id='L1467' title='2|2|2 - Total: 2'>        if (localTop > itsData.itsMaxLocals) {
+</span><span class='uc' id='L1468' title='5|5|5 - Total: 5'>            itsData.itsMaxLocals = localTop;
+</span>        }
+<span class='uc' id='L1470' title='2|2|2 - Total: 2'>        return localSlot;
+</span>    }
+
+    private void releaseLocal(int localSlot)
+    {
+<span class='uc' id='L1475' title='6|6|6 - Total: 6'>        --localTop;
+</span><span class='upc' id='L1476' title='1|1|1 - Total: 2'>        if (localSlot != localTop) Kit.codeBug();
+</span><span class='uc' id='L1477' title='1|1|1 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

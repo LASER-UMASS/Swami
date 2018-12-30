@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.KeywordLiteral.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.KeywordLiteral.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for keyword literals:  currently, {@code this},
+ * {@code null}, {@code true}, {@code false}, and {@code debugger}.
+ * Node type is one of
+ * {@link Token#THIS},
+ * {@link Token#NULL},
+ * {@link Token#TRUE},
+ * {@link Token#FALSE}, or
+ * {@link Token#DEBUGGER}.
+ */
+public class KeywordLiteral extends AstNode {
+
+<span class='nc' id='L23' title='0|0|0 - Total: 2'>    public KeywordLiteral() {
+</span><span class='nc' id='L24' title='0|0|0 - Total: 1'>    }
+</span>
+    public KeywordLiteral(int pos) {
+<span class='nc' id='L27' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L28' title='0|0|0 - Total: 1'>    }
+</span>
+    public KeywordLiteral(int pos, int len) {
+<span class='nc' id='L31' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new KeywordLiteral
+     * @param nodeType the token type
+     */
+    public KeywordLiteral(int pos, int len, int nodeType) {
+<span class='uc' id='L39' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L40' title='4|4|4 - Total: 4'>        setType(nodeType);
+</span><span class='uc' id='L41' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets node token type
+     * @throws IllegalArgumentException if {@code nodeType} is unsupported
+     */
+    @Override
+    public KeywordLiteral setType(int nodeType) {
+<span class='upc' id='L49' title='9|9|9 - Total: 10'>        if (!(nodeType == Token.THIS
+</span>              || nodeType == Token.NULL
+              || nodeType == Token.TRUE
+              || nodeType == Token.FALSE
+              || nodeType == Token.DEBUGGER))
+<span class='nc' id='L54' title='0|0|0 - Total: 12'>            throw new IllegalArgumentException("Invalid node type: "
+</span>                                               + nodeType);
+<span class='uc' id='L56' title='3|3|3 - Total: 3'>        type = nodeType;
+</span><span class='uc' id='L57' title='2|2|2 - Total: 2'>        return this;
+</span>    }
+
+    /**
+     * Returns true if the token type is {@link Token#TRUE} or
+     * {@link Token#FALSE}.
+     */
+    public boolean isBooleanLiteral() {
+<span class='nc' id='L65' title='0|0|0 - Total: 4'>        return type == Token.TRUE || type == Token.FALSE;
+</span>    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L70' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L71' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='upc' id='L72' title='3|3|3 - Total: 6'>        switch (getType()) {
+</span>        case Token.THIS:
+<span class='uc' id='L74' title='4|4|4 - Total: 4'>            sb.append("this");
+</span><span class='uc' id='L75' title='1|1|1 - Total: 1'>            break;
+</span>        case Token.NULL:
+<span class='nc' id='L77' title='0|0|0 - Total: 4'>            sb.append("null");
+</span><span class='nc' id='L78' title='0|0|0 - Total: 1'>            break;
+</span>        case Token.TRUE:
+<span class='uc' id='L80' title='4|4|4 - Total: 4'>            sb.append("true");
+</span><span class='uc' id='L81' title='1|1|1 - Total: 1'>            break;
+</span>        case Token.FALSE:
+<span class='nc' id='L83' title='0|0|0 - Total: 4'>            sb.append("false");
+</span><span class='nc' id='L84' title='0|0|0 - Total: 1'>            break;
+</span>        case Token.DEBUGGER:
+<span class='uc' id='L86' title='4|4|4 - Total: 4'>            sb.append("debugger;\n");
+</span><span class='uc' id='L87' title='1|1|1 - Total: 1'>            break;
+</span>        default:
+<span class='nc' id='L89' title='0|0|0 - Total: 8'>            throw new IllegalStateException("Invalid keyword literal type: "
+</span><span class='nc' id='L90' title='0|0|0 - Total: 5'>                                            + getType());
+</span>        }
+<span class='uc' id='L92' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node.  There are no children to visit.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L100' title='0|0|0 - Total: 4'>        v.visit(this);
+</span><span class='nc' id='L101' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

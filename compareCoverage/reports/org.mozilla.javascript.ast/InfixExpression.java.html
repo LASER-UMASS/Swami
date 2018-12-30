@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.InfixExpression.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.InfixExpression.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node representing an infix (binary operator) expression.
+ * The operator is the node's {@link Token} type.
+ */
+public class InfixExpression extends AstNode {
+
+    protected AstNode left;
+    protected AstNode right;
+<span class='upc' id='L19' title='12|12|12 - Total: 18'>    protected int operatorPosition = -1;
+</span>
+<span class='uc' id='L21' title='2|2|2 - Total: 2'>    public InfixExpression() {
+</span><span class='uc' id='L22' title='1|1|1 - Total: 1'>    }
+</span>
+    public InfixExpression(int pos) {
+<span class='uc' id='L25' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L26' title='1|1|1 - Total: 1'>    }
+</span>
+    public InfixExpression(int pos, int len) {
+<span class='uc' id='L29' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+    public InfixExpression(int pos, int len,
+                           AstNode left,
+                           AstNode right) {
+<span class='nc' id='L35' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L36' title='0|0|0 - Total: 3'>        setLeft(left);
+</span><span class='nc' id='L37' title='0|0|0 - Total: 3'>        setRight(right);
+</span><span class='nc' id='L38' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new {@code InfixExpression}.  Updates bounds to include
+     * left and right nodes.
+     */
+<span class='nc' id='L44' title='0|0|0 - Total: 2'>    public InfixExpression(AstNode left, AstNode right) {
+</span><span class='nc' id='L45' title='0|0|0 - Total: 4'>        setLeftAndRight(left, right);
+</span><span class='nc' id='L46' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Constructs a new {@code InfixExpression}.
+     * @param operatorPos the <em>absolute</em> position of the operator
+     */
+    public InfixExpression(int operator, AstNode left,
+<span class='uc' id='L53' title='2|2|2 - Total: 2'>                           AstNode right, int operatorPos) {
+</span><span class='uc' id='L54' title='4|4|4 - Total: 4'>        setType(operator);
+</span><span class='uc' id='L55' title='6|6|6 - Total: 6'>        setOperatorPosition(operatorPos - left.getPosition());
+</span><span class='uc' id='L56' title='4|4|4 - Total: 4'>        setLeftAndRight(left, right);
+</span><span class='uc' id='L57' title='1|1|1 - Total: 1'>    }
+</span>
+    public void setLeftAndRight(AstNode left, AstNode right) {
+<span class='uc' id='L60' title='3|3|3 - Total: 3'>        assertNotNull(left);
+</span><span class='uc' id='L61' title='3|3|3 - Total: 3'>        assertNotNull(right);
+</span>        // compute our bounds while children have absolute positions
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        int beg = left.getPosition();
+</span><span class='uc' id='L64' title='6|6|6 - Total: 6'>        int end = right.getPosition() + right.getLength();
+</span><span class='uc' id='L65' title='4|4|4 - Total: 4'>        setBounds(beg, end);
+</span>
+        // this updates their positions to be parent-relative
+<span class='uc' id='L68' title='3|3|3 - Total: 3'>        setLeft(left);
+</span><span class='uc' id='L69' title='3|3|3 - Total: 3'>        setRight(right);
+</span><span class='uc' id='L70' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns operator token &ndash; alias for {@link #getType}
+     */
+    public int getOperator() {
+<span class='nc' id='L76' title='0|0|0 - Total: 3'>        return getType();
+</span>    }
+
+    /**
+     * Sets operator token &ndash; like {@link #setType}, but throws
+     * an exception if the operator is invalid.
+     * @throws IllegalArgumentException if operator is not a valid token
+     * code
+     */
+    public void setOperator(int operator) {
+<span class='nc' id='L86' title='0|0|0 - Total: 2'>        if (!Token.isValidToken(operator))
+</span><span class='nc' id='L87' title='0|0|0 - Total: 12'>            throw new IllegalArgumentException("Invalid token: " + operator);
+</span><span class='nc' id='L88' title='0|0|0 - Total: 4'>        setType(operator);
+</span><span class='nc' id='L89' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns the left-hand side of the expression
+     */
+    public AstNode getLeft() {
+<span class='uc' id='L95' title='3|3|3 - Total: 3'>        return left;
+</span>    }
+
+    /**
+     * Sets the left-hand side of the expression, and sets its
+     * parent to this node.
+     * @param left the left-hand side of the expression
+     * @throws IllegalArgumentException} if left is {@code null}
+     */
+    public void setLeft(AstNode left) {
+<span class='uc' id='L105' title='3|3|3 - Total: 3'>        assertNotNull(left);
+</span><span class='uc' id='L106' title='3|3|3 - Total: 3'>        this.left = left;
+</span>        // line number should agree with source position
+<span class='uc' id='L108' title='4|4|4 - Total: 4'>        setLineno(left.getLineno());
+</span><span class='uc' id='L109' title='3|3|3 - Total: 3'>        left.setParent(this);
+</span><span class='uc' id='L110' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the right-hand side of the expression
+     * @return the right-hand side.  It's usually an
+     * {@link AstNode} node, but can also be a {@link FunctionNode}
+     * representing Function expressions.
+     */
+    public AstNode getRight() {
+<span class='uc' id='L119' title='3|3|3 - Total: 3'>        return right;
+</span>    }
+
+    /**
+     * Sets the right-hand side of the expression, and sets its parent to this
+     * node.
+     * @throws IllegalArgumentException} if right is {@code null}
+     */
+    public void setRight(AstNode right) {
+<span class='uc' id='L128' title='3|3|3 - Total: 3'>        assertNotNull(right);
+</span><span class='uc' id='L129' title='3|3|3 - Total: 3'>        this.right = right;
+</span><span class='uc' id='L130' title='3|3|3 - Total: 3'>        right.setParent(this);
+</span><span class='uc' id='L131' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns relative offset of operator token
+     */
+    public int getOperatorPosition() {
+<span class='nc' id='L137' title='0|0|0 - Total: 3'>        return operatorPosition;
+</span>    }
+
+    /**
+     * Sets operator token's relative offset
+     * @param operatorPosition offset in parent of operator token
+     */
+    public void setOperatorPosition(int operatorPosition) {
+<span class='uc' id='L145' title='3|3|3 - Total: 3'>        this.operatorPosition = operatorPosition;
+</span><span class='uc' id='L146' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public boolean hasSideEffects() {
+        // the null-checks are for malformed expressions in IDE-mode
+<span class='nc' id='L151' title='0|0|0 - Total: 3'>        switch (getType()) {
+</span>          case Token.COMMA:
+<span class='nc' id='L153' title='0|0|0 - Total: 4'>              return right != null && right.hasSideEffects();
+</span>          case Token.AND:
+          case Token.OR:
+<span class='nc' id='L156' title='0|0|0 - Total: 6'>              return left != null && left.hasSideEffects()
+</span><span class='nc' id='L157' title='0|0|0 - Total: 2'>                      || (right != null && right.hasSideEffects());
+</span>          default:
+<span class='nc' id='L159' title='0|0|0 - Total: 3'>              return super.hasSideEffects();
+</span>        }
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L165' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L166' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='uc' id='L167' title='6|6|6 - Total: 6'>        sb.append(left.toSource());
+</span><span class='uc' id='L168' title='4|4|4 - Total: 4'>        sb.append(" ");
+</span><span class='uc' id='L169' title='6|6|6 - Total: 6'>        sb.append(operatorToString(getType()));
+</span><span class='uc' id='L170' title='4|4|4 - Total: 4'>        sb.append(" ");
+</span><span class='uc' id='L171' title='6|6|6 - Total: 6'>        sb.append(right.toSource());
+</span><span class='uc' id='L172' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the left operand, and the right operand.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L180' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L181' title='0|0|0 - Total: 4'>            left.visit(v);
+</span><span class='nc' id='L182' title='0|0|0 - Total: 4'>            right.visit(v);
+</span>        }
+<span class='nc' id='L184' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

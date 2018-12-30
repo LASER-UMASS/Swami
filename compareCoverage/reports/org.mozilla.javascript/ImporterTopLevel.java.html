@@ -1,0 +1,291 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ImporterTopLevel.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ImporterTopLevel.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * Class ImporterTopLevel
+ *
+ * This class defines a ScriptableObject that can be instantiated
+ * as a top-level ("global") object to provide functionality similar
+ * to Java's "import" statement.
+ * <p>
+ * This class can be used to create a top-level scope using the following code:
+ * <pre>
+ *  Scriptable scope = new ImporterTopLevel(cx);
+ * </pre>
+ * Then JavaScript code will have access to the following methods:
+ * <ul>
+ * <li>importClass - will "import" a class by making its unqualified name
+ *                   available as a property of the top-level scope
+ * <li>importPackage - will "import" all the classes of the package by
+ *                     searching for unqualified names as classes qualified
+ *                     by the given package.
+ * </ul>
+ * The following code from the shell illustrates this use:
+ * <pre>
+ * js> importClass(java.io.File)
+ * js> f = new File('help.txt')
+ * help.txt
+ * js> importPackage(java.util)
+ * js> v = new Vector()
+ * []
+ *
+ * @author Norris Boyd
+ */
+public class ImporterTopLevel extends TopLevel {
+    static final long serialVersionUID = -9095380847465315412L;
+
+<span class='uc' id='L44' title='3|3|3 - Total: 3'>    private static final Object IMPORTER_TAG = "Importer";
+</span>
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>    public ImporterTopLevel() { }
+</span>
+    public ImporterTopLevel(Context cx) {
+<span class='uc' id='L49' title='4|4|4 - Total: 4'>        this(cx, false);
+</span><span class='uc' id='L50' title='1|1|1 - Total: 1'>    }
+</span>
+    public ImporterTopLevel(Context cx, boolean sealed)
+<span class='uc' id='L53' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L54' title='4|4|4 - Total: 4'>        initStandardObjects(cx, sealed);
+</span><span class='uc' id='L55' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='upc' id='L60' title='1|1|1 - Total: 2'>        return (topScopeFlag) ? "global" : "JavaImporter";
+</span>    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class='nc' id='L65' title='0|0|0 - Total: 4'>        ImporterTopLevel obj = new ImporterTopLevel();
+</span><span class='nc' id='L66' title='0|0|0 - Total: 6'>        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='nc' id='L67' title='0|0|0 - Total: 1'>    }
+</span>
+    public void initStandardObjects(Context cx, boolean sealed)
+    {
+        // Assume that Context.initStandardObjects initialize JavaImporter
+        // property lazily so the above init call is not yet called
+<span class='uc' id='L73' title='5|5|5 - Total: 5'>        cx.initStandardObjects(this, sealed);
+</span><span class='uc' id='L74' title='3|3|3 - Total: 3'>        topScopeFlag = true;
+</span>        // If seal is true then exportAsJSClass(cx, seal) would seal
+        // this obj. Since this is scope as well, it would not allow
+        // to add variables.
+<span class='uc' id='L78' title='6|6|6 - Total: 6'>        IdFunctionObject ctor = exportAsJSClass(MAX_PROTOTYPE_ID, this, false);
+</span><span class='upc' id='L79' title='1|1|1 - Total: 2'>        if (sealed) {
+</span><span class='nc' id='L80' title='0|0|0 - Total: 2'>            ctor.sealObject();
+</span>        }
+        // delete "constructor" defined by exportAsJSClass so "constructor"
+        // name would refer to Object.constructor
+        // and not to JavaImporter.prototype.constructor.
+<span class='uc' id='L85' title='3|3|3 - Total: 3'>        delete("constructor");
+</span><span class='uc' id='L86' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public boolean has(String name, Scriptable start) {
+<span class='uc' id='L90' title='2|2|2 - Total: 2'>        return super.has(name, start)
+</span><span class='upc' id='L91' title='1|1|1 - Total: 2'>               || getPackageProperty(name, start) != NOT_FOUND;
+</span>    }
+
+    @Override
+    public Object get(String name, Scriptable start) {
+<span class='uc' id='L96' title='5|5|5 - Total: 5'>        Object result = super.get(name, start);
+</span><span class='uc' id='L97' title='2|2|2 - Total: 2'>        if (result != NOT_FOUND)
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>            return result;
+</span><span class='uc' id='L99' title='5|5|5 - Total: 5'>        result = getPackageProperty(name, start);
+</span><span class='uc' id='L100' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Object getPackageProperty(String name, Scriptable start) {
+<span class='uc' id='L104' title='2|2|2 - Total: 2'>        Object result = NOT_FOUND;
+</span>        Object[] elements;
+<span class='uc' id='L106' title='5|5|5 - Total: 5'>        synchronized (importedPackages) {
+</span><span class='uc' id='L107' title='4|4|4 - Total: 4'>            elements = importedPackages.toArray();
+</span><span class='upc' id='L108' title='3|3|3 - Total: 8'>        }
+</span><span class='uc' id='L109' title='2|2|2 - Total: 2'>        for (int i=0; i < elements.length; i++) {
+</span><span class='uc' id='L110' title='5|5|5 - Total: 5'>            NativeJavaPackage p = (NativeJavaPackage) elements[i];
+</span><span class='uc' id='L111' title='6|6|6 - Total: 6'>            Object v = p.getPkgProperty(name, start, false);
+</span><span class='upc' id='L112' title='3|3|3 - Total: 4'>            if (v != null && !(v instanceof NativeJavaPackage)) {
+</span><span class='upc' id='L113' title='1|1|1 - Total: 2'>                if (result == NOT_FOUND) {
+</span><span class='uc' id='L114' title='3|3|3 - Total: 3'>                    result = v;
+</span>                } else {
+<span class='nc' id='L116' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError2(
+</span><span class='nc' id='L117' title='0|0|0 - Total: 3'>                        "msg.ambig.import", result.toString(), v.toString());
+</span>                }
+            }
+        }
+<span class='uc' id='L121' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * @deprecated Kept only for compatibility.
+     */
+    @Deprecated
+    public void importPackage(Context cx, Scriptable thisObj, Object[] args,
+                              Function funObj)
+    {
+<span class='nc' id='L131' title='0|0|0 - Total: 4'>        js_importPackage(args);
+</span><span class='nc' id='L132' title='0|0|0 - Total: 1'>    }
+</span>
+    private Object js_construct(Scriptable scope, Object[] args)
+    {
+<span class='nc' id='L136' title='0|0|0 - Total: 4'>        ImporterTopLevel result = new ImporterTopLevel();
+</span><span class='nc' id='L137' title='0|0|0 - Total: 2'>        for (int i = 0; i != args.length; ++i) {
+</span><span class='nc' id='L138' title='0|0|0 - Total: 4'>            Object arg = args[i];
+</span><span class='nc' id='L139' title='0|0|0 - Total: 2'>            if (arg instanceof NativeJavaClass) {
+</span><span class='nc' id='L140' title='0|0|0 - Total: 5'>                result.importClass((NativeJavaClass)arg);
+</span><span class='nc' id='L141' title='0|0|0 - Total: 2'>            } else if (arg instanceof NativeJavaPackage) {
+</span><span class='nc' id='L142' title='0|0|0 - Total: 5'>                result.importPackage((NativeJavaPackage)arg);
+</span>            } else {
+<span class='nc' id='L144' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span><span class='nc' id='L145' title='0|0|0 - Total: 1'>                    "msg.not.class.not.pkg", Context.toString(arg));
+</span>            }
+        }
+        // set explicitly prototype and scope
+        // as otherwise in top scope mode BaseFunction.construct
+        // would keep them set to null. It also allow to use
+        // JavaImporter without new and still get properly
+        // initialized object.
+<span class='nc' id='L153' title='0|0|0 - Total: 3'>        result.setParentScope(scope);
+</span><span class='nc' id='L154' title='0|0|0 - Total: 3'>        result.setPrototype(this);
+</span><span class='nc' id='L155' title='0|0|0 - Total: 2'>        return result;
+</span>    }
+
+    private Object js_importClass(Object[] args)
+    {
+<span class='uc' id='L160' title='2|2|2 - Total: 2'>        for (int i = 0; i != args.length; i++) {
+</span><span class='uc' id='L161' title='4|4|4 - Total: 4'>            Object arg = args[i];
+</span><span class='upc' id='L162' title='1|1|1 - Total: 2'>            if (!(arg instanceof NativeJavaClass)) {
+</span><span class='nc' id='L163' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span><span class='nc' id='L164' title='0|0|0 - Total: 1'>                    "msg.not.class", Context.toString(arg));
+</span>            }
+<span class='uc' id='L166' title='4|4|4 - Total: 4'>            importClass((NativeJavaClass)arg);
+</span>        }
+<span class='uc' id='L168' title='2|2|2 - Total: 2'>        return Undefined.instance;
+</span>    }
+
+    private Object js_importPackage(Object[] args)
+    {
+<span class='uc' id='L173' title='2|2|2 - Total: 2'>        for (int i = 0; i != args.length; i++) {
+</span><span class='uc' id='L174' title='4|4|4 - Total: 4'>            Object arg = args[i];
+</span><span class='upc' id='L175' title='1|1|1 - Total: 2'>            if (!(arg instanceof NativeJavaPackage)) {
+</span><span class='nc' id='L176' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span><span class='nc' id='L177' title='0|0|0 - Total: 1'>                    "msg.not.pkg", Context.toString(arg));
+</span>            }
+<span class='uc' id='L179' title='4|4|4 - Total: 4'>            importPackage((NativeJavaPackage)arg);
+</span>        }
+<span class='uc' id='L181' title='2|2|2 - Total: 2'>        return Undefined.instance;
+</span>    }
+
+    private void importPackage(NativeJavaPackage pkg)
+    {
+<span class='upc' id='L186' title='1|1|1 - Total: 2'>        if(pkg == null) {
+</span><span class='nc' id='L187' title='0|0|0 - Total: 1'>            return;
+</span>        }
+<span class='uc' id='L189' title='5|5|5 - Total: 5'>        synchronized (importedPackages) {
+</span><span class='uc' id='L190' title='2|2|2 - Total: 2'>            for (int j = 0; j != importedPackages.size(); j++) {
+</span><span class='upc' id='L191' title='1|1|1 - Total: 2'>                if (pkg.equals(importedPackages.get(j))) {
+</span><span class='uc' id='L192' title='3|3|3 - Total: 3'>                    return;
+</span>                }
+            }
+<span class='uc' id='L195' title='4|4|4 - Total: 4'>            importedPackages.add(pkg);
+</span><span class='upc' id='L196' title='3|3|3 - Total: 8'>        }
+</span><span class='uc' id='L197' title='1|1|1 - Total: 1'>    }
+</span>
+    private void importClass(NativeJavaClass cl)
+    {
+<span class='uc' id='L201' title='4|4|4 - Total: 4'>        String s = cl.getClassObject().getName();
+</span><span class='uc' id='L202' title='8|8|8 - Total: 8'>        String n = s.substring(s.lastIndexOf('.')+1);
+</span><span class='uc' id='L203' title='5|5|5 - Total: 5'>        Object val = get(n, this);
+</span><span class='upc' id='L204' title='3|3|3 - Total: 4'>        if (val != NOT_FOUND && val != cl) {
+</span><span class='nc' id='L205' title='0|0|0 - Total: 4'>            throw Context.reportRuntimeError1("msg.prop.defined", n);
+</span>        }
+        //defineProperty(n, cl, DONTENUM);
+<span class='uc' id='L208' title='5|5|5 - Total: 5'>        put(n, this, cl);
+</span><span class='uc' id='L209' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class='upc' id='L216' title='3|3|3 - Total: 4'>        switch (id) {
+</span><span class='uc' id='L217' title='5|5|5 - Total: 5'>          case Id_constructor:   arity=0; s="constructor";   break;
+</span><span class='uc' id='L218' title='5|5|5 - Total: 5'>          case Id_importClass:   arity=1; s="importClass";   break;
+</span><span class='uc' id='L219' title='5|5|5 - Total: 5'>          case Id_importPackage: arity=1; s="importPackage"; break;
+</span><span class='nc' id='L220' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+<span class='uc' id='L222' title='7|7|7 - Total: 7'>        initPrototypeMethod(IMPORTER_TAG, id, s, arity);
+</span><span class='uc' id='L223' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class='upc' id='L229' title='1|1|1 - Total: 2'>        if (!f.hasTag(IMPORTER_TAG)) {
+</span><span class='nc' id='L230' title='0|0|0 - Total: 8'>            return super.execIdCall(f, cx, scope, thisObj, args);
+</span>        }
+<span class='uc' id='L232' title='3|3|3 - Total: 3'>        int id = f.methodId();
+</span><span class='upc' id='L233' title='2|2|2 - Total: 4'>        switch (id) {
+</span>          case Id_constructor:
+<span class='nc' id='L235' title='0|0|0 - Total: 5'>            return js_construct(scope, args);
+</span>
+          case Id_importClass:
+<span class='uc' id='L238' title='7|7|7 - Total: 7'>            return realThis(thisObj, f).js_importClass(args);
+</span>
+          case Id_importPackage:
+<span class='uc' id='L241' title='7|7|7 - Total: 7'>            return realThis(thisObj, f).js_importPackage(args);
+</span>        }
+<span class='nc' id='L243' title='0|0|0 - Total: 6'>        throw new IllegalArgumentException(String.valueOf(id));
+</span>    }
+
+    private ImporterTopLevel realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class='upc' id='L248' title='1|1|1 - Total: 2'>        if (topScopeFlag) {
+</span>            // when used as top scope importPackage and importClass are global
+            // function that ignore thisObj
+<span class='uc' id='L251' title='2|2|2 - Total: 2'>            return this;
+</span>        }
+<span class='nc' id='L253' title='0|0|0 - Total: 2'>        if (!(thisObj instanceof ImporterTopLevel))
+</span><span class='nc' id='L254' title='0|0|0 - Total: 3'>            throw incompatibleCallError(f);
+</span><span class='nc' id='L255' title='0|0|0 - Total: 3'>        return (ImporterTopLevel)thisObj;
+</span>    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:24 EDT
+<span class='uc' id='L265' title='4|4|4 - Total: 4'>        L0: { id = 0; String X = null; int c;
+</span><span class='uc' id='L266' title='3|3|3 - Total: 3'>            int s_length = s.length();
+</span><span class='uc' id='L267' title='2|2|2 - Total: 2'>            if (s_length==11) {
+</span><span class='uc' id='L268' title='4|4|4 - Total: 4'>                c=s.charAt(0);
+</span><span class='uc' id='L269' title='2|2|2 - Total: 2'>                if (c=='c') { X="constructor";id=Id_constructor; }
+</span><span class='uc' id='L270' title='2|2|2 - Total: 2'>                else if (c=='i') { X="importClass";id=Id_importClass; }
+</span>            }
+<span class='uc' id='L272' title='2|2|2 - Total: 2'>            else if (s_length==13) { X="importPackage";id=Id_importPackage; }
+</span><span class='uc' id='L273' title='6|6|6 - Total: 6'>            if (X!=null && X!=s && !X.equals(s)) id = 0;
+</span>            break L0;
+        }
+// #/generated#
+<span class='uc' id='L277' title='2|2|2 - Total: 2'>        return id;
+</span>    }
+
+    private static final int
+        Id_constructor          = 1,
+        Id_importClass          = 2,
+        Id_importPackage        = 3,
+        MAX_PROTOTYPE_ID        = 3;
+
+// #/string_id_map#
+
+<span class='uc' id='L288' title='10|10|10 - Total: 10'>    private ObjArray importedPackages = new ObjArray();
+</span>    private boolean topScopeFlag;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

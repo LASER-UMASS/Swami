@@ -1,0 +1,378 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module.provider;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Iterator;
+import java.util.List;
+
+
+/**
+ * A URL-based script provider that can load modules against a set of base
+ * privileged and fallback URIs. It is deliberately not named "URI provider"
+ * but a "URL provider" since it actually only works against those URIs that
+ * are URLs (and the JRE has a protocol handler for them). It creates cache
+ * validators that are suitable for use with both file: and http: URL
+ * protocols. Specifically, it is able to use both last-modified timestamps and
+ * ETags for cache revalidation, and follows the HTTP cache expiry calculation
+ * model, and allows for fallback heuristic expiry calculation when no server
+ * specified expiry is provided.
+ * @author Attila Szegedi
+ * @version $Id: UrlModuleSourceProvider.java,v 1.4 2011/04/07 20:26:12 hannes%helma.at Exp $
+ */
+public class UrlModuleSourceProvider extends ModuleSourceProviderBase
+{
+    private static final long serialVersionUID = 1L;
+
+    private final Iterable<URI> privilegedUris;
+    private final Iterable<URI> fallbackUris;
+    private final UrlConnectionSecurityDomainProvider
+        urlConnectionSecurityDomainProvider;
+    private final UrlConnectionExpiryCalculator urlConnectionExpiryCalculator;
+
+    /**
+     * Creates a new module script provider that loads modules against a set of
+     * privileged and fallback URIs. It will use a fixed default cache expiry
+     * of 60 seconds, and provide no security domain objects for the resource.
+     * @param privilegedUris an iterable providing the privileged URIs. Can be
+     * null if no privileged URIs are used.
+     * @param fallbackUris an iterable providing the fallback URIs. Can be
+     * null if no fallback URIs are used.
+     */
+    public UrlModuleSourceProvider(Iterable<URI> privilegedUris,
+            Iterable<URI> fallbackUris)
+    {
+<span class='uc' id='L56' title='8|8|8 - Total: 8'>        this(privilegedUris, fallbackUris,
+</span>                new DefaultUrlConnectionExpiryCalculator(), null);
+<span class='uc' id='L58' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Creates a new module script provider that loads modules against a set of
+     * privileged and fallback URIs. It will use the specified heuristic cache
+     * expiry calculator and security domain provider.
+     * @param privilegedUris an iterable providing the privileged URIs. Can be
+     * null if no privileged URIs are used.
+     * @param fallbackUris an iterable providing the fallback URIs. Can be
+     * null if no fallback URIs are used.
+     * @param urlConnectionExpiryCalculator the calculator object for heuristic
+     * calculation of the resource expiry, used when no expiry is provided by
+     * the server of the resource. Can be null, in which case the maximum age
+     * of cached entries without validation will be zero.
+     * @param urlConnectionSecurityDomainProvider object that provides security
+     * domain objects for the loaded sources. Can be null, in which case the
+     * loaded sources will have no security domain associated with them.
+     */
+    public UrlModuleSourceProvider(Iterable<URI> privilegedUris,
+            Iterable<URI> fallbackUris,
+            UrlConnectionExpiryCalculator urlConnectionExpiryCalculator,
+            UrlConnectionSecurityDomainProvider urlConnectionSecurityDomainProvider)
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L81' title='3|3|3 - Total: 3'>        this.privilegedUris = privilegedUris;
+</span><span class='uc' id='L82' title='3|3|3 - Total: 3'>        this.fallbackUris = fallbackUris;
+</span><span class='uc' id='L83' title='3|3|3 - Total: 3'>        this.urlConnectionExpiryCalculator = urlConnectionExpiryCalculator;
+</span><span class='uc' id='L84' title='3|3|3 - Total: 3'>        this.urlConnectionSecurityDomainProvider =
+</span>            urlConnectionSecurityDomainProvider;
+<span class='uc' id='L86' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected ModuleSource loadFromPrivilegedLocations(
+            String moduleId, Object validator)
+            throws IOException, URISyntaxException
+    {
+<span class='uc' id='L93' title='7|7|7 - Total: 7'>        return loadFromPathList(moduleId, validator, privilegedUris);
+</span>    }
+
+    @Override
+    protected ModuleSource loadFromFallbackLocations(
+            String moduleId, Object validator)
+            throws IOException, URISyntaxException
+    {
+<span class='uc' id='L101' title='7|7|7 - Total: 7'>        return loadFromPathList(moduleId, validator, fallbackUris);
+</span>    }
+
+    private ModuleSource loadFromPathList(String moduleId,
+            Object validator, Iterable<URI> paths)
+            throws IOException, URISyntaxException
+    {
+<span class='upc' id='L108' title='1|1|1 - Total: 2'>        if(paths == null) {
+</span><span class='nc' id='L109' title='0|0|0 - Total: 2'>            return null;
+</span>        }
+<span class='uc' id='L111' title='2|2|2 - Total: 2'>        for (URI path : paths) {
+</span><span class='uc' id='L112' title='5|5|5 - Total: 5'>            final ModuleSource moduleSource = loadFromUri(
+</span><span class='uc' id='L113' title='3|3|3 - Total: 3'>                    path.resolve(moduleId), path, validator);
+</span><span class='uc' id='L114' title='2|2|2 - Total: 2'>            if (moduleSource != null) {
+</span><span class='uc' id='L115' title='2|2|2 - Total: 2'>                return moduleSource;
+</span>            }
+<span class='uc' id='L117' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L118' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    @Override
+    protected ModuleSource loadFromUri(URI uri, URI base, Object validator)
+    throws IOException, URISyntaxException
+    {
+        // We expect modules to have a ".js" file name extension ...
+<span class='uc' id='L126' title='12|12|12 - Total: 12'>        URI fullUri = new URI(uri + ".js");
+</span><span class='uc' id='L127' title='6|6|6 - Total: 6'>        ModuleSource source = loadFromActualUri(fullUri, base, validator);
+</span>        // ... but for compatibility we support modules without extension,
+        // or ids with explicit extension.
+<span class='uc' id='L130' title='2|2|2 - Total: 2'>        return source != null ?
+</span><span class='uc' id='L131' title='1|1|1 - Total: 1'>               source : loadFromActualUri(uri, base, validator);
+</span>    }
+
+    protected ModuleSource loadFromActualUri(URI uri, URI base, Object validator)
+    throws IOException
+    {
+<span class='upc' id='L137' title='1|1|1 - Total: 2'>        final URL url = new URL(base == null ? null : base.toURL(), uri.toString());
+</span><span class='uc' id='L138' title='2|2|2 - Total: 2'>        final long request_time = System.currentTimeMillis();
+</span><span class='uc' id='L139' title='4|4|4 - Total: 4'>        final URLConnection urlConnection = openUrlConnection(url);
+</span>        final URLValidator applicableValidator;
+<span class='upc' id='L141' title='1|1|1 - Total: 2'>        if(validator instanceof URLValidator) {
+</span><span class='nc' id='L142' title='0|0|0 - Total: 3'>            final URLValidator uriValidator = ((URLValidator)validator);
+</span><span class='nc' id='L143' title='0|0|0 - Total: 2'>            applicableValidator = uriValidator.appliesTo(uri) ? uriValidator :
+</span>                null;
+<span class='nc' id='L145' title='0|0|0 - Total: 1'>        }
+</span>        else {
+<span class='uc' id='L147' title='2|2|2 - Total: 2'>            applicableValidator = null;
+</span>        }
+<span class='upc' id='L149' title='1|1|1 - Total: 2'>        if(applicableValidator != null) {
+</span><span class='nc' id='L150' title='0|0|0 - Total: 3'>            applicableValidator.applyConditionals(urlConnection);
+</span>        }
+        try {
+<span class='uc' id='L153' title='2|2|2 - Total: 2'>            urlConnection.connect();
+</span><span class='upc' id='L154' title='1|1|1 - Total: 2'>            if(applicableValidator != null &&
+</span><span class='nc' id='L155' title='0|0|0 - Total: 2'>                    applicableValidator.updateValidator(urlConnection,
+</span>                            request_time, urlConnectionExpiryCalculator))
+            {
+<span class='nc' id='L158' title='0|0|0 - Total: 3'>                close(urlConnection);
+</span><span class='nc' id='L159' title='0|0|0 - Total: 2'>                return NOT_MODIFIED;
+</span>            }
+
+<span class='uc' id='L162' title='7|7|7 - Total: 7'>            return new ModuleSource(getReader(urlConnection),
+</span><span class='uc' id='L163' title='12|12|12 - Total: 12'>                    getSecurityDomain(urlConnection), uri, base,
+</span>                    new URLValidator(uri, urlConnection, request_time,
+                            urlConnectionExpiryCalculator));
+        }
+<span class='uc' id='L167' title='1|1|1 - Total: 1'>        catch(FileNotFoundException e) {
+</span><span class='uc' id='L168' title='2|2|2 - Total: 2'>            return null;
+</span>        }
+<span class='nc' id='L170' title='0|0|0 - Total: 1'>        catch(RuntimeException e) {
+</span><span class='nc' id='L171' title='0|0|0 - Total: 3'>            close(urlConnection);
+</span><span class='nc' id='L172' title='0|0|0 - Total: 2'>            throw e;
+</span>        }
+<span class='nc' id='L174' title='0|0|0 - Total: 1'>        catch(IOException e) {
+</span><span class='nc' id='L175' title='0|0|0 - Total: 3'>            close(urlConnection);
+</span><span class='nc' id='L176' title='0|0|0 - Total: 2'>            throw e;
+</span>        }
+    }
+
+    private static Reader getReader(URLConnection urlConnection)
+    throws IOException
+    {
+<span class='uc' id='L183' title='6|6|6 - Total: 6'>        return new InputStreamReader(urlConnection.getInputStream(),
+</span><span class='uc' id='L184' title='2|2|2 - Total: 2'>                getCharacterEncoding(urlConnection));
+</span>    }
+
+    private static String getCharacterEncoding(URLConnection urlConnection) {
+<span class='uc' id='L188' title='3|3|3 - Total: 3'>        final ParsedContentType pct = new ParsedContentType(
+</span><span class='uc' id='L189' title='3|3|3 - Total: 3'>                urlConnection.getContentType());
+</span><span class='uc' id='L190' title='3|3|3 - Total: 3'>        final String encoding = pct.getEncoding();
+</span><span class='upc' id='L191' title='1|1|1 - Total: 2'>        if(encoding != null) {
+</span><span class='nc' id='L192' title='0|0|0 - Total: 2'>            return encoding;
+</span>        }
+<span class='uc' id='L194' title='3|3|3 - Total: 3'>        final String contentType = pct.getContentType();
+</span><span class='upc' id='L195' title='2|2|2 - Total: 4'>        if(contentType != null && contentType.startsWith("text/")) {
+</span><span class='nc' id='L196' title='0|0|0 - Total: 2'>            return "8859_1";
+</span>        }
+        else {
+<span class='uc' id='L199' title='2|2|2 - Total: 2'>            return "utf-8";
+</span>        }
+    }
+
+    private Object getSecurityDomain(URLConnection urlConnection) {
+<span class='upc' id='L204' title='1|1|1 - Total: 2'>        return urlConnectionSecurityDomainProvider == null ? null :
+</span><span class='nc' id='L205' title='0|0|0 - Total: 1'>            urlConnectionSecurityDomainProvider.getSecurityDomain(
+</span>                    urlConnection);
+    }
+
+    private void close(URLConnection urlConnection) {
+        try {
+<span class='nc' id='L211' title='0|0|0 - Total: 3'>            urlConnection.getInputStream().close();
+</span>        }
+<span class='nc' id='L213' title='0|0|0 - Total: 1'>        catch(IOException e) {
+</span><span class='nc' id='L214' title='0|0|0 - Total: 4'>            onFailedClosingUrlConnection(urlConnection, e);
+</span><span class='nc' id='L215' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L216' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Override if you want to get notified if the URL connection fails to
+     * close. Does nothing by default.
+     * @param urlConnection the connection
+     * @param cause the cause it failed to close.
+     */
+    protected void onFailedClosingUrlConnection(URLConnection urlConnection,
+            IOException cause) {
+<span class='nc' id='L226' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Can be overridden in subclasses to customize the URL connection opening
+     * process. By default, just calls {@link URL#openConnection()}.
+     * @param url the URL
+     * @return a connection to the URL.
+     * @throws IOException if an I/O error occurs.
+     */
+    protected URLConnection openUrlConnection(URL url) throws IOException {
+<span class='uc' id='L236' title='3|3|3 - Total: 3'>        return url.openConnection();
+</span>    }
+
+    @Override
+    protected boolean entityNeedsRevalidation(Object validator) {
+<span class='uc' id='L241' title='2|2|2 - Total: 2'>        return !(validator instanceof URLValidator)
+</span><span class='upc' id='L242' title='1|1|1 - Total: 2'>                || ((URLValidator)validator).entityNeedsRevalidation();
+</span>    }
+
+    private static class URLValidator implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final URI uri;
+        private final long lastModified;
+        private final String entityTags;
+        private long expiry;
+
+        public URLValidator(URI uri, URLConnection urlConnection,
+                long request_time, UrlConnectionExpiryCalculator
+                urlConnectionExpiryCalculator) {
+            this.uri = uri;
+            this.lastModified = urlConnection.getLastModified();
+            this.entityTags = getEntityTags(urlConnection);
+            expiry = calculateExpiry(urlConnection, request_time,
+                    urlConnectionExpiryCalculator);
+        }
+
+        boolean updateValidator(URLConnection urlConnection, long request_time,
+                UrlConnectionExpiryCalculator urlConnectionExpiryCalculator)
+        throws IOException
+        {
+            boolean isResourceChanged = isResourceChanged(urlConnection);
+            if(!isResourceChanged) {
+                expiry = calculateExpiry(urlConnection, request_time,
+                        urlConnectionExpiryCalculator);
+            }
+            return isResourceChanged;
+        }
+
+        private boolean isResourceChanged(URLConnection urlConnection)
+        throws IOException {
+            if(urlConnection instanceof HttpURLConnection) {
+                return ((HttpURLConnection)urlConnection).getResponseCode() ==
+                    HttpURLConnection.HTTP_NOT_MODIFIED;
+            }
+            return lastModified == urlConnection.getLastModified();
+        }
+
+        private long calculateExpiry(URLConnection urlConnection,
+                long request_time, UrlConnectionExpiryCalculator
+                urlConnectionExpiryCalculator)
+        {
+            if("no-cache".equals(urlConnection.getHeaderField("Pragma"))) {
+                return 0L;
+            }
+            final String cacheControl = urlConnection.getHeaderField(
+                    "Cache-Control");
+            if(cacheControl != null ) {
+                if(cacheControl.indexOf("no-cache") != -1) {
+                    return 0L;
+                }
+                final int max_age = getMaxAge(cacheControl);
+                if(-1 != max_age) {
+                    final long response_time = System.currentTimeMillis();
+                    final long apparent_age = Math.max(0, response_time -
+                            urlConnection.getDate());
+                    final long corrected_received_age = Math.max(apparent_age,
+                            urlConnection.getHeaderFieldInt("Age", 0) * 1000L);
+                    final long response_delay = response_time - request_time;
+                    final long corrected_initial_age = corrected_received_age +
+                        response_delay;
+                    final long creation_time = response_time -
+                        corrected_initial_age;
+                    return max_age * 1000L + creation_time;
+                }
+            }
+            final long explicitExpiry = urlConnection.getHeaderFieldDate(
+                    "Expires", -1L);
+            if(explicitExpiry != -1L) {
+                return explicitExpiry;
+            }
+            return urlConnectionExpiryCalculator == null ? 0L :
+                urlConnectionExpiryCalculator.calculateExpiry(urlConnection);
+        }
+
+        private int getMaxAge(String cacheControl) {
+            final int maxAgeIndex = cacheControl.indexOf("max-age");
+            if(maxAgeIndex == -1) {
+                return -1;
+            }
+            final int eq = cacheControl.indexOf('=', maxAgeIndex + 7);
+            if(eq == -1) {
+                return -1;
+            }
+            final int comma = cacheControl.indexOf(',', eq + 1);
+            final String strAge;
+            if(comma == -1) {
+                strAge = cacheControl.substring(eq + 1);
+            }
+            else {
+                strAge = cacheControl.substring(eq + 1, comma);
+            }
+            try {
+                return Integer.parseInt(strAge);
+            }
+            catch(NumberFormatException e) {
+                return -1;
+            }
+        }
+
+        private String getEntityTags(URLConnection urlConnection) {
+            final List<String> etags = urlConnection.getHeaderFields().get("ETag");
+            if(etags == null || etags.isEmpty()) {
+                return null;
+            }
+            final StringBuilder b = new StringBuilder();
+            final Iterator<String> it = etags.iterator();
+            b.append(it.next());
+            while(it.hasNext()) {
+                b.append(", ").append(it.next());
+            }
+            return b.toString();
+        }
+
+        boolean appliesTo(URI uri) {
+            return this.uri.equals(uri);
+        }
+
+        void applyConditionals(URLConnection urlConnection) {
+            if(lastModified != 0L) {
+                urlConnection.setIfModifiedSince(lastModified);
+            }
+            if(entityTags != null && entityTags.length() > 0) {
+                urlConnection.addRequestProperty("If-None-Match", entityTags);
+            }
+        }
+
+        boolean entityNeedsRevalidation() {
+            return System.currentTimeMillis() > expiry;
+        }
+    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

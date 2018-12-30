@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.HashSlotMap.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.HashSlotMap.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import static org.mozilla.javascript.ScriptableObject.SlotAccess.*;
+
+/**
+ * This class implements the SlotMap interface using a java.util.HashMap. This class has more
+ * overhead than EmbeddedSlotMap, especially because it puts each "Slot" inside an intermediate
+ * object. However it is much more resistant to large number of hash collisions than
+ * EmbeddedSlotMap and therefore we use this implementation when an object gains a large
+ * number of properties.
+ */
+
+<span class='uc' id='L21' title='2|2|2 - Total: 2'>public class HashSlotMap
+</span>    implements SlotMap {
+
+<span class='uc' id='L24' title='6|6|6 - Total: 6'>    private final LinkedHashMap<Object, ScriptableObject.Slot> map =
+</span>        new LinkedHashMap<Object, ScriptableObject.Slot>();
+
+    @Override
+    public int size() {
+<span class='nc' id='L29' title='0|0|0 - Total: 4'>        return map.size();
+</span>    }
+
+    @Override
+    public boolean isEmpty() {
+<span class='nc' id='L34' title='0|0|0 - Total: 4'>        return map.isEmpty();
+</span>    }
+
+    @Override
+    public ScriptableObject.Slot query(Object key, int index)
+    {
+<span class='uc' id='L40' title='2|2|2 - Total: 2'>        Object name = key == null ? String.valueOf(index) : key;
+</span><span class='uc' id='L41' title='6|6|6 - Total: 6'>        return map.get(name);
+</span>    }
+
+    @Override
+    public ScriptableObject.Slot get(Object key, int index, ScriptableObject.SlotAccess accessType) {
+<span class='uc' id='L46' title='2|2|2 - Total: 2'>        Object name = key == null ? String.valueOf(index) : key;
+</span><span class='uc' id='L47' title='6|6|6 - Total: 6'>        ScriptableObject.Slot slot = map.get(name);
+</span><span class='upc' id='L48' title='1|1|1 - Total: 5'>        switch (accessType) {
+</span>            case QUERY:
+<span class='nc' id='L50' title='0|0|0 - Total: 2'>                return slot;
+</span>            case MODIFY:
+            case MODIFY_CONST:
+<span class='uc' id='L53' title='2|2|2 - Total: 2'>                if (slot != null)
+</span><span class='uc' id='L54' title='2|2|2 - Total: 2'>                    return slot;
+</span>                break;
+            case MODIFY_GETTER_SETTER:
+<span class='nc' id='L57' title='0|0|0 - Total: 2'>                if (slot instanceof ScriptableObject.GetterSlot)
+</span><span class='nc' id='L58' title='0|0|0 - Total: 2'>                    return slot;
+</span>                break;
+            case CONVERT_ACCESSOR_TO_DATA:
+<span class='nc' id='L61' title='0|0|0 - Total: 2'>                if ( !(slot instanceof ScriptableObject.GetterSlot) )
+</span><span class='nc' id='L62' title='0|0|0 - Total: 2'>                    return slot;
+</span>                break;
+        }
+
+<span class='uc' id='L66' title='7|7|7 - Total: 7'>        return createSlot(key, index, name, accessType);
+</span>    }
+
+    private ScriptableObject.Slot createSlot(Object key, int index,
+        Object name, ScriptableObject.SlotAccess accessType) {
+<span class='uc' id='L71' title='6|6|6 - Total: 6'>        ScriptableObject.Slot slot = map.get(name);
+</span><span class='upc' id='L72' title='1|1|1 - Total: 2'>        if (slot != null) {
+</span>            ScriptableObject.Slot newSlot;
+
+<span class='nc' id='L75' title='0|0|0 - Total: 4'>            if (accessType == MODIFY_GETTER_SETTER
+</span>                    && !(slot instanceof ScriptableObject.GetterSlot)) {
+<span class='nc' id='L77' title='0|0|0 - Total: 10'>                newSlot = new ScriptableObject.GetterSlot(name, slot.indexOrHash, slot.getAttributes());
+</span><span class='nc' id='L78' title='0|0|0 - Total: 4'>            } else if (accessType == CONVERT_ACCESSOR_TO_DATA
+</span>                    && (slot instanceof ScriptableObject.GetterSlot)) {
+<span class='nc' id='L80' title='0|0|0 - Total: 10'>                newSlot = new ScriptableObject.Slot(name, slot.indexOrHash, slot.getAttributes());
+</span><span class='nc' id='L81' title='0|0|0 - Total: 2'>            } else if (accessType == MODIFY_CONST) {
+</span><span class='nc' id='L82' title='0|0|0 - Total: 2'>                return null;
+</span>            } else {
+<span class='nc' id='L84' title='0|0|0 - Total: 2'>                return slot;
+</span>            }
+<span class='nc' id='L86' title='0|0|0 - Total: 4'>            newSlot.value = slot.value;
+</span><span class='nc' id='L87' title='0|0|0 - Total: 6'>            map.put(name, newSlot);
+</span><span class='nc' id='L88' title='0|0|0 - Total: 2'>            return newSlot;
+</span>        }
+
+<span class='upc' id='L91' title='1|1|1 - Total: 2'>        ScriptableObject.Slot newSlot = (accessType == MODIFY_GETTER_SETTER
+</span>                ? new ScriptableObject.GetterSlot(key, index, 0)
+                : new ScriptableObject.Slot(key, index, 0));
+<span class='uc' id='L94' title='2|2|2 - Total: 2'>        if (accessType == MODIFY_CONST) {
+</span><span class='uc' id='L95' title='3|3|3 - Total: 3'>            newSlot.setAttributes(ScriptableObject.CONST);
+</span>        }
+<span class='uc' id='L97' title='3|3|3 - Total: 3'>        addSlot(newSlot);
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>        return newSlot;
+</span>    }
+
+    @Override
+    public void addSlot(ScriptableObject.Slot newSlot) {
+<span class='uc' id='L103' title='2|2|2 - Total: 2'>        Object name = newSlot.name == null ? String.valueOf(newSlot.indexOrHash) : newSlot.name;
+</span><span class='uc' id='L104' title='6|6|6 - Total: 6'>        map.put(name, newSlot);
+</span><span class='uc' id='L105' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public void remove(Object key, int index) {
+<span class='nc' id='L109' title='0|0|0 - Total: 2'>        Object name = key == null ? String.valueOf(index) : key;
+</span><span class='nc' id='L110' title='0|0|0 - Total: 6'>        ScriptableObject.Slot slot = map.get(name);
+</span><span class='nc' id='L111' title='0|0|0 - Total: 2'>        if (slot != null) {
+</span>            // non-configurable
+<span class='nc' id='L113' title='0|0|0 - Total: 2'>            if ((slot.getAttributes() & ScriptableObject.PERMANENT) != 0) {
+</span><span class='nc' id='L114' title='0|0|0 - Total: 2'>                Context cx = Context.getContext();
+</span><span class='nc' id='L115' title='0|0|0 - Total: 2'>                if (cx.isStrictMode()) {
+</span><span class='nc' id='L116' title='0|0|0 - Total: 4'>                    throw ScriptRuntime.typeError1("msg.delete.property.with.configurable.false", key);
+</span>                }
+<span class='nc' id='L118' title='0|0|0 - Total: 1'>                return;
+</span>            }
+<span class='nc' id='L120' title='0|0|0 - Total: 5'>            map.remove(name);
+</span>        }
+<span class='nc' id='L122' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public Iterator<ScriptableObject.Slot> iterator() {
+<span class='nc' id='L126' title='0|0|0 - Total: 5'>        return map.values().iterator();
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

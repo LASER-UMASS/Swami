@@ -1,0 +1,478 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.optimizer.Optimizer.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.optimizer.Optimizer.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.ScriptNode;
+
+<span class='uc' id='L12' title='3|3|3 - Total: 3'>class Optimizer
+</span>{
+
+    static final int NoType = 0;
+    static final int NumberType = 1;
+    static final int AnyType = 3;
+
+    // It is assumed that (NumberType | AnyType) == AnyType
+
+    void optimize(ScriptNode scriptOrFn)
+    {
+        //  run on one function at a time for now
+<span class='uc' id='L24' title='3|3|3 - Total: 3'>        int functionCount = scriptOrFn.getFunctionCount();
+</span><span class='uc' id='L25' title='2|2|2 - Total: 2'>        for (int i = 0; i != functionCount; ++i) {
+</span><span class='uc' id='L26' title='4|4|4 - Total: 4'>            OptFunctionNode f = OptFunctionNode.get(scriptOrFn, i);
+</span><span class='uc' id='L27' title='3|3|3 - Total: 3'>            optimizeFunction(f);
+</span>        }
+<span class='uc' id='L29' title='1|1|1 - Total: 1'>    }
+</span>
+    private void optimizeFunction(OptFunctionNode theFunction)
+    {
+<span class='uc' id='L33' title='2|2|2 - Total: 2'>        if (theFunction.fnode.requiresActivation()) return;
+</span>
+<span class='uc' id='L35' title='4|4|4 - Total: 4'>        inDirectCallFunction = theFunction.isTargetOfDirectCall();
+</span><span class='uc' id='L36' title='3|3|3 - Total: 3'>        this.theFunction = theFunction;
+</span>
+<span class='uc' id='L38' title='4|4|4 - Total: 4'>        ObjArray statementsArray = new ObjArray();
+</span><span class='uc' id='L39' title='4|4|4 - Total: 4'>        buildStatementList_r(theFunction.fnode, statementsArray);
+</span><span class='uc' id='L40' title='4|4|4 - Total: 4'>        Node[] theStatementNodes = new Node[statementsArray.size()];
+</span><span class='uc' id='L41' title='3|3|3 - Total: 3'>        statementsArray.toArray(theStatementNodes);
+</span>
+<span class='uc' id='L43' title='3|3|3 - Total: 3'>        Block.runFlowAnalyzes(theFunction, theStatementNodes);
+</span>
+<span class='upc' id='L45' title='1|1|1 - Total: 2'>        if (!theFunction.fnode.requiresActivation()) {
+</span>            /*
+             * Now that we know which local vars are in fact always
+             * Numbers, we re-write the tree to take advantage of
+             * that. Any arithmetic or assignment op involving just
+             * Number typed vars is marked so that the codegen will
+             * generate non-object code.
+             */
+<span class='uc' id='L53' title='3|3|3 - Total: 3'>            parameterUsedInNumberContext = false;
+</span><span class='uc' id='L54' title='2|2|2 - Total: 2'>            for (Node theStatementNode : theStatementNodes) {
+</span><span class='uc' id='L55' title='5|5|5 - Total: 5'>                rewriteForNumberVariables(theStatementNode, NumberType);
+</span>            }
+<span class='uc' id='L57' title='4|4|4 - Total: 4'>            theFunction.setParameterNumberContext(parameterUsedInNumberContext);
+</span>        }
+
+<span class='uc' id='L60' title='1|1|1 - Total: 1'>    }
+</span>
+
+/*
+        Each directCall parameter is passed as a pair of values - an object
+        and a double. The value passed depends on the type of value available at
+        the call site. If a double is available, the object in java/lang/Void.TYPE
+        is passed as the object value, and if an object value is available, then
+        0.0 is passed as the double value.
+
+        The receiving routine always tests the object value before proceeding.
+        If the parameter is being accessed in a 'Number Context' then the code
+        sequence is :
+        if ("parameter_objectValue" == java/lang/Void.TYPE)
+            ...fine..., use the parameter_doubleValue
+        else
+            toNumber(parameter_objectValue)
+
+        and if the parameter is being referenced in an Object context, the code is
+        if ("parameter_objectValue" == java/lang/Void.TYPE)
+            new Double(parameter_doubleValue)
+        else
+            ...fine..., use the parameter_objectValue
+
+        If the receiving code never uses the doubleValue, it is converted on
+        entry to a Double instead.
+*/
+
+
+/*
+        We're referencing a node in a Number context (i.e. we'd prefer it
+        was a double value). If the node is a parameter in a directCall
+        function, mark it as being referenced in this context.
+*/
+    private void markDCPNumberContext(Node n)
+    {
+<span class='uc' id='L96' title='4|4|4 - Total: 4'>        if (inDirectCallFunction && n.getType() == Token.GETVAR) {
+</span><span class='uc' id='L97' title='5|5|5 - Total: 5'>            int varIndex = theFunction.getVarIndex(n);
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>            if (theFunction.isParameter(varIndex)) {
+</span><span class='uc' id='L99' title='3|3|3 - Total: 3'>                parameterUsedInNumberContext = true;
+</span>            }
+        }
+<span class='uc' id='L102' title='1|1|1 - Total: 1'>    }
+</span>
+    private boolean convertParameter(Node n)
+    {
+<span class='uc' id='L106' title='4|4|4 - Total: 4'>        if (inDirectCallFunction && n.getType() == Token.GETVAR) {
+</span><span class='uc' id='L107' title='5|5|5 - Total: 5'>            int varIndex = theFunction.getVarIndex(n);
+</span><span class='uc' id='L108' title='2|2|2 - Total: 2'>            if (theFunction.isParameter(varIndex)) {
+</span><span class='uc' id='L109' title='3|3|3 - Total: 3'>                n.removeProp(Node.ISNUMBER_PROP);
+</span><span class='uc' id='L110' title='2|2|2 - Total: 2'>                return true;
+</span>            }
+        }
+<span class='uc' id='L113' title='2|2|2 - Total: 2'>        return false;
+</span>    }
+
+    private int rewriteForNumberVariables(Node n, int desired)
+    {
+<span class='uc' id='L118' title='12|12|12 - Total: 12'>        switch (n.getType()) {
+</span>            case Token.EXPR_VOID : {
+<span class='uc' id='L120' title='3|3|3 - Total: 3'>                    Node child = n.getFirstChild();
+</span><span class='uc' id='L121' title='5|5|5 - Total: 5'>                    int type = rewriteForNumberVariables(child, NumberType);
+</span><span class='uc' id='L122' title='2|2|2 - Total: 2'>                    if (type == NumberType)
+</span><span class='uc' id='L123' title='4|4|4 - Total: 4'>                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L124' title='2|2|2 - Total: 2'>                     return NoType;
+</span>                }
+            case Token.NUMBER :
+<span class='uc' id='L127' title='4|4|4 - Total: 4'>                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L128' title='2|2|2 - Total: 2'>                return NumberType;
+</span>
+            case Token.GETVAR :
+                {
+<span class='uc' id='L132' title='5|5|5 - Total: 5'>                    int varIndex = theFunction.getVarIndex(n);
+</span><span class='uc' id='L133' title='2|2|2 - Total: 2'>                    if (inDirectCallFunction
+</span><span class='uc' id='L134' title='4|4|4 - Total: 4'>                        && theFunction.isParameter(varIndex)
+</span>                        && desired == NumberType)
+                    {
+<span class='uc' id='L137' title='4|4|4 - Total: 4'>                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L138' title='2|2|2 - Total: 2'>                        return NumberType;
+</span>                    }
+<span class='uc' id='L140' title='2|2|2 - Total: 2'>                    else if (theFunction.isNumberVar(varIndex)) {
+</span><span class='uc' id='L141' title='4|4|4 - Total: 4'>                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L142' title='2|2|2 - Total: 2'>                        return NumberType;
+</span>                    }
+<span class='uc' id='L144' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+
+            case Token.INC :
+            case Token.DEC : {
+<span class='uc' id='L149' title='3|3|3 - Total: 3'>                    Node child = n.getFirstChild();
+</span><span class='uc' id='L150' title='5|5|5 - Total: 5'>                    int type = rewriteForNumberVariables(child, NumberType);
+</span><span class='uc' id='L151' title='2|2|2 - Total: 2'>                    if (child.getType() == Token.GETVAR) {
+</span><span class='upc' id='L152' title='3|3|3 - Total: 4'>                        if (type == NumberType && !convertParameter(child))
+</span>                        {
+<span class='uc' id='L154' title='4|4|4 - Total: 4'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L155' title='3|3|3 - Total: 3'>                            markDCPNumberContext(child);
+</span><span class='uc' id='L156' title='2|2|2 - Total: 2'>                            return NumberType;
+</span>                        }
+<span class='uc' id='L158' title='2|2|2 - Total: 2'>                        return NoType;
+</span>                    }
+<span class='uc' id='L160' title='2|2|2 - Total: 2'>                    else if (child.getType() == Token.GETELEM
+</span><span class='uc' id='L161' title='2|2|2 - Total: 2'>                            || child.getType() == Token.GETPROP) {
+</span><span class='uc' id='L162' title='2|2|2 - Total: 2'>                        return type;
+</span>                    }
+<span class='uc' id='L164' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+            case Token.SETVAR :
+            case Token.SETCONSTVAR : {
+<span class='uc' id='L168' title='3|3|3 - Total: 3'>                    Node lChild = n.getFirstChild();
+</span><span class='uc' id='L169' title='3|3|3 - Total: 3'>                    Node rChild = lChild.getNext();
+</span><span class='uc' id='L170' title='5|5|5 - Total: 5'>                    int rType = rewriteForNumberVariables(rChild, NumberType);
+</span><span class='uc' id='L171' title='5|5|5 - Total: 5'>                    int varIndex = theFunction.getVarIndex(n);
+</span><span class='uc' id='L172' title='2|2|2 - Total: 2'>                    if (inDirectCallFunction
+</span><span class='uc' id='L173' title='2|2|2 - Total: 2'>                        && theFunction.isParameter(varIndex))
+</span>                    {
+<span class='uc' id='L175' title='2|2|2 - Total: 2'>                        if (rType == NumberType) {
+</span><span class='upc' id='L176' title='1|1|1 - Total: 2'>                            if (!convertParameter(rChild)) {
+</span><span class='uc' id='L177' title='4|4|4 - Total: 4'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L178' title='2|2|2 - Total: 2'>                                return NumberType;
+</span>                            }
+<span class='nc' id='L180' title='0|0|0 - Total: 3'>                            markDCPNumberContext(rChild);
+</span><span class='nc' id='L181' title='0|0|0 - Total: 2'>                            return NoType;
+</span>                        }
+                        else
+<span class='uc' id='L184' title='2|2|2 - Total: 2'>                            return rType;
+</span>                    }
+<span class='uc' id='L186' title='2|2|2 - Total: 2'>                    else if (theFunction.isNumberVar(varIndex)) {
+</span><span class='uc' id='L187' title='2|2|2 - Total: 2'>                        if (rType != NumberType) {
+</span><span class='uc' id='L188' title='3|3|3 - Total: 3'>                            n.removeChild(rChild);
+</span><span class='uc' id='L189' title='7|7|7 - Total: 7'>                            n.addChildToBack(
+</span>                                new Node(Token.TO_DOUBLE, rChild));
+                        }
+<span class='uc' id='L192' title='4|4|4 - Total: 4'>                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L193' title='3|3|3 - Total: 3'>                        markDCPNumberContext(rChild);
+</span><span class='uc' id='L194' title='2|2|2 - Total: 2'>                        return NumberType;
+</span>                    }
+                    else {
+<span class='uc' id='L197' title='2|2|2 - Total: 2'>                        if (rType == NumberType) {
+</span><span class='uc' id='L198' title='2|2|2 - Total: 2'>                            if (!convertParameter(rChild)) {
+</span><span class='uc' id='L199' title='3|3|3 - Total: 3'>                                n.removeChild(rChild);
+</span><span class='uc' id='L200' title='7|7|7 - Total: 7'>                                n.addChildToBack(
+</span>                                    new Node(Token.TO_OBJECT, rChild));
+                            }
+                        }
+<span class='uc' id='L204' title='2|2|2 - Total: 2'>                        return NoType;
+</span>                    }
+                }
+            case Token.LE :
+            case Token.LT :
+            case Token.GE :
+            case Token.GT : {
+<span class='uc' id='L211' title='3|3|3 - Total: 3'>                    Node lChild = n.getFirstChild();
+</span><span class='uc' id='L212' title='3|3|3 - Total: 3'>                    Node rChild = lChild.getNext();
+</span><span class='uc' id='L213' title='5|5|5 - Total: 5'>                    int lType = rewriteForNumberVariables(lChild, NumberType);
+</span><span class='uc' id='L214' title='5|5|5 - Total: 5'>                    int rType = rewriteForNumberVariables(rChild, NumberType);
+</span><span class='uc' id='L215' title='3|3|3 - Total: 3'>                    markDCPNumberContext(lChild);
+</span><span class='uc' id='L216' title='3|3|3 - Total: 3'>                    markDCPNumberContext(rChild);
+</span>
+<span class='uc' id='L218' title='2|2|2 - Total: 2'>                    if (convertParameter(lChild)) {
+</span><span class='uc' id='L219' title='2|2|2 - Total: 2'>                        if (convertParameter(rChild)) {
+</span><span class='uc' id='L220' title='2|2|2 - Total: 2'>                            return NoType;
+</span><span class='uc' id='L221' title='2|2|2 - Total: 2'>                        } else if (rType == NumberType) {
+</span><span class='uc' id='L222' title='5|5|5 - Total: 5'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);
+</span>                        }
+                    }
+<span class='uc' id='L225' title='2|2|2 - Total: 2'>                    else if (convertParameter(rChild)) {
+</span><span class='uc' id='L226' title='2|2|2 - Total: 2'>                        if (lType == NumberType) {
+</span><span class='uc' id='L227' title='5|5|5 - Total: 5'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+</span>                        }
+                    }
+                    else {
+<span class='uc' id='L231' title='2|2|2 - Total: 2'>                        if (lType == NumberType) {
+</span><span class='uc' id='L232' title='2|2|2 - Total: 2'>                            if (rType == NumberType) {
+</span><span class='uc' id='L233' title='5|5|5 - Total: 5'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span>                            }
+                            else {
+<span class='uc' id='L236' title='5|5|5 - Total: 5'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+</span>                            }
+                        }
+                        else {
+<span class='uc' id='L240' title='2|2|2 - Total: 2'>                            if (rType == NumberType) {
+</span><span class='uc' id='L241' title='4|4|4 - Total: 4'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);
+</span>                            }
+                        }
+                    }
+                    // we actually build a boolean value
+<span class='uc' id='L246' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+
+            case Token.ADD : {
+<span class='uc' id='L250' title='3|3|3 - Total: 3'>                    Node lChild = n.getFirstChild();
+</span><span class='uc' id='L251' title='3|3|3 - Total: 3'>                    Node rChild = lChild.getNext();
+</span><span class='uc' id='L252' title='5|5|5 - Total: 5'>                    int lType = rewriteForNumberVariables(lChild, NumberType);
+</span><span class='uc' id='L253' title='5|5|5 - Total: 5'>                    int rType = rewriteForNumberVariables(rChild, NumberType);
+</span>
+
+<span class='uc' id='L256' title='2|2|2 - Total: 2'>                    if (convertParameter(lChild)) {
+</span><span class='upc' id='L257' title='1|1|1 - Total: 2'>                        if (convertParameter(rChild)) {
+</span><span class='nc' id='L258' title='0|0|0 - Total: 2'>                            return NoType;
+</span>                        }
+                        else {
+<span class='uc' id='L261' title='2|2|2 - Total: 2'>                            if (rType == NumberType) {
+</span><span class='uc' id='L262' title='5|5|5 - Total: 5'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);
+</span>                            }
+                        }
+                    }
+                    else {
+<span class='uc' id='L267' title='2|2|2 - Total: 2'>                        if (convertParameter(rChild)) {
+</span><span class='upc' id='L268' title='1|1|1 - Total: 2'>                            if (lType == NumberType) {
+</span><span class='nc' id='L269' title='0|0|0 - Total: 5'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+</span>                            }
+                        }
+                        else {
+<span class='uc' id='L273' title='2|2|2 - Total: 2'>                            if (lType == NumberType) {
+</span><span class='uc' id='L274' title='2|2|2 - Total: 2'>                                if (rType == NumberType) {
+</span><span class='uc' id='L275' title='4|4|4 - Total: 4'>                                    n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L276' title='2|2|2 - Total: 2'>                                    return NumberType;
+</span>                                }
+                                else {
+<span class='uc' id='L279' title='5|5|5 - Total: 5'>                                    n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+</span>                                }
+                            }
+                            else {
+<span class='uc' id='L283' title='2|2|2 - Total: 2'>                                if (rType == NumberType) {
+</span><span class='uc' id='L284' title='4|4|4 - Total: 4'>                                    n.putIntProp(Node.ISNUMBER_PROP,
+</span>                                                 Node.RIGHT);
+                                }
+                            }
+                        }
+                    }
+<span class='uc' id='L290' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+
+            case Token.BITXOR :
+            case Token.BITOR :
+            case Token.BITAND :
+            case Token.RSH :
+            case Token.LSH :
+            case Token.SUB :
+            case Token.MUL :
+            case Token.DIV :
+            case Token.MOD : {
+<span class='uc' id='L302' title='3|3|3 - Total: 3'>                    Node lChild = n.getFirstChild();
+</span><span class='uc' id='L303' title='3|3|3 - Total: 3'>                    Node rChild = lChild.getNext();
+</span><span class='uc' id='L304' title='5|5|5 - Total: 5'>                    int lType = rewriteForNumberVariables(lChild, NumberType);
+</span><span class='uc' id='L305' title='5|5|5 - Total: 5'>                    int rType = rewriteForNumberVariables(rChild, NumberType);
+</span><span class='uc' id='L306' title='3|3|3 - Total: 3'>                    markDCPNumberContext(lChild);
+</span><span class='uc' id='L307' title='3|3|3 - Total: 3'>                    markDCPNumberContext(rChild);
+</span><span class='uc' id='L308' title='2|2|2 - Total: 2'>                    if (lType == NumberType) {
+</span><span class='uc' id='L309' title='2|2|2 - Total: 2'>                        if (rType == NumberType) {
+</span><span class='uc' id='L310' title='4|4|4 - Total: 4'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L311' title='2|2|2 - Total: 2'>                            return NumberType;
+</span>                        }
+                        else {
+<span class='upc' id='L314' title='1|1|1 - Total: 2'>                            if (!convertParameter(rChild)) {
+</span><span class='uc' id='L315' title='3|3|3 - Total: 3'>                                n.removeChild(rChild);
+</span><span class='uc' id='L316' title='7|7|7 - Total: 7'>                                n.addChildToBack(
+</span>                                    new Node(Token.TO_DOUBLE, rChild));
+<span class='uc' id='L318' title='4|4|4 - Total: 4'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span>                            }
+<span class='uc' id='L320' title='2|2|2 - Total: 2'>                            return NumberType;
+</span>                        }
+                    }
+                    else {
+<span class='uc' id='L324' title='2|2|2 - Total: 2'>                        if (rType == NumberType) {
+</span><span class='upc' id='L325' title='1|1|1 - Total: 2'>                            if (!convertParameter(lChild)) {
+</span><span class='uc' id='L326' title='3|3|3 - Total: 3'>                                n.removeChild(lChild);
+</span><span class='uc' id='L327' title='7|7|7 - Total: 7'>                                n.addChildToFront(
+</span>                                    new Node(Token.TO_DOUBLE, lChild));
+<span class='uc' id='L329' title='4|4|4 - Total: 4'>                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span>                            }
+<span class='uc' id='L331' title='2|2|2 - Total: 2'>                            return NumberType;
+</span>                        }
+                        else {
+<span class='upc' id='L334' title='1|1|1 - Total: 2'>                            if (!convertParameter(lChild)) {
+</span><span class='uc' id='L335' title='3|3|3 - Total: 3'>                                n.removeChild(lChild);
+</span><span class='uc' id='L336' title='7|7|7 - Total: 7'>                                n.addChildToFront(
+</span>                                    new Node(Token.TO_DOUBLE, lChild));
+                            }
+<span class='upc' id='L339' title='1|1|1 - Total: 2'>                            if (!convertParameter(rChild)) {
+</span><span class='uc' id='L340' title='3|3|3 - Total: 3'>                                n.removeChild(rChild);
+</span><span class='uc' id='L341' title='7|7|7 - Total: 7'>                                n.addChildToBack(
+</span>                                    new Node(Token.TO_DOUBLE, rChild));
+                            }
+<span class='uc' id='L344' title='4|4|4 - Total: 4'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
+</span><span class='uc' id='L345' title='2|2|2 - Total: 2'>                            return NumberType;
+</span>                        }
+                    }
+                }
+            case Token.SETELEM :
+            case Token.SETELEM_OP : {
+<span class='uc' id='L351' title='3|3|3 - Total: 3'>                    Node arrayBase = n.getFirstChild();
+</span><span class='uc' id='L352' title='3|3|3 - Total: 3'>                    Node arrayIndex = arrayBase.getNext();
+</span><span class='uc' id='L353' title='3|3|3 - Total: 3'>                    Node rValue = arrayIndex.getNext();
+</span><span class='uc' id='L354' title='5|5|5 - Total: 5'>                    int baseType = rewriteForNumberVariables(arrayBase, NumberType);
+</span><span class='uc' id='L355' title='2|2|2 - Total: 2'>                    if (baseType == NumberType) {
+</span><span class='uc' id='L356' title='2|2|2 - Total: 2'>                        if (!convertParameter(arrayBase)) {
+</span><span class='uc' id='L357' title='3|3|3 - Total: 3'>                            n.removeChild(arrayBase);
+</span><span class='uc' id='L358' title='7|7|7 - Total: 7'>                            n.addChildToFront(
+</span>                                new Node(Token.TO_OBJECT, arrayBase));
+                        }
+                    }
+<span class='uc' id='L362' title='5|5|5 - Total: 5'>                    int indexType = rewriteForNumberVariables(arrayIndex, NumberType);
+</span><span class='uc' id='L363' title='2|2|2 - Total: 2'>                    if (indexType == NumberType) {
+</span><span class='uc' id='L364' title='2|2|2 - Total: 2'>                        if (!convertParameter(arrayIndex)) {
+</span>                            // setting the ISNUMBER_PROP signals the codegen
+                            // to use the OptRuntime.setObjectIndex that takes
+                            // a double index
+<span class='uc' id='L368' title='4|4|4 - Total: 4'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+</span>                        }
+                    }
+<span class='uc' id='L371' title='5|5|5 - Total: 5'>                    int rValueType = rewriteForNumberVariables(rValue, NumberType);
+</span><span class='uc' id='L372' title='2|2|2 - Total: 2'>                    if (rValueType == NumberType) {
+</span><span class='uc' id='L373' title='2|2|2 - Total: 2'>                        if (!convertParameter(rValue)) {
+</span><span class='uc' id='L374' title='3|3|3 - Total: 3'>                            n.removeChild(rValue);
+</span><span class='uc' id='L375' title='7|7|7 - Total: 7'>                            n.addChildToBack(
+</span>                                new Node(Token.TO_OBJECT, rValue));
+                        }
+                    }
+<span class='uc' id='L379' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+            case Token.GETELEM : {
+<span class='uc' id='L382' title='3|3|3 - Total: 3'>                    Node arrayBase = n.getFirstChild();
+</span><span class='uc' id='L383' title='3|3|3 - Total: 3'>                    Node arrayIndex = arrayBase.getNext();
+</span><span class='uc' id='L384' title='5|5|5 - Total: 5'>                    int baseType = rewriteForNumberVariables(arrayBase, NumberType);
+</span><span class='uc' id='L385' title='2|2|2 - Total: 2'>                    if (baseType == NumberType) {
+</span><span class='uc' id='L386' title='2|2|2 - Total: 2'>                        if (!convertParameter(arrayBase)) {
+</span><span class='uc' id='L387' title='3|3|3 - Total: 3'>                            n.removeChild(arrayBase);
+</span><span class='uc' id='L388' title='7|7|7 - Total: 7'>                            n.addChildToFront(
+</span>                                new Node(Token.TO_OBJECT, arrayBase));
+                        }
+                    }
+<span class='uc' id='L392' title='5|5|5 - Total: 5'>                    int indexType = rewriteForNumberVariables(arrayIndex, NumberType);
+</span><span class='uc' id='L393' title='2|2|2 - Total: 2'>                    if (indexType == NumberType) {
+</span><span class='uc' id='L394' title='2|2|2 - Total: 2'>                        if (!convertParameter(arrayIndex)) {
+</span>                            // setting the ISNUMBER_PROP signals the codegen
+                            // to use the OptRuntime.getObjectIndex that takes
+                            // a double index
+<span class='uc' id='L398' title='4|4|4 - Total: 4'>                            n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);
+</span>                        }
+                    }
+<span class='uc' id='L401' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+            case Token.CALL :
+                {
+<span class='uc' id='L405' title='3|3|3 - Total: 3'>                    Node child = n.getFirstChild(); // the function node
+</span>                    // must be an object
+<span class='uc' id='L407' title='5|5|5 - Total: 5'>                    rewriteAsObjectChildren(child, child.getFirstChild());
+</span><span class='uc' id='L408' title='3|3|3 - Total: 3'>                    child = child.getNext(); // the first arg
+</span>
+<span class='uc' id='L410' title='2|2|2 - Total: 2'>                    OptFunctionNode target
+</span><span class='uc' id='L411' title='3|3|3 - Total: 3'>                            = (OptFunctionNode)n.getProp(Node.DIRECTCALL_PROP);
+</span><span class='uc' id='L412' title='2|2|2 - Total: 2'>                    if (target != null) {
+</span>/*
+    we leave each child as a Number if it can be. The codegen will
+    handle moving the pairs of parameters.
+*/
+<span class='uc' id='L417' title='2|2|2 - Total: 2'>                        while (child != null) {
+</span><span class='uc' id='L418' title='5|5|5 - Total: 5'>                            int type = rewriteForNumberVariables(child, NumberType);
+</span><span class='uc' id='L419' title='2|2|2 - Total: 2'>                            if (type == NumberType) {
+</span><span class='uc' id='L420' title='3|3|3 - Total: 3'>                                markDCPNumberContext(child);
+</span>                            }
+<span class='uc' id='L422' title='3|3|3 - Total: 3'>                            child = child.getNext();
+</span><span class='uc' id='L423' title='1|1|1 - Total: 1'>                        }
+</span>                    } else {
+<span class='uc' id='L425' title='4|4|4 - Total: 4'>                        rewriteAsObjectChildren(n, child);
+</span>                    }
+<span class='uc' id='L427' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+            default : {
+<span class='uc' id='L430' title='5|5|5 - Total: 5'>                    rewriteAsObjectChildren(n, n.getFirstChild());
+</span><span class='uc' id='L431' title='2|2|2 - Total: 2'>                    return NoType;
+</span>                }
+        }
+    }
+
+    private void rewriteAsObjectChildren(Node n, Node child)
+    {
+        // Force optimized children to be objects
+<span class='uc' id='L439' title='2|2|2 - Total: 2'>        while (child != null) {
+</span><span class='uc' id='L440' title='3|3|3 - Total: 3'>            Node nextChild = child.getNext();
+</span><span class='uc' id='L441' title='5|5|5 - Total: 5'>            int type = rewriteForNumberVariables(child, NoType);
+</span><span class='uc' id='L442' title='2|2|2 - Total: 2'>            if (type == NumberType) {
+</span><span class='upc' id='L443' title='1|1|1 - Total: 2'>                if (!convertParameter(child)) {
+</span><span class='uc' id='L444' title='3|3|3 - Total: 3'>                    n.removeChild(child);
+</span><span class='uc' id='L445' title='6|6|6 - Total: 6'>                    Node nuChild = new Node(Token.TO_OBJECT, child);
+</span><span class='uc' id='L446' title='2|2|2 - Total: 2'>                    if (nextChild == null)
+</span><span class='uc' id='L447' title='4|4|4 - Total: 4'>                        n.addChildToBack(nuChild);
+</span>                    else
+<span class='uc' id='L449' title='4|4|4 - Total: 4'>                        n.addChildBefore(nuChild, nextChild);
+</span>                }
+            }
+<span class='uc' id='L452' title='2|2|2 - Total: 2'>            child = nextChild;
+</span><span class='uc' id='L453' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L454' title='1|1|1 - Total: 1'>    }
+</span>
+    private static void buildStatementList_r(Node node, ObjArray statements)
+    {
+<span class='uc' id='L458' title='3|3|3 - Total: 3'>        int type = node.getType();
+</span><span class='uc' id='L459' title='8|8|8 - Total: 8'>        if (type == Token.BLOCK
+</span>            || type == Token.LOCAL_BLOCK
+            || type == Token.LOOP
+            || type == Token.FUNCTION)
+        {
+<span class='uc' id='L464' title='3|3|3 - Total: 3'>            Node child = node.getFirstChild();
+</span><span class='uc' id='L465' title='2|2|2 - Total: 2'>            while (child != null) {
+</span><span class='uc' id='L466' title='3|3|3 - Total: 3'>                buildStatementList_r(child, statements);
+</span><span class='uc' id='L467' title='4|4|4 - Total: 4'>                child = child.getNext();
+</span>            }
+<span class='uc' id='L469' title='1|1|1 - Total: 1'>        } else {
+</span><span class='uc' id='L470' title='3|3|3 - Total: 3'>            statements.add(node);
+</span>        }
+<span class='uc' id='L472' title='1|1|1 - Total: 1'>    }
+</span>
+    private boolean inDirectCallFunction;
+    OptFunctionNode theFunction;
+    private boolean parameterUsedInNumberContext;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

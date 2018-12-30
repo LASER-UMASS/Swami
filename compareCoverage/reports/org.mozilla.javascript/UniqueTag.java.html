@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.UniqueTag.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.UniqueTag.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+/**
+ * Class instances represent serializable tags to mark special Object values.
+ * <p>
+ * Compatibility note: under jdk 1.1 use
+ * org.mozilla.javascript.serialize.ScriptableInputStream to read serialized
+ * instances of UniqueTag as under this JDK version the default
+ * ObjectInputStream would not restore them correctly as it lacks support
+ * for readResolve method
+ */
+public final class UniqueTag implements Serializable
+{
+    static final long serialVersionUID = -4320556826714577259L;
+
+    private static final int ID_NOT_FOUND    = 1;
+    private static final int ID_NULL_VALUE   = 2;
+    private static final int ID_DOUBLE_MARK  = 3;
+
+    /**
+     * Tag to mark non-existing values.
+     */
+    public static final UniqueTag
+<span class='uc' id='L32' title='5|5|5 - Total: 5'>        NOT_FOUND = new UniqueTag(ID_NOT_FOUND);
+</span>
+    /**
+     * Tag to distinguish between uninitialized and null values.
+     */
+    public static final UniqueTag
+<span class='uc' id='L38' title='5|5|5 - Total: 5'>        NULL_VALUE = new UniqueTag(ID_NULL_VALUE);
+</span>
+    /**
+     * Tag to indicate that a object represents "double" with the real value
+     * stored somewhere else.
+     */
+    public static final UniqueTag
+<span class='uc' id='L45' title='6|6|6 - Total: 6'>        DOUBLE_MARK = new UniqueTag(ID_DOUBLE_MARK);
+</span>
+    private final int tagId;
+
+    private UniqueTag(int tagId)
+<span class='uc' id='L50' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L51' title='3|3|3 - Total: 3'>        this.tagId = tagId;
+</span><span class='uc' id='L52' title='1|1|1 - Total: 1'>    }
+</span>
+    public Object readResolve()
+    {
+<span class='upc' id='L56' title='1|1|1 - Total: 4'>        switch (tagId) {
+</span>          case ID_NOT_FOUND:
+<span class='uc' id='L58' title='2|2|2 - Total: 2'>            return NOT_FOUND;
+</span>          case ID_NULL_VALUE:
+<span class='nc' id='L60' title='0|0|0 - Total: 2'>            return NULL_VALUE;
+</span>          case ID_DOUBLE_MARK:
+<span class='nc' id='L62' title='0|0|0 - Total: 2'>            return DOUBLE_MARK;
+</span>        }
+<span class='nc' id='L64' title='0|0|0 - Total: 7'>        throw new IllegalStateException(String.valueOf(tagId));
+</span>    }
+
+// Overridden for better debug printouts
+    @Override
+    public String toString()
+    {
+        String name;
+<span class='nc' id='L72' title='0|0|0 - Total: 4'>        switch (tagId) {
+</span>          case ID_NOT_FOUND:
+<span class='nc' id='L74' title='0|0|0 - Total: 2'>            name = "NOT_FOUND";
+</span><span class='nc' id='L75' title='0|0|0 - Total: 1'>            break;
+</span>          case ID_NULL_VALUE:
+<span class='nc' id='L77' title='0|0|0 - Total: 2'>            name = "NULL_VALUE";
+</span><span class='nc' id='L78' title='0|0|0 - Total: 1'>            break;
+</span>          case ID_DOUBLE_MARK:
+<span class='nc' id='L80' title='0|0|0 - Total: 2'>            name = "DOUBLE_MARK";
+</span><span class='nc' id='L81' title='0|0|0 - Total: 1'>            break;
+</span>          default:
+<span class='nc' id='L83' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+<span class='nc' id='L85' title='0|0|0 - Total: 12'>        return super.toString()+": "+name;
+</span>    }
+
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

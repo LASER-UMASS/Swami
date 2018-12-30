@@ -1,0 +1,125 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.Sorting.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.Sorting.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>package org.mozilla.javascript;
+
+import java.util.Comparator;
+
+<span class='nc' id='L5' title='0|0|0 - Total: 3'>public final class Sorting {
+</span>    private static final int SMALLSORT = 16;
+
+    public static void insertionSort(Object[] a, Comparator<Object> cmp)
+    {
+<span class='uc' id='L10' title='8|8|8 - Total: 8'>        insertionSort(a, 0, a.length - 1, cmp);
+</span><span class='uc' id='L11' title='1|1|1 - Total: 1'>    }
+</span>
+    public static void insertionSort(Object[] a, int start, int end, Comparator<Object> cmp)
+    {
+<span class='uc' id='L15' title='2|2|2 - Total: 2'>        int i = start;
+</span><span class='uc' id='L16' title='2|2|2 - Total: 2'>        while (i <= end) {
+</span><span class='uc' id='L17' title='4|4|4 - Total: 4'>            Object x = a[i];
+</span><span class='uc' id='L18' title='4|4|4 - Total: 4'>            int j = i - 1;
+</span><span class='uc' id='L19' title='4|4|4 - Total: 4'>            while ((j >= start) && (cmp.compare(a[j], x) > 0)) {
+</span><span class='uc' id='L20' title='8|8|8 - Total: 8'>                a[j + 1] = a[j];
+</span><span class='uc' id='L21' title='2|2|2 - Total: 2'>                j--;
+</span>            }
+<span class='uc' id='L23' title='6|6|6 - Total: 6'>            a[j + 1] = x;
+</span><span class='uc' id='L24' title='1|1|1 - Total: 1'>            i++;
+</span><span class='uc' id='L25' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L26' title='1|1|1 - Total: 1'>    }
+</span>
+    /*
+    Hybrid sorting mechanism similar to Introsort by David Musser. Uses quicksort's
+    partitioning mechanism recursively until the resulting array is small or the
+    recursion is too deep, and then use insertion sort for the rest.
+    This is the same basic algorithm used by the GNU Standard C++ library.
+    */
+    public static void hybridSort(Object[] a, Comparator<Object> cmp)
+    {
+<span class='uc' id='L36' title='13|13|13 - Total: 13'>        hybridSort(a, 0, a.length - 1, cmp, log2(a.length) * 2);
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    private static void hybridSort(Object[] a, int start, int end, Comparator<Object> cmp, int maxdepth)
+    {
+<span class='uc' id='L41' title='2|2|2 - Total: 2'>        if (start < end) {
+</span><span class='uc' id='L42' title='4|4|4 - Total: 4'>            if ((maxdepth == 0) || ((end - start) <= SMALLSORT)) {
+</span><span class='uc' id='L43' title='6|6|6 - Total: 6'>                insertionSort(a, start, end, cmp);
+</span>            } else {
+<span class='uc' id='L45' title='6|6|6 - Total: 6'>                int p = partition(a, start, end, cmp);
+</span><span class='uc' id='L46' title='8|8|8 - Total: 8'>                hybridSort(a, start, p, cmp, maxdepth - 1);
+</span><span class='uc' id='L47' title='10|10|10 - Total: 10'>                hybridSort(a, p + 1, end, cmp, maxdepth - 1);
+</span>            }
+        }
+<span class='uc' id='L50' title='1|1|1 - Total: 1'>    }
+</span>
+    /*
+    Quicksort-style partitioning, using the Hoare partition scheme as coded by
+    Sedgewick at https://algs4.cs.princeton.edu/23quicksort/Quick.java.html.
+    Use the "median of three" method to determine which index to pivot on, and then
+    separate the array into two halves based on the pivot.
+    */
+    private static int partition(Object[] a, int start, int end, Comparator<Object> cmp) {
+<span class='uc' id='L59' title='6|6|6 - Total: 6'>        final int p = median(a, start, end, cmp);
+</span><span class='uc' id='L60' title='4|4|4 - Total: 4'>        final Object pivot = a[p];
+</span><span class='uc' id='L61' title='6|6|6 - Total: 6'>        a[p] = a[start];
+</span><span class='uc' id='L62' title='4|4|4 - Total: 4'>        a[start] = pivot;
+</span>
+<span class='uc' id='L64' title='2|2|2 - Total: 2'>        int i = start;
+</span><span class='uc' id='L65' title='4|4|4 - Total: 4'>        int j = end + 1;
+</span>
+        while (true) {
+<span class='uc' id='L68' title='2|2|2 - Total: 2'>            while (cmp.compare(a[++i], pivot) < 0) {
+</span><span class='uc' id='L69' title='2|2|2 - Total: 2'>                if (i == end) {
+</span><span class='uc' id='L70' title='1|1|1 - Total: 1'>                    break;
+</span>                }
+            }
+<span class='uc' id='L73' title='2|2|2 - Total: 2'>            while (cmp.compare(a[--j], pivot) >= 0) {
+</span><span class='uc' id='L74' title='2|2|2 - Total: 2'>                if (j == start) {
+</span><span class='uc' id='L75' title='1|1|1 - Total: 1'>                    break;
+</span>                }
+            }
+<span class='uc' id='L78' title='2|2|2 - Total: 2'>            if (i >= j) {
+</span><span class='uc' id='L79' title='1|1|1 - Total: 1'>                break;
+</span>            }
+<span class='uc' id='L81' title='5|5|5 - Total: 5'>            swap(a, i, j);
+</span>        }
+
+<span class='uc' id='L84' title='4|4|4 - Total: 4'>        swap(a, start, j);
+</span><span class='uc' id='L85' title='2|2|2 - Total: 2'>        return j;
+</span>    }
+
+    private static void swap(Object[] a, int l, int h)
+    {
+<span class='uc' id='L90' title='4|4|4 - Total: 4'>        final Object tmp = a[l];
+</span><span class='uc' id='L91' title='6|6|6 - Total: 6'>        a[l] = a[h];
+</span><span class='uc' id='L92' title='4|4|4 - Total: 4'>        a[h] = tmp;
+</span><span class='uc' id='L93' title='1|1|1 - Total: 1'>    }
+</span>
+    private static int log2(int n)
+    {
+<span class='uc' id='L97' title='8|8|8 - Total: 8'>        return (int)(Math.log10(n) / Math.log10(2.0));
+</span>    }
+
+    /*
+    Return the index of the median of three elements in the specified array range -- the
+    first, the last, and the one in the middle.
+    */
+    public static int median(final Object[] a, int start, int end, Comparator<Object> cmp)
+    {
+<span class='uc' id='L106' title='8|8|8 - Total: 8'>        final int m = start + ((end - start) / 2);
+</span><span class='uc' id='L107' title='2|2|2 - Total: 2'>        int smallest = start;
+</span>
+<span class='uc' id='L109' title='2|2|2 - Total: 2'>        if (cmp.compare(a[smallest], a[m]) > 0) {
+</span><span class='uc' id='L110' title='2|2|2 - Total: 2'>            smallest = m;
+</span>        }
+<span class='uc' id='L112' title='2|2|2 - Total: 2'>        if (cmp.compare(a[smallest], a[end]) > 0) {
+</span><span class='uc' id='L113' title='2|2|2 - Total: 2'>            smallest = end;
+</span>        }
+
+<span class='uc' id='L116' title='2|2|2 - Total: 2'>        if (smallest == start) {
+</span><span class='uc' id='L117' title='2|2|2 - Total: 2'>            return (cmp.compare(a[m], a[end]) < 0) ? m : end;
+</span>        }
+<span class='uc' id='L119' title='2|2|2 - Total: 2'>        if (smallest == m) {
+</span><span class='uc' id='L120' title='2|2|2 - Total: 2'>            return (cmp.compare(a[start], a[end]) < 0) ? start : end;
+</span>        }
+<span class='uc' id='L122' title='2|2|2 - Total: 2'>        return (cmp.compare(a[start], a[m]) < 0) ? start : m;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,1787 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NativeDate.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NativeDate.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Date;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
+import java.util.TimeZone;
+
+/**
+ * This class implements the Date native object.
+ * See ECMA 15.9.
+ * @author Mike McCabe
+ *
+ * Significant parts of this code are adapted from the venerable jsdate.cpp (also Mozilla):
+ * https://dxr.mozilla.org/mozilla-central/source/js/src/jsdate.cpp
+ */
+<span class='upc' id='L23' title='1|1|1 - Total: 2'>final class NativeDate extends IdScriptableObject
+</span>{
+    static final long serialVersionUID = -8307438915861678966L;
+
+<span class='uc' id='L27' title='3|3|3 - Total: 3'>    private static final Object DATE_TAG = "Date";
+</span>
+    private static final String js_NaN_date_str = "Invalid Date";
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class='uc' id='L33' title='4|4|4 - Total: 4'>        NativeDate obj = new NativeDate();
+</span>        // Set the value of the prototype Date to NaN ('invalid date');
+<span class='uc' id='L35' title='3|3|3 - Total: 3'>        obj.date = ScriptRuntime.NaN;
+</span><span class='uc' id='L36' title='6|6|6 - Total: 6'>        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    private NativeDate()
+<span class='uc' id='L40' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L41' title='2|2|2 - Total: 2'>        if (thisTimeZone == null) {
+</span>            // j.u.TimeZone is synchronized, so setting class statics from it
+            // should be OK.
+<span class='uc' id='L44' title='2|2|2 - Total: 2'>            thisTimeZone = TimeZone.getDefault();
+</span><span class='uc' id='L45' title='4|4|4 - Total: 4'>            LocalTZA = thisTimeZone.getRawOffset();
+</span>        }
+<span class='uc' id='L47' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L52' title='2|2|2 - Total: 2'>        return "Date";
+</span>    }
+
+    @Override
+    public Object getDefaultValue(Class<?> typeHint)
+    {
+<span class='uc' id='L58' title='2|2|2 - Total: 2'>        if (typeHint == null)
+</span><span class='uc' id='L59' title='2|2|2 - Total: 2'>            typeHint = ScriptRuntime.StringClass;
+</span><span class='uc' id='L60' title='4|4|4 - Total: 4'>        return super.getDefaultValue(typeHint);
+</span>    }
+
+    double getJSTimeValue()
+    {
+<span class='nc' id='L65' title='0|0|0 - Total: 3'>        return date;
+</span>    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class='uc' id='L71' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_now,
+</span>                              "now", 0);
+<span class='uc' id='L73' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_parse,
+</span>                              "parse", 1);
+<span class='uc' id='L75' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_UTC,
+</span>                              "UTC", 7);
+<span class='uc' id='L77' title='3|3|3 - Total: 3'>        super.fillConstructorProperties(ctor);
+</span><span class='uc' id='L78' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class='upc' id='L85' title='46|46|46 - Total: 48'>        switch (id) {
+</span><span class='uc' id='L86' title='5|5|5 - Total: 5'>          case Id_constructor:        arity=7; s="constructor";        break;
+</span><span class='uc' id='L87' title='5|5|5 - Total: 5'>          case Id_toString:           arity=0; s="toString";           break;
+</span><span class='uc' id='L88' title='5|5|5 - Total: 5'>          case Id_toTimeString:       arity=0; s="toTimeString";       break;
+</span><span class='uc' id='L89' title='5|5|5 - Total: 5'>          case Id_toDateString:       arity=0; s="toDateString";       break;
+</span><span class='uc' id='L90' title='5|5|5 - Total: 5'>          case Id_toLocaleString:     arity=0; s="toLocaleString";     break;
+</span><span class='uc' id='L91' title='5|5|5 - Total: 5'>          case Id_toLocaleTimeString: arity=0; s="toLocaleTimeString"; break;
+</span><span class='uc' id='L92' title='5|5|5 - Total: 5'>          case Id_toLocaleDateString: arity=0; s="toLocaleDateString"; break;
+</span><span class='uc' id='L93' title='5|5|5 - Total: 5'>          case Id_toUTCString:        arity=0; s="toUTCString";        break;
+</span><span class='nc' id='L94' title='0|0|0 - Total: 5'>          case Id_toSource:           arity=0; s="toSource";           break;
+</span><span class='uc' id='L95' title='5|5|5 - Total: 5'>          case Id_valueOf:            arity=0; s="valueOf";            break;
+</span><span class='uc' id='L96' title='5|5|5 - Total: 5'>          case Id_getTime:            arity=0; s="getTime";            break;
+</span><span class='uc' id='L97' title='5|5|5 - Total: 5'>          case Id_getYear:            arity=0; s="getYear";            break;
+</span><span class='uc' id='L98' title='5|5|5 - Total: 5'>          case Id_getFullYear:        arity=0; s="getFullYear";        break;
+</span><span class='uc' id='L99' title='5|5|5 - Total: 5'>          case Id_getUTCFullYear:     arity=0; s="getUTCFullYear";     break;
+</span><span class='uc' id='L100' title='5|5|5 - Total: 5'>          case Id_getMonth:           arity=0; s="getMonth";           break;
+</span><span class='uc' id='L101' title='5|5|5 - Total: 5'>          case Id_getUTCMonth:        arity=0; s="getUTCMonth";        break;
+</span><span class='uc' id='L102' title='5|5|5 - Total: 5'>          case Id_getDate:            arity=0; s="getDate";            break;
+</span><span class='uc' id='L103' title='5|5|5 - Total: 5'>          case Id_getUTCDate:         arity=0; s="getUTCDate";         break;
+</span><span class='uc' id='L104' title='5|5|5 - Total: 5'>          case Id_getDay:             arity=0; s="getDay";             break;
+</span><span class='uc' id='L105' title='5|5|5 - Total: 5'>          case Id_getUTCDay:          arity=0; s="getUTCDay";          break;
+</span><span class='uc' id='L106' title='5|5|5 - Total: 5'>          case Id_getHours:           arity=0; s="getHours";           break;
+</span><span class='uc' id='L107' title='5|5|5 - Total: 5'>          case Id_getUTCHours:        arity=0; s="getUTCHours";        break;
+</span><span class='uc' id='L108' title='5|5|5 - Total: 5'>          case Id_getMinutes:         arity=0; s="getMinutes";         break;
+</span><span class='uc' id='L109' title='5|5|5 - Total: 5'>          case Id_getUTCMinutes:      arity=0; s="getUTCMinutes";      break;
+</span><span class='uc' id='L110' title='5|5|5 - Total: 5'>          case Id_getSeconds:         arity=0; s="getSeconds";         break;
+</span><span class='uc' id='L111' title='5|5|5 - Total: 5'>          case Id_getUTCSeconds:      arity=0; s="getUTCSeconds";      break;
+</span><span class='uc' id='L112' title='5|5|5 - Total: 5'>          case Id_getMilliseconds:    arity=0; s="getMilliseconds";    break;
+</span><span class='uc' id='L113' title='5|5|5 - Total: 5'>          case Id_getUTCMilliseconds: arity=0; s="getUTCMilliseconds"; break;
+</span><span class='uc' id='L114' title='5|5|5 - Total: 5'>          case Id_getTimezoneOffset:  arity=0; s="getTimezoneOffset";  break;
+</span><span class='uc' id='L115' title='5|5|5 - Total: 5'>          case Id_setTime:            arity=1; s="setTime";            break;
+</span><span class='uc' id='L116' title='5|5|5 - Total: 5'>          case Id_setMilliseconds:    arity=1; s="setMilliseconds";    break;
+</span><span class='uc' id='L117' title='5|5|5 - Total: 5'>          case Id_setUTCMilliseconds: arity=1; s="setUTCMilliseconds"; break;
+</span><span class='uc' id='L118' title='5|5|5 - Total: 5'>          case Id_setSeconds:         arity=2; s="setSeconds";         break;
+</span><span class='uc' id='L119' title='5|5|5 - Total: 5'>          case Id_setUTCSeconds:      arity=2; s="setUTCSeconds";      break;
+</span><span class='uc' id='L120' title='5|5|5 - Total: 5'>          case Id_setMinutes:         arity=3; s="setMinutes";         break;
+</span><span class='uc' id='L121' title='5|5|5 - Total: 5'>          case Id_setUTCMinutes:      arity=3; s="setUTCMinutes";      break;
+</span><span class='uc' id='L122' title='5|5|5 - Total: 5'>          case Id_setHours:           arity=4; s="setHours";           break;
+</span><span class='uc' id='L123' title='5|5|5 - Total: 5'>          case Id_setUTCHours:        arity=4; s="setUTCHours";        break;
+</span><span class='uc' id='L124' title='5|5|5 - Total: 5'>          case Id_setDate:            arity=1; s="setDate";            break;
+</span><span class='uc' id='L125' title='5|5|5 - Total: 5'>          case Id_setUTCDate:         arity=1; s="setUTCDate";         break;
+</span><span class='uc' id='L126' title='5|5|5 - Total: 5'>          case Id_setMonth:           arity=2; s="setMonth";           break;
+</span><span class='uc' id='L127' title='5|5|5 - Total: 5'>          case Id_setUTCMonth:        arity=2; s="setUTCMonth";        break;
+</span><span class='uc' id='L128' title='5|5|5 - Total: 5'>          case Id_setFullYear:        arity=3; s="setFullYear";        break;
+</span><span class='uc' id='L129' title='5|5|5 - Total: 5'>          case Id_setUTCFullYear:     arity=3; s="setUTCFullYear";     break;
+</span><span class='uc' id='L130' title='5|5|5 - Total: 5'>          case Id_setYear:            arity=1; s="setYear";            break;
+</span><span class='uc' id='L131' title='5|5|5 - Total: 5'>          case Id_toISOString:        arity=0; s="toISOString";        break;
+</span><span class='uc' id='L132' title='5|5|5 - Total: 5'>          case Id_toJSON:             arity=1; s="toJSON";             break;
+</span><span class='nc' id='L133' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+<span class='uc' id='L135' title='7|7|7 - Total: 7'>        initPrototypeMethod(DATE_TAG, id, s, arity);
+</span><span class='uc' id='L136' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class='upc' id='L142' title='1|1|1 - Total: 2'>        if (!f.hasTag(DATE_TAG)) {
+</span><span class='nc' id='L143' title='0|0|0 - Total: 8'>            return super.execIdCall(f, cx, scope, thisObj, args);
+</span>        }
+<span class='uc' id='L145' title='3|3|3 - Total: 3'>        int id = f.methodId();
+</span><span class='uc' id='L146' title='6|6|6 - Total: 6'>        switch (id) {
+</span>          case ConstructorId_now:
+<span class='uc' id='L148' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(now());
+</span>
+          case ConstructorId_parse:
+            {
+<span class='uc' id='L152' title='4|4|4 - Total: 4'>                String dataStr = ScriptRuntime.toString(args, 0);
+</span><span class='uc' id='L153' title='4|4|4 - Total: 4'>                return ScriptRuntime.wrapNumber(date_parseString(dataStr));
+</span>            }
+
+          case ConstructorId_UTC:
+<span class='uc' id='L157' title='4|4|4 - Total: 4'>            return ScriptRuntime.wrapNumber(jsStaticFunction_UTC(args));
+</span>
+          case Id_constructor:
+            {
+                // if called as a function, just return a string
+                // representing the current time.
+<span class='uc' id='L163' title='2|2|2 - Total: 2'>                if (thisObj != null)
+</span><span class='uc' id='L164' title='4|4|4 - Total: 4'>                    return date_format(now(), Id_toString);
+</span><span class='uc' id='L165' title='3|3|3 - Total: 3'>                return jsConstructor(args);
+</span>            }
+
+          case Id_toJSON:
+            {
+<span class='uc' id='L170' title='2|2|2 - Total: 2'>                final String toISOString = "toISOString";
+</span>
+<span class='uc' id='L172' title='5|5|5 - Total: 5'>                Scriptable o = ScriptRuntime.toObject(cx, scope, thisObj);
+</span><span class='uc' id='L173' title='4|4|4 - Total: 4'>                Object tv = ScriptRuntime.toPrimitive(o, ScriptRuntime.NumberClass);
+</span><span class='uc' id='L174' title='2|2|2 - Total: 2'>                if (tv instanceof Number) {
+</span><span class='uc' id='L175' title='4|4|4 - Total: 4'>                    double d = ((Number) tv).doubleValue();
+</span><span class='upc' id='L176' title='3|3|3 - Total: 4'>                    if (d != d || Double.isInfinite(d)) {
+</span><span class='uc' id='L177' title='2|2|2 - Total: 2'>                        return null;
+</span>                    }
+                }
+<span class='uc' id='L180' title='4|4|4 - Total: 4'>                Object toISO = ScriptableObject.getProperty(o, toISOString);
+</span><span class='uc' id='L181' title='2|2|2 - Total: 2'>                if (toISO == NOT_FOUND) {
+</span><span class='uc' id='L182' title='5|5|5 - Total: 5'>                    throw ScriptRuntime.typeError2("msg.function.not.found.in",
+</span>                            toISOString,
+<span class='uc' id='L184' title='1|1|1 - Total: 1'>                            ScriptRuntime.toString(o));
+</span>                }
+<span class='uc' id='L186' title='2|2|2 - Total: 2'>                if ( !(toISO instanceof Callable) ) {
+</span><span class='uc' id='L187' title='5|5|5 - Total: 5'>                    throw ScriptRuntime.typeError3("msg.isnt.function.in",
+</span>                            toISOString,
+<span class='uc' id='L189' title='2|2|2 - Total: 2'>                            ScriptRuntime.toString(o),
+</span><span class='uc' id='L190' title='1|1|1 - Total: 1'>                            ScriptRuntime.toString(toISO));
+</span>                }
+<span class='uc' id='L192' title='8|8|8 - Total: 8'>                Object result = ((Callable) toISO).call(cx, scope, o,
+</span>                            ScriptRuntime.emptyArgs);
+<span class='uc' id='L194' title='2|2|2 - Total: 2'>                if ( !ScriptRuntime.isPrimitive(result) ) {
+</span><span class='uc' id='L195' title='4|4|4 - Total: 4'>                    throw ScriptRuntime.typeError1("msg.toisostring.must.return.primitive",
+</span><span class='uc' id='L196' title='1|1|1 - Total: 1'>                            ScriptRuntime.toString(result));
+</span>                }
+<span class='uc' id='L198' title='2|2|2 - Total: 2'>                return result;
+</span>            }
+
+        }
+
+        // The rest of Date.prototype methods require thisObj to be Date
+
+<span class='uc' id='L205' title='2|2|2 - Total: 2'>        if (!(thisObj instanceof NativeDate))
+</span><span class='nc' id='L206' title='0|0|0 - Total: 3'>            throw incompatibleCallError(f);
+</span><span class='uc' id='L207' title='3|3|3 - Total: 3'>        NativeDate realThis = (NativeDate)thisObj;
+</span><span class='uc' id='L208' title='3|3|3 - Total: 3'>        double t = realThis.date;
+</span>
+<span class='upc' id='L210' title='17|17|17 - Total: 20'>        switch (id) {
+</span>
+          case Id_toString:
+          case Id_toTimeString:
+          case Id_toDateString:
+<span class='uc' id='L215' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L216' title='4|4|4 - Total: 4'>                return date_format(t, id);
+</span>            }
+<span class='uc' id='L218' title='2|2|2 - Total: 2'>            return js_NaN_date_str;
+</span>
+          case Id_toLocaleString:
+          case Id_toLocaleTimeString:
+          case Id_toLocaleDateString:
+<span class='upc' id='L223' title='1|1|1 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L224' title='4|4|4 - Total: 4'>                return toLocale_helper(t, id);
+</span>            }
+<span class='nc' id='L226' title='0|0|0 - Total: 2'>            return js_NaN_date_str;
+</span>
+          case Id_toUTCString:
+<span class='upc' id='L229' title='1|1|1 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L230' title='3|3|3 - Total: 3'>                return js_toUTCString(t);
+</span>            }
+<span class='nc' id='L232' title='0|0|0 - Total: 2'>            return js_NaN_date_str;
+</span>
+          case Id_toSource:
+<span class='nc' id='L235' title='0|0|0 - Total: 12'>            return "(new Date("+ScriptRuntime.toString(t)+"))";
+</span>
+          case Id_valueOf:
+          case Id_getTime:
+<span class='uc' id='L239' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getYear:
+          case Id_getFullYear:
+          case Id_getUTCFullYear:
+<span class='uc' id='L244' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L245' title='2|2|2 - Total: 2'>                if (id != Id_getUTCFullYear) t = LocalTime(t);
+</span><span class='uc' id='L246' title='4|4|4 - Total: 4'>                t = YearFromTime(t);
+</span><span class='uc' id='L247' title='2|2|2 - Total: 2'>                if (id == Id_getYear) {
+</span><span class='upc' id='L248' title='1|1|1 - Total: 2'>                    if (cx.hasFeature(Context.FEATURE_NON_ECMA_GET_YEAR)) {
+</span><span class='nc' id='L249' title='0|0|0 - Total: 4'>                        if (1900 <= t && t < 2000) {
+</span><span class='nc' id='L250' title='0|0|0 - Total: 5'>                            t -= 1900;
+</span>                        }
+                    } else {
+<span class='uc' id='L253' title='4|4|4 - Total: 4'>                        t -= 1900;
+</span>                    }
+                }
+            }
+<span class='uc' id='L257' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getMonth:
+          case Id_getUTCMonth:
+<span class='uc' id='L261' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L262' title='2|2|2 - Total: 2'>                if (id == Id_getMonth) t = LocalTime(t);
+</span><span class='uc' id='L263' title='4|4|4 - Total: 4'>                t = MonthFromTime(t);
+</span>            }
+<span class='uc' id='L265' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getDate:
+          case Id_getUTCDate:
+<span class='uc' id='L269' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L270' title='2|2|2 - Total: 2'>                if (id == Id_getDate) t = LocalTime(t);
+</span><span class='uc' id='L271' title='4|4|4 - Total: 4'>                t = DateFromTime(t);
+</span>            }
+<span class='uc' id='L273' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getDay:
+          case Id_getUTCDay:
+<span class='uc' id='L277' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L278' title='2|2|2 - Total: 2'>                if (id == Id_getDay) t = LocalTime(t);
+</span><span class='uc' id='L279' title='4|4|4 - Total: 4'>                t = WeekDay(t);
+</span>            }
+<span class='uc' id='L281' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getHours:
+          case Id_getUTCHours:
+<span class='uc' id='L285' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L286' title='2|2|2 - Total: 2'>                if (id == Id_getHours) t = LocalTime(t);
+</span><span class='uc' id='L287' title='4|4|4 - Total: 4'>                t = HourFromTime(t);
+</span>            }
+<span class='uc' id='L289' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getMinutes:
+          case Id_getUTCMinutes:
+<span class='uc' id='L293' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L294' title='2|2|2 - Total: 2'>                if (id == Id_getMinutes) t = LocalTime(t);
+</span><span class='uc' id='L295' title='4|4|4 - Total: 4'>                t = MinFromTime(t);
+</span>            }
+<span class='uc' id='L297' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getSeconds:
+          case Id_getUTCSeconds:
+<span class='uc' id='L301' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L302' title='2|2|2 - Total: 2'>                if (id == Id_getSeconds) t = LocalTime(t);
+</span><span class='uc' id='L303' title='4|4|4 - Total: 4'>                t = SecFromTime(t);
+</span>            }
+<span class='uc' id='L305' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getMilliseconds:
+          case Id_getUTCMilliseconds:
+<span class='uc' id='L309' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L310' title='2|2|2 - Total: 2'>                if (id == Id_getMilliseconds) t = LocalTime(t);
+</span><span class='uc' id='L311' title='4|4|4 - Total: 4'>                t = msFromTime(t);
+</span>            }
+<span class='uc' id='L313' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_getTimezoneOffset:
+<span class='uc' id='L316' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L317' title='7|7|7 - Total: 7'>                t = (t - LocalTime(t)) / msPerMinute;
+</span>            }
+<span class='uc' id='L319' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_setTime:
+<span class='uc' id='L322' title='5|5|5 - Total: 5'>            t = TimeClip(ScriptRuntime.toNumber(args, 0));
+</span><span class='uc' id='L323' title='3|3|3 - Total: 3'>            realThis.date = t;
+</span><span class='uc' id='L324' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_setMilliseconds:
+          case Id_setUTCMilliseconds:
+          case Id_setSeconds:
+          case Id_setUTCSeconds:
+          case Id_setMinutes:
+          case Id_setUTCMinutes:
+          case Id_setHours:
+          case Id_setUTCHours:
+<span class='uc' id='L334' title='5|5|5 - Total: 5'>            t = makeTime(t, args, id);
+</span><span class='uc' id='L335' title='3|3|3 - Total: 3'>            realThis.date = t;
+</span><span class='uc' id='L336' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_setDate:
+          case Id_setUTCDate:
+          case Id_setMonth:
+          case Id_setUTCMonth:
+          case Id_setFullYear:
+          case Id_setUTCFullYear:
+<span class='uc' id='L344' title='5|5|5 - Total: 5'>            t = makeDate(t, args, id);
+</span><span class='uc' id='L345' title='3|3|3 - Total: 3'>            realThis.date = t;
+</span><span class='uc' id='L346' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_setYear:
+            {
+<span class='nc' id='L350' title='0|0|0 - Total: 4'>                double year = ScriptRuntime.toNumber(args, 0);
+</span>
+<span class='nc' id='L352' title='0|0|0 - Total: 4'>                if (year != year || Double.isInfinite(year)) {
+</span><span class='nc' id='L353' title='0|0|0 - Total: 3'>                    t = ScriptRuntime.NaN;
+</span>                } else {
+<span class='nc' id='L355' title='0|0|0 - Total: 2'>                    if (t != t) {
+</span><span class='nc' id='L356' title='0|0|0 - Total: 3'>                        t = 0;
+</span>                    } else {
+<span class='nc' id='L358' title='0|0|0 - Total: 3'>                        t = LocalTime(t);
+</span>                    }
+
+<span class='nc' id='L361' title='0|0|0 - Total: 4'>                    if (year >= 0 && year <= 99)
+</span><span class='nc' id='L362' title='0|0|0 - Total: 4'>                        year += 1900;
+</span>
+<span class='nc' id='L364' title='0|0|0 - Total: 7'>                    double day = MakeDay(year, MonthFromTime(t),
+</span><span class='nc' id='L365' title='0|0|0 - Total: 2'>                                         DateFromTime(t));
+</span><span class='nc' id='L366' title='0|0|0 - Total: 5'>                    t = MakeDate(day, TimeWithinDay(t));
+</span><span class='nc' id='L367' title='0|0|0 - Total: 3'>                    t = internalUTC(t);
+</span><span class='nc' id='L368' title='0|0|0 - Total: 3'>                    t = TimeClip(t);
+</span>                }
+            }
+<span class='nc' id='L371' title='0|0|0 - Total: 3'>            realThis.date = t;
+</span><span class='nc' id='L372' title='0|0|0 - Total: 3'>            return ScriptRuntime.wrapNumber(t);
+</span>
+          case Id_toISOString:
+<span class='uc' id='L375' title='2|2|2 - Total: 2'>            if (t == t) {
+</span><span class='uc' id='L376' title='3|3|3 - Total: 3'>                return js_toISOString(t);
+</span>            }
+<span class='uc' id='L378' title='3|3|3 - Total: 3'>            String msg = ScriptRuntime.getMessage0("msg.invalid.date");
+</span><span class='uc' id='L379' title='4|4|4 - Total: 4'>            throw ScriptRuntime.constructError("RangeError", msg);
+</span>
+<span class='nc' id='L381' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+
+    }
+
+    /* ECMA helper functions */
+
+    private static final double HalfTimeDomain = 8.64e15;
+    private static final double HoursPerDay    = 24.0;
+    private static final double MinutesPerHour = 60.0;
+    private static final double SecondsPerMinute = 60.0;
+    private static final double msPerSecond    = 1000.0;
+    private static final double MinutesPerDay  = (HoursPerDay * MinutesPerHour);
+    private static final double SecondsPerDay  = (MinutesPerDay * SecondsPerMinute);
+    private static final double SecondsPerHour = (MinutesPerHour * SecondsPerMinute);
+    private static final double msPerDay       = (SecondsPerDay * msPerSecond);
+    private static final double msPerHour      = (SecondsPerHour * msPerSecond);
+    private static final double msPerMinute    = (SecondsPerMinute * msPerSecond);
+
+    private static double Day(double t)
+    {
+<span class='uc' id='L402' title='5|5|5 - Total: 5'>        return Math.floor(t / msPerDay);
+</span>    }
+
+    private static double TimeWithinDay(double t)
+    {
+        double result;
+<span class='uc' id='L408' title='4|4|4 - Total: 4'>        result = t % msPerDay;
+</span><span class='uc' id='L409' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L410' title='4|4|4 - Total: 4'>            result += msPerDay;
+</span><span class='uc' id='L411' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private static boolean IsLeapYear(int year)
+    {
+<span class='uc' id='L416' title='6|6|6 - Total: 6'>        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+</span>    }
+
+    /* math here has to be f.p, because we need
+     *  floor((1968 - 1969) / 4) == -1
+     */
+    private static double DayFromYear(double y)
+    {
+<span class='uc' id='L424' title='18|18|18 - Total: 18'>        return ((365 * ((y)-1970) + Math.floor(((y)-1969)/4.0)
+</span><span class='uc' id='L425' title='9|9|9 - Total: 9'>                 - Math.floor(((y)-1901)/100.0) + Math.floor(((y)-1601)/400.0)));
+</span>    }
+
+    private static double TimeFromYear(double y)
+    {
+<span class='uc' id='L430' title='5|5|5 - Total: 5'>        return DayFromYear(y) * msPerDay;
+</span>    }
+
+    private static int YearFromTime(double t)
+    {
+<span class='upc' id='L435' title='2|2|2 - Total: 4'>        if (Double.isInfinite(t) || Double.isNaN(t)) {
+</span><span class='nc' id='L436' title='0|0|0 - Total: 2'>            return 0;
+</span>        }
+
+<span class='uc' id='L439' title='7|7|7 - Total: 7'>        double y = Math.floor(t / (msPerDay * 365.2425)) + 1970;
+</span><span class='uc' id='L440' title='3|3|3 - Total: 3'>        double t2 = TimeFromYear(y);
+</span>
+        /*
+         * Adjust the year if the approximation was wrong.  Since the year was
+         * computed using the average number of ms per year, it will usually
+         * be wrong for dates within several hours of a year transition.
+         */
+<span class='uc' id='L447' title='2|2|2 - Total: 2'>        if (t2 > t) {
+</span><span class='uc' id='L448' title='5|5|5 - Total: 5'>            y--;
+</span>        } else {
+<span class='uc' id='L450' title='2|2|2 - Total: 2'>            if (t2 + msPerDay * DaysInYear(y) <= t)
+</span><span class='uc' id='L451' title='4|4|4 - Total: 4'>                y++;
+</span>        }
+<span class='uc' id='L453' title='3|3|3 - Total: 3'>        return (int)y;
+</span>    }
+
+    private static double DayFromMonth(int m, int year)
+    {
+<span class='uc' id='L458' title='4|4|4 - Total: 4'>        int day = m * 30;
+</span>
+<span class='uc' id='L460' title='2|2|2 - Total: 2'>        if (m >= 7) { day += m / 2 - 1; }
+</span><span class='uc' id='L461' title='2|2|2 - Total: 2'>        else if (m >= 2) { day += (m - 1) / 2 - 1; }
+</span><span class='uc' id='L462' title='4|4|4 - Total: 4'>        else { day += m; }
+</span>
+<span class='uc' id='L464' title='4|4|4 - Total: 4'>        if (m >= 2 && IsLeapYear(year)) { ++day; }
+</span>
+<span class='uc' id='L466' title='3|3|3 - Total: 3'>        return day;
+</span>    }
+
+    private static double DaysInYear(double year)
+    {
+<span class='upc' id='L471' title='2|2|2 - Total: 4'>        if (Double.isInfinite(year) || Double.isNaN(year)) {
+</span><span class='nc' id='L472' title='0|0|0 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+<span class='uc' id='L474' title='2|2|2 - Total: 2'>        return IsLeapYear((int)year) ? 366.0 : 365.0;
+</span>    }
+
+    private static int DaysInMonth(int year, int month)
+    {
+        // month is 1-based for DaysInMonth!
+<span class='uc' id='L480' title='2|2|2 - Total: 2'>        if (month == 2)
+</span><span class='upc' id='L481' title='1|1|1 - Total: 2'>            return IsLeapYear(year) ? 29 : 28;
+</span><span class='upc' id='L482' title='1|1|1 - Total: 2'>        return month >= 8
+</span>               ? 31 - (month & 1)
+               : 30 + (month & 1);
+    }
+
+    private static int MonthFromTime(double t)
+    {
+<span class='uc' id='L489' title='3|3|3 - Total: 3'>        int year = YearFromTime(t);
+</span><span class='uc' id='L490' title='8|8|8 - Total: 8'>        int d = (int)(Day(t) - DayFromYear(year));
+</span>
+<span class='uc' id='L492' title='1|1|1 - Total: 1'>        d -= 31 + 28;
+</span><span class='uc' id='L493' title='2|2|2 - Total: 2'>        if (d < 0) {
+</span><span class='uc' id='L494' title='2|2|2 - Total: 2'>            return (d < -28) ? 0 : 1;
+</span>        }
+
+<span class='uc' id='L497' title='2|2|2 - Total: 2'>        if (IsLeapYear(year)) {
+</span><span class='uc' id='L498' title='2|2|2 - Total: 2'>            if (d == 0)
+</span><span class='uc' id='L499' title='2|2|2 - Total: 2'>                return 1; // 29 February
+</span><span class='uc' id='L500' title='1|1|1 - Total: 1'>            --d;
+</span>        }
+
+        // d: date count from 1 March
+<span class='uc' id='L504' title='4|4|4 - Total: 4'>        int estimate = d / 30; // approx number of month since March
+</span>        int mstart;
+<span class='upc' id='L506' title='11|11|11 - Total: 12'>        switch (estimate) {
+</span><span class='uc' id='L507' title='2|2|2 - Total: 2'>            case 0: return 2;
+</span><span class='uc' id='L508' title='3|3|3 - Total: 3'>            case 1: mstart = 31; break;
+</span><span class='uc' id='L509' title='3|3|3 - Total: 3'>            case 2: mstart = 31+30; break;
+</span><span class='uc' id='L510' title='3|3|3 - Total: 3'>            case 3: mstart = 31+30+31; break;
+</span><span class='uc' id='L511' title='3|3|3 - Total: 3'>            case 4: mstart = 31+30+31+30; break;
+</span><span class='uc' id='L512' title='3|3|3 - Total: 3'>            case 5: mstart = 31+30+31+30+31; break;
+</span><span class='uc' id='L513' title='3|3|3 - Total: 3'>            case 6: mstart = 31+30+31+30+31+31; break;
+</span><span class='uc' id='L514' title='3|3|3 - Total: 3'>            case 7: mstart = 31+30+31+30+31+31+30; break;
+</span><span class='uc' id='L515' title='3|3|3 - Total: 3'>            case 8: mstart = 31+30+31+30+31+31+30+31; break;
+</span><span class='uc' id='L516' title='3|3|3 - Total: 3'>            case 9: mstart = 31+30+31+30+31+31+30+31+30; break;
+</span><span class='uc' id='L517' title='2|2|2 - Total: 2'>            case 10: return 11; //Late december
+</span><span class='nc' id='L518' title='0|0|0 - Total: 2'>            default: throw Kit.codeBug();
+</span>        }
+        // if d < mstart then real month since March == estimate - 1
+<span class='uc' id='L521' title='2|2|2 - Total: 2'>        return (d >= mstart) ? estimate + 2 : estimate + 1;
+</span>    }
+
+    private static int DateFromTime(double t)
+    {
+<span class='uc' id='L526' title='3|3|3 - Total: 3'>        int year = YearFromTime(t);
+</span><span class='uc' id='L527' title='8|8|8 - Total: 8'>        int d = (int)(Day(t) - DayFromYear(year));
+</span>
+<span class='uc' id='L529' title='1|1|1 - Total: 1'>        d -= 31 + 28;
+</span><span class='uc' id='L530' title='2|2|2 - Total: 2'>        if (d < 0) {
+</span><span class='uc' id='L531' title='2|2|2 - Total: 2'>            return (d < -28) ? d + 31 + 28 + 1 : d + 28 + 1;
+</span>        }
+
+<span class='uc' id='L534' title='2|2|2 - Total: 2'>        if (IsLeapYear(year)) {
+</span><span class='uc' id='L535' title='2|2|2 - Total: 2'>            if (d == 0)
+</span><span class='uc' id='L536' title='2|2|2 - Total: 2'>                return 29; // 29 February
+</span><span class='uc' id='L537' title='1|1|1 - Total: 1'>            --d;
+</span>        }
+
+        // d: date count from 1 March
+        int mdays, mstart;
+<span class='upc' id='L542' title='11|11|11 - Total: 12'>        switch (Math.round(d / 30)) { // approx number of month since March
+</span><span class='uc' id='L543' title='4|4|4 - Total: 4'>            case 0: return d + 1;
+</span><span class='uc' id='L544' title='5|5|5 - Total: 5'>            case 1: mdays = 31; mstart = 31; break;
+</span><span class='uc' id='L545' title='5|5|5 - Total: 5'>            case 2: mdays = 30; mstart = 31+30; break;
+</span><span class='uc' id='L546' title='5|5|5 - Total: 5'>            case 3: mdays = 31; mstart = 31+30+31; break;
+</span><span class='uc' id='L547' title='5|5|5 - Total: 5'>            case 4: mdays = 30; mstart = 31+30+31+30; break;
+</span><span class='uc' id='L548' title='5|5|5 - Total: 5'>            case 5: mdays = 31; mstart = 31+30+31+30+31; break;
+</span><span class='uc' id='L549' title='5|5|5 - Total: 5'>            case 6: mdays = 31; mstart = 31+30+31+30+31+31; break;
+</span><span class='uc' id='L550' title='5|5|5 - Total: 5'>            case 7: mdays = 30; mstart = 31+30+31+30+31+31+30; break;
+</span><span class='uc' id='L551' title='5|5|5 - Total: 5'>            case 8: mdays = 31; mstart = 31+30+31+30+31+31+30+31; break;
+</span><span class='uc' id='L552' title='5|5|5 - Total: 5'>            case 9: mdays = 30; mstart = 31+30+31+30+31+31+30+31+30; break;
+</span>            case 10:
+<span class='uc' id='L554' title='6|6|6 - Total: 6'>                return d - (31+30+31+30+31+31+30+31+30) + 1; //Late december
+</span><span class='nc' id='L555' title='0|0|0 - Total: 2'>            default: throw Kit.codeBug();
+</span>        }
+<span class='uc' id='L557' title='4|4|4 - Total: 4'>        d -= mstart;
+</span><span class='uc' id='L558' title='2|2|2 - Total: 2'>        if (d < 0) {
+</span>            // wrong estimate: sfhift to previous month
+<span class='uc' id='L560' title='4|4|4 - Total: 4'>            d += mdays;
+</span>        }
+<span class='uc' id='L562' title='4|4|4 - Total: 4'>        return d + 1;
+</span>     }
+
+    private static int WeekDay(double t)
+    {
+        double result;
+<span class='uc' id='L568' title='5|5|5 - Total: 5'>        result = Day(t) + 4;
+</span><span class='uc' id='L569' title='4|4|4 - Total: 4'>        result = result % 7;
+</span><span class='uc' id='L570' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L571' title='4|4|4 - Total: 4'>            result += 7;
+</span><span class='uc' id='L572' title='3|3|3 - Total: 3'>        return (int) result;
+</span>    }
+
+    private static double now()
+    {
+<span class='uc' id='L577' title='3|3|3 - Total: 3'>        return System.currentTimeMillis();
+</span>    }
+
+    private static double DaylightSavingTA(double t)
+    {
+        // Another workaround!  The JRE doesn't seem to know about DST
+        // before year 1 AD, so we map to equivalent dates for the
+        // purposes of finding DST. To be safe, we do this for years
+        // before 1970.
+<span class='uc' id='L586' title='2|2|2 - Total: 2'>        if (t < 0.0) {
+</span><span class='uc' id='L587' title='4|4|4 - Total: 4'>            int year = EquivalentYear(YearFromTime(t));
+</span><span class='uc' id='L588' title='10|10|10 - Total: 10'>            double day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
+</span><span class='uc' id='L589' title='5|5|5 - Total: 5'>            t = MakeDate(day, TimeWithinDay(t));
+</span>        }
+<span class='uc' id='L591' title='6|6|6 - Total: 6'>        Date date = new Date((long) t);
+</span><span class='uc' id='L592' title='2|2|2 - Total: 2'>        if (thisTimeZone.inDaylightTime(date))
+</span><span class='uc' id='L593' title='2|2|2 - Total: 2'>            return msPerHour;
+</span>        else
+<span class='uc' id='L595' title='2|2|2 - Total: 2'>            return 0;
+</span>    }
+
+    /*
+     * Find a year for which any given date will fall on the same weekday.
+     *
+     * This function should be used with caution when used other than
+     * for determining DST; it hasn't been proven not to produce an
+     * incorrect year for times near year boundaries.
+     */
+    private static int EquivalentYear(int year)
+    {
+<span class='uc' id='L607' title='7|7|7 - Total: 7'>        int day = (int) DayFromYear(year) + 4;
+</span><span class='uc' id='L608' title='4|4|4 - Total: 4'>        day = day % 7;
+</span><span class='uc' id='L609' title='2|2|2 - Total: 2'>        if (day < 0)
+</span><span class='uc' id='L610' title='1|1|1 - Total: 1'>            day += 7;
+</span>        // Years and leap years on which Jan 1 is a Sunday, Monday, etc.
+<span class='uc' id='L612' title='2|2|2 - Total: 2'>        if (IsLeapYear(year)) {
+</span><span class='upc' id='L613' title='3|3|3 - Total: 8'>            switch (day) {
+</span><span class='nc' id='L614' title='0|0|0 - Total: 2'>                case 0: return 1984;
+</span><span class='uc' id='L615' title='2|2|2 - Total: 2'>                case 1: return 1996;
+</span><span class='uc' id='L616' title='2|2|2 - Total: 2'>                case 2: return 1980;
+</span><span class='nc' id='L617' title='0|0|0 - Total: 2'>                case 3: return 1992;
+</span><span class='nc' id='L618' title='0|0|0 - Total: 2'>                case 4: return 1976;
+</span><span class='nc' id='L619' title='0|0|0 - Total: 2'>                case 5: return 1988;
+</span><span class='upc' id='L620' title='2|2|2 - Total: 3'>                case 6: return 1972;
+</span>            }
+        } else {
+<span class='upc' id='L623' title='6|6|6 - Total: 8'>            switch (day) {
+</span><span class='uc' id='L624' title='2|2|2 - Total: 2'>                case 0: return 1978;
+</span><span class='uc' id='L625' title='2|2|2 - Total: 2'>                case 1: return 1973;
+</span><span class='uc' id='L626' title='2|2|2 - Total: 2'>                case 2: return 1985;
+</span><span class='uc' id='L627' title='2|2|2 - Total: 2'>                case 3: return 1986;
+</span><span class='uc' id='L628' title='2|2|2 - Total: 2'>                case 4: return 1981;
+</span><span class='uc' id='L629' title='2|2|2 - Total: 2'>                case 5: return 1971;
+</span><span class='nc' id='L630' title='0|0|0 - Total: 2'>                case 6: return 1977;
+</span>            }
+        }
+        // Unreachable
+<span class='nc' id='L634' title='0|0|0 - Total: 2'>        throw Kit.codeBug();
+</span>    }
+
+    private static double LocalTime(double t)
+    {
+<span class='uc' id='L639' title='7|7|7 - Total: 7'>        return t + LocalTZA + DaylightSavingTA(t);
+</span>    }
+
+    private static double internalUTC(double t)
+    {
+<span class='uc' id='L644' title='9|9|9 - Total: 9'>        return t - LocalTZA - DaylightSavingTA(t - LocalTZA);
+</span>    }
+
+    private static int HourFromTime(double t)
+    {
+        double result;
+<span class='uc' id='L650' title='7|7|7 - Total: 7'>        result = Math.floor(t / msPerHour) % HoursPerDay;
+</span><span class='uc' id='L651' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L652' title='4|4|4 - Total: 4'>            result += HoursPerDay;
+</span><span class='uc' id='L653' title='3|3|3 - Total: 3'>        return (int) result;
+</span>    }
+
+    private static int MinFromTime(double t)
+    {
+        double result;
+<span class='uc' id='L659' title='7|7|7 - Total: 7'>        result = Math.floor(t / msPerMinute) % MinutesPerHour;
+</span><span class='uc' id='L660' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L661' title='4|4|4 - Total: 4'>            result += MinutesPerHour;
+</span><span class='uc' id='L662' title='3|3|3 - Total: 3'>        return (int) result;
+</span>    }
+
+    private static int SecFromTime(double t)
+    {
+        double result;
+<span class='uc' id='L668' title='7|7|7 - Total: 7'>        result = Math.floor(t / msPerSecond) % SecondsPerMinute;
+</span><span class='uc' id='L669' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L670' title='4|4|4 - Total: 4'>            result += SecondsPerMinute;
+</span><span class='uc' id='L671' title='3|3|3 - Total: 3'>        return (int) result;
+</span>    }
+
+    private static int msFromTime(double t)
+    {
+        double result;
+<span class='uc' id='L677' title='4|4|4 - Total: 4'>        result =  t % msPerSecond;
+</span><span class='uc' id='L678' title='2|2|2 - Total: 2'>        if (result < 0)
+</span><span class='uc' id='L679' title='4|4|4 - Total: 4'>            result += msPerSecond;
+</span><span class='uc' id='L680' title='3|3|3 - Total: 3'>        return (int) result;
+</span>    }
+
+    private static double MakeTime(double hour, double min,
+                                   double sec, double ms)
+    {
+<span class='uc' id='L686' title='14|14|14 - Total: 14'>        return ((hour * MinutesPerHour + min) * SecondsPerMinute + sec)
+</span>            * msPerSecond + ms;
+    }
+
+    private static double MakeDay(double year, double month, double date)
+    {
+<span class='uc' id='L692' title='7|7|7 - Total: 7'>        year += Math.floor(month / 12);
+</span>
+<span class='uc' id='L694' title='4|4|4 - Total: 4'>        month = month % 12;
+</span><span class='upc' id='L695' title='1|1|1 - Total: 2'>        if (month < 0)
+</span><span class='nc' id='L696' title='0|0|0 - Total: 4'>            month += 12;
+</span>
+<span class='uc' id='L698' title='6|6|6 - Total: 6'>        double yearday = Math.floor(TimeFromYear(year) / msPerDay);
+</span><span class='uc' id='L699' title='6|6|6 - Total: 6'>        double monthday = DayFromMonth((int)month, (int)year);
+</span>
+<span class='uc' id='L701' title='8|8|8 - Total: 8'>        return yearday + monthday + date - 1;
+</span>    }
+
+    private static double MakeDate(double day, double time)
+    {
+<span class='uc' id='L706' title='6|6|6 - Total: 6'>        return day * msPerDay + time;
+</span>    }
+
+    private static double TimeClip(double d)
+    {
+<span class='uc' id='L711' title='6|6|6 - Total: 6'>        if (d != d ||
+</span>            d == Double.POSITIVE_INFINITY ||
+            d == Double.NEGATIVE_INFINITY ||
+<span class='upc' id='L714' title='1|1|1 - Total: 2'>            Math.abs(d) > HalfTimeDomain)
+</span>        {
+<span class='uc' id='L716' title='2|2|2 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+<span class='uc' id='L718' title='2|2|2 - Total: 2'>        if (d > 0.0)
+</span><span class='uc' id='L719' title='5|5|5 - Total: 5'>            return Math.floor(d + 0.);
+</span>        else
+<span class='uc' id='L721' title='5|5|5 - Total: 5'>            return Math.ceil(d + 0.);
+</span>    }
+
+    /* end of ECMA helper functions */
+
+    /* find UTC time from given date... no 1900 correction! */
+    private static double date_msecFromDate(double year, double mon,
+                                            double mday, double hour,
+                                            double min, double sec,
+                                            double msec)
+    {
+        double day;
+        double time;
+        double result;
+
+<span class='uc' id='L736' title='5|5|5 - Total: 5'>        day = MakeDay(year, mon, mday);
+</span><span class='uc' id='L737' title='6|6|6 - Total: 6'>        time = MakeTime(hour, min, sec, msec);
+</span><span class='uc' id='L738' title='4|4|4 - Total: 4'>        result = MakeDate(day, time);
+</span><span class='uc' id='L739' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /* compute the time in msec (unclipped) from the given args */
+    private static final int MAXARGS = 7;
+    private static double date_msecFromArgs(Object[] args)
+    {
+<span class='uc' id='L746' title='3|3|3 - Total: 3'>        double array[] = new double[MAXARGS];
+</span>        int loop;
+        double d;
+
+<span class='uc' id='L750' title='2|2|2 - Total: 2'>        for (loop = 0; loop < MAXARGS; loop++) {
+</span><span class='uc' id='L751' title='2|2|2 - Total: 2'>            if (loop < args.length) {
+</span><span class='uc' id='L752' title='5|5|5 - Total: 5'>                d = ScriptRuntime.toNumber(args[loop]);
+</span><span class='uc' id='L753' title='4|4|4 - Total: 4'>                if (d != d || Double.isInfinite(d)) {
+</span><span class='uc' id='L754' title='2|2|2 - Total: 2'>                    return ScriptRuntime.NaN;
+</span>                }
+<span class='uc' id='L756' title='8|8|8 - Total: 8'>                array[loop] = ScriptRuntime.toInteger(args[loop]);
+</span>            } else {
+<span class='upc' id='L758' title='1|1|1 - Total: 2'>                if (loop == 2) {
+</span><span class='nc' id='L759' title='0|0|0 - Total: 5'>                    array[loop] = 1; /* Default the date argument to 1. */
+</span>                } else {
+<span class='uc' id='L761' title='4|4|4 - Total: 4'>                    array[loop] = 0;
+</span>                }
+            }
+        }
+
+        /* adjust 2-digit years into the 20th century */
+<span class='upc' id='L767' title='3|3|3 - Total: 4'>        if (array[0] >= 0 && array[0] <= 99)
+</span><span class='uc' id='L768' title='7|7|7 - Total: 7'>            array[0] += 1900;
+</span>
+<span class='uc' id='L770' title='23|23|23 - Total: 23'>        return date_msecFromDate(array[0], array[1], array[2],
+</span>                                 array[3], array[4], array[5], array[6]);
+    }
+
+    private static double jsStaticFunction_UTC(Object[] args)
+    {
+<span class='uc' id='L776' title='4|4|4 - Total: 4'>        return TimeClip(date_msecFromArgs(args));
+</span>    }
+
+    /**
+     * 15.9.1.15 Date Time String Format<br>
+     * Parse input string according to simplified ISO-8601 Extended Format:
+     * <ul>
+     * <li><code>YYYY-MM-DD'T'HH:mm:ss.sss'Z'</code></li>
+     * <li>or <code>YYYY-MM-DD'T'HH:mm:ss.sss[+-]hh:mm</code></li>
+     * </ul>
+     */
+    private static double parseISOString(String s) {
+        // we use a simple state machine to parse the input string
+<span class='uc' id='L789' title='2|2|2 - Total: 2'>        final int ERROR = -1;
+</span><span class='uc' id='L790' title='6|6|6 - Total: 6'>        final int YEAR = 0, MONTH = 1, DAY = 2;
+</span><span class='uc' id='L791' title='8|8|8 - Total: 8'>        final int HOUR = 3, MIN = 4, SEC = 5, MSEC = 6;
+</span><span class='uc' id='L792' title='4|4|4 - Total: 4'>        final int TZHOUR = 7, TZMIN = 8;
+</span><span class='uc' id='L793' title='2|2|2 - Total: 2'>        int state = YEAR;
+</span>        // default values per [15.9.1.15 Date Time String Format]
+<span class='uc' id='L795' title='39|39|39 - Total: 39'>        int[] values = { 1970, 1, 1, 0, 0, 0, 0, -1, -1 };
+</span><span class='uc' id='L796' title='6|6|6 - Total: 6'>        int yearlen = 4, yearmod = 1, tzmod = 1;
+</span><span class='uc' id='L797' title='5|5|5 - Total: 5'>        int i = 0, len = s.length();
+</span><span class='upc' id='L798' title='1|1|1 - Total: 2'>        if (len != 0) {
+</span><span class='uc' id='L799' title='4|4|4 - Total: 4'>            char c = s.charAt(0);
+</span><span class='upc' id='L800' title='2|2|2 - Total: 4'>            if (c == '+' || c == '-') {
+</span>                // 15.9.1.15.1 Extended years
+<span class='nc' id='L802' title='0|0|0 - Total: 1'>                i += 1;
+</span><span class='nc' id='L803' title='0|0|0 - Total: 2'>                yearlen = 6;
+</span><span class='nc' id='L804' title='0|0|0 - Total: 2'>                yearmod = (c == '-') ? -1 : 1;
+</span><span class='uc' id='L805' title='2|2|2 - Total: 2'>            } else if (c == 'T') {
+</span>                // time-only forms no longer in spec, but follow spidermonkey here
+<span class='uc' id='L807' title='1|1|1 - Total: 1'>                i += 1;
+</span><span class='uc' id='L808' title='2|2|2 - Total: 2'>                state = HOUR;
+</span>            }
+        }
+<span class='uc' id='L811' title='2|2|2 - Total: 2'>        loop: while (state != ERROR) {
+</span><span class='uc' id='L812' title='4|4|4 - Total: 4'>            int m = i + (state == YEAR ? yearlen : state == MSEC ? 3 : 2);
+</span><span class='upc' id='L813' title='1|1|1 - Total: 2'>            if (m > len) {
+</span><span class='nc' id='L814' title='0|0|0 - Total: 2'>                state = ERROR;
+</span><span class='nc' id='L815' title='0|0|0 - Total: 1'>                break;
+</span>            }
+
+<span class='uc' id='L818' title='2|2|2 - Total: 2'>            int value = 0;
+</span><span class='uc' id='L819' title='2|2|2 - Total: 2'>            for (; i < m; ++i) {
+</span><span class='uc' id='L820' title='4|4|4 - Total: 4'>                char c = s.charAt(i);
+</span><span class='uc' id='L821' title='4|4|4 - Total: 4'>                if (c < '0' || c > '9') { state = ERROR; break loop; }
+</span><span class='uc' id='L822' title='8|8|8 - Total: 8'>                value = 10 * value + (c - '0');
+</span>            }
+<span class='uc' id='L824' title='4|4|4 - Total: 4'>            values[state] = value;
+</span>
+<span class='upc' id='L826' title='1|1|1 - Total: 2'>            if (i == len) {
+</span>                // reached EOF, check for end state
+<span class='nc' id='L828' title='0|0|0 - Total: 2'>                switch (state) {
+</span>                case HOUR:
+                case TZHOUR:
+<span class='nc' id='L831' title='0|0|0 - Total: 2'>                    state = ERROR;
+</span>                }
+<span class='nc' id='L833' title='0|0|0 - Total: 1'>                break;
+</span>            }
+
+<span class='uc' id='L836' title='5|5|5 - Total: 5'>            char c = s.charAt(i++);
+</span><span class='uc' id='L837' title='2|2|2 - Total: 2'>            if (c == 'Z') {
+</span>                // handle abbrevation for UTC timezone
+<span class='uc' id='L839' title='4|4|4 - Total: 4'>                values[TZHOUR] = 0;
+</span><span class='uc' id='L840' title='4|4|4 - Total: 4'>                values[TZMIN] = 0;
+</span><span class='upc' id='L841' title='1|1|1 - Total: 2'>                switch (state) {
+</span>                case MIN:
+                case SEC:
+                case MSEC:
+<span class='uc' id='L845' title='1|1|1 - Total: 1'>                    break;
+</span>                default:
+<span class='nc' id='L847' title='0|0|0 - Total: 2'>                    state = ERROR;
+</span>                }
+<span class='nc' id='L849' title='0|0|0 - Total: 1'>                break;
+</span>            }
+
+            // state transition
+<span class='upc' id='L853' title='6|6|6 - Total: 9'>            switch (state) {
+</span>            case YEAR:
+            case MONTH:
+<span class='upc' id='L856' title='3|3|3 - Total: 4'>                state = (c == '-' ? state + 1 : c == 'T' ? HOUR : ERROR);
+</span><span class='uc' id='L857' title='1|1|1 - Total: 1'>                break;
+</span>            case DAY:
+<span class='upc' id='L859' title='1|1|1 - Total: 2'>                state = (c == 'T' ? HOUR : ERROR);
+</span><span class='uc' id='L860' title='1|1|1 - Total: 1'>                break;
+</span>            case HOUR:
+<span class='upc' id='L862' title='1|1|1 - Total: 2'>                state = (c == ':' ? MIN : ERROR);
+</span><span class='uc' id='L863' title='1|1|1 - Total: 1'>                break;
+</span>            case TZHOUR:
+                // state = (c == ':' ? state + 1 : ERROR);
+                // Non-standard extension, https://bugzilla.mozilla.org/show_bug.cgi?id=682754
+<span class='nc' id='L867' title='0|0|0 - Total: 2'>                if (c != ':') {
+</span>                    // back off by one and try to read without ':' separator
+<span class='nc' id='L869' title='0|0|0 - Total: 1'>                    i -= 1;
+</span>                }
+<span class='nc' id='L871' title='0|0|0 - Total: 2'>                state = TZMIN;
+</span><span class='nc' id='L872' title='0|0|0 - Total: 1'>                break;
+</span>            case MIN:
+<span class='upc' id='L874' title='1|1|1 - Total: 6'>                state = (c == ':' ? SEC : c == '+' || c == '-' ? TZHOUR : ERROR);
+</span><span class='uc' id='L875' title='1|1|1 - Total: 1'>                break;
+</span>            case SEC:
+<span class='upc' id='L877' title='1|1|1 - Total: 6'>                state = (c == '.' ? MSEC : c == '+' || c == '-' ? TZHOUR : ERROR);
+</span><span class='uc' id='L878' title='1|1|1 - Total: 1'>                break;
+</span>            case MSEC:
+<span class='upc' id='L880' title='2|2|2 - Total: 4'>                state = (c == '+' || c == '-' ? TZHOUR : ERROR);
+</span><span class='uc' id='L881' title='1|1|1 - Total: 1'>                break;
+</span>            case TZMIN:
+<span class='nc' id='L883' title='0|0|0 - Total: 2'>                state = ERROR;
+</span>                break;
+            }
+<span class='upc' id='L886' title='1|1|1 - Total: 2'>            if (state == TZHOUR) {
+</span>                // save timezone modificator
+<span class='nc' id='L888' title='0|0|0 - Total: 2'>                tzmod = (c == '-') ? -1 : 1;
+</span>            }
+<span class='uc' id='L890' title='1|1|1 - Total: 1'>        }
+</span>
+        syntax: {
+            // error or unparsed characters
+<span class='uc' id='L894' title='4|4|4 - Total: 4'>            if (state == ERROR || i != len) break syntax;
+</span>
+            // check values
+<span class='uc' id='L897' title='12|12|12 - Total: 12'>            int year = values[YEAR], month = values[MONTH], day = values[DAY];
+</span><span class='uc' id='L898' title='16|16|16 - Total: 16'>            int hour = values[HOUR], min = values[MIN], sec = values[SEC], msec = values[MSEC];
+</span><span class='uc' id='L899' title='8|8|8 - Total: 8'>            int tzhour = values[TZHOUR], tzmin = values[TZMIN];
+</span><span class='upc' id='L900' title='4|4|4 - Total: 8'>            if (year > 275943 // ceil(1e8/365) + 1970 = 275943
+</span>                || (month < 1 || month > 12)
+<span class='upc' id='L902' title='7|7|7 - Total: 20'>                || (day < 1 || day > DaysInMonth(year, month))
+</span>                || hour > 24
+                || (hour == 24 && (min > 0 || sec > 0 || msec > 0))
+                || min > 59
+                || sec > 59
+                || tzhour > 23
+                || tzmin > 59
+               ) {
+<span class='nc' id='L910' title='0|0|0 - Total: 1'>                break syntax;
+</span>            }
+            // valid ISO-8601 format, compute date in milliseconds
+<span class='uc' id='L913' title='20|20|20 - Total: 20'>            double date = date_msecFromDate(year * yearmod, month - 1, day,
+</span>                                            hour, min, sec, msec);
+<span class='upc' id='L915' title='1|1|1 - Total: 2'>            if (tzhour == -1) {
+</span>                // Spec says to use UTC timezone, the following bug report says
+                // that local timezone was meant to be used. Stick with spec for now.
+                // https://bugs.ecmascript.org/show_bug.cgi?id=112
+                // date = internalUTC(date);
+            } else {
+<span class='uc' id='L921' title='14|14|14 - Total: 14'>                date -= (tzhour * 60 + tzmin) * msPerMinute * tzmod;
+</span>            }
+
+<span class='upc' id='L924' title='2|2|2 - Total: 4'>            if (date < -HalfTimeDomain || date > HalfTimeDomain) break syntax;
+</span><span class='uc' id='L925' title='2|2|2 - Total: 2'>            return date;
+</span>        }
+
+        // invalid ISO-8601 format, return NaN
+<span class='uc' id='L929' title='2|2|2 - Total: 2'>        return ScriptRuntime.NaN;
+</span>    }
+
+    private static double date_parseString(String s)
+    {
+<span class='uc' id='L934' title='3|3|3 - Total: 3'>        double d = parseISOString(s);
+</span><span class='uc' id='L935' title='2|2|2 - Total: 2'>        if (d == d) {
+</span><span class='uc' id='L936' title='2|2|2 - Total: 2'>            return d;
+</span>        }
+
+<span class='uc' id='L939' title='2|2|2 - Total: 2'>        int year = -1;
+</span><span class='uc' id='L940' title='2|2|2 - Total: 2'>        int mon = -1;
+</span><span class='uc' id='L941' title='2|2|2 - Total: 2'>        int mday = -1;
+</span><span class='uc' id='L942' title='2|2|2 - Total: 2'>        int hour = -1;
+</span><span class='uc' id='L943' title='2|2|2 - Total: 2'>        int min = -1;
+</span><span class='uc' id='L944' title='2|2|2 - Total: 2'>        int sec = -1;
+</span><span class='uc' id='L945' title='2|2|2 - Total: 2'>        char c = 0;
+</span><span class='uc' id='L946' title='2|2|2 - Total: 2'>        char si = 0;
+</span><span class='uc' id='L947' title='2|2|2 - Total: 2'>        int i = 0;
+</span><span class='uc' id='L948' title='2|2|2 - Total: 2'>        int n = -1;
+</span><span class='uc' id='L949' title='2|2|2 - Total: 2'>        double tzoffset = -1;
+</span><span class='uc' id='L950' title='2|2|2 - Total: 2'>        char prevc = 0;
+</span><span class='uc' id='L951' title='2|2|2 - Total: 2'>        int limit = 0;
+</span><span class='uc' id='L952' title='2|2|2 - Total: 2'>        boolean seenplusminus = false;
+</span>
+<span class='uc' id='L954' title='3|3|3 - Total: 3'>        limit = s.length();
+</span><span class='uc' id='L955' title='2|2|2 - Total: 2'>        while (i < limit) {
+</span><span class='uc' id='L956' title='4|4|4 - Total: 4'>            c = s.charAt(i);
+</span><span class='uc' id='L957' title='1|1|1 - Total: 1'>            i++;
+</span><span class='uc' id='L958' title='6|6|6 - Total: 6'>            if (c <= ' ' || c == ',' || c == '-') {
+</span><span class='upc' id='L959' title='1|1|1 - Total: 2'>                if (i < limit) {
+</span><span class='uc' id='L960' title='4|4|4 - Total: 4'>                    si = s.charAt(i);
+</span><span class='upc' id='L961' title='4|4|4 - Total: 6'>                    if (c == '-' && '0' <= si && si <= '9') {
+</span><span class='uc' id='L962' title='3|3|3 - Total: 3'>                        prevc = c;
+</span>                    }
+                }
+                continue;
+            }
+<span class='uc' id='L967' title='2|2|2 - Total: 2'>            if (c == '(') { /* comments) */
+</span><span class='uc' id='L968' title='2|2|2 - Total: 2'>                int depth = 1;
+</span><span class='upc' id='L969' title='1|1|1 - Total: 2'>                while (i < limit) {
+</span><span class='uc' id='L970' title='4|4|4 - Total: 4'>                    c = s.charAt(i);
+</span><span class='uc' id='L971' title='1|1|1 - Total: 1'>                    i++;
+</span><span class='upc' id='L972' title='1|1|1 - Total: 2'>                    if (c == '(')
+</span><span class='nc' id='L973' title='0|0|0 - Total: 2'>                        depth++;
+</span><span class='uc' id='L974' title='2|2|2 - Total: 2'>                    else if (c == ')')
+</span><span class='upc' id='L975' title='1|1|1 - Total: 2'>                        if (--depth <= 0)
+</span><span class='uc' id='L976' title='1|1|1 - Total: 1'>                            break;
+</span>                }
+                continue;
+            }
+<span class='uc' id='L980' title='4|4|4 - Total: 4'>            if ('0' <= c && c <= '9') {
+</span><span class='uc' id='L981' title='4|4|4 - Total: 4'>                n = c - '0';
+</span><span class='uc' id='L982' title='6|6|6 - Total: 6'>                while (i < limit && '0' <= (c = s.charAt(i)) && c <= '9') {
+</span><span class='uc' id='L983' title='8|8|8 - Total: 8'>                    n = n * 10 + c - '0';
+</span><span class='uc' id='L984' title='2|2|2 - Total: 2'>                    i++;
+</span>                }
+
+                /* allow TZA before the year, so
+                 * 'Wed Nov 05 21:49:11 GMT-0800 1997'
+                 * works */
+
+                /* uses of seenplusminus allow : in TZA, so Java
+                 * no-timezone style of GMT+4:30 works
+                 */
+<span class='upc' id='L994' title='3|3|3 - Total: 4'>                if ((prevc == '+' || prevc == '-')/*  && year>=0 */) {
+</span>                    /* make ':' case below change tzoffset */
+<span class='uc' id='L996' title='2|2|2 - Total: 2'>                    seenplusminus = true;
+</span>
+                    /* offset */
+<span class='upc' id='L999' title='1|1|1 - Total: 2'>                    if (n < 24)
+</span><span class='nc' id='L1000' title='0|0|0 - Total: 5'>                        n = n * 60; /* EG. "GMT-3" */
+</span>                    else
+<span class='uc' id='L1002' title='10|10|10 - Total: 10'>                        n = n % 100 + n / 100 * 60; /* eg "GMT-0430" */
+</span><span class='upc' id='L1003' title='1|1|1 - Total: 2'>                    if (prevc == '+')       /* plus means east of GMT */
+</span><span class='nc' id='L1004' title='0|0|0 - Total: 3'>                        n = -n;
+</span><span class='upc' id='L1005' title='1|1|1 - Total: 4'>                    if (tzoffset != 0 && tzoffset != -1)
+</span><span class='nc' id='L1006' title='0|0|0 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='uc' id='L1007' title='4|4|4 - Total: 4'>                    tzoffset = n;
+</span><span class='upc' id='L1008' title='6|6|6 - Total: 10'>                } else if (n >= 70  ||
+</span>                           (prevc == '/' && mon >= 0 && mday >= 0
+                            && year < 0))
+                {
+<span class='uc' id='L1012' title='2|2|2 - Total: 2'>                    if (year >= 0)
+</span><span class='uc' id='L1013' title='2|2|2 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='upc' id='L1014' title='6|6|6 - Total: 8'>                    else if (c <= ' ' || c == ',' || c == '/' || i >= limit)
+</span><span class='uc' id='L1015' title='2|2|2 - Total: 2'>                        year = n < 100 ? n + 1900 : n;
+</span>                    else
+<span class='uc' id='L1017' title='2|2|2 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='uc' id='L1018' title='2|2|2 - Total: 2'>                } else if (c == ':') {
+</span><span class='uc' id='L1019' title='2|2|2 - Total: 2'>                    if (hour < 0)
+</span><span class='uc' id='L1020' title='3|3|3 - Total: 3'>                        hour = /*byte*/ n;
+</span><span class='upc' id='L1021' title='1|1|1 - Total: 2'>                    else if (min < 0)
+</span><span class='uc' id='L1022' title='3|3|3 - Total: 3'>                        min = /*byte*/ n;
+</span>                    else
+<span class='nc' id='L1024' title='0|0|0 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='uc' id='L1025' title='2|2|2 - Total: 2'>                } else if (c == '/') {
+</span><span class='uc' id='L1026' title='2|2|2 - Total: 2'>                    if (mon < 0)
+</span><span class='uc' id='L1027' title='5|5|5 - Total: 5'>                        mon = /*byte*/ n-1;
+</span><span class='upc' id='L1028' title='1|1|1 - Total: 2'>                    else if (mday < 0)
+</span><span class='uc' id='L1029' title='3|3|3 - Total: 3'>                        mday = /*byte*/ n;
+</span>                    else
+<span class='nc' id='L1031' title='0|0|0 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='upc' id='L1032' title='5|5|5 - Total: 8'>                } else if (i < limit && c != ',' && c > ' ' && c != '-') {
+</span><span class='nc' id='L1033' title='0|0|0 - Total: 2'>                    return ScriptRuntime.NaN;
+</span><span class='upc' id='L1034' title='1|1|1 - Total: 4'>                } else if (seenplusminus && n < 60) {  /* handle GMT-3:30 */
+</span><span class='nc' id='L1035' title='0|0|0 - Total: 2'>                    if (tzoffset < 0)
+</span><span class='nc' id='L1036' title='0|0|0 - Total: 6'>                        tzoffset -= n;
+</span>                    else
+<span class='nc' id='L1038' title='0|0|0 - Total: 6'>                        tzoffset += n;
+</span><span class='uc' id='L1039' title='4|4|4 - Total: 4'>                } else if (hour >= 0 && min < 0) {
+</span><span class='uc' id='L1040' title='3|3|3 - Total: 3'>                    min = /*byte*/ n;
+</span><span class='upc' id='L1041' title='3|3|3 - Total: 4'>                } else if (min >= 0 && sec < 0) {
+</span><span class='uc' id='L1042' title='3|3|3 - Total: 3'>                    sec = /*byte*/ n;
+</span><span class='uc' id='L1043' title='2|2|2 - Total: 2'>                } else if (mday < 0) {
+</span><span class='uc' id='L1044' title='3|3|3 - Total: 3'>                    mday = /*byte*/ n;
+</span>                } else {
+<span class='uc' id='L1046' title='2|2|2 - Total: 2'>                    return ScriptRuntime.NaN;
+</span>                }
+<span class='uc' id='L1048' title='3|3|3 - Total: 3'>                prevc = 0;
+</span><span class='upc' id='L1049' title='6|6|6 - Total: 8'>            } else if (c == '/' || c == ':' || c == '+' || c == '-') {
+</span><span class='uc' id='L1050' title='3|3|3 - Total: 3'>                prevc = c;
+</span>            } else {
+<span class='uc' id='L1052' title='4|4|4 - Total: 4'>                int st = i - 1;
+</span><span class='uc' id='L1053' title='2|2|2 - Total: 2'>                while (i < limit) {
+</span><span class='uc' id='L1054' title='4|4|4 - Total: 4'>                    c = s.charAt(i);
+</span><span class='upc' id='L1055' title='7|7|7 - Total: 8'>                    if (!(('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')))
+</span><span class='nc' id='L1056' title='0|0|0 - Total: 1'>                        break;
+</span><span class='uc' id='L1057' title='2|2|2 - Total: 2'>                    i++;
+</span>                }
+<span class='uc' id='L1059' title='4|4|4 - Total: 4'>                int letterCount = i - st;
+</span><span class='upc' id='L1060' title='1|1|1 - Total: 2'>                if (letterCount < 2)
+</span><span class='nc' id='L1061' title='0|0|0 - Total: 2'>                    return ScriptRuntime.NaN;
+</span>               /*
+                * Use ported code from jsdate.c rather than the locale-specific
+                * date-parsing code from Java, to keep js and rhino consistent.
+                * Is this the right strategy?
+                */
+<span class='uc' id='L1067' title='2|2|2 - Total: 2'>                String wtb = "am;pm;"
+</span>                            +"monday;tuesday;wednesday;thursday;friday;"
+                            +"saturday;sunday;"
+                            +"january;february;march;april;may;june;"
+                            +"july;august;september;october;november;december;"
+                            +"gmt;ut;utc;est;edt;cst;cdt;mst;mdt;pst;pdt;";
+<span class='uc' id='L1073' title='2|2|2 - Total: 2'>                int index = 0;
+</span><span class='uc' id='L1074' title='2|2|2 - Total: 2'>                for (int wtbOffset = 0; ;) {
+</span><span class='uc' id='L1075' title='5|5|5 - Total: 5'>                    int wtbNext = wtb.indexOf(';', wtbOffset);
+</span><span class='upc' id='L1076' title='1|1|1 - Total: 2'>                    if (wtbNext < 0)
+</span><span class='nc' id='L1077' title='0|0|0 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='uc' id='L1078' title='2|2|2 - Total: 2'>                    if (wtb.regionMatches(true, wtbOffset, s, st, letterCount))
+</span><span class='uc' id='L1079' title='1|1|1 - Total: 1'>                        break;
+</span><span class='uc' id='L1080' title='4|4|4 - Total: 4'>                    wtbOffset = wtbNext + 1;
+</span><span class='uc' id='L1081' title='1|1|1 - Total: 1'>                    ++index;
+</span><span class='uc' id='L1082' title='1|1|1 - Total: 1'>                }
+</span><span class='uc' id='L1083' title='2|2|2 - Total: 2'>                if (index < 2) {
+</span>                    /*
+                     * AM/PM. Count 12:30 AM as 00:30, 12:30 PM as
+                     * 12:30, instead of blindly adding 12 if PM.
+                     */
+<span class='upc' id='L1088' title='3|3|3 - Total: 4'>                    if (hour > 12 || hour < 0) {
+</span><span class='uc' id='L1089' title='2|2|2 - Total: 2'>                        return ScriptRuntime.NaN;
+</span><span class='uc' id='L1090' title='2|2|2 - Total: 2'>                    } else if (index == 0) {
+</span>                        // AM
+<span class='uc' id='L1092' title='2|2|2 - Total: 2'>                        if (hour == 12)
+</span><span class='uc' id='L1093' title='3|3|3 - Total: 3'>                            hour = 0;
+</span>                    } else {
+                        // PM
+<span class='uc' id='L1096' title='2|2|2 - Total: 2'>                        if (hour != 12)
+</span><span class='uc' id='L1097' title='2|2|2 - Total: 2'>                            hour += 12;
+</span>                    }
+<span class='uc' id='L1099' title='2|2|2 - Total: 2'>                } else if ((index -= 2) < 7) {
+</span>                    // ignore week days
+<span class='uc' id='L1101' title='2|2|2 - Total: 2'>                } else if ((index -= 7) < 12) {
+</span>                    // month
+<span class='upc' id='L1103' title='1|1|1 - Total: 2'>                    if (mon < 0) {
+</span><span class='uc' id='L1104' title='3|3|3 - Total: 3'>                        mon = index;
+</span>                    } else {
+<span class='nc' id='L1106' title='0|0|0 - Total: 2'>                        return ScriptRuntime.NaN;
+</span>                    }
+                } else {
+<span class='uc' id='L1109' title='1|1|1 - Total: 1'>                    index -= 12;
+</span>                    // timezones
+<span class='upc' id='L1111' title='3|3|3 - Total: 12'>                    switch (index) {
+</span><span class='uc' id='L1112' title='3|3|3 - Total: 3'>                      case 0 /* gmt */: tzoffset = 0; break;
+</span><span class='nc' id='L1113' title='0|0|0 - Total: 3'>                      case 1 /* ut */:  tzoffset = 0; break;
+</span><span class='nc' id='L1114' title='0|0|0 - Total: 3'>                      case 2 /* utc */: tzoffset = 0; break;
+</span><span class='nc' id='L1115' title='0|0|0 - Total: 3'>                      case 3 /* est */: tzoffset = 5 * 60; break;
+</span><span class='nc' id='L1116' title='0|0|0 - Total: 3'>                      case 4 /* edt */: tzoffset = 4 * 60; break;
+</span><span class='nc' id='L1117' title='0|0|0 - Total: 3'>                      case 5 /* cst */: tzoffset = 6 * 60; break;
+</span><span class='nc' id='L1118' title='0|0|0 - Total: 3'>                      case 6 /* cdt */: tzoffset = 5 * 60; break;
+</span><span class='nc' id='L1119' title='0|0|0 - Total: 3'>                      case 7 /* mst */: tzoffset = 7 * 60; break;
+</span><span class='nc' id='L1120' title='0|0|0 - Total: 3'>                      case 8 /* mdt */: tzoffset = 6 * 60; break;
+</span><span class='uc' id='L1121' title='3|3|3 - Total: 3'>                      case 9 /* pst */: tzoffset = 8 * 60; break;
+</span><span class='uc' id='L1122' title='3|3|3 - Total: 3'>                      case 10 /* pdt */:tzoffset = 7 * 60; break;
+</span><span class='nc' id='L1123' title='0|0|0 - Total: 2'>                      default: Kit.codeBug();
+</span>                    }
+                }
+<span class='uc' id='L1126' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='upc' id='L1128' title='3|3|3 - Total: 6'>        if (year < 0 || mon < 0 || mday < 0)
+</span><span class='nc' id='L1129' title='0|0|0 - Total: 2'>            return ScriptRuntime.NaN;
+</span><span class='uc' id='L1130' title='2|2|2 - Total: 2'>        if (sec < 0)
+</span><span class='uc' id='L1131' title='2|2|2 - Total: 2'>            sec = 0;
+</span><span class='uc' id='L1132' title='2|2|2 - Total: 2'>        if (min < 0)
+</span><span class='uc' id='L1133' title='2|2|2 - Total: 2'>            min = 0;
+</span><span class='uc' id='L1134' title='2|2|2 - Total: 2'>        if (hour < 0)
+</span><span class='uc' id='L1135' title='2|2|2 - Total: 2'>            hour = 0;
+</span>
+<span class='uc' id='L1137' title='15|15|15 - Total: 15'>        double msec = date_msecFromDate(year, mon, mday, hour, min, sec, 0);
+</span><span class='uc' id='L1138' title='2|2|2 - Total: 2'>        if (tzoffset == -1) { /* no time zone specified, have to use local */
+</span><span class='uc' id='L1139' title='3|3|3 - Total: 3'>            return internalUTC(msec);
+</span>        } else {
+<span class='uc' id='L1141' title='6|6|6 - Total: 6'>            return msec + tzoffset * msPerMinute;
+</span>        }
+    }
+
+    private static String date_format(double t, int methodId)
+    {
+<span class='uc' id='L1147' title='5|5|5 - Total: 5'>        StringBuilder result = new StringBuilder(60);
+</span><span class='uc' id='L1148' title='3|3|3 - Total: 3'>        double local = LocalTime(t);
+</span>
+        /* Tue Oct 31 09:41:40 GMT-0800 (PST) 2000 */
+        /* Tue Oct 31 2000 */
+        /* 09:41:40 GMT-0800 (PST) */
+
+<span class='uc' id='L1154' title='2|2|2 - Total: 2'>        if (methodId != Id_toTimeString) {
+</span><span class='uc' id='L1155' title='4|4|4 - Total: 4'>            appendWeekDayName(result, WeekDay(local));
+</span><span class='uc' id='L1156' title='4|4|4 - Total: 4'>            result.append(' ');
+</span><span class='uc' id='L1157' title='4|4|4 - Total: 4'>            appendMonthName(result, MonthFromTime(local));
+</span><span class='uc' id='L1158' title='4|4|4 - Total: 4'>            result.append(' ');
+</span><span class='uc' id='L1159' title='5|5|5 - Total: 5'>            append0PaddedUint(result, DateFromTime(local), 2);
+</span><span class='uc' id='L1160' title='4|4|4 - Total: 4'>            result.append(' ');
+</span><span class='uc' id='L1161' title='3|3|3 - Total: 3'>            int year = YearFromTime(local);
+</span><span class='uc' id='L1162' title='2|2|2 - Total: 2'>            if (year < 0) {
+</span><span class='uc' id='L1163' title='4|4|4 - Total: 4'>                result.append('-');
+</span><span class='uc' id='L1164' title='3|3|3 - Total: 3'>                year = -year;
+</span>            }
+<span class='uc' id='L1166' title='4|4|4 - Total: 4'>            append0PaddedUint(result, year, 4);
+</span><span class='uc' id='L1167' title='2|2|2 - Total: 2'>            if (methodId != Id_toDateString)
+</span><span class='uc' id='L1168' title='4|4|4 - Total: 4'>                result.append(' ');
+</span>        }
+
+<span class='uc' id='L1171' title='2|2|2 - Total: 2'>        if (methodId != Id_toDateString) {
+</span><span class='uc' id='L1172' title='5|5|5 - Total: 5'>            append0PaddedUint(result, HourFromTime(local), 2);
+</span><span class='uc' id='L1173' title='4|4|4 - Total: 4'>            result.append(':');
+</span><span class='uc' id='L1174' title='5|5|5 - Total: 5'>            append0PaddedUint(result, MinFromTime(local), 2);
+</span><span class='uc' id='L1175' title='4|4|4 - Total: 4'>            result.append(':');
+</span><span class='uc' id='L1176' title='5|5|5 - Total: 5'>            append0PaddedUint(result, SecFromTime(local), 2);
+</span>
+            // offset from GMT in minutes.  The offset includes daylight
+            // savings, if it applies.
+<span class='uc' id='L1180' title='9|9|9 - Total: 9'>            int minutes = (int) Math.floor((LocalTZA + DaylightSavingTA(t))
+</span>                                           / msPerMinute);
+            // map 510 minutes to 0830 hours
+<span class='uc' id='L1183' title='10|10|10 - Total: 10'>            int offset = (minutes / 60) * 100 + minutes % 60;
+</span><span class='upc' id='L1184' title='1|1|1 - Total: 2'>            if (offset > 0) {
+</span><span class='nc' id='L1185' title='0|0|0 - Total: 5'>                result.append(" GMT+");
+</span>            } else {
+<span class='uc' id='L1187' title='4|4|4 - Total: 4'>                result.append(" GMT-");
+</span><span class='uc' id='L1188' title='3|3|3 - Total: 3'>                offset = -offset;
+</span>            }
+<span class='uc' id='L1190' title='4|4|4 - Total: 4'>            append0PaddedUint(result, offset, 4);
+</span>
+<span class='uc' id='L1192' title='2|2|2 - Total: 2'>            if (timeZoneFormatter == null)
+</span><span class='uc' id='L1193' title='5|5|5 - Total: 5'>                timeZoneFormatter = new SimpleDateFormat("zzz");
+</span>
+            // Find an equivalent year before getting the timezone
+            // comment.  See DaylightSavingTA.
+<span class='uc' id='L1197' title='2|2|2 - Total: 2'>            if (t < 0.0) {
+</span><span class='uc' id='L1198' title='4|4|4 - Total: 4'>                int equiv = EquivalentYear(YearFromTime(local));
+</span><span class='uc' id='L1199' title='10|10|10 - Total: 10'>                double day = MakeDay(equiv, MonthFromTime(t), DateFromTime(t));
+</span><span class='uc' id='L1200' title='5|5|5 - Total: 5'>                t = MakeDate(day, TimeWithinDay(t));
+</span>            }
+<span class='uc' id='L1202' title='4|4|4 - Total: 4'>            result.append(" (");
+</span><span class='uc' id='L1203' title='6|6|6 - Total: 6'>            Date date = new Date((long) t);
+</span><span class='uc' id='L1204' title='4|4|4 - Total: 4'>            synchronized (timeZoneFormatter) {
+</span><span class='uc' id='L1205' title='6|6|6 - Total: 6'>                result.append(timeZoneFormatter.format(date));
+</span><span class='upc' id='L1206' title='3|3|3 - Total: 8'>            }
+</span><span class='uc' id='L1207' title='4|4|4 - Total: 4'>            result.append(')');
+</span>        }
+<span class='uc' id='L1209' title='3|3|3 - Total: 3'>        return result.toString();
+</span>    }
+
+    /* the javascript constructor */
+    private static Object jsConstructor(Object[] args)
+    {
+<span class='uc' id='L1215' title='4|4|4 - Total: 4'>        NativeDate obj = new NativeDate();
+</span>
+        // if called as a constructor with no args,
+        // return a new Date with the current time.
+<span class='uc' id='L1219' title='2|2|2 - Total: 2'>        if (args.length == 0) {
+</span><span class='uc' id='L1220' title='3|3|3 - Total: 3'>            obj.date = now();
+</span><span class='uc' id='L1221' title='2|2|2 - Total: 2'>            return obj;
+</span>        }
+
+        // if called with just one arg -
+<span class='uc' id='L1225' title='2|2|2 - Total: 2'>        if (args.length == 1) {
+</span><span class='uc' id='L1226' title='4|4|4 - Total: 4'>            Object arg0 = args[0];
+</span><span class='uc' id='L1227' title='2|2|2 - Total: 2'>            if (arg0 instanceof Scriptable)
+</span><span class='uc' id='L1228' title='5|5|5 - Total: 5'>                arg0 = ((Scriptable) arg0).getDefaultValue(null);
+</span>            double date;
+<span class='uc' id='L1230' title='2|2|2 - Total: 2'>            if (arg0 instanceof CharSequence) {
+</span>                // it's a string; parse it.
+<span class='uc' id='L1232' title='5|5|5 - Total: 5'>                date = date_parseString(arg0.toString());
+</span>            } else {
+                // if it's not a string, use it as a millisecond date
+<span class='uc' id='L1235' title='3|3|3 - Total: 3'>                date = ScriptRuntime.toNumber(arg0);
+</span>            }
+<span class='uc' id='L1237' title='4|4|4 - Total: 4'>            obj.date = TimeClip(date);
+</span><span class='uc' id='L1238' title='2|2|2 - Total: 2'>            return obj;
+</span>        }
+
+<span class='uc' id='L1241' title='3|3|3 - Total: 3'>        double time = date_msecFromArgs(args);
+</span>
+<span class='upc' id='L1243' title='2|2|2 - Total: 4'>        if (!Double.isNaN(time) && !Double.isInfinite(time))
+</span><span class='uc' id='L1244' title='4|4|4 - Total: 4'>            time = TimeClip(internalUTC(time));
+</span>
+<span class='uc' id='L1246' title='3|3|3 - Total: 3'>        obj.date = time;
+</span>
+<span class='uc' id='L1248' title='2|2|2 - Total: 2'>        return obj;
+</span>    }
+
+    private static String toLocale_helper(double t, int methodId)
+    {
+        DateFormat formatter;
+<span class='upc' id='L1254' title='3|3|3 - Total: 4'>        switch (methodId) {
+</span>          case Id_toLocaleString:
+<span class='uc' id='L1256' title='2|2|2 - Total: 2'>            if (localeDateTimeFormatter == null) {
+</span><span class='uc' id='L1257' title='2|2|2 - Total: 2'>                localeDateTimeFormatter
+</span><span class='uc' id='L1258' title='2|2|2 - Total: 2'>                    = DateFormat.getDateTimeInstance(DateFormat.LONG,
+</span>                                                     DateFormat.LONG);
+            }
+<span class='uc' id='L1261' title='2|2|2 - Total: 2'>            formatter = localeDateTimeFormatter;
+</span><span class='uc' id='L1262' title='1|1|1 - Total: 1'>            break;
+</span>          case Id_toLocaleTimeString:
+<span class='uc' id='L1264' title='2|2|2 - Total: 2'>            if (localeTimeFormatter == null) {
+</span><span class='uc' id='L1265' title='1|1|1 - Total: 1'>                localeTimeFormatter
+</span><span class='uc' id='L1266' title='2|2|2 - Total: 2'>                    = DateFormat.getTimeInstance(DateFormat.LONG);
+</span>            }
+<span class='uc' id='L1268' title='2|2|2 - Total: 2'>            formatter = localeTimeFormatter;
+</span><span class='uc' id='L1269' title='1|1|1 - Total: 1'>            break;
+</span>          case Id_toLocaleDateString:
+<span class='uc' id='L1271' title='2|2|2 - Total: 2'>            if (localeDateFormatter == null) {
+</span><span class='uc' id='L1272' title='1|1|1 - Total: 1'>                localeDateFormatter
+</span><span class='uc' id='L1273' title='2|2|2 - Total: 2'>                    = DateFormat.getDateInstance(DateFormat.LONG);
+</span>            }
+<span class='uc' id='L1275' title='2|2|2 - Total: 2'>            formatter = localeDateFormatter;
+</span><span class='uc' id='L1276' title='1|1|1 - Total: 1'>            break;
+</span><span class='nc' id='L1277' title='0|0|0 - Total: 4'>          default: throw new AssertionError(); // unreachable
+</span>        }
+
+<span class='uc' id='L1280' title='4|4|4 - Total: 4'>        synchronized (formatter) {
+</span><span class='uc' id='L1281' title='10|10|10 - Total: 10'>            return formatter.format(new Date((long) t));
+</span><span class='nc' id='L1282' title='0|0|0 - Total: 5'>        }
+</span>    }
+
+    private static String js_toUTCString(double date)
+    {
+<span class='uc' id='L1287' title='5|5|5 - Total: 5'>        StringBuilder result = new StringBuilder(60);
+</span>
+<span class='uc' id='L1289' title='4|4|4 - Total: 4'>        appendWeekDayName(result, WeekDay(date));
+</span><span class='uc' id='L1290' title='4|4|4 - Total: 4'>        result.append(", ");
+</span><span class='uc' id='L1291' title='5|5|5 - Total: 5'>        append0PaddedUint(result, DateFromTime(date), 2);
+</span><span class='uc' id='L1292' title='4|4|4 - Total: 4'>        result.append(' ');
+</span><span class='uc' id='L1293' title='4|4|4 - Total: 4'>        appendMonthName(result, MonthFromTime(date));
+</span><span class='uc' id='L1294' title='4|4|4 - Total: 4'>        result.append(' ');
+</span><span class='uc' id='L1295' title='3|3|3 - Total: 3'>        int year = YearFromTime(date);
+</span><span class='upc' id='L1296' title='1|1|1 - Total: 2'>        if (year < 0) {
+</span><span class='nc' id='L1297' title='0|0|0 - Total: 7'>            result.append('-'); year = -year;
+</span>        }
+<span class='uc' id='L1299' title='4|4|4 - Total: 4'>        append0PaddedUint(result, year, 4);
+</span><span class='uc' id='L1300' title='4|4|4 - Total: 4'>        result.append(' ');
+</span><span class='uc' id='L1301' title='5|5|5 - Total: 5'>        append0PaddedUint(result, HourFromTime(date), 2);
+</span><span class='uc' id='L1302' title='4|4|4 - Total: 4'>        result.append(':');
+</span><span class='uc' id='L1303' title='5|5|5 - Total: 5'>        append0PaddedUint(result, MinFromTime(date), 2);
+</span><span class='uc' id='L1304' title='4|4|4 - Total: 4'>        result.append(':');
+</span><span class='uc' id='L1305' title='5|5|5 - Total: 5'>        append0PaddedUint(result, SecFromTime(date), 2);
+</span><span class='uc' id='L1306' title='4|4|4 - Total: 4'>        result.append(" GMT");
+</span><span class='uc' id='L1307' title='3|3|3 - Total: 3'>        return result.toString();
+</span>    }
+
+    private static String js_toISOString(double t) {
+<span class='uc' id='L1311' title='5|5|5 - Total: 5'>        StringBuilder result = new StringBuilder(27);
+</span>
+<span class='uc' id='L1313' title='3|3|3 - Total: 3'>        int year = YearFromTime(t);
+</span><span class='upc' id='L1314' title='1|1|1 - Total: 2'>        if (year < 0) {
+</span><span class='nc' id='L1315' title='0|0|0 - Total: 4'>            result.append('-');
+</span><span class='nc' id='L1316' title='0|0|0 - Total: 6'>            append0PaddedUint(result, -year, 6);
+</span><span class='upc' id='L1317' title='1|1|1 - Total: 2'>        } else if (year > 9999) {
+</span><span class='nc' id='L1318' title='0|0|0 - Total: 5'>            append0PaddedUint(result, year, 6);
+</span>        } else {
+<span class='uc' id='L1320' title='4|4|4 - Total: 4'>            append0PaddedUint(result, year, 4);
+</span>        }
+<span class='uc' id='L1322' title='4|4|4 - Total: 4'>        result.append('-');
+</span><span class='uc' id='L1323' title='7|7|7 - Total: 7'>        append0PaddedUint(result, MonthFromTime(t) + 1, 2);
+</span><span class='uc' id='L1324' title='4|4|4 - Total: 4'>        result.append('-');
+</span><span class='uc' id='L1325' title='5|5|5 - Total: 5'>        append0PaddedUint(result, DateFromTime(t), 2);
+</span><span class='uc' id='L1326' title='4|4|4 - Total: 4'>        result.append('T');
+</span><span class='uc' id='L1327' title='5|5|5 - Total: 5'>        append0PaddedUint(result, HourFromTime(t), 2);
+</span><span class='uc' id='L1328' title='4|4|4 - Total: 4'>        result.append(':');
+</span><span class='uc' id='L1329' title='5|5|5 - Total: 5'>        append0PaddedUint(result, MinFromTime(t), 2);
+</span><span class='uc' id='L1330' title='4|4|4 - Total: 4'>        result.append(':');
+</span><span class='uc' id='L1331' title='5|5|5 - Total: 5'>        append0PaddedUint(result, SecFromTime(t), 2);
+</span><span class='uc' id='L1332' title='4|4|4 - Total: 4'>        result.append('.');
+</span><span class='uc' id='L1333' title='5|5|5 - Total: 5'>        append0PaddedUint(result, msFromTime(t), 3);
+</span><span class='uc' id='L1334' title='4|4|4 - Total: 4'>        result.append('Z');
+</span><span class='uc' id='L1335' title='3|3|3 - Total: 3'>        return result.toString();
+</span>    }
+
+    private static void append0PaddedUint(StringBuilder sb, int i, int minWidth)
+    {
+<span class='upc' id='L1340' title='1|1|1 - Total: 2'>        if (i < 0) Kit.codeBug();
+</span><span class='uc' id='L1341' title='2|2|2 - Total: 2'>        int scale = 1;
+</span><span class='uc' id='L1342' title='1|1|1 - Total: 1'>        --minWidth;
+</span><span class='uc' id='L1343' title='2|2|2 - Total: 2'>        if (i >= 10) {
+</span><span class='upc' id='L1344' title='1|1|1 - Total: 2'>            if (i < 1000 * 1000 * 1000) {
+</span>                for (;;) {
+<span class='uc' id='L1346' title='4|4|4 - Total: 4'>                    int newScale = scale * 10;
+</span><span class='uc' id='L1347' title='2|2|2 - Total: 2'>                    if (i < newScale) { break; }
+</span><span class='uc' id='L1348' title='1|1|1 - Total: 1'>                    --minWidth;
+</span><span class='uc' id='L1349' title='2|2|2 - Total: 2'>                    scale = newScale;
+</span><span class='uc' id='L1350' title='1|1|1 - Total: 1'>                }
+</span>            } else {
+                // Separated case not to check against 10 * 10^9 overflow
+<span class='nc' id='L1353' title='0|0|0 - Total: 1'>                minWidth -= 9;
+</span><span class='nc' id='L1354' title='0|0|0 - Total: 2'>                scale = 1000 * 1000 * 1000;
+</span>            }
+        }
+<span class='uc' id='L1357' title='2|2|2 - Total: 2'>        while (minWidth > 0) {
+</span><span class='uc' id='L1358' title='4|4|4 - Total: 4'>            sb.append('0');
+</span><span class='uc' id='L1359' title='2|2|2 - Total: 2'>            --minWidth;
+</span>        }
+<span class='uc' id='L1361' title='2|2|2 - Total: 2'>        while (scale != 1) {
+</span><span class='uc' id='L1362' title='9|9|9 - Total: 9'>            sb.append((char)('0' + (i / scale)));
+</span><span class='uc' id='L1363' title='4|4|4 - Total: 4'>            i %= scale;
+</span><span class='uc' id='L1364' title='5|5|5 - Total: 5'>            scale /= 10;
+</span>        }
+<span class='uc' id='L1366' title='7|7|7 - Total: 7'>        sb.append((char)('0' + i));
+</span><span class='uc' id='L1367' title='1|1|1 - Total: 1'>    }
+</span>
+    private static void appendMonthName(StringBuilder sb, int index)
+    {
+        // Take advantage of the fact that all month abbreviations
+        // have the same length to minimize amount of strings runtime has
+        // to keep in memory
+<span class='uc' id='L1374' title='2|2|2 - Total: 2'>        String months = "Jan"+"Feb"+"Mar"+"Apr"+"May"+"Jun"
+</span>                       +"Jul"+"Aug"+"Sep"+"Oct"+"Nov"+"Dec";
+<span class='uc' id='L1376' title='4|4|4 - Total: 4'>        index *= 3;
+</span><span class='uc' id='L1377' title='2|2|2 - Total: 2'>        for (int i = 0; i != 3; ++i) {
+</span><span class='uc' id='L1378' title='8|8|8 - Total: 8'>            sb.append(months.charAt(index + i));
+</span>        }
+<span class='uc' id='L1380' title='1|1|1 - Total: 1'>    }
+</span>
+    private static void appendWeekDayName(StringBuilder sb, int index)
+    {
+<span class='uc' id='L1384' title='2|2|2 - Total: 2'>        String days = "Sun"+"Mon"+"Tue"+"Wed"+"Thu"+"Fri"+"Sat";
+</span><span class='uc' id='L1385' title='4|4|4 - Total: 4'>        index *= 3;
+</span><span class='uc' id='L1386' title='2|2|2 - Total: 2'>        for (int i = 0; i != 3; ++i) {
+</span><span class='uc' id='L1387' title='8|8|8 - Total: 8'>            sb.append(days.charAt(index + i));
+</span>        }
+<span class='uc' id='L1389' title='1|1|1 - Total: 1'>    }
+</span>
+    private static double makeTime(double date, Object[] args, int methodId)
+    {
+<span class='upc' id='L1393' title='1|1|1 - Total: 2'>        if (args.length == 0) {
+</span>            /*
+             * Satisfy the ECMA rule that if a function is called with
+             * fewer arguments than the specified formal arguments, the
+             * remaining arguments are set to undefined.  Seems like all
+             * the Date.setWhatever functions in ECMA are only varargs
+             * beyond the first argument; this should be set to undefined
+             * if it's not given.  This means that "d = new Date();
+             * d.setMilliseconds()" returns NaN.  Blech.
+             */
+<span class='nc' id='L1403' title='0|0|0 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+
+        int maxargs;
+<span class='uc' id='L1407' title='2|2|2 - Total: 2'>        boolean local = true;
+</span><span class='upc' id='L1408' title='7|7|7 - Total: 9'>        switch (methodId) {
+</span>          case Id_setUTCMilliseconds:
+<span class='uc' id='L1410' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setMilliseconds:
+<span class='uc' id='L1413' title='2|2|2 - Total: 2'>            maxargs = 1;
+</span><span class='uc' id='L1414' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Id_setUTCSeconds:
+<span class='nc' id='L1417' title='0|0|0 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setSeconds:
+<span class='uc' id='L1420' title='2|2|2 - Total: 2'>            maxargs = 2;
+</span><span class='uc' id='L1421' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Id_setUTCMinutes:
+<span class='uc' id='L1424' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setMinutes:
+<span class='uc' id='L1427' title='2|2|2 - Total: 2'>            maxargs = 3;
+</span><span class='uc' id='L1428' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Id_setUTCHours:
+<span class='uc' id='L1431' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setHours:
+<span class='uc' id='L1434' title='2|2|2 - Total: 2'>            maxargs = 4;
+</span><span class='uc' id='L1435' title='1|1|1 - Total: 1'>            break;
+</span>
+          default:
+<span class='nc' id='L1438' title='0|0|0 - Total: 2'>              throw Kit.codeBug();
+</span>        }
+
+<span class='uc' id='L1441' title='2|2|2 - Total: 2'>        boolean hasNaN = false;
+</span><span class='uc' id='L1442' title='2|2|2 - Total: 2'>        int numNums = args.length < maxargs ? args.length : maxargs;
+</span><span class='upc' id='L1443' title='2|2|2 - Total: 4'>        assert numNums <= 4;
+</span><span class='uc' id='L1444' title='3|3|3 - Total: 3'>        double[] nums = new double[4];
+</span><span class='uc' id='L1445' title='2|2|2 - Total: 2'>        for (int i = 0; i < numNums; i++) {
+</span><span class='uc' id='L1446' title='5|5|5 - Total: 5'>            double d = ScriptRuntime.toNumber(args[i]);
+</span><span class='upc' id='L1447' title='2|2|2 - Total: 4'>            if (d != d || Double.isInfinite(d)) {
+</span><span class='nc' id='L1448' title='0|0|0 - Total: 3'>                hasNaN = true;
+</span>            } else {
+<span class='uc' id='L1450' title='5|5|5 - Total: 5'>                nums[i] = ScriptRuntime.toInteger(d);
+</span>            }
+        }
+
+        // just return NaN if the date is already NaN,
+        // limit checks that happen in MakeTime in ECMA.
+<span class='upc' id='L1456' title='2|2|2 - Total: 4'>        if (hasNaN || date != date) {
+</span><span class='nc' id='L1457' title='0|0|0 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+
+<span class='uc' id='L1460' title='4|4|4 - Total: 4'>        int i = 0, stop = numNums;
+</span>        double hour, min, sec, msec;
+        double lorutime;  /* Local or UTC version of date */
+
+<span class='uc' id='L1464' title='2|2|2 - Total: 2'>        if (local)
+</span><span class='uc' id='L1465' title='4|4|4 - Total: 4'>            lorutime = LocalTime(date);
+</span>        else
+<span class='uc' id='L1467' title='2|2|2 - Total: 2'>            lorutime = date;
+</span>
+<span class='upc' id='L1469' title='3|3|3 - Total: 4'>        if (maxargs >= 4 && i < stop)
+</span><span class='uc' id='L1470' title='6|6|6 - Total: 6'>            hour = nums[i++];
+</span>        else
+<span class='uc' id='L1472' title='4|4|4 - Total: 4'>            hour = HourFromTime(lorutime);
+</span>
+<span class='uc' id='L1474' title='4|4|4 - Total: 4'>        if (maxargs >= 3 && i < stop)
+</span><span class='uc' id='L1475' title='6|6|6 - Total: 6'>            min = nums[i++];
+</span>        else
+<span class='uc' id='L1477' title='4|4|4 - Total: 4'>            min = MinFromTime(lorutime);
+</span>
+<span class='uc' id='L1479' title='4|4|4 - Total: 4'>        if (maxargs >= 2 && i < stop)
+</span><span class='uc' id='L1480' title='6|6|6 - Total: 6'>            sec = nums[i++];
+</span>        else
+<span class='uc' id='L1482' title='4|4|4 - Total: 4'>            sec = SecFromTime(lorutime);
+</span>
+<span class='upc' id='L1484' title='3|3|3 - Total: 4'>        if (maxargs >= 1 && i < stop)
+</span><span class='uc' id='L1485' title='6|6|6 - Total: 6'>            msec = nums[i++];
+</span>        else
+<span class='uc' id='L1487' title='4|4|4 - Total: 4'>            msec = msFromTime(lorutime);
+</span>
+<span class='uc' id='L1489' title='6|6|6 - Total: 6'>        double time = MakeTime(hour, min, sec, msec);
+</span><span class='uc' id='L1490' title='5|5|5 - Total: 5'>        double result = MakeDate(Day(lorutime), time);
+</span>
+<span class='uc' id='L1492' title='2|2|2 - Total: 2'>        if (local)
+</span><span class='uc' id='L1493' title='3|3|3 - Total: 3'>            result = internalUTC(result);
+</span>
+<span class='uc' id='L1495' title='3|3|3 - Total: 3'>        return TimeClip(result);
+</span>    }
+
+    private static double makeDate(double date, Object[] args, int methodId)
+    {
+        /* see complaint about ECMA in date_MakeTime */
+<span class='uc' id='L1501' title='2|2|2 - Total: 2'>        if (args.length == 0) {
+</span><span class='uc' id='L1502' title='2|2|2 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+
+        int maxargs;
+<span class='uc' id='L1506' title='2|2|2 - Total: 2'>        boolean local = true;
+</span><span class='upc' id='L1507' title='6|6|6 - Total: 7'>        switch (methodId) {
+</span>          case Id_setUTCDate:
+<span class='uc' id='L1509' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setDate:
+<span class='uc' id='L1512' title='2|2|2 - Total: 2'>              maxargs = 1;
+</span><span class='uc' id='L1513' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Id_setUTCMonth:
+<span class='uc' id='L1516' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setMonth:
+<span class='uc' id='L1519' title='2|2|2 - Total: 2'>              maxargs = 2;
+</span><span class='uc' id='L1520' title='1|1|1 - Total: 1'>            break;
+</span>
+          case Id_setUTCFullYear:
+<span class='uc' id='L1523' title='2|2|2 - Total: 2'>              local = false;
+</span>            // fallthrough
+          case Id_setFullYear:
+<span class='uc' id='L1526' title='2|2|2 - Total: 2'>              maxargs = 3;
+</span><span class='uc' id='L1527' title='1|1|1 - Total: 1'>            break;
+</span>
+          default:
+<span class='nc' id='L1530' title='0|0|0 - Total: 2'>              throw Kit.codeBug();
+</span>        }
+
+<span class='uc' id='L1533' title='2|2|2 - Total: 2'>        boolean hasNaN = false;
+</span><span class='uc' id='L1534' title='2|2|2 - Total: 2'>        int numNums = args.length < maxargs ? args.length : maxargs;
+</span><span class='upc' id='L1535' title='3|3|3 - Total: 6'>        assert 1 <= numNums && numNums <= 3;
+</span><span class='uc' id='L1536' title='3|3|3 - Total: 3'>        double[] nums = new double[3];
+</span><span class='uc' id='L1537' title='2|2|2 - Total: 2'>        for (int i = 0; i < numNums; i++) {
+</span><span class='uc' id='L1538' title='5|5|5 - Total: 5'>            double d = ScriptRuntime.toNumber(args[i]);
+</span><span class='upc' id='L1539' title='2|2|2 - Total: 4'>            if (d != d || Double.isInfinite(d)) {
+</span><span class='nc' id='L1540' title='0|0|0 - Total: 3'>                hasNaN = true;
+</span>            } else {
+<span class='uc' id='L1542' title='5|5|5 - Total: 5'>                nums[i] = ScriptRuntime.toInteger(d);
+</span>            }
+        }
+
+        // limit checks that happen in MakeTime in ECMA.
+<span class='upc' id='L1547' title='1|1|1 - Total: 2'>        if (hasNaN) {
+</span><span class='nc' id='L1548' title='0|0|0 - Total: 2'>            return ScriptRuntime.NaN;
+</span>        }
+
+<span class='uc' id='L1551' title='4|4|4 - Total: 4'>        int i = 0, stop = numNums;
+</span>        double year, month, day;
+        double lorutime;  /* Local or UTC version of date */
+
+        /* return NaN if date is NaN and we're not setting the year,
+         * If we are, use 0 as the time. */
+<span class='upc' id='L1557' title='1|1|1 - Total: 2'>        if (date != date) {
+</span><span class='nc' id='L1558' title='0|0|0 - Total: 2'>            if (maxargs < 3) {
+</span><span class='nc' id='L1559' title='0|0|0 - Total: 2'>                return ScriptRuntime.NaN;
+</span>            } else {
+<span class='nc' id='L1561' title='0|0|0 - Total: 3'>                lorutime = 0;
+</span>            }
+        } else {
+<span class='uc' id='L1564' title='2|2|2 - Total: 2'>            if (local)
+</span><span class='uc' id='L1565' title='4|4|4 - Total: 4'>                lorutime = LocalTime(date);
+</span>            else
+<span class='uc' id='L1567' title='2|2|2 - Total: 2'>                lorutime = date;
+</span>        }
+
+<span class='upc' id='L1570' title='3|3|3 - Total: 4'>        if (maxargs >= 3 && i < stop)
+</span><span class='uc' id='L1571' title='6|6|6 - Total: 6'>            year = nums[i++];
+</span>        else
+<span class='uc' id='L1573' title='4|4|4 - Total: 4'>            year = YearFromTime(lorutime);
+</span>
+<span class='uc' id='L1575' title='4|4|4 - Total: 4'>        if (maxargs >= 2 && i < stop)
+</span><span class='uc' id='L1576' title='6|6|6 - Total: 6'>            month = nums[i++];
+</span>        else
+<span class='uc' id='L1578' title='4|4|4 - Total: 4'>            month = MonthFromTime(lorutime);
+</span>
+<span class='upc' id='L1580' title='3|3|3 - Total: 4'>        if (maxargs >= 1 && i < stop)
+</span><span class='uc' id='L1581' title='6|6|6 - Total: 6'>            day = nums[i++];
+</span>        else
+<span class='uc' id='L1583' title='4|4|4 - Total: 4'>            day = DateFromTime(lorutime);
+</span>
+<span class='uc' id='L1585' title='5|5|5 - Total: 5'>        day = MakeDay(year, month, day); /* day within year */
+</span><span class='uc' id='L1586' title='5|5|5 - Total: 5'>        double result = MakeDate(day, TimeWithinDay(lorutime));
+</span>
+<span class='uc' id='L1588' title='2|2|2 - Total: 2'>        if (local)
+</span><span class='uc' id='L1589' title='3|3|3 - Total: 3'>            result = internalUTC(result);
+</span>
+<span class='uc' id='L1591' title='3|3|3 - Total: 3'>        return TimeClip(result);
+</span>    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2009-07-22 05:44:02 EST
+<span class='uc' id='L1601' title='4|4|4 - Total: 4'>        L0: { id = 0; String X = null; int c;
+</span><span class='uc' id='L1602' title='13|13|13 - Total: 13'>            L: switch (s.length()) {
+</span><span class='uc' id='L1603' title='4|4|4 - Total: 4'>            case 6: c=s.charAt(0);
+</span><span class='uc' id='L1604' title='2|2|2 - Total: 2'>                if (c=='g') { X="getDay";id=Id_getDay; }
+</span><span class='upc' id='L1605' title='1|1|1 - Total: 2'>                else if (c=='t') { X="toJSON";id=Id_toJSON; }
+</span>                break L;
+<span class='uc' id='L1607' title='5|5|5 - Total: 5'>            case 7: switch (s.charAt(3)) {
+</span><span class='uc' id='L1608' title='4|4|4 - Total: 4'>                case 'D': c=s.charAt(0);
+</span><span class='uc' id='L1609' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getDate";id=Id_getDate; }
+</span><span class='upc' id='L1610' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setDate";id=Id_setDate; }
+</span>                    break L;
+<span class='uc' id='L1612' title='4|4|4 - Total: 4'>                case 'T': c=s.charAt(0);
+</span><span class='uc' id='L1613' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getTime";id=Id_getTime; }
+</span><span class='upc' id='L1614' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setTime";id=Id_setTime; }
+</span>                    break L;
+<span class='uc' id='L1616' title='4|4|4 - Total: 4'>                case 'Y': c=s.charAt(0);
+</span><span class='uc' id='L1617' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getYear";id=Id_getYear; }
+</span><span class='upc' id='L1618' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setYear";id=Id_setYear; }
+</span>                    break L;
+<span class='uc' id='L1620' title='5|5|5 - Total: 5'>                case 'u': X="valueOf";id=Id_valueOf; break L;
+</span><span class='uc' id='L1621' title='1|1|1 - Total: 1'>                } break L;
+</span><span class='upc' id='L1622' title='4|4|4 - Total: 5'>            case 8: switch (s.charAt(3)) {
+</span><span class='uc' id='L1623' title='4|4|4 - Total: 4'>                case 'H': c=s.charAt(0);
+</span><span class='uc' id='L1624' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getHours";id=Id_getHours; }
+</span><span class='upc' id='L1625' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setHours";id=Id_setHours; }
+</span>                    break L;
+<span class='uc' id='L1627' title='4|4|4 - Total: 4'>                case 'M': c=s.charAt(0);
+</span><span class='uc' id='L1628' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getMonth";id=Id_getMonth; }
+</span><span class='upc' id='L1629' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setMonth";id=Id_setMonth; }
+</span>                    break L;
+<span class='nc' id='L1631' title='0|0|0 - Total: 5'>                case 'o': X="toSource";id=Id_toSource; break L;
+</span><span class='uc' id='L1632' title='5|5|5 - Total: 5'>                case 't': X="toString";id=Id_toString; break L;
+</span><span class='uc' id='L1633' title='1|1|1 - Total: 1'>                } break L;
+</span><span class='uc' id='L1634' title='5|5|5 - Total: 5'>            case 9: X="getUTCDay";id=Id_getUTCDay; break L;
+</span><span class='uc' id='L1635' title='4|4|4 - Total: 4'>            case 10: c=s.charAt(3);
+</span><span class='uc' id='L1636' title='2|2|2 - Total: 2'>                if (c=='M') {
+</span><span class='uc' id='L1637' title='4|4|4 - Total: 4'>                    c=s.charAt(0);
+</span><span class='uc' id='L1638' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getMinutes";id=Id_getMinutes; }
+</span><span class='upc' id='L1639' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setMinutes";id=Id_setMinutes; }
+</span>                }
+<span class='uc' id='L1641' title='2|2|2 - Total: 2'>                else if (c=='S') {
+</span><span class='uc' id='L1642' title='4|4|4 - Total: 4'>                    c=s.charAt(0);
+</span><span class='uc' id='L1643' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getSeconds";id=Id_getSeconds; }
+</span><span class='upc' id='L1644' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setSeconds";id=Id_setSeconds; }
+</span>                }
+<span class='upc' id='L1646' title='1|1|1 - Total: 2'>                else if (c=='U') {
+</span><span class='uc' id='L1647' title='4|4|4 - Total: 4'>                    c=s.charAt(0);
+</span><span class='uc' id='L1648' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getUTCDate";id=Id_getUTCDate; }
+</span><span class='upc' id='L1649' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setUTCDate";id=Id_setUTCDate; }
+</span>                }
+                break L;
+<span class='upc' id='L1652' title='6|6|6 - Total: 7'>            case 11: switch (s.charAt(3)) {
+</span><span class='uc' id='L1653' title='4|4|4 - Total: 4'>                case 'F': c=s.charAt(0);
+</span><span class='uc' id='L1654' title='2|2|2 - Total: 2'>                    if (c=='g') { X="getFullYear";id=Id_getFullYear; }
+</span><span class='upc' id='L1655' title='1|1|1 - Total: 2'>                    else if (c=='s') { X="setFullYear";id=Id_setFullYear; }
+</span>                    break L;
+<span class='uc' id='L1657' title='5|5|5 - Total: 5'>                case 'M': X="toGMTString";id=Id_toGMTString; break L;
+</span><span class='uc' id='L1658' title='5|5|5 - Total: 5'>                case 'S': X="toISOString";id=Id_toISOString; break L;
+</span><span class='uc' id='L1659' title='5|5|5 - Total: 5'>                case 'T': X="toUTCString";id=Id_toUTCString; break L;
+</span><span class='uc' id='L1660' title='4|4|4 - Total: 4'>                case 'U': c=s.charAt(0);
+</span><span class='uc' id='L1661' title='2|2|2 - Total: 2'>                    if (c=='g') {
+</span><span class='uc' id='L1662' title='4|4|4 - Total: 4'>                        c=s.charAt(9);
+</span><span class='uc' id='L1663' title='2|2|2 - Total: 2'>                        if (c=='r') { X="getUTCHours";id=Id_getUTCHours; }
+</span><span class='upc' id='L1664' title='1|1|1 - Total: 2'>                        else if (c=='t') { X="getUTCMonth";id=Id_getUTCMonth; }
+</span>                    }
+<span class='upc' id='L1666' title='1|1|1 - Total: 2'>                    else if (c=='s') {
+</span><span class='uc' id='L1667' title='4|4|4 - Total: 4'>                        c=s.charAt(9);
+</span><span class='uc' id='L1668' title='2|2|2 - Total: 2'>                        if (c=='r') { X="setUTCHours";id=Id_setUTCHours; }
+</span><span class='upc' id='L1669' title='1|1|1 - Total: 2'>                        else if (c=='t') { X="setUTCMonth";id=Id_setUTCMonth; }
+</span>                    }
+                    break L;
+<span class='uc' id='L1672' title='5|5|5 - Total: 5'>                case 's': X="constructor";id=Id_constructor; break L;
+</span><span class='nc' id='L1673' title='0|0|0 - Total: 1'>                } break L;
+</span><span class='uc' id='L1674' title='4|4|4 - Total: 4'>            case 12: c=s.charAt(2);
+</span><span class='uc' id='L1675' title='2|2|2 - Total: 2'>                if (c=='D') { X="toDateString";id=Id_toDateString; }
+</span><span class='upc' id='L1676' title='1|1|1 - Total: 2'>                else if (c=='T') { X="toTimeString";id=Id_toTimeString; }
+</span>                break L;
+<span class='uc' id='L1678' title='4|4|4 - Total: 4'>            case 13: c=s.charAt(0);
+</span><span class='uc' id='L1679' title='2|2|2 - Total: 2'>                if (c=='g') {
+</span><span class='uc' id='L1680' title='4|4|4 - Total: 4'>                    c=s.charAt(6);
+</span><span class='uc' id='L1681' title='2|2|2 - Total: 2'>                    if (c=='M') { X="getUTCMinutes";id=Id_getUTCMinutes; }
+</span><span class='upc' id='L1682' title='1|1|1 - Total: 2'>                    else if (c=='S') { X="getUTCSeconds";id=Id_getUTCSeconds; }
+</span>                }
+<span class='upc' id='L1684' title='1|1|1 - Total: 2'>                else if (c=='s') {
+</span><span class='uc' id='L1685' title='4|4|4 - Total: 4'>                    c=s.charAt(6);
+</span><span class='uc' id='L1686' title='2|2|2 - Total: 2'>                    if (c=='M') { X="setUTCMinutes";id=Id_setUTCMinutes; }
+</span><span class='upc' id='L1687' title='1|1|1 - Total: 2'>                    else if (c=='S') { X="setUTCSeconds";id=Id_setUTCSeconds; }
+</span>                }
+                break L;
+<span class='uc' id='L1690' title='4|4|4 - Total: 4'>            case 14: c=s.charAt(0);
+</span><span class='uc' id='L1691' title='2|2|2 - Total: 2'>                if (c=='g') { X="getUTCFullYear";id=Id_getUTCFullYear; }
+</span><span class='uc' id='L1692' title='2|2|2 - Total: 2'>                else if (c=='s') { X="setUTCFullYear";id=Id_setUTCFullYear; }
+</span><span class='upc' id='L1693' title='1|1|1 - Total: 2'>                else if (c=='t') { X="toLocaleString";id=Id_toLocaleString; }
+</span>                break L;
+<span class='uc' id='L1695' title='4|4|4 - Total: 4'>            case 15: c=s.charAt(0);
+</span><span class='uc' id='L1696' title='2|2|2 - Total: 2'>                if (c=='g') { X="getMilliseconds";id=Id_getMilliseconds; }
+</span><span class='upc' id='L1697' title='1|1|1 - Total: 2'>                else if (c=='s') { X="setMilliseconds";id=Id_setMilliseconds; }
+</span>                break L;
+<span class='uc' id='L1699' title='5|5|5 - Total: 5'>            case 17: X="getTimezoneOffset";id=Id_getTimezoneOffset; break L;
+</span><span class='uc' id='L1700' title='4|4|4 - Total: 4'>            case 18: c=s.charAt(0);
+</span><span class='uc' id='L1701' title='2|2|2 - Total: 2'>                if (c=='g') { X="getUTCMilliseconds";id=Id_getUTCMilliseconds; }
+</span><span class='uc' id='L1702' title='2|2|2 - Total: 2'>                else if (c=='s') { X="setUTCMilliseconds";id=Id_setUTCMilliseconds; }
+</span><span class='upc' id='L1703' title='1|1|1 - Total: 2'>                else if (c=='t') {
+</span><span class='uc' id='L1704' title='4|4|4 - Total: 4'>                    c=s.charAt(8);
+</span><span class='uc' id='L1705' title='2|2|2 - Total: 2'>                    if (c=='D') { X="toLocaleDateString";id=Id_toLocaleDateString; }
+</span><span class='upc' id='L1706' title='1|1|1 - Total: 2'>                    else if (c=='T') { X="toLocaleTimeString";id=Id_toLocaleTimeString; }
+</span>                }
+                break L;
+            }
+<span class='upc' id='L1710' title='5|5|5 - Total: 6'>            if (X!=null && X!=s && !X.equals(s)) id = 0;
+</span>            break L0;
+        }
+// #/generated#
+<span class='uc' id='L1714' title='2|2|2 - Total: 2'>        return id;
+</span>    }
+
+    private static final int
+        ConstructorId_now       = -3,
+        ConstructorId_parse     = -2,
+        ConstructorId_UTC       = -1,
+
+        Id_constructor          =  1,
+        Id_toString             =  2,
+        Id_toTimeString         =  3,
+        Id_toDateString         =  4,
+        Id_toLocaleString       =  5,
+        Id_toLocaleTimeString   =  6,
+        Id_toLocaleDateString   =  7,
+        Id_toUTCString          =  8,
+        Id_toSource             =  9,
+        Id_valueOf              = 10,
+        Id_getTime              = 11,
+        Id_getYear              = 12,
+        Id_getFullYear          = 13,
+        Id_getUTCFullYear       = 14,
+        Id_getMonth             = 15,
+        Id_getUTCMonth          = 16,
+        Id_getDate              = 17,
+        Id_getUTCDate           = 18,
+        Id_getDay               = 19,
+        Id_getUTCDay            = 20,
+        Id_getHours             = 21,
+        Id_getUTCHours          = 22,
+        Id_getMinutes           = 23,
+        Id_getUTCMinutes        = 24,
+        Id_getSeconds           = 25,
+        Id_getUTCSeconds        = 26,
+        Id_getMilliseconds      = 27,
+        Id_getUTCMilliseconds   = 28,
+        Id_getTimezoneOffset    = 29,
+        Id_setTime              = 30,
+        Id_setMilliseconds      = 31,
+        Id_setUTCMilliseconds   = 32,
+        Id_setSeconds           = 33,
+        Id_setUTCSeconds        = 34,
+        Id_setMinutes           = 35,
+        Id_setUTCMinutes        = 36,
+        Id_setHours             = 37,
+        Id_setUTCHours          = 38,
+        Id_setDate              = 39,
+        Id_setUTCDate           = 40,
+        Id_setMonth             = 41,
+        Id_setUTCMonth          = 42,
+        Id_setFullYear          = 43,
+        Id_setUTCFullYear       = 44,
+        Id_setYear              = 45,
+        Id_toISOString          = 46,
+        Id_toJSON               = 47,
+
+        MAX_PROTOTYPE_ID        = Id_toJSON;
+
+    private static final int
+        Id_toGMTString  =  Id_toUTCString; // Alias, see Ecma B.2.6
+// #/string_id_map#
+
+    /* cached values */
+    private static TimeZone thisTimeZone;
+    private static double LocalTZA;
+    private static DateFormat timeZoneFormatter;
+    private static DateFormat localeDateTimeFormatter;
+    private static DateFormat localeDateFormatter;
+    private static DateFormat localeTimeFormatter;
+
+    private double date;
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.WrappedException.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.WrappedException.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * A wrapper for runtime exceptions.
+ *
+ * Used by the JavaScript runtime to wrap and propagate exceptions that occur
+ * during runtime.
+ *
+ * @author Norris Boyd
+ */
+public class WrappedException extends EvaluatorException
+{
+    static final long serialVersionUID = -1551979216966520648L;
+
+    /**
+     * @see Context#throwAsScriptRuntimeEx(Throwable e)
+     */
+    public WrappedException(Throwable exception)
+    {
+<span class='uc' id='L26' title='11|11|11 - Total: 11'>        super("Wrapped "+exception.toString());
+</span><span class='uc' id='L27' title='3|3|3 - Total: 3'>        this.exception = exception;
+</span><span class='uc' id='L28' title='4|4|4 - Total: 4'>        Kit.initCause(this, exception);
+</span>
+<span class='uc' id='L30' title='7|7|7 - Total: 7'>        int[] linep = { 0 };
+</span><span class='uc' id='L31' title='3|3|3 - Total: 3'>        String sourceName = Context.getSourcePositionFromStack(linep);
+</span><span class='uc' id='L32' title='4|4|4 - Total: 4'>        int lineNumber = linep[0];
+</span><span class='upc' id='L33' title='1|1|1 - Total: 2'>        if (sourceName != null) {
+</span><span class='uc' id='L34' title='3|3|3 - Total: 3'>            initSourceName(sourceName);
+</span>        }
+<span class='upc' id='L36' title='1|1|1 - Total: 2'>        if (lineNumber != 0) {
+</span><span class='uc' id='L37' title='3|3|3 - Total: 3'>            initLineNumber(lineNumber);
+</span>        }
+<span class='uc' id='L39' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Get the wrapped exception.
+     *
+     * @return the exception that was presented as a argument to the
+     *         constructor when this object was created
+     */
+    public Throwable getWrappedException()
+    {
+<span class='uc' id='L49' title='3|3|3 - Total: 3'>        return exception;
+</span>    }
+
+    /**
+     * @deprecated Use {@link #getWrappedException()} instead.
+     */
+    @Deprecated
+    public Object unwrap()
+    {
+<span class='nc' id='L58' title='0|0|0 - Total: 3'>        return getWrappedException();
+</span>    }
+
+    private Throwable exception;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.EvaluatorException.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.EvaluatorException.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript;
+
+/**
+ * The class of exceptions thrown by the JavaScript engine.
+ */
+public class EvaluatorException extends RhinoException
+{
+    static final long serialVersionUID = -8743165779676009808L;
+
+    public EvaluatorException(String detail)
+    {
+<span class='uc' id='L19' title='3|3|3 - Total: 3'>        super(detail);
+</span><span class='uc' id='L20' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Create an exception with the specified detail message.
+     *
+     * Errors internal to the JavaScript engine will simply throw a
+     * RuntimeException.
+     *
+     * @param detail the error message
+     * @param sourceName the name of the source reponsible for the error
+     * @param lineNumber the line number of the source
+     */
+    public EvaluatorException(String detail, String sourceName,
+                              int lineNumber)
+    {
+<span class='nc' id='L35' title='0|0|0 - Total: 7'>        this(detail, sourceName, lineNumber, null, 0);
+</span><span class='nc' id='L36' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Create an exception with the specified detail message.
+     *
+     * Errors internal to the JavaScript engine will simply throw a
+     * RuntimeException.
+     *
+     * @param detail the error message
+     * @param sourceName the name of the source responsible for the error
+     * @param lineNumber the line number of the source
+     * @param columnNumber the columnNumber of the source (may be zero if
+     *                     unknown)
+     * @param lineSource the source of the line containing the error (may be
+     *                   null if unknown)
+     */
+    public EvaluatorException(String detail, String sourceName, int lineNumber,
+                              String lineSource, int columnNumber)
+    {
+<span class='uc' id='L55' title='3|3|3 - Total: 3'>        super(detail);
+</span><span class='uc' id='L56' title='6|6|6 - Total: 6'>        recordErrorOrigin(sourceName, lineNumber, lineSource, columnNumber);
+</span><span class='uc' id='L57' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * @deprecated Use {@link RhinoException#sourceName()} from the super class.
+     */
+    @Deprecated
+    public String getSourceName()
+    {
+<span class='nc' id='L65' title='0|0|0 - Total: 3'>        return sourceName();
+</span>    }
+
+    /**
+     * @deprecated Use {@link RhinoException#lineNumber()} from the super class.
+     */
+    @Deprecated
+    public int getLineNumber()
+    {
+<span class='nc' id='L74' title='0|0|0 - Total: 3'>        return lineNumber();
+</span>    }
+
+    /**
+     * @deprecated Use {@link RhinoException#columnNumber()} from the super class.
+     */
+    @Deprecated
+    public int getColumnNumber()
+    {
+<span class='nc' id='L83' title='0|0|0 - Total: 3'>        return columnNumber();
+</span>    }
+
+    /**
+     * @deprecated Use {@link RhinoException#lineSource()} from the super class.
+     */
+    @Deprecated
+    public String getLineSource()
+    {
+<span class='nc' id='L92' title='0|0|0 - Total: 3'>        return lineSource();
+</span>    }
+
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

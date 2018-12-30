@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.SlotMapContainer.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.SlotMapContainer.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Iterator;
+import org.mozilla.javascript.ScriptableObject.Slot;
+import org.mozilla.javascript.ScriptableObject.SlotAccess;
+
+/**
+ * This class holds the various SlotMaps of various types, and knows how to atomically
+ * switch between them when we need to so that we use the right data structure at the right time.
+ */
+class SlotMapContainer
+  implements SlotMap {
+
+  /**
+   * Once the object has this many properties in it, we will replace the EmbeddedSlotMap
+   * with HashSlotMap. We can adjust this parameter to balance
+   * performance for typical objects versus performance for huge objects with many collisions.
+   */
+  private static final int LARGE_HASH_SIZE = 2000;
+
+  protected SlotMap map;
+
+  SlotMapContainer(int initialSize)
+<span class='uc' id='L30' title='2|2|2 - Total: 2'>  {
+</span><span class='upc' id='L31' title='1|1|1 - Total: 2'>    if (initialSize > LARGE_HASH_SIZE) {
+</span><span class='nc' id='L32' title='0|0|0 - Total: 6'>      map = new HashSlotMap();
+</span>    } else {
+<span class='uc' id='L34' title='5|5|5 - Total: 5'>      map = new EmbeddedSlotMap();
+</span>    }
+<span class='uc' id='L36' title='1|1|1 - Total: 1'>  }
+</span>
+  @Override
+  public int size() {
+<span class='uc' id='L40' title='4|4|4 - Total: 4'>    return map.size();
+</span>  }
+
+  public int dirtySize()
+  {
+<span class='uc' id='L45' title='4|4|4 - Total: 4'>    return map.size();
+</span>  }
+
+  @Override
+  public boolean isEmpty() {
+<span class='uc' id='L50' title='4|4|4 - Total: 4'>    return map.isEmpty();
+</span>  }
+
+  @Override
+  public Slot get(Object key, int index, SlotAccess accessType)
+  {
+<span class='uc' id='L56' title='2|2|2 - Total: 2'>    if (accessType != SlotAccess.QUERY) {
+</span><span class='uc' id='L57' title='2|2|2 - Total: 2'>      checkMapSize();
+</span>    }
+<span class='uc' id='L59' title='7|7|7 - Total: 7'>    return map.get(key, index, accessType);
+</span>  }
+
+  @Override
+  public Slot query(Object key, int index) {
+<span class='uc' id='L64' title='6|6|6 - Total: 6'>    return map.query(key, index);
+</span>  }
+
+  @Override
+  public void addSlot(Slot newSlot)
+  {
+<span class='uc' id='L70' title='2|2|2 - Total: 2'>    checkMapSize();
+</span><span class='uc' id='L71' title='4|4|4 - Total: 4'>    map.addSlot(newSlot);
+</span><span class='uc' id='L72' title='1|1|1 - Total: 1'>  }
+</span>
+  @Override
+  public void remove(Object key, int index) {
+<span class='uc' id='L76' title='5|5|5 - Total: 5'>    map.remove(key, index);
+</span><span class='uc' id='L77' title='1|1|1 - Total: 1'>  }
+</span>
+  @Override
+  public Iterator<Slot> iterator() {
+<span class='uc' id='L81' title='4|4|4 - Total: 4'>    return map.iterator();
+</span>  }
+
+  public long readLock()
+  {
+    // No locking in the default implementation
+<span class='uc' id='L87' title='2|2|2 - Total: 2'>    return 0L;
+</span>  }
+
+  public void unlockRead(long stamp)
+  {
+    // No locking in the default implementationock.unlockRead(stamp);
+<span class='uc' id='L93' title='1|1|1 - Total: 1'>  }
+</span>
+  /**
+   * Before inserting a new item in the map, check and see if we need to expand from the embedded
+   * map to a HashMap that is more robust against large numbers of hash collisions.
+   */
+  protected void checkMapSize()
+  {
+<span class='uc' id='L101' title='4|4|4 - Total: 4'>    if ((map instanceof EmbeddedSlotMap) && map.size() >= LARGE_HASH_SIZE) {
+</span><span class='uc' id='L102' title='4|4|4 - Total: 4'>      SlotMap newMap = new HashSlotMap();
+</span><span class='uc' id='L103' title='2|2|2 - Total: 2'>      for (Slot s : map) {
+</span><span class='uc' id='L104' title='3|3|3 - Total: 3'>        newMap.addSlot(s);
+</span><span class='uc' id='L105' title='1|1|1 - Total: 1'>      }
+</span><span class='uc' id='L106' title='3|3|3 - Total: 3'>      map = newMap;
+</span>    }
+<span class='uc' id='L108' title='1|1|1 - Total: 1'>  }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

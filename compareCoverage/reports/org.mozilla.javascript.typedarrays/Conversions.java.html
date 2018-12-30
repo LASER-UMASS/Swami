@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.typedarrays.Conversions.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.typedarrays.Conversions.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'> /* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.ScriptRuntime;
+
+/**
+ * Numeric conversions from section 7 of the ECMAScript 6 standard.
+ */
+
+<span class='nc' id='L15' title='0|0|0 - Total: 3'>public class Conversions
+</span>{
+    public static final int EIGHT_BIT = 1 << 8;
+    public static final int SIXTEEN_BIT = 1 << 16;
+    public static final long THIRTYTWO_BIT = 1L << 32L;
+
+    public static int toInt8(Object arg)
+    {
+        int iv;
+<span class='uc' id='L24' title='2|2|2 - Total: 2'>        if (arg instanceof Integer) {
+</span><span class='uc' id='L25' title='5|5|5 - Total: 5'>            iv = (Integer)arg;
+</span>        } else {
+<span class='uc' id='L27' title='3|3|3 - Total: 3'>            iv = ScriptRuntime.toInt32(arg);
+</span>        }
+
+<span class='uc' id='L30' title='4|4|4 - Total: 4'>        int int8Bit = iv % EIGHT_BIT;
+</span><span class='uc' id='L31' title='2|2|2 - Total: 2'>        return (int8Bit >= (1 << 7)) ? (int8Bit - EIGHT_BIT) : int8Bit;
+</span>    }
+
+    public static int toUint8(Object arg)
+    {
+        int iv;
+<span class='uc' id='L37' title='2|2|2 - Total: 2'>        if (arg instanceof Integer) {
+</span><span class='uc' id='L38' title='5|5|5 - Total: 5'>            iv = ((Integer)arg);
+</span>        } else {
+<span class='uc' id='L40' title='3|3|3 - Total: 3'>            iv = ScriptRuntime.toInt32(arg);
+</span>        }
+
+<span class='uc' id='L43' title='4|4|4 - Total: 4'>        return iv % EIGHT_BIT;
+</span>    }
+
+    public static int toUint8Clamp(Object arg)
+    {
+<span class='uc' id='L48' title='3|3|3 - Total: 3'>        double d = ScriptRuntime.toNumber(arg);
+</span><span class='uc' id='L49' title='2|2|2 - Total: 2'>        if (d <= 0.0) {
+</span><span class='uc' id='L50' title='2|2|2 - Total: 2'>            return 0;
+</span>        }
+<span class='uc' id='L52' title='2|2|2 - Total: 2'>        if (d >= 255.0) {
+</span><span class='uc' id='L53' title='2|2|2 - Total: 2'>            return 255;
+</span>        }
+
+        // Complex rounding behavior -- see 7.1.11
+<span class='uc' id='L57' title='3|3|3 - Total: 3'>        double f = Math.floor(d);
+</span><span class='upc' id='L58' title='1|1|1 - Total: 2'>        if ((f + 0.5) < d) {
+</span><span class='nc' id='L59' title='0|0|0 - Total: 5'>            return (int)(f + 1.0);
+</span>        }
+<span class='uc' id='L61' title='2|2|2 - Total: 2'>        if (d < (f + 0.5)) {
+</span><span class='uc' id='L62' title='3|3|3 - Total: 3'>            return (int)f;
+</span>        }
+<span class='upc' id='L64' title='1|1|1 - Total: 2'>        if (((int)f % 2) != 0) {
+</span><span class='nc' id='L65' title='0|0|0 - Total: 5'>            return (int)f + 1;
+</span>        }
+<span class='uc' id='L67' title='3|3|3 - Total: 3'>        return (int)f;
+</span>    }
+
+    public static int toInt16(Object arg)
+    {
+        int iv;
+<span class='uc' id='L73' title='2|2|2 - Total: 2'>        if (arg instanceof Integer) {
+</span><span class='uc' id='L74' title='5|5|5 - Total: 5'>            iv = ((Integer)arg);
+</span>        } else {
+<span class='uc' id='L76' title='3|3|3 - Total: 3'>            iv = ScriptRuntime.toInt32(arg);
+</span>        }
+
+<span class='uc' id='L79' title='4|4|4 - Total: 4'>        int int16Bit = iv % SIXTEEN_BIT;
+</span><span class='uc' id='L80' title='2|2|2 - Total: 2'>        return (int16Bit >= (1 << 15)) ? (int16Bit - SIXTEEN_BIT) : int16Bit;
+</span>    }
+
+    public static int toUint16(Object arg)
+    {
+        int iv;
+<span class='uc' id='L86' title='2|2|2 - Total: 2'>        if (arg instanceof Integer) {
+</span><span class='uc' id='L87' title='5|5|5 - Total: 5'>            iv = ((Integer)arg);
+</span>        } else {
+<span class='uc' id='L89' title='3|3|3 - Total: 3'>            iv = ScriptRuntime.toInt32(arg);
+</span>        }
+
+<span class='uc' id='L92' title='4|4|4 - Total: 4'>        return iv % SIXTEEN_BIT;
+</span>    }
+
+    public static int toInt32(Object arg)
+    {
+<span class='uc' id='L97' title='4|4|4 - Total: 4'>        long lv = (long)ScriptRuntime.toNumber(arg);
+</span><span class='uc' id='L98' title='4|4|4 - Total: 4'>        long int32Bit = lv % THIRTYTWO_BIT;
+</span><span class='uc' id='L99' title='2|2|2 - Total: 2'>        return (int)((int32Bit >= (1L << 31L)) ? (int32Bit - THIRTYTWO_BIT) : int32Bit);
+</span>    }
+
+    public static long toUint32(Object arg)
+    {
+<span class='uc' id='L104' title='4|4|4 - Total: 4'>        long lv = (long)ScriptRuntime.toNumber(arg);
+</span><span class='uc' id='L105' title='4|4|4 - Total: 4'>        return lv % THIRTYTWO_BIT;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

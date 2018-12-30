@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.BreakStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.BreakStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * A break statement.  Node type is {@link Token#BREAK}.<p>
+ *
+ * <pre><i>BreakStatement</i> :
+ *   <b>break</b> [<i>no LineTerminator here</i>] [Identifier] ;</pre>
+ */
+public class BreakStatement extends Jump {
+
+    private Name breakLabel;
+    private AstNode target;
+
+    {
+<span class='upc' id='L23' title='3|3|3 - Total: 9'>        type = Token.BREAK;
+</span>    }
+
+<span class='nc' id='L26' title='0|0|0 - Total: 2'>    public BreakStatement() {
+</span><span class='nc' id='L27' title='0|0|0 - Total: 1'>    }
+</span>
+<span class='nc' id='L29' title='0|0|0 - Total: 2'>    public BreakStatement(int pos) {
+</span>        // can't call super (Jump) for historical reasons
+<span class='nc' id='L31' title='0|0|0 - Total: 3'>        position = pos;
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+<span class='uc' id='L34' title='2|2|2 - Total: 2'>    public BreakStatement(int pos, int len) {
+</span><span class='uc' id='L35' title='3|3|3 - Total: 3'>        position = pos;
+</span><span class='uc' id='L36' title='3|3|3 - Total: 3'>        length = len;
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the intended label of this break statement
+     * @return the break label.  {@code null} if the source code did
+     * not specify a specific break label via "break &lt;target&gt;".
+     */
+    public Name getBreakLabel() {
+<span class='uc' id='L45' title='3|3|3 - Total: 3'>        return breakLabel;
+</span>    }
+
+    /**
+     * Sets the intended label of this break statement, e.g.  'foo'
+     * in "break foo". Also sets the parent of the label to this node.
+     * @param label the break label, or {@code null} if the statement is
+     * just the "break" keyword by itself.
+     */
+    public void setBreakLabel(Name label) {
+<span class='uc' id='L55' title='3|3|3 - Total: 3'>        breakLabel = label;
+</span><span class='uc' id='L56' title='2|2|2 - Total: 2'>        if (label != null)
+</span><span class='uc' id='L57' title='3|3|3 - Total: 3'>            label.setParent(this);
+</span><span class='uc' id='L58' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the statement to break to
+     * @return the break target.  Only {@code null} if the source
+     * code has an error in it.
+     */
+    public AstNode getBreakTarget() {
+<span class='nc' id='L66' title='0|0|0 - Total: 3'>        return target;
+</span>    }
+
+    /**
+     * Sets the statement to break to.
+     * @param target the statement to break to
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setBreakTarget(Jump target) {
+<span class='uc' id='L75' title='3|3|3 - Total: 3'>        assertNotNull(target);
+</span><span class='uc' id='L76' title='3|3|3 - Total: 3'>        this.target = target;
+</span><span class='uc' id='L77' title='3|3|3 - Total: 3'>        setJumpStatement(target);
+</span><span class='uc' id='L78' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L82' title='0|0|0 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='nc' id='L83' title='0|0|0 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='nc' id='L84' title='0|0|0 - Total: 4'>        sb.append("break");
+</span><span class='nc' id='L85' title='0|0|0 - Total: 2'>        if (breakLabel != null) {
+</span><span class='nc' id='L86' title='0|0|0 - Total: 4'>            sb.append(" ");
+</span><span class='nc' id='L87' title='0|0|0 - Total: 7'>            sb.append(breakLabel.toSource(0));
+</span>        }
+<span class='nc' id='L89' title='0|0|0 - Total: 4'>        sb.append(";\n");
+</span><span class='nc' id='L90' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then visits the break label if non-{@code null}.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L98' title='0|0|0 - Total: 4'>        if (v.visit(this) && breakLabel != null) {
+</span><span class='nc' id='L99' title='0|0|0 - Total: 4'>            breakLabel.visit(v);
+</span>        }
+<span class='nc' id='L101' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,235 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.TopLevel.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.TopLevel.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+ package org.mozilla.javascript;
+
+import java.util.EnumMap;
+
+/**
+ * A top-level scope object that provides special means to cache and preserve
+ * the initial values of the built-in constructor properties for better
+ * ECMAScript compliance.
+ *
+ * <p>ECMA 262 requires that most constructors used internally construct
+ * objects with the original prototype object as value of their [[Prototype]]
+ * internal property. Since built-in global constructors are defined as
+ * writable and deletable, this means they should be cached to protect against
+ * redefinition at runtime.</p>
+ *
+ * <p>In order to implement this efficiently, this class provides a mechanism
+ * to access the original built-in global constructors and their prototypes
+ * via numeric class-ids. To make use of this, the new
+ * {@link ScriptRuntime#newBuiltinObject ScriptRuntime.newBuiltinObject} and
+ * {@link ScriptRuntime#setBuiltinProtoAndParent ScriptRuntime.setBuiltinProtoAndParent}
+ * methods should be used to create and initialize objects of built-in classes
+ * instead of their generic counterparts.</p>
+ *
+ * <p>Calling {@link org.mozilla.javascript.Context#initStandardObjects()}
+ * with an instance of this class as argument will automatically cache
+ * built-in classes after initialization. For other setups involving
+ * top-level scopes that inherit global properties from their proptotypes
+ * (e.g. with dynamic scopes) embeddings should explicitly call
+ * {@link #cacheBuiltins()} to initialize the class cache for each top-level
+ * scope.</p>
+ */
+<span class='upc' id='L38' title='1|1|1 - Total: 2'>public class TopLevel extends IdScriptableObject {
+</span>
+    static final long serialVersionUID = -4648046356662472260L;
+
+    /**
+     * An enumeration of built-in ECMAScript objects.
+     */
+    public enum Builtins {
+        /** The built-in Object type. */
+        Object,
+        /** The built-in Array type. */
+        Array,
+        /** The built-in Function type. */
+        Function,
+        /** The built-in String type. */
+        String,
+        /** The built-in Number type. */
+        Number,
+        /** The built-in Boolean type. */
+        Boolean,
+        /** The built-in RegExp type. */
+        RegExp,
+        /** The built-in Error type. */
+        Error,
+        /** The built-in Symbol type. */
+        Symbol
+    }
+
+    /**
+     * An enumeration of built-in native errors. [ECMAScript 5 - 15.11.6]
+     */
+    enum NativeErrors {
+        /** Basic Error */
+        Error,
+        /** The native EvalError. */
+        EvalError,
+        /** The native RangeError. */
+        RangeError,
+        /** The native ReferenceError. */
+        ReferenceError,
+        /** The native SyntaxError. */
+        SyntaxError,
+        /** The native TypeError. */
+        TypeError,
+        /** The native URIError. */
+        URIError,
+        /** The native InternalError (non-standard). */
+        InternalError,
+        /** The native JavaException (non-standard). */
+        JavaException
+    }
+
+    private EnumMap<Builtins, BaseFunction> ctors;
+    private EnumMap<NativeErrors, BaseFunction> errors;
+
+    @Override
+    public String getClassName() {
+<span class='nc' id='L95' title='0|0|0 - Total: 2'>        return "global";
+</span>    }
+
+    /**
+     * Cache the built-in ECMAScript objects to protect them against
+     * modifications by the script. This method is called automatically by
+     * {@link ScriptRuntime#initStandardObjects ScriptRuntime.initStandardObjects}
+     * if the scope argument is an instance of this class. It only has to be
+     * called by the embedding if a top-level scope is not initialized through
+     * <code>initStandardObjects()</code>.
+     */
+    public void cacheBuiltins() {
+<span class='uc' id='L107' title='6|6|6 - Total: 6'>        ctors = new EnumMap<Builtins, BaseFunction>(Builtins.class);
+</span><span class='uc' id='L108' title='2|2|2 - Total: 2'>        for (Builtins builtin : Builtins.values()) {
+</span><span class='uc' id='L109' title='5|5|5 - Total: 5'>            Object value = ScriptableObject.getProperty(this, builtin.name());
+</span><span class='uc' id='L110' title='2|2|2 - Total: 2'>            if (value instanceof BaseFunction) {
+</span><span class='uc' id='L111' title='7|7|7 - Total: 7'>                ctors.put(builtin, (BaseFunction)value);
+</span>            }
+        }
+<span class='uc' id='L114' title='6|6|6 - Total: 6'>        errors = new EnumMap<NativeErrors, BaseFunction>(NativeErrors.class);
+</span><span class='uc' id='L115' title='2|2|2 - Total: 2'>        for (NativeErrors error : NativeErrors.values()) {
+</span><span class='uc' id='L116' title='5|5|5 - Total: 5'>            Object value = ScriptableObject.getProperty(this, error.name());
+</span><span class='upc' id='L117' title='1|1|1 - Total: 2'>            if (value instanceof BaseFunction) {
+</span><span class='uc' id='L118' title='7|7|7 - Total: 7'>                errors.put(error, (BaseFunction)value);
+</span>            }
+        }
+<span class='uc' id='L121' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Static helper method to get a built-in object constructor with the given
+     * <code>type</code> from the given <code>scope</code>. If the scope is not
+     * an instance of this class or does have a cache of built-ins,
+     * the constructor is looked up via normal property lookup.
+     *
+     * @param cx the current Context
+     * @param scope the top-level scope
+     * @param type the built-in type
+     * @return the built-in constructor
+     */
+    public static Function getBuiltinCtor(Context cx,
+                                          Scriptable scope,
+                                          Builtins type) {
+        // must be called with top level scope
+<span class='upc' id='L138' title='2|2|2 - Total: 4'>        assert scope.getParentScope() == null;
+</span><span class='uc' id='L139' title='2|2|2 - Total: 2'>        if (scope instanceof TopLevel) {
+</span><span class='uc' id='L140' title='5|5|5 - Total: 5'>            Function result = ((TopLevel)scope).getBuiltinCtor(type);
+</span><span class='uc' id='L141' title='2|2|2 - Total: 2'>            if (result != null) {
+</span><span class='uc' id='L142' title='2|2|2 - Total: 2'>                return result;
+</span>            }
+        }
+        // fall back to normal constructor lookup
+<span class='uc' id='L146' title='6|6|6 - Total: 6'>        return ScriptRuntime.getExistingCtor(cx, scope, type.name());
+</span>    }
+
+    /**
+     * Static helper method to get a native error constructor with the given
+     * <code>type</code> from the given <code>scope</code>. If the scope is not
+     * an instance of this class or does have a cache of native errors,
+     * the constructor is looked up via normal property lookup.
+     *
+     * @param cx the current Context
+     * @param scope the top-level scope
+     * @param type the native error type
+     * @return the native error constructor
+     */
+    static Function getNativeErrorCtor(Context cx, Scriptable scope,
+                                       NativeErrors type) {
+        // must be called with top level scope
+<span class='upc' id='L163' title='2|2|2 - Total: 4'>        assert scope.getParentScope() == null;
+</span><span class='uc' id='L164' title='2|2|2 - Total: 2'>        if (scope instanceof TopLevel) {
+</span><span class='uc' id='L165' title='5|5|5 - Total: 5'>            Function result = ((TopLevel)scope).getNativeErrorCtor(type);
+</span><span class='upc' id='L166' title='1|1|1 - Total: 2'>            if (result != null) {
+</span><span class='uc' id='L167' title='2|2|2 - Total: 2'>                return result;
+</span>            }
+        }
+        // fall back to normal constructor lookup
+<span class='uc' id='L171' title='6|6|6 - Total: 6'>        return ScriptRuntime.getExistingCtor(cx, scope, type.name());
+</span>    }
+
+    /**
+     * Static helper method to get a built-in object prototype with the given
+     * <code>type</code> from the given <code>scope</code>. If the scope is not
+     * an instance of this class or does have a cache of built-ins,
+     * the prototype is looked up via normal property lookup.
+     *
+     * @param scope the top-level scope
+     * @param type the built-in type
+     * @return the built-in prototype
+     */
+    public static Scriptable getBuiltinPrototype(Scriptable scope,
+                                                 Builtins type) {
+        // must be called with top level scope
+<span class='upc' id='L187' title='2|2|2 - Total: 4'>        assert scope.getParentScope() == null;
+</span><span class='uc' id='L188' title='2|2|2 - Total: 2'>        if (scope instanceof TopLevel) {
+</span><span class='uc' id='L189' title='3|3|3 - Total: 3'>            Scriptable result = ((TopLevel)scope)
+</span><span class='uc' id='L190' title='2|2|2 - Total: 2'>                    .getBuiltinPrototype(type);
+</span><span class='uc' id='L191' title='2|2|2 - Total: 2'>            if (result != null) {
+</span><span class='uc' id='L192' title='2|2|2 - Total: 2'>                return result;
+</span>            }
+        }
+        // fall back to normal prototype lookup
+<span class='uc' id='L196' title='5|5|5 - Total: 5'>        return ScriptableObject.getClassPrototype(scope, type.name());
+</span>    }
+
+    /**
+     * Get the cached built-in object constructor from this scope with the
+     * given <code>type</code>. Returns null if {@link #cacheBuiltins()} has not
+     * been called on this object.
+     * @param type the built-in type
+     * @return the built-in constructor
+     */
+    public BaseFunction getBuiltinCtor(Builtins type) {
+<span class='uc' id='L207' title='2|2|2 - Total: 2'>        return ctors != null ? ctors.get(type) : null;
+</span>    }
+
+    /**
+     * Get the cached native error constructor from this scope with the
+     * given <code>type</code>. Returns null if {@link #cacheBuiltins()} has not
+     * been called on this object.
+     * @param type the native error type
+     * @return the native error constructor
+     */
+    BaseFunction getNativeErrorCtor(NativeErrors type) {
+<span class='upc' id='L218' title='1|1|1 - Total: 2'>        return errors != null ? errors.get(type) : null;
+</span>    }
+
+    /**
+     * Get the cached built-in object prototype from this scope with the
+     * given <code>type</code>. Returns null if {@link #cacheBuiltins()} has not
+     * been called on this object.
+     * @param type the built-in type
+     * @return the built-in prototype
+     */
+    public Scriptable getBuiltinPrototype(Builtins type) {
+<span class='uc' id='L229' title='4|4|4 - Total: 4'>        BaseFunction func = getBuiltinCtor(type);
+</span><span class='uc' id='L230' title='2|2|2 - Total: 2'>        Object proto = func != null ? func.getPrototypeProperty() : null;
+</span><span class='uc' id='L231' title='2|2|2 - Total: 2'>        return proto instanceof Scriptable ? (Scriptable) proto : null;
+</span>    }
+
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

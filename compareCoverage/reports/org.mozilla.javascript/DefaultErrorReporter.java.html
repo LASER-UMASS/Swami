@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.DefaultErrorReporter.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.DefaultErrorReporter.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This is the default error reporter for JavaScript.
+ *
+ * @author Norris Boyd
+ */
+class DefaultErrorReporter implements ErrorReporter
+{
+<span class='uc' id='L16' title='5|5|5 - Total: 5'>    static final DefaultErrorReporter instance = new DefaultErrorReporter();
+</span>
+    private boolean forEval;
+    private ErrorReporter chainedReporter;
+
+<span class='uc' id='L21' title='3|3|3 - Total: 3'>    private DefaultErrorReporter() { }
+</span>
+    static ErrorReporter forEval(ErrorReporter reporter)
+    {
+<span class='uc' id='L25' title='4|4|4 - Total: 4'>        DefaultErrorReporter r = new DefaultErrorReporter();
+</span><span class='uc' id='L26' title='3|3|3 - Total: 3'>        r.forEval = true;
+</span><span class='uc' id='L27' title='3|3|3 - Total: 3'>        r.chainedReporter = reporter;
+</span><span class='uc' id='L28' title='2|2|2 - Total: 2'>        return r;
+</span>    }
+
+    public void warning(String message, String sourceURI, int line,
+                        String lineText, int lineOffset)
+    {
+<span class='uc' id='L34' title='2|2|2 - Total: 2'>        if (chainedReporter != null) {
+</span><span class='uc' id='L35' title='8|8|8 - Total: 8'>            chainedReporter.warning(
+</span>                message, sourceURI, line, lineText, lineOffset);
+        } else {
+            // Do nothing
+        }
+<span class='uc' id='L40' title='1|1|1 - Total: 1'>    }
+</span>
+    public void error(String message, String sourceURI, int line,
+                      String lineText, int lineOffset)
+    {
+<span class='uc' id='L45' title='2|2|2 - Total: 2'>        if (forEval) {
+</span>            // Assume error message strings that start with "TypeError: "
+            // should become TypeError exceptions. A bit of a hack, but we
+            // don't want to change the ErrorReporter interface.
+<span class='uc' id='L49' title='2|2|2 - Total: 2'>            String error = "SyntaxError";
+</span><span class='uc' id='L50' title='2|2|2 - Total: 2'>            final String TYPE_ERROR_NAME = "TypeError";
+</span><span class='uc' id='L51' title='2|2|2 - Total: 2'>            final String DELIMETER = ": ";
+</span><span class='uc' id='L52' title='2|2|2 - Total: 2'>            final String prefix = TYPE_ERROR_NAME + DELIMETER;
+</span><span class='uc' id='L53' title='2|2|2 - Total: 2'>            if (message.startsWith(prefix)) {
+</span><span class='uc' id='L54' title='2|2|2 - Total: 2'>                error = TYPE_ERROR_NAME;
+</span><span class='uc' id='L55' title='5|5|5 - Total: 5'>                message = message.substring(prefix.length());
+</span>            }
+<span class='uc' id='L57' title='8|8|8 - Total: 8'>            throw ScriptRuntime.constructError(error, message, sourceURI,
+</span>                                               line, lineText, lineOffset);
+        }
+<span class='upc' id='L60' title='1|1|1 - Total: 2'>        if (chainedReporter != null) {
+</span><span class='nc' id='L61' title='0|0|0 - Total: 9'>            chainedReporter.error(
+</span>                message, sourceURI, line, lineText, lineOffset);
+        } else {
+<span class='uc' id='L64' title='8|8|8 - Total: 8'>            throw runtimeError(
+</span>                message, sourceURI, line, lineText, lineOffset);
+        }
+<span class='nc' id='L67' title='0|0|0 - Total: 1'>    }
+</span>
+    public EvaluatorException runtimeError(String message, String sourceURI,
+                                           int line, String lineText,
+                                           int lineOffset)
+    {
+<span class='upc' id='L73' title='1|1|1 - Total: 2'>        if (chainedReporter != null) {
+</span><span class='nc' id='L74' title='0|0|0 - Total: 9'>            return chainedReporter.runtimeError(
+</span>                message, sourceURI, line, lineText, lineOffset);
+        } else {
+<span class='uc' id='L77' title='9|9|9 - Total: 9'>            return new EvaluatorException(
+</span>                message, sourceURI, line, lineText, lineOffset);
+        }
+    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

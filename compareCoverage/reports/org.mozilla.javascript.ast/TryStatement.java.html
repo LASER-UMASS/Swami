@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.TryStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.TryStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Try/catch/finally statement.  Node type is {@link Token#TRY}.<p>
+ *
+ * <pre><i>TryStatement</i> :
+ *        <b>try</b> Block Catch
+ *        <b>try</b> Block Finally
+ *        <b>try</b> Block Catch Finally
+ * <i>Catch</i> :
+ *        <b>catch</b> ( <i><b>Identifier</b></i> ) Block
+ * <i>Finally</i> :
+ *        <b>finally</b> Block</pre>
+ */
+public class TryStatement extends AstNode {
+
+<span class='uc' id='L29' title='4|4|4 - Total: 4'>    private static final List<CatchClause> NO_CATCHES =
+</span><span class='uc' id='L30' title='2|2|2 - Total: 2'>        Collections.unmodifiableList(new ArrayList<CatchClause>());
+</span>
+    private AstNode tryBlock;
+    private List<CatchClause> catchClauses;
+    private AstNode finallyBlock;
+<span class='upc' id='L35' title='3|3|3 - Total: 9'>    private int finallyPosition = -1;
+</span>
+    {
+<span class='upc' id='L38' title='3|3|3 - Total: 9'>        type = Token.TRY;
+</span>    }
+
+<span class='nc' id='L41' title='0|0|0 - Total: 2'>    public TryStatement() {
+</span><span class='nc' id='L42' title='0|0|0 - Total: 1'>    }
+</span>
+    public TryStatement(int pos) {
+<span class='nc' id='L45' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L46' title='0|0|0 - Total: 1'>    }
+</span>
+    public TryStatement(int pos, int len) {
+<span class='uc' id='L49' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L50' title='1|1|1 - Total: 1'>    }
+</span>
+    public AstNode getTryBlock() {
+<span class='uc' id='L53' title='3|3|3 - Total: 3'>        return tryBlock;
+</span>    }
+
+    /**
+     * Sets try block.  Also sets its parent to this node.
+     * @throws IllegalArgumentException} if {@code tryBlock} is {@code null}
+     */
+    public void setTryBlock(AstNode tryBlock) {
+<span class='uc' id='L61' title='3|3|3 - Total: 3'>        assertNotNull(tryBlock);
+</span><span class='uc' id='L62' title='3|3|3 - Total: 3'>        this.tryBlock = tryBlock;
+</span><span class='uc' id='L63' title='3|3|3 - Total: 3'>        tryBlock.setParent(this);
+</span><span class='uc' id='L64' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns list of {@link CatchClause} nodes.  If there are no catch
+     * clauses, returns an immutable empty list.
+     */
+    public List<CatchClause> getCatchClauses() {
+<span class='uc' id='L71' title='2|2|2 - Total: 2'>        return catchClauses != null ? catchClauses : NO_CATCHES;
+</span>    }
+
+    /**
+     * Sets list of {@link CatchClause} nodes.  Also sets their parents
+     * to this node.  May be {@code null}.  Replaces any existing catch
+     * clauses for this node.
+     */
+    public void setCatchClauses(List<CatchClause> catchClauses) {
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>        if (catchClauses == null) {
+</span><span class='uc' id='L81' title='4|4|4 - Total: 4'>            this.catchClauses = null;
+</span>        } else {
+<span class='upc' id='L83' title='1|1|1 - Total: 2'>            if (this.catchClauses != null)
+</span><span class='nc' id='L84' title='0|0|0 - Total: 3'>                this.catchClauses.clear();
+</span><span class='uc' id='L85' title='2|2|2 - Total: 2'>            for (CatchClause cc : catchClauses) {
+</span><span class='uc' id='L86' title='3|3|3 - Total: 3'>                addCatchClause(cc);
+</span><span class='uc' id='L87' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='uc' id='L89' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Add a catch-clause to the end of the list, and sets its parent to
+     * this node.
+     * @throws IllegalArgumentException} if {@code clause} is {@code null}
+     */
+    public void addCatchClause(CatchClause clause) {
+<span class='uc' id='L97' title='3|3|3 - Total: 3'>        assertNotNull(clause);
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>        if (catchClauses == null) {
+</span><span class='uc' id='L99' title='5|5|5 - Total: 5'>            catchClauses = new ArrayList<CatchClause>();
+</span>        }
+<span class='uc' id='L101' title='5|5|5 - Total: 5'>        catchClauses.add(clause);
+</span><span class='uc' id='L102' title='3|3|3 - Total: 3'>        clause.setParent(this);
+</span><span class='uc' id='L103' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns finally block, or {@code null} if not present
+     */
+    public AstNode getFinallyBlock() {
+<span class='uc' id='L109' title='3|3|3 - Total: 3'>        return finallyBlock;
+</span>    }
+
+    /**
+     * Sets finally block, and sets its parent to this node.
+     * May be {@code null}.
+     */
+    public void setFinallyBlock(AstNode finallyBlock) {
+<span class='uc' id='L117' title='3|3|3 - Total: 3'>        this.finallyBlock = finallyBlock;
+</span><span class='uc' id='L118' title='2|2|2 - Total: 2'>        if (finallyBlock != null)
+</span><span class='uc' id='L119' title='3|3|3 - Total: 3'>            finallyBlock.setParent(this);
+</span><span class='uc' id='L120' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of {@code finally} keyword, if present, or -1
+     */
+    public int getFinallyPosition() {
+<span class='nc' id='L126' title='0|0|0 - Total: 3'>        return finallyPosition;
+</span>    }
+
+    /**
+     * Sets position of {@code finally} keyword, if present, or -1
+     */
+    public void setFinallyPosition(int finallyPosition) {
+<span class='uc' id='L133' title='3|3|3 - Total: 3'>        this.finallyPosition = finallyPosition;
+</span><span class='uc' id='L134' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L138' title='0|0|0 - Total: 5'>        StringBuilder sb = new StringBuilder(250);
+</span><span class='nc' id='L139' title='0|0|0 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='nc' id='L140' title='0|0|0 - Total: 4'>        sb.append("try ");
+</span><span class='nc' id='L141' title='0|0|0 - Total: 8'>        sb.append(tryBlock.toSource(depth).trim());
+</span><span class='nc' id='L142' title='0|0|0 - Total: 2'>        for (CatchClause cc : getCatchClauses()) {
+</span><span class='nc' id='L143' title='0|0|0 - Total: 6'>            sb.append(cc.toSource(depth));
+</span><span class='nc' id='L144' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L145' title='0|0|0 - Total: 2'>        if (finallyBlock != null) {
+</span><span class='nc' id='L146' title='0|0|0 - Total: 4'>            sb.append(" finally ");
+</span><span class='nc' id='L147' title='0|0|0 - Total: 7'>            sb.append(finallyBlock.toSource(depth));
+</span>        }
+<span class='nc' id='L149' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then the try-block, then any catch clauses,
+     * and then any finally block.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L158' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L159' title='0|0|0 - Total: 4'>            tryBlock.visit(v);
+</span><span class='nc' id='L160' title='0|0|0 - Total: 2'>            for (CatchClause cc : getCatchClauses()) {
+</span><span class='nc' id='L161' title='0|0|0 - Total: 3'>                cc.visit(v);
+</span><span class='nc' id='L162' title='0|0|0 - Total: 1'>            }
+</span><span class='nc' id='L163' title='0|0|0 - Total: 2'>            if (finallyBlock != null) {
+</span><span class='nc' id='L164' title='0|0|0 - Total: 4'>                finallyBlock.visit(v);
+</span>            }
+        }
+<span class='nc' id='L167' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

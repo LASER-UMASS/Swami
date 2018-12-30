@@ -1,0 +1,112 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.v8dtoa.FastDtoaBuilder.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.v8dtoa.FastDtoaBuilder.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.v8dtoa;
+
+import java.util.Arrays;
+
+<span class='uc' id='L11' title='2|2|2 - Total: 2'>public class FastDtoaBuilder {
+</span>
+    // allocate buffer for generated digits + extra notation + padding zeroes
+<span class='uc' id='L14' title='4|4|4 - Total: 4'>    final char[] chars = new char[FastDtoa.kFastDtoaMaximalLength + 8];
+</span><span class='uc' id='L15' title='3|3|3 - Total: 3'>    int end = 0;
+</span>    int point;
+<span class='uc' id='L17' title='4|4|4 - Total: 4'>    boolean formatted = false;
+</span>
+    void append(char c) {
+<span class='uc' id='L20' title='11|11|11 - Total: 11'>        chars[end++] = c;
+</span><span class='uc' id='L21' title='1|1|1 - Total: 1'>    }
+</span>
+    void decreaseLast() {
+<span class='uc' id='L24' title='12|12|12 - Total: 12'>        chars[end - 1]--;
+</span><span class='uc' id='L25' title='1|1|1 - Total: 1'>    }
+</span>
+    public void reset() {
+<span class='uc' id='L28' title='3|3|3 - Total: 3'>        end = 0;
+</span><span class='uc' id='L29' title='3|3|3 - Total: 3'>        formatted = false;
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toString() {
+<span class='nc' id='L34' title='0|0|0 - Total: 23'>        return "[chars:" + new String(chars, 0, end) + ", point:" + point + "]";
+</span>    }
+
+    public String format() {
+<span class='upc' id='L38' title='1|1|1 - Total: 2'>        if (!formatted) {
+</span>            // check for minus sign
+<span class='uc' id='L40' title='2|2|2 - Total: 2'>            int firstDigit = chars[0] == '-' ? 1 : 0;
+</span><span class='uc' id='L41' title='5|5|5 - Total: 5'>            int decPoint = point - firstDigit;
+</span><span class='uc' id='L42' title='4|4|4 - Total: 4'>            if (decPoint < -5 || decPoint > 21) {
+</span><span class='uc' id='L43' title='5|5|5 - Total: 5'>                toExponentialFormat(firstDigit, decPoint);
+</span>            } else {
+<span class='uc' id='L45' title='4|4|4 - Total: 4'>                toFixedFormat(firstDigit, decPoint);
+</span>            }
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>            formatted = true;
+</span>        }
+<span class='uc' id='L49' title='9|9|9 - Total: 9'>        return new String(chars, 0, end);
+</span>
+    }
+
+    private void toFixedFormat(int firstDigit, int decPoint) {
+<span class='uc' id='L54' title='2|2|2 - Total: 2'>        if (point < end) {
+</span>            // insert decimal point
+<span class='uc' id='L56' title='2|2|2 - Total: 2'>            if (decPoint > 0) {
+</span>                // >= 1, split decimals and insert point
+<span class='uc' id='L58' title='16|16|16 - Total: 16'>                System.arraycopy(chars, point, chars, point + 1, end - point);
+</span><span class='uc' id='L59' title='6|6|6 - Total: 6'>                chars[point] = '.';
+</span><span class='uc' id='L60' title='7|7|7 - Total: 7'>                end++;
+</span>            } else {
+                // < 1,
+<span class='uc' id='L63' title='6|6|6 - Total: 6'>                int target = firstDigit + 2 - decPoint;
+</span><span class='uc' id='L64' title='11|11|11 - Total: 11'>                System.arraycopy(chars, firstDigit, chars, target, end - firstDigit);
+</span><span class='uc' id='L65' title='5|5|5 - Total: 5'>                chars[firstDigit] = '0';
+</span><span class='uc' id='L66' title='7|7|7 - Total: 7'>                chars[firstDigit + 1] = '.';
+</span><span class='uc' id='L67' title='2|2|2 - Total: 2'>                if (decPoint < 0) {
+</span><span class='uc' id='L68' title='8|8|8 - Total: 8'>                    Arrays.fill(chars, firstDigit + 2, target, '0');
+</span>                }
+<span class='uc' id='L70' title='8|8|8 - Total: 8'>                end += 2 - decPoint;
+</span><span class='uc' id='L71' title='1|1|1 - Total: 1'>            }
+</span><span class='uc' id='L72' title='2|2|2 - Total: 2'>        } else if (point > end) {
+</span>            // large integer, add trailing zeroes
+<span class='uc' id='L74' title='8|8|8 - Total: 8'>            Arrays.fill(chars, end, point, '0');
+</span><span class='uc' id='L75' title='10|10|10 - Total: 10'>            end += point - end;
+</span>        }
+<span class='uc' id='L77' title='1|1|1 - Total: 1'>    }
+</span>
+    private void toExponentialFormat(int firstDigit, int decPoint) {
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>        if (end - firstDigit > 1) {
+</span>            // insert decimal point if more than one digit was produced
+<span class='uc' id='L82' title='4|4|4 - Total: 4'>            int dot = firstDigit + 1;
+</span><span class='uc' id='L83' title='13|13|13 - Total: 13'>            System.arraycopy(chars, dot, chars, dot + 1, end - dot);
+</span><span class='uc' id='L84' title='5|5|5 - Total: 5'>            chars[dot] = '.';
+</span><span class='uc' id='L85' title='6|6|6 - Total: 6'>            end++;
+</span>        }
+<span class='uc' id='L87' title='11|11|11 - Total: 11'>        chars[end++] = 'e';
+</span><span class='uc' id='L88' title='2|2|2 - Total: 2'>        char sign = '+';
+</span><span class='uc' id='L89' title='4|4|4 - Total: 4'>        int exp = decPoint - 1;
+</span><span class='uc' id='L90' title='2|2|2 - Total: 2'>        if (exp < 0) {
+</span><span class='uc' id='L91' title='2|2|2 - Total: 2'>            sign = '-';
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>            exp = -exp;
+</span>        }
+<span class='uc' id='L94' title='11|11|11 - Total: 11'>        chars[end++] = sign;
+</span>
+<span class='uc' id='L96' title='4|4|4 - Total: 4'>        int charPos = exp > 99 ? end + 2 : exp > 9 ? end + 1 : end;
+</span><span class='uc' id='L97' title='5|5|5 - Total: 5'>        end = charPos + 1;
+</span>
+        // code below is needed because Integer.getChars() is not public
+        for (;;) {
+<span class='uc' id='L101' title='4|4|4 - Total: 4'>            int r = exp % 10;
+</span><span class='uc' id='L102' title='8|8|8 - Total: 8'>            chars[charPos--] = digits[r];
+</span><span class='uc' id='L103' title='4|4|4 - Total: 4'>            exp = exp / 10;
+</span><span class='uc' id='L104' title='2|2|2 - Total: 2'>            if (exp == 0) break;
+</span><span class='uc' id='L105' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L106' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='uc' id='L108' title='44|44|44 - Total: 44'>    final static char[] digits = {
+</span>        '0' , '1' , '2' , '3' , '4' , '5' , '6' , '7' , '8' , '9'
+    };
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,378 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NativeNumber.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NativeNumber.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the Number native object.
+ *
+ * See ECMA 15.7.
+ *
+ * @author Norris Boyd
+ */
+final class NativeNumber extends IdScriptableObject
+{
+    static final long serialVersionUID = 3504516769741512101L;
+
+<span class='uc' id='L20' title='2|2|2 - Total: 2'>    private static final Object NUMBER_TAG = "Number";
+</span>
+    private static final int MAX_PRECISION = 100;
+<span class='uc' id='L23' title='6|6|6 - Total: 6'>    private static final double MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
+</span><span class='uc' id='L24' title='4|4|4 - Total: 4'>    private static final double MIN_SAFE_INTEGER = -MAX_SAFE_INTEGER;
+</span>
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class='uc' id='L28' title='5|5|5 - Total: 5'>        NativeNumber obj = new NativeNumber(0.0);
+</span><span class='uc' id='L29' title='6|6|6 - Total: 6'>        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+    NativeNumber(double number)
+<span class='uc' id='L33' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L34' title='3|3|3 - Total: 3'>        doubleValue = number;
+</span><span class='uc' id='L35' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L40' title='2|2|2 - Total: 2'>        return "Number";
+</span>    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class='uc' id='L46' title='2|2|2 - Total: 2'>        final int attr = ScriptableObject.DONTENUM |
+</span>                         ScriptableObject.PERMANENT |
+                         ScriptableObject.READONLY;
+
+<span class='uc' id='L50' title='5|5|5 - Total: 5'>        ctor.defineProperty("NaN", ScriptRuntime.NaNobj, attr);
+</span><span class='uc' id='L51' title='4|4|4 - Total: 4'>        ctor.defineProperty("POSITIVE_INFINITY",
+</span><span class='uc' id='L52' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(Double.POSITIVE_INFINITY),
+</span>                            attr);
+<span class='uc' id='L54' title='4|4|4 - Total: 4'>        ctor.defineProperty("NEGATIVE_INFINITY",
+</span><span class='uc' id='L55' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(Double.NEGATIVE_INFINITY),
+</span>                            attr);
+<span class='uc' id='L57' title='4|4|4 - Total: 4'>        ctor.defineProperty("MAX_VALUE",
+</span><span class='uc' id='L58' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(Double.MAX_VALUE),
+</span>                            attr);
+<span class='uc' id='L60' title='4|4|4 - Total: 4'>        ctor.defineProperty("MIN_VALUE",
+</span><span class='uc' id='L61' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(Double.MIN_VALUE),
+</span>                            attr);
+<span class='uc' id='L63' title='4|4|4 - Total: 4'>        ctor.defineProperty("MAX_SAFE_INTEGER",
+</span><span class='uc' id='L64' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(MAX_SAFE_INTEGER),
+</span>                            attr);
+<span class='uc' id='L66' title='4|4|4 - Total: 4'>        ctor.defineProperty("MIN_SAFE_INTEGER",
+</span><span class='uc' id='L67' title='2|2|2 - Total: 2'>                            ScriptRuntime.wrapNumber(MIN_SAFE_INTEGER),
+</span>                            attr);
+
+<span class='uc' id='L70' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isFinite, "isFinite", 1);
+</span><span class='uc' id='L71' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isNaN, "isNaN", 1);
+</span><span class='uc' id='L72' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isInteger, "isInteger", 1);
+</span><span class='uc' id='L73' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isSafeInteger, "isSafeInteger", 1);
+</span><span class='uc' id='L74' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_parseFloat, "parseFloat", 1);
+</span><span class='uc' id='L75' title='7|7|7 - Total: 7'>        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_parseInt, "parseInt", 1);
+</span>
+<span class='uc' id='L77' title='3|3|3 - Total: 3'>        super.fillConstructorProperties(ctor);
+</span><span class='uc' id='L78' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class='upc' id='L85' title='8|8|8 - Total: 9'>        switch (id) {
+</span><span class='uc' id='L86' title='5|5|5 - Total: 5'>          case Id_constructor:    arity=1; s="constructor";    break;
+</span><span class='uc' id='L87' title='5|5|5 - Total: 5'>          case Id_toString:       arity=1; s="toString";       break;
+</span><span class='uc' id='L88' title='5|5|5 - Total: 5'>          case Id_toLocaleString: arity=1; s="toLocaleString"; break;
+</span><span class='uc' id='L89' title='5|5|5 - Total: 5'>          case Id_toSource:       arity=0; s="toSource";       break;
+</span><span class='uc' id='L90' title='5|5|5 - Total: 5'>          case Id_valueOf:        arity=0; s="valueOf";        break;
+</span><span class='uc' id='L91' title='5|5|5 - Total: 5'>          case Id_toFixed:        arity=1; s="toFixed";        break;
+</span><span class='uc' id='L92' title='5|5|5 - Total: 5'>          case Id_toExponential:  arity=1; s="toExponential";  break;
+</span><span class='uc' id='L93' title='5|5|5 - Total: 5'>          case Id_toPrecision:    arity=1; s="toPrecision";    break;
+</span><span class='nc' id='L94' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+<span class='uc' id='L96' title='7|7|7 - Total: 7'>        initPrototypeMethod(NUMBER_TAG, id, s, arity);
+</span><span class='uc' id='L97' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class='upc' id='L103' title='1|1|1 - Total: 2'>        if (!f.hasTag(NUMBER_TAG)) {
+</span><span class='nc' id='L104' title='0|0|0 - Total: 8'>            return super.execIdCall(f, cx, scope, thisObj, args);
+</span>        }
+<span class='uc' id='L106' title='3|3|3 - Total: 3'>        int id = f.methodId();
+</span><span class='uc' id='L107' title='2|2|2 - Total: 2'>        if (id == Id_constructor) {
+</span><span class='uc' id='L108' title='2|2|2 - Total: 2'>            double val = (args.length >= 1)
+</span><span class='uc' id='L109' title='4|4|4 - Total: 4'>                ? ScriptRuntime.toNumber(args[0]) : 0.0;
+</span><span class='uc' id='L110' title='2|2|2 - Total: 2'>            if (thisObj == null) {
+</span>                // new Number(val) creates a new Number object.
+<span class='uc' id='L112' title='5|5|5 - Total: 5'>                return new NativeNumber(val);
+</span>            }
+            // Number(val) converts val to a number value.
+<span class='uc' id='L115' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(val);
+</span>
+<span class='uc' id='L117' title='2|2|2 - Total: 2'>        } else if (id < Id_constructor) {
+</span><span class='uc' id='L118' title='5|5|5 - Total: 5'>            return execConstructorCall(id, args);
+</span>        }
+
+        // The rest of Number.prototype methods require thisObj to be Number
+
+<span class='uc' id='L123' title='2|2|2 - Total: 2'>        if (!(thisObj instanceof NativeNumber))
+</span><span class='nc' id='L124' title='0|0|0 - Total: 3'>            throw incompatibleCallError(f);
+</span><span class='uc' id='L125' title='4|4|4 - Total: 4'>        double value = ((NativeNumber)thisObj).doubleValue;
+</span>
+<span class='upc' id='L127' title='6|6|6 - Total: 7'>        switch (id) {
+</span>
+          case Id_toString:
+          case Id_toLocaleString:
+            {
+                // toLocaleString is just an alias for toString for now
+<span class='uc' id='L133' title='4|4|4 - Total: 4'>                int base = (args.length == 0 || args[0] == Undefined.instance)
+</span><span class='uc' id='L134' title='2|2|2 - Total: 2'>                    ? 10 : ScriptRuntime.toInt32(args[0]);
+</span><span class='uc' id='L135' title='4|4|4 - Total: 4'>                return ScriptRuntime.numberToString(value, base);
+</span>            }
+
+          case Id_toSource:
+<span class='uc' id='L139' title='12|12|12 - Total: 12'>            return "(new Number("+ScriptRuntime.toString(value)+"))";
+</span>
+          case Id_valueOf:
+<span class='uc' id='L142' title='3|3|3 - Total: 3'>            return ScriptRuntime.wrapNumber(value);
+</span>
+          case Id_toFixed:
+<span class='uc' id='L145' title='8|8|8 - Total: 8'>            return num_to(value, args, DToA.DTOSTR_FIXED,
+</span>                          DToA.DTOSTR_FIXED, -20, 0);
+
+          case Id_toExponential: {
+              // Handle special values before range check
+<span class='uc' id='L150' title='2|2|2 - Total: 2'>              if(Double.isNaN(value)) {
+</span><span class='uc' id='L151' title='2|2|2 - Total: 2'>                  return "NaN";
+</span>              }
+<span class='uc' id='L153' title='2|2|2 - Total: 2'>              if(Double.isInfinite(value)) {
+</span><span class='uc' id='L154' title='2|2|2 - Total: 2'>                  if(value >= 0) {
+</span><span class='uc' id='L155' title='2|2|2 - Total: 2'>                      return "Infinity";
+</span>                  }
+                  else {
+<span class='uc' id='L158' title='2|2|2 - Total: 2'>                      return "-Infinity";
+</span>                  }
+              }
+              // General case
+<span class='uc' id='L162' title='8|8|8 - Total: 8'>              return num_to(value, args, DToA.DTOSTR_STANDARD_EXPONENTIAL,
+</span>                      DToA.DTOSTR_EXPONENTIAL, 0, 1);
+          }
+
+          case Id_toPrecision: {
+              // Undefined precision, fall back to ToString()
+<span class='upc' id='L168' title='3|3|3 - Total: 4'>              if(args.length == 0 || args[0] == Undefined.instance) {
+</span><span class='uc' id='L169' title='4|4|4 - Total: 4'>                  return ScriptRuntime.numberToString(value, 10);
+</span>              }
+              // Handle special values before range check
+<span class='uc' id='L172' title='2|2|2 - Total: 2'>              if(Double.isNaN(value)) {
+</span><span class='uc' id='L173' title='2|2|2 - Total: 2'>                  return "NaN";
+</span>              }
+<span class='uc' id='L175' title='2|2|2 - Total: 2'>              if(Double.isInfinite(value)) {
+</span><span class='uc' id='L176' title='2|2|2 - Total: 2'>                  if(value >= 0) {
+</span><span class='uc' id='L177' title='2|2|2 - Total: 2'>                      return "Infinity";
+</span>                  }
+                  else {
+<span class='uc' id='L180' title='2|2|2 - Total: 2'>                      return "-Infinity";
+</span>                  }
+              }
+<span class='uc' id='L183' title='8|8|8 - Total: 8'>              return num_to(value, args, DToA.DTOSTR_STANDARD,
+</span>                      DToA.DTOSTR_PRECISION, 1, 0);
+          }
+
+<span class='nc' id='L187' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+    }
+
+    private Object execConstructorCall(int id, Object[] args)
+    {
+<span class='upc' id='L193' title='6|6|6 - Total: 7'>        switch (id) {
+</span>        case ConstructorId_isFinite:
+<span class='upc' id='L195' title='3|3|3 - Total: 4'>            if ((args.length == 0) || (Undefined.instance == args[0])) {
+</span><span class='uc' id='L196' title='3|3|3 - Total: 3'>                return false;
+</span>            }
+<span class='uc' id='L198' title='2|2|2 - Total: 2'>            if (args[0] instanceof Number) {
+</span>                // Match ES6 polyfill, which only works for "number" types
+<span class='uc' id='L200' title='5|5|5 - Total: 5'>                return isFinite(args[0]);
+</span>            }
+<span class='uc' id='L202' title='3|3|3 - Total: 3'>            return false;
+</span>
+        case ConstructorId_isNaN:
+<span class='upc' id='L205' title='3|3|3 - Total: 4'>            if ((args.length == 0) || (Undefined.instance == args[0])) {
+</span><span class='uc' id='L206' title='3|3|3 - Total: 3'>                return false;
+</span>            }
+<span class='uc' id='L208' title='2|2|2 - Total: 2'>            if (args[0] instanceof Number) {
+</span><span class='uc' id='L209' title='7|7|7 - Total: 7'>                return isNaN((Number)args[0]);
+</span>            }
+<span class='uc' id='L211' title='3|3|3 - Total: 3'>            return false;
+</span>
+        case ConstructorId_isInteger:
+<span class='upc' id='L214' title='3|3|3 - Total: 4'>            if ((args.length == 0) || (Undefined.instance == args[0])) {
+</span><span class='uc' id='L215' title='3|3|3 - Total: 3'>                return false;
+</span>            }
+<span class='uc' id='L217' title='2|2|2 - Total: 2'>            if (args[0] instanceof Number) {
+</span><span class='uc' id='L218' title='8|8|8 - Total: 8'>                return isInteger((Number)args[0]);
+</span>            }
+<span class='uc' id='L220' title='3|3|3 - Total: 3'>            return false;
+</span>
+        case ConstructorId_isSafeInteger:
+<span class='upc' id='L223' title='3|3|3 - Total: 4'>            if ((args.length == 0) || (Undefined.instance == args[0])) {
+</span><span class='uc' id='L224' title='3|3|3 - Total: 3'>                return false;
+</span>            }
+<span class='uc' id='L226' title='2|2|2 - Total: 2'>            if (args[0] instanceof Number) {
+</span><span class='uc' id='L227' title='8|8|8 - Total: 8'>                return isSafeInteger((Number)args[0]);
+</span>            }
+<span class='uc' id='L229' title='3|3|3 - Total: 3'>            return false;
+</span>
+        case ConstructorId_parseFloat:
+<span class='uc' id='L232' title='3|3|3 - Total: 3'>            return NativeGlobal.js_parseFloat(args);
+</span>
+        case ConstructorId_parseInt:
+<span class='uc' id='L235' title='3|3|3 - Total: 3'>            return NativeGlobal.js_parseInt(args);
+</span>
+        default:
+<span class='nc' id='L238' title='0|0|0 - Total: 6'>            throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+    }
+
+    @Override
+    public String toString() {
+<span class='uc' id='L244' title='5|5|5 - Total: 5'>        return ScriptRuntime.numberToString(doubleValue, 10);
+</span>    }
+
+    private static String num_to(double val,
+                                 Object[] args,
+                                 int zeroArgMode, int oneArgMode,
+                                 int precisionMin, int precisionOffset)
+    {
+        int precision;
+<span class='uc' id='L253' title='2|2|2 - Total: 2'>        if (args.length == 0) {
+</span><span class='uc' id='L254' title='2|2|2 - Total: 2'>            precision = 0;
+</span><span class='uc' id='L255' title='3|3|3 - Total: 3'>            oneArgMode = zeroArgMode;
+</span>        } else {
+            /* We allow a larger range of precision than
+               ECMA requires; this is permitted by ECMA. */
+<span class='uc' id='L259' title='5|5|5 - Total: 5'>            double p = ScriptRuntime.toInteger(args[0]);
+</span><span class='upc' id='L260' title='2|2|2 - Total: 4'>            if (p < precisionMin || p > MAX_PRECISION) {
+</span><span class='nc' id='L261' title='0|0|0 - Total: 6'>                String msg = ScriptRuntime.getMessage1(
+</span><span class='nc' id='L262' title='0|0|0 - Total: 1'>                    "msg.bad.precision", ScriptRuntime.toString(args[0]));
+</span><span class='nc' id='L263' title='0|0|0 - Total: 4'>                throw ScriptRuntime.constructError("RangeError", msg);
+</span>            }
+<span class='uc' id='L265' title='3|3|3 - Total: 3'>            precision = ScriptRuntime.toInt32(p);
+</span>        }
+<span class='uc' id='L267' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L268' title='7|7|7 - Total: 7'>        DToA.JS_dtostr(sb, oneArgMode, precision + precisionOffset, val);
+</span><span class='uc' id='L269' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    static Object isFinite(Object val)
+    {
+<span class='uc' id='L274' title='3|3|3 - Total: 3'>        double d = ScriptRuntime.toNumber(val);
+</span><span class='uc' id='L275' title='3|3|3 - Total: 3'>        Double nd = Double.valueOf(d);
+</span><span class='uc' id='L276' title='4|4|4 - Total: 4'>        return ScriptRuntime.wrapBoolean(!nd.isInfinite() && !nd.isNaN());
+</span>    }
+
+    private Object isNaN(Number val)
+    {
+<span class='uc' id='L281' title='4|4|4 - Total: 4'>        Double nd = doubleVal(val);
+</span><span class='uc' id='L282' title='7|7|7 - Total: 7'>        return ScriptRuntime.toBoolean(isDoubleNan(nd));
+</span>    }
+
+    private boolean isDoubleNan(Double d)
+    {
+<span class='uc' id='L287' title='3|3|3 - Total: 3'>        return d.isNaN();
+</span>    }
+
+    private boolean isInteger(Number val)
+    {
+<span class='uc' id='L292' title='4|4|4 - Total: 4'>        Double nd = doubleVal(val);
+</span><span class='uc' id='L293' title='6|6|6 - Total: 6'>        return ScriptRuntime.toBoolean(isDoubleInteger(nd));
+</span>    }
+
+    private boolean isDoubleInteger(Double d)
+    {
+<span class='uc' id='L298' title='4|4|4 - Total: 4'>        return (!d.isInfinite() && !d.isNaN() &&
+</span><span class='uc' id='L299' title='2|2|2 - Total: 2'>                (Math.floor(d.doubleValue()) == d.doubleValue()));
+</span>    }
+
+    private boolean isSafeInteger(Number val)
+    {
+<span class='uc' id='L304' title='4|4|4 - Total: 4'>        Double nd = doubleVal(val);
+</span><span class='uc' id='L305' title='6|6|6 - Total: 6'>        return ScriptRuntime.toBoolean(isDoubleSafeInteger(nd));
+</span>    }
+
+    private boolean isDoubleSafeInteger(Double d)
+    {
+<span class='uc' id='L310' title='2|2|2 - Total: 2'>        return (isDoubleInteger(d) &&
+</span><span class='uc' id='L311' title='2|2|2 - Total: 2'>                (d.doubleValue() <= MAX_SAFE_INTEGER) &&
+</span><span class='uc' id='L312' title='2|2|2 - Total: 2'>                (d.doubleValue() >= MIN_SAFE_INTEGER));
+</span>    }
+
+    private Double doubleVal(Number val)
+    {
+<span class='upc' id='L317' title='1|1|1 - Total: 2'>        if (val instanceof Double) {
+</span><span class='uc' id='L318' title='3|3|3 - Total: 3'>            return (Double)val;
+</span>        } else {
+<span class='nc' id='L320' title='0|0|0 - Total: 3'>            double d = val.doubleValue();
+</span><span class='nc' id='L321' title='0|0|0 - Total: 3'>            return Double.valueOf(d);
+</span>        }
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:50 EDT
+<span class='uc' id='L332' title='4|4|4 - Total: 4'>        L0: { id = 0; String X = null; int c;
+</span><span class='uc' id='L333' title='6|6|6 - Total: 6'>            L: switch (s.length()) {
+</span><span class='uc' id='L334' title='4|4|4 - Total: 4'>            case 7: c=s.charAt(0);
+</span><span class='uc' id='L335' title='2|2|2 - Total: 2'>                if (c=='t') { X="toFixed";id=Id_toFixed; }
+</span><span class='uc' id='L336' title='2|2|2 - Total: 2'>                else if (c=='v') { X="valueOf";id=Id_valueOf; }
+</span>                break L;
+<span class='uc' id='L338' title='4|4|4 - Total: 4'>            case 8: c=s.charAt(3);
+</span><span class='uc' id='L339' title='2|2|2 - Total: 2'>                if (c=='o') { X="toSource";id=Id_toSource; }
+</span><span class='upc' id='L340' title='1|1|1 - Total: 2'>                else if (c=='t') { X="toString";id=Id_toString; }
+</span>                break L;
+<span class='uc' id='L342' title='4|4|4 - Total: 4'>            case 11: c=s.charAt(0);
+</span><span class='uc' id='L343' title='2|2|2 - Total: 2'>                if (c=='c') { X="constructor";id=Id_constructor; }
+</span><span class='uc' id='L344' title='2|2|2 - Total: 2'>                else if (c=='t') { X="toPrecision";id=Id_toPrecision; }
+</span>                break L;
+<span class='uc' id='L346' title='5|5|5 - Total: 5'>            case 13: X="toExponential";id=Id_toExponential; break L;
+</span><span class='uc' id='L347' title='5|5|5 - Total: 5'>            case 14: X="toLocaleString";id=Id_toLocaleString; break L;
+</span>            }
+<span class='uc' id='L349' title='6|6|6 - Total: 6'>            if (X!=null && X!=s && !X.equals(s)) id = 0;
+</span>            break L0;
+        }
+// #/generated#
+<span class='uc' id='L353' title='2|2|2 - Total: 2'>        return id;
+</span>    }
+
+    private static final int
+        ConstructorId_isFinite       = -1,
+        ConstructorId_isNaN          = -2,
+        ConstructorId_isInteger      = -3,
+        ConstructorId_isSafeInteger  = -4,
+        ConstructorId_parseFloat     = -5,
+        ConstructorId_parseInt       = -6,
+
+        Id_constructor           = 1,
+        Id_toString              = 2,
+        Id_toLocaleString        = 3,
+        Id_toSource              = 4,
+        Id_valueOf               = 5,
+        Id_toFixed               = 6,
+        Id_toExponential         = 7,
+        Id_toPrecision           = 8,
+        MAX_PROTOTYPE_ID         = 8;
+
+// #/string_id_map#
+
+    private double doubleValue;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

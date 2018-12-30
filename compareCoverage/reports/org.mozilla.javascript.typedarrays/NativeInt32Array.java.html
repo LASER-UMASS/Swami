@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.typedarrays.NativeInt32Array.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.typedarrays.NativeInt32Array.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * An array view that stores 32-bit quantities and implements the JavaScript "Int32Array" interface.
+ * It also implements List<Integer> for direct manipulation in Java.
+ */
+
+public class NativeInt32Array
+    extends NativeTypedArrayView<Integer>
+{
+    private static final long serialVersionUID = -8963461831950499340L;
+
+    private static final String CLASS_NAME = "Int32Array";
+    private static final int BYTES_PER_ELEMENT = 4;
+
+    public NativeInt32Array()
+<span class='uc' id='L29' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+    public NativeInt32Array(NativeArrayBuffer ab, int off, int len)
+    {
+<span class='uc' id='L34' title='8|8|8 - Total: 8'>        super(ab, off, len, len * BYTES_PER_ELEMENT);
+</span><span class='uc' id='L35' title='1|1|1 - Total: 1'>    }
+</span>
+    public NativeInt32Array(int len)
+    {
+<span class='uc' id='L39' title='10|10|10 - Total: 10'>        this(new NativeArrayBuffer(len * BYTES_PER_ELEMENT), 0, len);
+</span><span class='uc' id='L40' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L45' title='2|2|2 - Total: 2'>        return CLASS_NAME;
+</span>    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class='uc' id='L50' title='4|4|4 - Total: 4'>        NativeInt32Array a = new NativeInt32Array();
+</span><span class='uc' id='L51' title='6|6|6 - Total: 6'>        a.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='uc' id='L52' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected NativeTypedArrayView construct(NativeArrayBuffer ab, int off, int len)
+    {
+<span class='uc' id='L57' title='7|7|7 - Total: 7'>        return new NativeInt32Array(ab, off, len);
+</span>    }
+
+    @Override
+    public int getBytesPerElement()
+    {
+<span class='uc' id='L63' title='2|2|2 - Total: 2'>        return BYTES_PER_ELEMENT;
+</span>    }
+
+    @Override
+    protected NativeTypedArrayView realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class='uc' id='L69' title='2|2|2 - Total: 2'>        if (!(thisObj instanceof NativeInt32Array)) {
+</span><span class='nc' id='L70' title='0|0|0 - Total: 3'>            throw incompatibleCallError(f);
+</span>        }
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        return (NativeInt32Array)thisObj;
+</span>    }
+
+    @Override
+    protected Object js_get(int index)
+    {
+<span class='uc' id='L78' title='2|2|2 - Total: 2'>        if (checkIndex(index)) {
+</span><span class='uc' id='L79' title='2|2|2 - Total: 2'>            return Undefined.instance;
+</span>        }
+<span class='uc' id='L81' title='12|12|12 - Total: 12'>        return ByteIo.readInt32(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, false);
+</span>    }
+
+    @Override
+    protected Object js_set(int index, Object c)
+    {
+<span class='uc' id='L87' title='2|2|2 - Total: 2'>        if (checkIndex(index)) {
+</span><span class='uc' id='L88' title='2|2|2 - Total: 2'>            return Undefined.instance;
+</span>        }
+<span class='uc' id='L90' title='3|3|3 - Total: 3'>        int val = ScriptRuntime.toInt32(c);
+</span><span class='uc' id='L91' title='12|12|12 - Total: 12'>        ByteIo.writeInt32(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, val, false);
+</span><span class='uc' id='L92' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    @Override
+    public Integer get(int i)
+    {
+<span class='uc' id='L98' title='2|2|2 - Total: 2'>        if (checkIndex(i)) {
+</span><span class='uc' id='L99' title='4|4|4 - Total: 4'>            throw new IndexOutOfBoundsException();
+</span>        }
+<span class='uc' id='L101' title='5|5|5 - Total: 5'>        return (Integer)js_get(i);
+</span>    }
+
+    @Override
+    public Integer set(int i, Integer aByte)
+    {
+<span class='uc' id='L107' title='2|2|2 - Total: 2'>        if (checkIndex(i)) {
+</span><span class='uc' id='L108' title='4|4|4 - Total: 4'>            throw new IndexOutOfBoundsException();
+</span>        }
+<span class='uc' id='L110' title='6|6|6 - Total: 6'>        return (Integer)js_set(i, aByte);
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

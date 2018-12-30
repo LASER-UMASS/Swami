@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.optimizer.OptTransformer.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.optimizer.OptTransformer.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.ScriptNode;
+import java.util.Map;
+
+/**
+ * This class performs node transforms to prepare for optimization.
+ *
+ * @see NodeTransformer
+ * @author Norris Boyd
+ */
+
+class OptTransformer extends NodeTransformer {
+
+    OptTransformer(Map<String,OptFunctionNode> possibleDirectCalls, ObjArray directCallTargets)
+<span class='uc' id='L22' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L23' title='3|3|3 - Total: 3'>        this.possibleDirectCalls = possibleDirectCalls;
+</span><span class='uc' id='L24' title='3|3|3 - Total: 3'>        this.directCallTargets = directCallTargets;
+</span><span class='uc' id='L25' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected void visitNew(Node node, ScriptNode tree) {
+<span class='uc' id='L29' title='4|4|4 - Total: 4'>        detectDirectCall(node, tree);
+</span><span class='uc' id='L30' title='4|4|4 - Total: 4'>        super.visitNew(node, tree);
+</span><span class='uc' id='L31' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected void visitCall(Node node, ScriptNode tree) {
+<span class='uc' id='L35' title='4|4|4 - Total: 4'>        detectDirectCall(node, tree);
+</span><span class='uc' id='L36' title='4|4|4 - Total: 4'>        super.visitCall(node, tree);
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    private void detectDirectCall(Node node, ScriptNode tree)
+    {
+<span class='uc' id='L41' title='2|2|2 - Total: 2'>        if (tree.getType() == Token.FUNCTION) {
+</span><span class='uc' id='L42' title='3|3|3 - Total: 3'>            Node left = node.getFirstChild();
+</span>
+            // count the arguments
+<span class='uc' id='L45' title='2|2|2 - Total: 2'>            int argCount = 0;
+</span><span class='uc' id='L46' title='3|3|3 - Total: 3'>            Node arg = left.getNext();
+</span><span class='uc' id='L47' title='2|2|2 - Total: 2'>            while (arg != null) {
+</span><span class='uc' id='L48' title='3|3|3 - Total: 3'>                arg = arg.getNext();
+</span><span class='uc' id='L49' title='2|2|2 - Total: 2'>                argCount++;
+</span>            }
+
+<span class='uc' id='L52' title='2|2|2 - Total: 2'>            if (argCount == 0) {
+</span><span class='uc' id='L53' title='4|4|4 - Total: 4'>                OptFunctionNode.get(tree).itsContainsCalls0 = true;
+</span>            }
+
+            /*
+             * Optimize a call site by converting call("a", b, c) into :
+             *
+             *  FunctionObjectFor"a" <-- instance variable init'd by constructor
+             *
+             *  // this is a DIRECTCALL node
+             *  fn = GetProp(tmp = GetBase("a"), "a");
+             *  if (fn == FunctionObjectFor"a")
+             *      fn.call(tmp, b, c)
+             *  else
+             *      ScriptRuntime.Call(fn, tmp, b, c)
+             */
+<span class='uc' id='L68' title='2|2|2 - Total: 2'>            if (possibleDirectCalls != null) {
+</span><span class='uc' id='L69' title='2|2|2 - Total: 2'>                String targetName = null;
+</span><span class='uc' id='L70' title='2|2|2 - Total: 2'>                if (left.getType() == Token.NAME) {
+</span><span class='uc' id='L71' title='4|4|4 - Total: 4'>                    targetName = left.getString();
+</span><span class='uc' id='L72' title='2|2|2 - Total: 2'>                } else if (left.getType() == Token.GETPROP) {
+</span><span class='uc' id='L73' title='6|6|6 - Total: 6'>                    targetName = left.getFirstChild().getNext().getString();
+</span><span class='upc' id='L74' title='1|1|1 - Total: 2'>                } else if (left.getType() == Token.GETPROPNOWARN) {
+</span><span class='nc' id='L75' title='0|0|0 - Total: 2'>                    throw Kit.codeBug();
+</span>                }
+<span class='uc' id='L77' title='2|2|2 - Total: 2'>                if (targetName != null) {
+</span>                    OptFunctionNode ofn;
+<span class='uc' id='L79' title='6|6|6 - Total: 6'>                    ofn = possibleDirectCalls.get(targetName);
+</span><span class='uc' id='L80' title='2|2|2 - Total: 2'>                    if (ofn != null
+</span><span class='uc' id='L81' title='2|2|2 - Total: 2'>                        && argCount == ofn.fnode.getParamCount()
+</span><span class='uc' id='L82' title='2|2|2 - Total: 2'>                        && !ofn.fnode.requiresActivation())
+</span>                    {
+                        // Refuse to directCall any function with more
+                        // than 32 parameters - prevent code explosion
+                        // for wacky test cases
+<span class='upc' id='L87' title='1|1|1 - Total: 2'>                        if (argCount <= 32) {
+</span><span class='uc' id='L88' title='4|4|4 - Total: 4'>                            node.putProp(Node.DIRECTCALL_PROP, ofn);
+</span><span class='uc' id='L89' title='2|2|2 - Total: 2'>                            if (!ofn.isTargetOfDirectCall()) {
+</span><span class='uc' id='L90' title='4|4|4 - Total: 4'>                                int index = directCallTargets.size();
+</span><span class='uc' id='L91' title='4|4|4 - Total: 4'>                                directCallTargets.add(ofn);
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>                                ofn.setDirectTargetIndex(index);
+</span>                            }
+                        }
+                    }
+                }
+            }
+        }
+<span class='uc' id='L99' title='1|1|1 - Total: 1'>    }
+</span>
+    private Map<String,OptFunctionNode> possibleDirectCalls;
+    private ObjArray directCallTargets;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

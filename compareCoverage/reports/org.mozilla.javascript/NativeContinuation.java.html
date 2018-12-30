@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NativeContinuation.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NativeContinuation.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+<span class='uc' id='L9' title='3|3|3 - Total: 3'>public final class NativeContinuation extends IdScriptableObject
+</span>    implements Function
+{
+    static final long serialVersionUID = 1794167133757605367L;
+
+<span class='uc' id='L14' title='3|3|3 - Total: 3'>    private static final Object FTAG = "Continuation";
+</span>
+    private Object implementation;
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class='uc' id='L20' title='4|4|4 - Total: 4'>        NativeContinuation obj = new NativeContinuation();
+</span><span class='uc' id='L21' title='6|6|6 - Total: 6'>        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='uc' id='L22' title='1|1|1 - Total: 1'>    }
+</span>
+    public Object getImplementation()
+    {
+<span class='uc' id='L26' title='3|3|3 - Total: 3'>        return implementation;
+</span>    }
+
+    public void initImplementation(Object implementation)
+    {
+<span class='uc' id='L31' title='3|3|3 - Total: 3'>        this.implementation = implementation;
+</span><span class='uc' id='L32' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L37' title='2|2|2 - Total: 2'>        return "Continuation";
+</span>    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class='nc' id='L42' title='0|0|0 - Total: 3'>        throw Context.reportRuntimeError("Direct call is not supported");
+</span>    }
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class='uc' id='L48' title='6|6|6 - Total: 6'>        return Interpreter.restartContinuation(this, cx, scope, args);
+</span>    }
+
+    public static boolean isContinuationConstructor(IdFunctionObject f)
+    {
+<span class='upc' id='L53' title='3|3|3 - Total: 4'>        if (f.hasTag(FTAG) && f.methodId() == Id_constructor) {
+</span><span class='uc' id='L54' title='2|2|2 - Total: 2'>            return true;
+</span>        }
+<span class='uc' id='L56' title='2|2|2 - Total: 2'>        return false;
+</span>    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class='upc' id='L64' title='1|1|1 - Total: 2'>        switch (id) {
+</span><span class='uc' id='L65' title='5|5|5 - Total: 5'>          case Id_constructor: arity=0; s="constructor"; break;
+</span><span class='nc' id='L66' title='0|0|0 - Total: 6'>          default: throw new IllegalArgumentException(String.valueOf(id));
+</span>        }
+<span class='uc' id='L68' title='7|7|7 - Total: 7'>        initPrototypeMethod(FTAG, id, s, arity);
+</span><span class='uc' id='L69' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class='nc' id='L75' title='0|0|0 - Total: 2'>        if (!f.hasTag(FTAG)) {
+</span><span class='nc' id='L76' title='0|0|0 - Total: 8'>            return super.execIdCall(f, cx, scope, thisObj, args);
+</span>        }
+<span class='nc' id='L78' title='0|0|0 - Total: 3'>        int id = f.methodId();
+</span><span class='nc' id='L79' title='0|0|0 - Total: 2'>        switch (id) {
+</span>          case Id_constructor:
+<span class='nc' id='L81' title='0|0|0 - Total: 3'>            throw Context.reportRuntimeError("Direct call is not supported");
+</span>        }
+<span class='nc' id='L83' title='0|0|0 - Total: 6'>        throw new IllegalArgumentException(String.valueOf(id));
+</span>    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:16:40 EDT
+<span class='uc' id='L93' title='4|4|4 - Total: 4'>        L0: { id = 0; String X = null;
+</span><span class='upc' id='L94' title='1|1|1 - Total: 2'>            if (s.length()==11) { X="constructor";id=Id_constructor; }
+</span><span class='upc' id='L95' title='2|2|2 - Total: 6'>            if (X!=null && X!=s && !X.equals(s)) id = 0;
+</span>            break L0;
+        }
+// #/generated#
+<span class='uc' id='L99' title='2|2|2 - Total: 2'>        return id;
+</span>    }
+
+    private static final int
+        Id_constructor          = 1,
+        MAX_PROTOTYPE_ID        = 1;
+
+// #/string_id_map#
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

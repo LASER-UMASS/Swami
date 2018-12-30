@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.SpecialRef.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.SpecialRef.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+class SpecialRef extends Ref
+{
+    static final long serialVersionUID = -7521596632456797847L;
+
+    private static final int SPECIAL_NONE = 0;
+    private static final int SPECIAL_PROTO = 1;
+    private static final int SPECIAL_PARENT = 2;
+
+    private Scriptable target;
+    private int type;
+    private String name;
+
+    private SpecialRef(Scriptable target, int type, String name)
+<span class='uc' id='L22' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L23' title='3|3|3 - Total: 3'>        this.target = target;
+</span><span class='uc' id='L24' title='3|3|3 - Total: 3'>        this.type = type;
+</span><span class='uc' id='L25' title='3|3|3 - Total: 3'>        this.name = name;
+</span><span class='uc' id='L26' title='1|1|1 - Total: 1'>    }
+</span>
+    static Ref createSpecial(Context cx, Scriptable scope, Object object,
+                             String name)
+    {
+<span class='uc' id='L31' title='5|5|5 - Total: 5'>        Scriptable target = ScriptRuntime.toObjectOrNull(cx, object, scope);
+</span><span class='upc' id='L32' title='1|1|1 - Total: 2'>        if (target == null) {
+</span><span class='nc' id='L33' title='0|0|0 - Total: 4'>            throw ScriptRuntime.undefReadError(object, name);
+</span>        }
+
+        int type;
+<span class='uc' id='L37' title='2|2|2 - Total: 2'>        if (name.equals("__proto__")) {
+</span><span class='uc' id='L38' title='3|3|3 - Total: 3'>            type = SPECIAL_PROTO;
+</span><span class='upc' id='L39' title='1|1|1 - Total: 2'>        } else if (name.equals("__parent__")) {
+</span><span class='uc' id='L40' title='3|3|3 - Total: 3'>            type = SPECIAL_PARENT;
+</span>        } else {
+<span class='nc' id='L42' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException(name);
+</span>        }
+
+<span class='upc' id='L45' title='1|1|1 - Total: 2'>        if (!cx.hasFeature(Context.FEATURE_PARENT_PROTO_PROPERTIES)) {
+</span>            // Clear special after checking for valid name!
+<span class='nc' id='L47' title='0|0|0 - Total: 2'>            type = SPECIAL_NONE;
+</span>        }
+
+<span class='uc' id='L50' title='7|7|7 - Total: 7'>        return new SpecialRef(target, type, name);
+</span>    }
+
+    @Override
+    public Object get(Context cx)
+    {
+<span class='upc' id='L56' title='2|2|2 - Total: 4'>        switch (type) {
+</span>          case SPECIAL_NONE:
+<span class='nc' id='L58' title='0|0|0 - Total: 7'>            return ScriptRuntime.getObjectProp(target, name, cx);
+</span>          case SPECIAL_PROTO:
+<span class='uc' id='L60' title='4|4|4 - Total: 4'>            return target.getPrototype();
+</span>          case SPECIAL_PARENT:
+<span class='uc' id='L62' title='4|4|4 - Total: 4'>            return target.getParentScope();
+</span>          default:
+<span class='nc' id='L64' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+    }
+
+    @Override
+    @Deprecated
+    public Object set(Context cx, Object value) {
+<span class='nc' id='L71' title='0|0|0 - Total: 4'>        throw new IllegalStateException();
+</span>    }
+
+    @Override
+    public Object set(Context cx, Scriptable scope, Object value)
+    {
+<span class='upc' id='L77' title='1|1|1 - Total: 3'>        switch (type) {
+</span>          case SPECIAL_NONE:
+<span class='nc' id='L79' title='0|0|0 - Total: 8'>            return ScriptRuntime.setObjectProp(target, name, value, cx);
+</span>          case SPECIAL_PROTO:
+          case SPECIAL_PARENT:
+            {
+<span class='uc' id='L83' title='5|5|5 - Total: 5'>                Scriptable obj = ScriptRuntime.toObjectOrNull(cx, value, scope);
+</span><span class='uc' id='L84' title='2|2|2 - Total: 2'>                if (obj != null) {
+</span>                    // Check that obj does not contain on its prototype/scope
+                    // chain to prevent cycles
+<span class='uc' id='L87' title='2|2|2 - Total: 2'>                    Scriptable search = obj;
+</span>                    do {
+<span class='upc' id='L89' title='1|1|1 - Total: 2'>                        if (search == target) {
+</span><span class='nc' id='L90' title='0|0|0 - Total: 5'>                            throw Context.reportRuntimeError1(
+</span>                                "msg.cyclic.value", name);
+                        }
+<span class='upc' id='L93' title='1|1|1 - Total: 2'>                        if (type == SPECIAL_PROTO) {
+</span><span class='uc' id='L94' title='4|4|4 - Total: 4'>                            search = search.getPrototype();
+</span>                        } else {
+<span class='nc' id='L96' title='0|0|0 - Total: 3'>                            search = search.getParentScope();
+</span>                        }
+<span class='uc' id='L98' title='2|2|2 - Total: 2'>                    } while (search != null);
+</span>                }
+<span class='upc' id='L100' title='1|1|1 - Total: 2'>                if (type == SPECIAL_PROTO) {
+</span><span class='uc' id='L101' title='5|5|5 - Total: 5'>                    target.setPrototype(obj);
+</span>                } else {
+<span class='nc' id='L103' title='0|0|0 - Total: 4'>                    target.setParentScope(obj);
+</span>                }
+<span class='uc' id='L105' title='2|2|2 - Total: 2'>                return obj;
+</span>            }
+          default:
+<span class='nc' id='L108' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+    }
+
+    @Override
+    public boolean has(Context cx)
+    {
+<span class='nc' id='L115' title='0|0|0 - Total: 2'>        if (type == SPECIAL_NONE) {
+</span><span class='nc' id='L116' title='0|0|0 - Total: 7'>            return ScriptRuntime.hasObjectElem(target, name, cx);
+</span>        }
+<span class='nc' id='L118' title='0|0|0 - Total: 2'>        return true;
+</span>    }
+
+    @Override
+    public boolean delete(Context cx)
+    {
+<span class='nc' id='L124' title='0|0|0 - Total: 2'>        if (type == SPECIAL_NONE) {
+</span><span class='nc' id='L125' title='0|0|0 - Total: 7'>            return ScriptRuntime.deleteObjectElem(target, name, cx);
+</span>        }
+<span class='nc' id='L127' title='0|0|0 - Total: 2'>        return false;
+</span>    }
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

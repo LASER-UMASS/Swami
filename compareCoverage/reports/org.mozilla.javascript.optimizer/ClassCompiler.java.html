@@ -1,0 +1,191 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.optimizer.ClassCompiler.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.optimizer.ClassCompiler.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.AstRoot;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.ScriptNode;
+
+/**
+ * Generates class files from script sources.
+ *
+ * since 1.5 Release 5
+ * @author Igor Bukanov
+ */
+
+public class ClassCompiler
+{
+    /**
+     * Construct ClassCompiler that uses the specified compiler environment
+     * when generating classes.
+     */
+    public ClassCompiler(CompilerEnvirons compilerEnv)
+<span class='nc' id='L28' title='0|0|0 - Total: 2'>    {
+</span><span class='nc' id='L29' title='0|0|0 - Total: 2'>        if (compilerEnv == null) throw new IllegalArgumentException();
+</span><span class='nc' id='L30' title='0|0|0 - Total: 3'>        this.compilerEnv = compilerEnv;
+</span><span class='nc' id='L31' title='0|0|0 - Total: 3'>        this.mainMethodClassName = Codegen.DEFAULT_MAIN_METHOD_CLASS;
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Set the class name to use for main method implementation.
+     * The class must have a method matching
+     * <tt>public static void main(Script sc, String[] args)</tt>, it will be
+     * called when <tt>main(String[] args)</tt> is called in the generated
+     * class. The class name should be fully qulified name and include the
+     * package name like in <tt>org.foo.Bar<tt>.
+     */
+    public void setMainMethodClass(String className)
+    {
+        // XXX Should this check for a valid class name?
+<span class='nc' id='L45' title='0|0|0 - Total: 3'>        mainMethodClassName = className;
+</span><span class='nc' id='L46' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Get the name of the class for main method implementation.
+     * @see #setMainMethodClass(String)
+     */
+    public String getMainMethodClass()
+    {
+<span class='nc' id='L54' title='0|0|0 - Total: 3'>        return mainMethodClassName;
+</span>    }
+
+    /**
+     * Get the compiler environment the compiler uses.
+     */
+    public CompilerEnvirons getCompilerEnv()
+    {
+<span class='nc' id='L62' title='0|0|0 - Total: 3'>        return compilerEnv;
+</span>    }
+
+    /**
+     * Get the class that the generated target will extend.
+     */
+    public Class<?> getTargetExtends()
+    {
+<span class='nc' id='L70' title='0|0|0 - Total: 3'>        return targetExtends;
+</span>    }
+
+    /**
+     * Set the class that the generated target will extend.
+     *
+     * @param extendsClass the class it extends
+     */
+    public void setTargetExtends(Class<?> extendsClass)
+    {
+<span class='nc' id='L80' title='0|0|0 - Total: 3'>        targetExtends = extendsClass;
+</span><span class='nc' id='L81' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Get the interfaces that the generated target will implement.
+     */
+    public Class<?>[] getTargetImplements()
+    {
+<span class='nc' id='L88' title='0|0|0 - Total: 2'>        return targetImplements == null ? null : (Class[])targetImplements.clone();
+</span>    }
+
+    /**
+     * Set the interfaces that the generated target will implement.
+     *
+     * @param implementsClasses an array of Class objects, one for each
+     *                          interface the target will extend
+     */
+    public void setTargetImplements(Class<?>[] implementsClasses)
+    {
+<span class='nc' id='L99' title='0|0|0 - Total: 2'>        targetImplements = implementsClasses == null ? null : (Class[])implementsClasses.clone();
+</span><span class='nc' id='L100' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Build class name for a auxiliary class generated by compiler.
+     * If the compiler needs to generate extra classes beyond the main class,
+     * it will call this function to build the auxiliary class name.
+     * The default implementation simply appends auxMarker to mainClassName
+     * but this can be overridden.
+     */
+    protected String makeAuxiliaryClassName(String mainClassName,
+                                            String auxMarker)
+    {
+<span class='nc' id='L112' title='0|0|0 - Total: 9'>        return mainClassName+auxMarker;
+</span>    }
+
+    /**
+     * Compile JavaScript source into one or more Java class files.
+     * The first compiled class will have name mainClassName.
+     * If the results of {@link #getTargetExtends()} or
+     * {@link #getTargetImplements()} are not null, then the first compiled
+     * class will extend the specified super class and implement
+     * specified interfaces.
+     *
+     * @return array where elements with even indexes specifies class name
+     *         and the following odd index gives class file body as byte[]
+     *         array. The initial element of the array always holds
+     *         mainClassName and array[1] holds its byte code.
+     */
+    public Object[] compileToClassFiles(String source,
+                                        String sourceLocation,
+                                        int lineno,
+                                        String mainClassName)
+    {
+<span class='nc' id='L133' title='0|0|0 - Total: 6'>        Parser p = new Parser(compilerEnv);
+</span><span class='nc' id='L134' title='0|0|0 - Total: 6'>        AstRoot ast = p.parse(source, sourceLocation, lineno);
+</span><span class='nc' id='L135' title='0|0|0 - Total: 6'>        IRFactory irf = new IRFactory(compilerEnv);
+</span><span class='nc' id='L136' title='0|0|0 - Total: 4'>        ScriptNode tree = irf.transformTree(ast);
+</span>
+        // release reference to original parse tree & parser
+<span class='nc' id='L139' title='0|0|0 - Total: 2'>        irf = null;
+</span><span class='nc' id='L140' title='0|0|0 - Total: 2'>        ast = null;
+</span><span class='nc' id='L141' title='0|0|0 - Total: 2'>        p = null;
+</span>
+<span class='nc' id='L143' title='0|0|0 - Total: 3'>        Class<?> superClass = getTargetExtends();
+</span><span class='nc' id='L144' title='0|0|0 - Total: 3'>        Class<?>[] interfaces = getTargetImplements();
+</span>        String scriptClassName;
+<span class='nc' id='L146' title='0|0|0 - Total: 4'>        boolean isPrimary = (interfaces == null && superClass == null);
+</span><span class='nc' id='L147' title='0|0|0 - Total: 2'>        if (isPrimary) {
+</span><span class='nc' id='L148' title='0|0|0 - Total: 3'>            scriptClassName = mainClassName;
+</span>        } else {
+<span class='nc' id='L150' title='0|0|0 - Total: 5'>            scriptClassName = makeAuxiliaryClassName(mainClassName, "1");
+</span>        }
+
+<span class='nc' id='L153' title='0|0|0 - Total: 4'>        Codegen codegen = new Codegen();
+</span><span class='nc' id='L154' title='0|0|0 - Total: 4'>        codegen.setMainMethodClass(mainMethodClassName);
+</span><span class='nc' id='L155' title='0|0|0 - Total: 6'>        byte[] scriptClassBytes
+</span><span class='nc' id='L156' title='0|0|0 - Total: 2'>            = codegen.compileToClassFile(compilerEnv, scriptClassName,
+</span><span class='nc' id='L157' title='0|0|0 - Total: 2'>                                         tree, tree.getEncodedSource(),
+</span>                                         false);
+
+<span class='nc' id='L160' title='0|0|0 - Total: 2'>        if (isPrimary) {
+</span><span class='nc' id='L161' title='0|0|0 - Total: 11'>            return new Object[] { scriptClassName, scriptClassBytes };
+</span>        }
+<span class='nc' id='L163' title='0|0|0 - Total: 3'>        int functionCount = tree.getFunctionCount();
+</span><span class='nc' id='L164' title='0|0|0 - Total: 5'>        ObjToIntMap functionNames = new ObjToIntMap(functionCount);
+</span><span class='nc' id='L165' title='0|0|0 - Total: 2'>        for (int i = 0; i != functionCount; ++i) {
+</span><span class='nc' id='L166' title='0|0|0 - Total: 4'>            FunctionNode ofn = tree.getFunctionNode(i);
+</span><span class='nc' id='L167' title='0|0|0 - Total: 3'>            String name = ofn.getName();
+</span><span class='nc' id='L168' title='0|0|0 - Total: 4'>            if (name != null && name.length() != 0) {
+</span><span class='nc' id='L169' title='0|0|0 - Total: 5'>                functionNames.put(name, ofn.getParamCount());
+</span>            }
+        }
+<span class='nc' id='L172' title='0|0|0 - Total: 2'>        if (superClass == null) {
+</span><span class='nc' id='L173' title='0|0|0 - Total: 2'>            superClass = ScriptRuntime.ObjectClass;
+</span>        }
+<span class='nc' id='L175' title='0|0|0 - Total: 5'>        byte[] mainClassBytes
+</span><span class='nc' id='L176' title='0|0|0 - Total: 2'>            = JavaAdapter.createAdapterCode(
+</span>                functionNames, mainClassName,
+                superClass, interfaces, scriptClassName);
+
+<span class='nc' id='L180' title='0|0|0 - Total: 19'>        return new Object[] { mainClassName, mainClassBytes,
+</span>                              scriptClassName, scriptClassBytes };
+    }
+
+    private String mainMethodClassName;
+    private CompilerEnvirons compilerEnv;
+    private Class<?> targetExtends;
+    private Class<?>[] targetImplements;
+
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NativeJavaConstructor.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NativeJavaConstructor.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class reflects a single Java constructor into the JavaScript
+ * environment.  It satisfies a request for an overloaded constructor,
+ * as introduced in LiveConnect 3.
+ * All NativeJavaConstructors behave as JSRef `bound' methods, in that they
+ * always construct the same NativeJavaClass regardless of any reparenting
+ * that may occur.
+ *
+ * @author Frank Mitchell
+ * @see NativeJavaMethod
+ * @see NativeJavaPackage
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaConstructor extends BaseFunction
+{
+    static final long serialVersionUID = -8149253217482668463L;
+
+    MemberBox ctor;
+
+    public NativeJavaConstructor(MemberBox ctor)
+<span class='nc' id='L30' title='0|0|0 - Total: 2'>    {
+</span><span class='nc' id='L31' title='0|0|0 - Total: 3'>        this.ctor = ctor;
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class='nc' id='L38' title='0|0|0 - Total: 7'>        return NativeJavaClass.constructSpecific(cx, scope, args, ctor);
+</span>    }
+
+    @Override
+    public String getFunctionName()
+    {
+<span class='nc' id='L44' title='0|0|0 - Total: 5'>        String sig = JavaMembers.liveConnectSignature(ctor.argTypes);
+</span><span class='nc' id='L45' title='0|0|0 - Total: 4'>        return "<init>".concat(sig);
+</span>    }
+
+    @Override
+    public String toString()
+    {
+<span class='nc' id='L51' title='0|0|0 - Total: 13'>        return "[JavaConstructor " + ctor.getName() + "]";
+</span>    }
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.VariableDeclaration.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.VariableDeclaration.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A list of one or more var, const or let declarations.
+ * Node type is {@link Token#VAR}, {@link Token#CONST} or
+ * {@link Token#LET}.<p>
+ *
+ * If the node is for {@code var} or {@code const}, the node position
+ * is the beginning of the {@code var} or {@code const} keyword.
+ * For {@code let} declarations, the node position coincides with the
+ * first {@link VariableInitializer} child.<p>
+ *
+ * A standalone variable declaration in a statement context returns {@code true}
+ * from its {@link #isStatement()} method.
+ */
+public class VariableDeclaration extends AstNode {
+
+<span class='upc' id='L29' title='5|5|5 - Total: 15'>    private List<VariableInitializer> variables = new ArrayList<VariableInitializer>();
+</span>    private boolean isStatement;
+
+    {
+<span class='upc' id='L33' title='3|3|3 - Total: 9'>        type = Token.VAR;
+</span>    }
+
+<span class='nc' id='L36' title='0|0|0 - Total: 2'>    public VariableDeclaration() {
+</span><span class='nc' id='L37' title='0|0|0 - Total: 1'>    }
+</span>
+    public VariableDeclaration(int pos) {
+<span class='uc' id='L40' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L41' title='1|1|1 - Total: 1'>    }
+</span>
+    public VariableDeclaration(int pos, int len) {
+<span class='nc' id='L44' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L45' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns variable list.  Never {@code null}.
+     */
+    public List<VariableInitializer> getVariables() {
+<span class='uc' id='L51' title='3|3|3 - Total: 3'>        return variables;
+</span>    }
+
+    /**
+     * Sets variable list
+     * @throws IllegalArgumentException if variables list is {@code null}
+     */
+    public void setVariables(List<VariableInitializer> variables) {
+<span class='nc' id='L59' title='0|0|0 - Total: 3'>        assertNotNull(variables);
+</span><span class='nc' id='L60' title='0|0|0 - Total: 3'>        this.variables.clear();
+</span><span class='nc' id='L61' title='0|0|0 - Total: 2'>        for (VariableInitializer vi : variables) {
+</span><span class='nc' id='L62' title='0|0|0 - Total: 3'>            addVariable(vi);
+</span><span class='nc' id='L63' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L64' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Adds a variable initializer node to the child list.
+     * Sets initializer node's parent to this node.
+     * @throws IllegalArgumentException if v is {@code null}
+     */
+    public void addVariable(VariableInitializer v) {
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        assertNotNull(v);
+</span><span class='uc' id='L73' title='5|5|5 - Total: 5'>        variables.add(v);
+</span><span class='uc' id='L74' title='3|3|3 - Total: 3'>        v.setParent(this);
+</span><span class='uc' id='L75' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets the node type and returns this node.
+     * @throws IllegalArgumentException if {@code declType} is invalid
+     */
+    @Override
+    public org.mozilla.javascript.Node setType(int type) {
+<span class='upc' id='L83' title='5|5|5 - Total: 6'>        if (type != Token.VAR
+</span>            && type != Token.CONST
+            && type != Token.LET)
+<span class='nc' id='L86' title='0|0|0 - Total: 12'>            throw new IllegalArgumentException("invalid decl type: " + type);
+</span><span class='uc' id='L87' title='4|4|4 - Total: 4'>        return super.setType(type);
+</span>    }
+
+    /**
+     * Returns true if this is a {@code var} (not
+     * {@code const} or {@code let}) declaration.
+     * @return true if {@code declType} is {@link Token#VAR}
+     */
+    public boolean isVar() {
+<span class='nc' id='L96' title='0|0|0 - Total: 2'>        return type == Token.VAR;
+</span>    }
+
+    /**
+     * Returns true if this is a {@link Token#CONST} declaration.
+     */
+    public boolean isConst() {
+<span class='nc' id='L103' title='0|0|0 - Total: 2'>        return type == Token.CONST;
+</span>    }
+
+    /**
+     * Returns true if this is a {@link Token#LET} declaration.
+     */
+    public boolean isLet() {
+<span class='nc' id='L110' title='0|0|0 - Total: 2'>        return type == Token.LET;
+</span>    }
+
+    /**
+     * Returns true if this node represents a statement.
+     */
+    public boolean isStatement() {
+<span class='uc' id='L117' title='3|3|3 - Total: 3'>        return isStatement;
+</span>    }
+
+    /**
+     * Set or unset the statement flag.
+     */
+    public void setIsStatement(boolean isStatement) {
+<span class='uc' id='L124' title='3|3|3 - Total: 3'>        this.isStatement = isStatement;
+</span><span class='uc' id='L125' title='1|1|1 - Total: 1'>    }
+</span>
+    private String declTypeName() {
+<span class='uc' id='L128' title='5|5|5 - Total: 5'>        return Token.typeToName(type).toLowerCase();
+</span>    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L133' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L134' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='uc' id='L135' title='5|5|5 - Total: 5'>        sb.append(declTypeName());
+</span><span class='uc' id='L136' title='4|4|4 - Total: 4'>        sb.append(" ");
+</span><span class='uc' id='L137' title='5|5|5 - Total: 5'>        printList(variables, sb);
+</span><span class='uc' id='L138' title='2|2|2 - Total: 2'>        if (isStatement()) {
+</span><span class='uc' id='L139' title='4|4|4 - Total: 4'>            sb.append(";\n");
+</span>        }
+<span class='uc' id='L141' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then each {@link VariableInitializer} child.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='upc' id='L149' title='1|1|1 - Total: 2'>        if (v.visit(this)) {
+</span><span class='uc' id='L150' title='2|2|2 - Total: 2'>            for (AstNode var : variables) {
+</span><span class='uc' id='L151' title='3|3|3 - Total: 3'>                var.visit(v);
+</span><span class='uc' id='L152' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='uc' id='L154' title='1|1|1 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

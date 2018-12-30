@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.commonjs.module.provider.MultiModuleScriptProvider.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.commonjs.module.provider.MultiModuleScriptProvider.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module.provider;
+
+import java.net.URI;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.commonjs.module.ModuleScript;
+import org.mozilla.javascript.commonjs.module.ModuleScriptProvider;
+
+/**
+ * A multiplexer for module script providers.
+ * @author Attila Szegedi
+ * @version $Id: MultiModuleScriptProvider.java,v 1.4 2011/04/07 20:26:12 hannes%helma.at Exp $
+ */
+public class MultiModuleScriptProvider implements ModuleScriptProvider
+{
+    private final ModuleScriptProvider[] providers;
+
+    /**
+     * Creates a new multiplexing module script provider tht gathers the
+     * specified providers
+     * @param providers the providers to multiplex.
+     */
+<span class='nc' id='L30' title='0|0|0 - Total: 2'>    public MultiModuleScriptProvider(Iterable<? extends ModuleScriptProvider> providers) {
+</span><span class='nc' id='L31' title='0|0|0 - Total: 4'>        final List<ModuleScriptProvider> l = new LinkedList<ModuleScriptProvider>();
+</span><span class='nc' id='L32' title='0|0|0 - Total: 2'>        for (ModuleScriptProvider provider : providers) {
+</span><span class='nc' id='L33' title='0|0|0 - Total: 4'>            l.add(provider);
+</span><span class='nc' id='L34' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L35' title='0|0|0 - Total: 8'>        this.providers = l.toArray(new ModuleScriptProvider[l.size()]);
+</span><span class='nc' id='L36' title='0|0|0 - Total: 1'>    }
+</span>
+    public ModuleScript getModuleScript(Context cx, String moduleId, URI uri,
+                                        URI base, Scriptable paths) throws Exception {
+<span class='nc' id='L40' title='0|0|0 - Total: 2'>        for (ModuleScriptProvider provider : providers) {
+</span><span class='nc' id='L41' title='0|0|0 - Total: 8'>            final ModuleScript script = provider.getModuleScript(cx, moduleId,
+</span>                    uri, base, paths);
+<span class='nc' id='L43' title='0|0|0 - Total: 2'>            if(script != null) {
+</span><span class='nc' id='L44' title='0|0|0 - Total: 2'>                return script;
+</span>            }
+        }
+<span class='nc' id='L47' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

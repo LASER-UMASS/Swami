@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ErrorCollector.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ErrorCollector.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.EvaluatorException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * An error reporter that gathers the errors and warnings for later display.
+ * This a useful {@link org.mozilla.javascript.ErrorReporter} when the
+ * {@link org.mozilla.javascript.CompilerEnvirons} is set to
+ * ide-mode (for IDEs).
+ *
+ * @author Steve Yegge
+ */
+<span class='nc' id='L22' title='0|0|0 - Total: 2'>public class ErrorCollector implements IdeErrorReporter {
+</span>
+<span class='nc' id='L24' title='0|0|0 - Total: 6'>    private List<ParseProblem> errors = new ArrayList<ParseProblem>();
+</span>
+    /**
+     * This is not called during AST generation.
+     * {@link #warning(String,String,int,int)} is used instead.
+     * @throws UnsupportedOperationException
+     */
+    public void warning(String message, String sourceName, int line,
+                        String lineSource, int lineOffset) {
+<span class='nc' id='L33' title='0|0|0 - Total: 4'>        throw new UnsupportedOperationException();
+</span>    }
+
+    /**
+     * @inheritDoc
+     */
+    public void warning(String message, String sourceName, int offset, int length)
+    {
+<span class='nc' id='L41' title='0|0|0 - Total: 12'>        errors.add(new ParseProblem(ParseProblem.Type.Warning,
+</span>                                    message, sourceName,
+                                    offset, length));
+<span class='nc' id='L44' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * This is not called during AST generation.
+     * {@link #warning(String,String,int,int)} is used instead.
+     * @throws UnsupportedOperationException
+     */
+    public void error(String message, String sourceName, int line,
+                      String lineSource, int lineOffset)
+    {
+<span class='nc' id='L54' title='0|0|0 - Total: 4'>        throw new UnsupportedOperationException();
+</span>    }
+
+    /**
+     * @inheritDoc
+     */
+    public void error(String message, String sourceName,
+                      int fileOffset, int length)
+    {
+<span class='nc' id='L63' title='0|0|0 - Total: 12'>        errors.add(new ParseProblem(ParseProblem.Type.Error,
+</span>                                    message, sourceName,
+                                    fileOffset, length));
+<span class='nc' id='L66' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * @inheritDoc
+     */
+    public EvaluatorException runtimeError(String message, String sourceName,
+                                           int line, String lineSource,
+                                           int lineOffset)
+    {
+<span class='nc' id='L75' title='0|0|0 - Total: 4'>        throw new UnsupportedOperationException();
+</span>    }
+
+    /**
+     * Returns the list of errors and warnings produced during parsing.
+     */
+    public List<ParseProblem> getErrors() {
+<span class='nc' id='L82' title='0|0|0 - Total: 3'>        return errors;
+</span>    }
+
+    @Override
+    public String toString() {
+<span class='nc' id='L87' title='0|0|0 - Total: 9'>        StringBuilder sb = new StringBuilder(errors.size() * 100);
+</span><span class='nc' id='L88' title='0|0|0 - Total: 2'>        for (ParseProblem pp : errors) {
+</span><span class='nc' id='L89' title='0|0|0 - Total: 7'>            sb.append(pp.toString()).append("\n");
+</span><span class='nc' id='L90' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L91' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

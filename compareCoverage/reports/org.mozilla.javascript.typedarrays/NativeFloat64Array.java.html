@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.typedarrays.NativeFloat64Array.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.typedarrays.NativeFloat64Array.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * An array view that stores 64-bit quantities and implements the JavaScript "Float64Array" interface.
+ * It also implements List<Double> for direct manipulation in Java.
+ */
+
+public class NativeFloat64Array
+    extends NativeTypedArrayView<Double>
+{
+    private static final long serialVersionUID = -1255405650050639335L;
+
+    private static final String CLASS_NAME = "Float64Array";
+    private static final int BYTES_PER_ELEMENT = 8;
+
+    public NativeFloat64Array()
+<span class='uc' id='L29' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L30' title='1|1|1 - Total: 1'>    }
+</span>
+    public NativeFloat64Array(NativeArrayBuffer ab, int off, int len)
+    {
+<span class='uc' id='L34' title='8|8|8 - Total: 8'>        super(ab, off, len, len * BYTES_PER_ELEMENT);
+</span><span class='uc' id='L35' title='1|1|1 - Total: 1'>    }
+</span>
+    public NativeFloat64Array(int len)
+    {
+<span class='uc' id='L39' title='10|10|10 - Total: 10'>        this(new NativeArrayBuffer(len * BYTES_PER_ELEMENT), 0, len);
+</span><span class='uc' id='L40' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L45' title='2|2|2 - Total: 2'>        return CLASS_NAME;
+</span>    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class='uc' id='L50' title='4|4|4 - Total: 4'>        NativeFloat64Array a = new NativeFloat64Array();
+</span><span class='uc' id='L51' title='6|6|6 - Total: 6'>        a.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
+</span><span class='uc' id='L52' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected NativeTypedArrayView construct(NativeArrayBuffer ab, int off, int len)
+    {
+<span class='uc' id='L57' title='7|7|7 - Total: 7'>        return new NativeFloat64Array(ab, off, len);
+</span>    }
+
+    @Override
+    public int getBytesPerElement()
+    {
+<span class='uc' id='L63' title='2|2|2 - Total: 2'>        return BYTES_PER_ELEMENT;
+</span>    }
+
+    @Override
+    protected NativeTypedArrayView realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class='uc' id='L69' title='2|2|2 - Total: 2'>        if (!(thisObj instanceof NativeFloat64Array)) {
+</span><span class='nc' id='L70' title='0|0|0 - Total: 3'>            throw incompatibleCallError(f);
+</span>        }
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        return (NativeFloat64Array)thisObj;
+</span>    }
+
+    @Override
+    protected Object js_get(int index)
+    {
+<span class='uc' id='L78' title='2|2|2 - Total: 2'>        if (checkIndex(index)) {
+</span><span class='uc' id='L79' title='2|2|2 - Total: 2'>            return Undefined.instance;
+</span>        }
+<span class='uc' id='L81' title='12|12|12 - Total: 12'>        long base = ByteIo.readUint64Primitive(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, false);
+</span><span class='uc' id='L82' title='4|4|4 - Total: 4'>        return Double.longBitsToDouble(base);
+</span>    }
+
+    @Override
+    protected Object js_set(int index, Object c)
+    {
+<span class='uc' id='L88' title='2|2|2 - Total: 2'>        if (checkIndex(index)) {
+</span><span class='uc' id='L89' title='2|2|2 - Total: 2'>            return Undefined.instance;
+</span>        }
+<span class='uc' id='L91' title='3|3|3 - Total: 3'>        double val = ScriptRuntime.toNumber(c);
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>        long base = Double.doubleToLongBits(val);
+</span><span class='uc' id='L93' title='12|12|12 - Total: 12'>        ByteIo.writeUint64(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, base, false);
+</span><span class='uc' id='L94' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    @Override
+    public Double get(int i)
+    {
+<span class='uc' id='L100' title='2|2|2 - Total: 2'>        if (checkIndex(i)) {
+</span><span class='uc' id='L101' title='4|4|4 - Total: 4'>            throw new IndexOutOfBoundsException();
+</span>        }
+<span class='uc' id='L103' title='5|5|5 - Total: 5'>        return (Double)js_get(i);
+</span>    }
+
+    @Override
+    public Double set(int i, Double aByte)
+    {
+<span class='uc' id='L109' title='2|2|2 - Total: 2'>        if (checkIndex(i)) {
+</span><span class='uc' id='L110' title='4|4|4 - Total: 4'>            throw new IndexOutOfBoundsException();
+</span>        }
+<span class='uc' id='L112' title='6|6|6 - Total: 6'>        return (Double)js_set(i, aByte);
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

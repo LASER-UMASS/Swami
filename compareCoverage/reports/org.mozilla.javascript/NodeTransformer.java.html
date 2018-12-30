@@ -1,0 +1,566 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.NodeTransformer.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.NodeTransformer.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.Scope;
+import org.mozilla.javascript.ast.ScriptNode;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * This class transforms a tree to a lower-level representation for codegen.
+ *
+ * @see Node
+ * @author Norris Boyd
+ */
+
+public class NodeTransformer
+{
+
+    public NodeTransformer()
+<span class='uc' id='L28' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L29' title='1|1|1 - Total: 1'>    }
+</span>
+    public final void transform(ScriptNode tree, CompilerEnvirons env)
+    {
+<span class='uc' id='L33' title='5|5|5 - Total: 5'>        transform(tree, false, env);
+</span><span class='uc' id='L34' title='1|1|1 - Total: 1'>    }
+</span>
+    public final void transform(ScriptNode tree, boolean inStrictMode, CompilerEnvirons env)
+    {
+<span class='uc' id='L38' title='2|2|2 - Total: 2'>        boolean useStrictMode = inStrictMode;
+</span>        // Support strict mode inside a function only for "ES6" language level
+        // and above. Otherwise, we will end up breaking backward compatibility for
+        // many existing scripts.
+<span class='uc' id='L42' title='4|4|4 - Total: 4'>        if ((env.getLanguageVersion() >= Context.VERSION_ES6) && tree.isInStrictMode()) {
+</span><span class='uc' id='L43' title='2|2|2 - Total: 2'>          useStrictMode = true;
+</span>        }
+<span class='uc' id='L45' title='4|4|4 - Total: 4'>        transformCompilationUnit(tree, useStrictMode);
+</span><span class='uc' id='L46' title='2|2|2 - Total: 2'>        for (int i = 0; i != tree.getFunctionCount(); ++i) {
+</span><span class='uc' id='L47' title='4|4|4 - Total: 4'>            FunctionNode fn = tree.getFunctionNode(i);
+</span><span class='uc' id='L48' title='5|5|5 - Total: 5'>            transform(fn, useStrictMode, env);
+</span>        }
+<span class='uc' id='L50' title='1|1|1 - Total: 1'>    }
+</span>
+    private void transformCompilationUnit(ScriptNode tree, boolean inStrictMode)
+    {
+<span class='uc' id='L54' title='5|5|5 - Total: 5'>        loops = new ObjArray();
+</span><span class='uc' id='L55' title='5|5|5 - Total: 5'>        loopEnds = new ObjArray();
+</span>
+        // to save against upchecks if no finally blocks are used.
+<span class='uc' id='L58' title='3|3|3 - Total: 3'>        hasFinally = false;
+</span>
+        // Flatten all only if we are not using scope objects for block scope
+<span class='uc' id='L61' title='2|2|2 - Total: 2'>        boolean createScopeObjects = tree.getType() != Token.FUNCTION ||
+</span><span class='uc' id='L62' title='2|2|2 - Total: 2'>                                  ((FunctionNode)tree).requiresActivation();
+</span><span class='uc' id='L63' title='2|2|2 - Total: 2'>        tree.flattenSymbolTable(!createScopeObjects);
+</span>
+        //uncomment to print tree before transformation
+        if (Token.printTrees) System.out.println(tree.toStringTree(tree));
+<span class='uc' id='L67' title='7|7|7 - Total: 7'>        transformCompilationUnit_r(tree, tree, tree, createScopeObjects,
+</span>                                   inStrictMode);
+<span class='uc' id='L69' title='1|1|1 - Total: 1'>    }
+</span>
+    private void transformCompilationUnit_r(final ScriptNode tree,
+                                            final Node parent,
+                                            Scope scope,
+                                            boolean createScopeObjects,
+                                            boolean inStrictMode)
+    {
+<span class='uc' id='L77' title='2|2|2 - Total: 2'>        Node node = null;
+</span>      siblingLoop:
+        for (;;) {
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>            Node previous = null;
+</span><span class='uc' id='L81' title='2|2|2 - Total: 2'>            if (node == null) {
+</span><span class='uc' id='L82' title='4|4|4 - Total: 4'>                node = parent.getFirstChild();
+</span>            } else {
+<span class='uc' id='L84' title='2|2|2 - Total: 2'>                previous = node;
+</span><span class='uc' id='L85' title='3|3|3 - Total: 3'>                node = node.getNext();
+</span>            }
+<span class='uc' id='L87' title='2|2|2 - Total: 2'>            if (node == null) {
+</span><span class='uc' id='L88' title='1|1|1 - Total: 1'>                break;
+</span>            }
+
+<span class='uc' id='L91' title='3|3|3 - Total: 3'>            int type = node.getType();
+</span><span class='uc' id='L92' title='10|10|10 - Total: 10'>            if (createScopeObjects &&
+</span>                (type == Token.BLOCK || type == Token.LOOP ||
+                 type == Token.ARRAYCOMP) &&
+                (node instanceof Scope))
+            {
+<span class='uc' id='L97' title='3|3|3 - Total: 3'>                Scope newScope = (Scope) node;
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>                if (newScope.getSymbolTable() != null) {
+</span>                    // transform to let statement so we get a with statement
+                    // created to contain scoped let variables
+<span class='uc' id='L101' title='2|2|2 - Total: 2'>                    Node let = new Node(type == Token.ARRAYCOMP ? Token.LETEXPR
+</span>                                                                : Token.LET);
+<span class='uc' id='L103' title='5|5|5 - Total: 5'>                    Node innerLet = new Node(Token.LET);
+</span><span class='uc' id='L104' title='3|3|3 - Total: 3'>                    let.addChildToBack(innerLet);
+</span><span class='uc' id='L105' title='2|2|2 - Total: 2'>                    for (String name: newScope.getSymbolTable().keySet()) {
+</span><span class='uc' id='L106' title='5|5|5 - Total: 5'>                        innerLet.addChildToBack(Node.newString(Token.NAME, name));
+</span><span class='uc' id='L107' title='1|1|1 - Total: 1'>                    }
+</span><span class='uc' id='L108' title='3|3|3 - Total: 3'>                    newScope.setSymbolTable(null); // so we don't transform again
+</span><span class='uc' id='L109' title='2|2|2 - Total: 2'>                    Node oldNode = node;
+</span><span class='uc' id='L110' title='6|6|6 - Total: 6'>                    node = replaceCurrent(parent, previous, node, let);
+</span><span class='uc' id='L111' title='3|3|3 - Total: 3'>                    type = node.getType();
+</span><span class='uc' id='L112' title='3|3|3 - Total: 3'>                    let.addChildToBack(oldNode);
+</span>                }
+            }
+
+<span class='uc' id='L116' title='16|16|16 - Total: 16'>            switch (type) {
+</span>
+              case Token.LABEL:
+              case Token.SWITCH:
+              case Token.LOOP:
+<span class='uc' id='L121' title='4|4|4 - Total: 4'>                loops.push(node);
+</span><span class='uc' id='L122' title='6|6|6 - Total: 6'>                loopEnds.push(((Jump)node).target);
+</span><span class='uc' id='L123' title='1|1|1 - Total: 1'>                break;
+</span>
+              case Token.WITH:
+              {
+<span class='uc' id='L127' title='4|4|4 - Total: 4'>                loops.push(node);
+</span><span class='uc' id='L128' title='3|3|3 - Total: 3'>                Node leave = node.getNext();
+</span><span class='upc' id='L129' title='1|1|1 - Total: 2'>                if (leave.getType() != Token.LEAVEWITH) {
+</span><span class='nc' id='L130' title='0|0|0 - Total: 2'>                    Kit.codeBug();
+</span>                }
+<span class='uc' id='L132' title='4|4|4 - Total: 4'>                loopEnds.push(leave);
+</span><span class='uc' id='L133' title='1|1|1 - Total: 1'>                break;
+</span>              }
+
+              case Token.TRY:
+              {
+<span class='uc' id='L138' title='3|3|3 - Total: 3'>                Jump jump = (Jump)node;
+</span><span class='uc' id='L139' title='3|3|3 - Total: 3'>                Node finallytarget = jump.getFinally();
+</span><span class='uc' id='L140' title='2|2|2 - Total: 2'>                if (finallytarget != null) {
+</span><span class='uc' id='L141' title='3|3|3 - Total: 3'>                    hasFinally = true;
+</span><span class='uc' id='L142' title='4|4|4 - Total: 4'>                    loops.push(node);
+</span><span class='uc' id='L143' title='5|5|5 - Total: 5'>                    loopEnds.push(finallytarget);
+</span>                }
+                break;
+              }
+
+              case Token.TARGET:
+              case Token.LEAVEWITH:
+<span class='uc' id='L150' title='4|4|4 - Total: 4'>                if (!loopEnds.isEmpty() && loopEnds.peek() == node) {
+</span><span class='uc' id='L151' title='4|4|4 - Total: 4'>                    loopEnds.pop();
+</span><span class='uc' id='L152' title='5|5|5 - Total: 5'>                    loops.pop();
+</span>                }
+                break;
+
+              case Token.YIELD:
+<span class='uc' id='L157' title='4|4|4 - Total: 4'>                ((FunctionNode)tree).addResumptionPoint(node);
+</span><span class='uc' id='L158' title='1|1|1 - Total: 1'>                break;
+</span>
+              case Token.RETURN:
+              {
+<span class='upc' id='L162' title='1|1|1 - Total: 2'>                boolean isGenerator = tree.getType() == Token.FUNCTION
+</span><span class='uc' id='L163' title='2|2|2 - Total: 2'>                    && ((FunctionNode)tree).isGenerator();
+</span><span class='uc' id='L164' title='2|2|2 - Total: 2'>                if (isGenerator) {
+</span><span class='uc' id='L165' title='4|4|4 - Total: 4'>                    node.putIntProp(Node.GENERATOR_END_PROP, 1);
+</span>                }
+                /* If we didn't support try/finally, it wouldn't be
+                 * necessary to put LEAVEWITH nodes here... but as
+                 * we do need a series of JSR FINALLY nodes before
+                 * each RETURN, we need to ensure that each finally
+                 * block gets the correct scope... which could mean
+                 * that some LEAVEWITH nodes are necessary.
+                 */
+<span class='uc' id='L174' title='2|2|2 - Total: 2'>                if (!hasFinally)
+</span><span class='uc' id='L175' title='1|1|1 - Total: 1'>                    break;     // skip the whole mess.
+</span><span class='uc' id='L176' title='2|2|2 - Total: 2'>                Node unwindBlock = null;
+</span><span class='uc' id='L177' title='2|2|2 - Total: 2'>                for (int i=loops.size()-1; i >= 0; i--) {
+</span><span class='uc' id='L178' title='6|6|6 - Total: 6'>                    Node n = (Node) loops.get(i);
+</span><span class='uc' id='L179' title='3|3|3 - Total: 3'>                    int elemtype = n.getType();
+</span><span class='uc' id='L180' title='4|4|4 - Total: 4'>                    if (elemtype == Token.TRY || elemtype == Token.WITH) {
+</span>                        Node unwind;
+<span class='uc' id='L182' title='2|2|2 - Total: 2'>                        if (elemtype == Token.TRY) {
+</span><span class='uc' id='L183' title='5|5|5 - Total: 5'>                            Jump jsrnode = new Jump(Token.JSR);
+</span><span class='uc' id='L184' title='4|4|4 - Total: 4'>                            Node jsrtarget = ((Jump)n).getFinally();
+</span><span class='uc' id='L185' title='3|3|3 - Total: 3'>                            jsrnode.target = jsrtarget;
+</span><span class='uc' id='L186' title='2|2|2 - Total: 2'>                            unwind = jsrnode;
+</span><span class='uc' id='L187' title='1|1|1 - Total: 1'>                        } else {
+</span><span class='uc' id='L188' title='5|5|5 - Total: 5'>                            unwind = new Node(Token.LEAVEWITH);
+</span>                        }
+<span class='uc' id='L190' title='2|2|2 - Total: 2'>                        if (unwindBlock == null) {
+</span><span class='uc' id='L191' title='4|4|4 - Total: 4'>                            unwindBlock = new Node(Token.BLOCK,
+</span><span class='uc' id='L192' title='3|3|3 - Total: 3'>                                                   node.getLineno());
+</span>                        }
+<span class='uc' id='L194' title='3|3|3 - Total: 3'>                        unwindBlock.addChildToBack(unwind);
+</span>                    }
+                }
+<span class='uc' id='L197' title='2|2|2 - Total: 2'>                if (unwindBlock != null) {
+</span><span class='uc' id='L198' title='2|2|2 - Total: 2'>                    Node returnNode = node;
+</span><span class='uc' id='L199' title='3|3|3 - Total: 3'>                    Node returnExpr = returnNode.getFirstChild();
+</span><span class='uc' id='L200' title='6|6|6 - Total: 6'>                    node = replaceCurrent(parent, previous, node, unwindBlock);
+</span><span class='upc' id='L201' title='3|3|3 - Total: 4'>                    if (returnExpr == null || isGenerator) {
+</span><span class='uc' id='L202' title='4|4|4 - Total: 4'>                        unwindBlock.addChildToBack(returnNode);
+</span>                    } else {
+<span class='uc' id='L204' title='6|6|6 - Total: 6'>                        Node store = new Node(Token.EXPR_RESULT, returnExpr);
+</span><span class='uc' id='L205' title='3|3|3 - Total: 3'>                        unwindBlock.addChildToFront(store);
+</span><span class='uc' id='L206' title='5|5|5 - Total: 5'>                        returnNode = new Node(Token.RETURN_RESULT);
+</span><span class='uc' id='L207' title='3|3|3 - Total: 3'>                        unwindBlock.addChildToBack(returnNode);
+</span>                        // transform return expression
+<span class='uc' id='L209' title='7|7|7 - Total: 7'>                        transformCompilationUnit_r(tree, store, scope,
+</span>                                                   createScopeObjects,
+                                                   inStrictMode);
+                    }
+                    // skip transformCompilationUnit_r to avoid infinite loop
+<span class='uc' id='L214' title='1|1|1 - Total: 1'>                    continue siblingLoop;
+</span>                }
+                break;
+              }
+
+              case Token.BREAK:
+              case Token.CONTINUE:
+              {
+<span class='uc' id='L222' title='3|3|3 - Total: 3'>                Jump jump = (Jump)node;
+</span><span class='uc' id='L223' title='3|3|3 - Total: 3'>                Jump jumpStatement = jump.getJumpStatement();
+</span><span class='upc' id='L224' title='1|1|1 - Total: 2'>                if (jumpStatement == null) Kit.codeBug();
+</span>
+<span class='uc' id='L226' title='4|4|4 - Total: 4'>                for (int i = loops.size(); ;) {
+</span><span class='upc' id='L227' title='1|1|1 - Total: 2'>                    if (i == 0) {
+</span>                        // Parser/IRFactory ensure that break/continue
+                        // always has a jump statement associated with it
+                        // which should be found
+<span class='nc' id='L231' title='0|0|0 - Total: 2'>                        throw Kit.codeBug();
+</span>                    }
+<span class='uc' id='L233' title='1|1|1 - Total: 1'>                    --i;
+</span><span class='uc' id='L234' title='6|6|6 - Total: 6'>                    Node n = (Node) loops.get(i);
+</span><span class='uc' id='L235' title='2|2|2 - Total: 2'>                    if (n == jumpStatement) {
+</span><span class='uc' id='L236' title='1|1|1 - Total: 1'>                        break;
+</span>                    }
+
+<span class='uc' id='L239' title='3|3|3 - Total: 3'>                    int elemtype = n.getType();
+</span><span class='uc' id='L240' title='2|2|2 - Total: 2'>                    if (elemtype == Token.WITH) {
+</span><span class='uc' id='L241' title='5|5|5 - Total: 5'>                        Node leave = new Node(Token.LEAVEWITH);
+</span><span class='uc' id='L242' title='6|6|6 - Total: 6'>                        previous = addBeforeCurrent(parent, previous, node,
+</span>                                                    leave);
+<span class='upc' id='L244' title='1|1|1 - Total: 2'>                    } else if (elemtype == Token.TRY) {
+</span><span class='nc' id='L245' title='0|0|0 - Total: 3'>                        Jump tryNode = (Jump)n;
+</span><span class='nc' id='L246' title='0|0|0 - Total: 5'>                        Jump jsrFinally = new Jump(Token.JSR);
+</span><span class='nc' id='L247' title='0|0|0 - Total: 4'>                        jsrFinally.target = tryNode.getFinally();
+</span><span class='nc' id='L248' title='0|0|0 - Total: 6'>                        previous = addBeforeCurrent(parent, previous, node,
+</span>                                                    jsrFinally);
+                    }
+<span class='uc' id='L251' title='1|1|1 - Total: 1'>                }
+</span>
+<span class='uc' id='L253' title='2|2|2 - Total: 2'>                if (type == Token.BREAK) {
+</span><span class='uc' id='L254' title='5|5|5 - Total: 5'>                    jump.target = jumpStatement.target;
+</span>                } else {
+<span class='uc' id='L256' title='4|4|4 - Total: 4'>                    jump.target = jumpStatement.getContinue();
+</span>                }
+<span class='uc' id='L258' title='4|4|4 - Total: 4'>                jump.setType(Token.GOTO);
+</span>
+<span class='uc' id='L260' title='1|1|1 - Total: 1'>                break;
+</span>              }
+
+              case Token.CALL:
+<span class='uc' id='L264' title='4|4|4 - Total: 4'>                visitCall(node, tree);
+</span><span class='uc' id='L265' title='1|1|1 - Total: 1'>                break;
+</span>
+              case Token.NEW:
+<span class='uc' id='L268' title='4|4|4 - Total: 4'>                visitNew(node, tree);
+</span><span class='uc' id='L269' title='1|1|1 - Total: 1'>                break;
+</span>
+              case Token.LETEXPR:
+              case Token.LET: {
+<span class='uc' id='L273' title='3|3|3 - Total: 3'>                Node child = node.getFirstChild();
+</span><span class='uc' id='L274' title='2|2|2 - Total: 2'>                if (child.getType() == Token.LET) {
+</span>                  // We have a let statement or expression rather than a
+                  // let declaration
+<span class='uc' id='L277' title='2|2|2 - Total: 2'>                  boolean createWith = tree.getType() != Token.FUNCTION
+</span><span class='uc' id='L278' title='2|2|2 - Total: 2'>                      || ((FunctionNode)tree).requiresActivation();
+</span><span class='uc' id='L279' title='7|7|7 - Total: 7'>                  node = visitLet(createWith, parent, previous, node);
+</span><span class='uc' id='L280' title='1|1|1 - Total: 1'>                  break;
+</span>                } else {
+                  // fall through to process let declaration...
+                }
+              }
+              /* fall through */
+              case Token.CONST:
+              case Token.VAR:
+              {
+<span class='uc' id='L289' title='5|5|5 - Total: 5'>                Node result = new Node(Token.BLOCK);
+</span><span class='uc' id='L290' title='2|2|2 - Total: 2'>                for (Node cursor = node.getFirstChild(); cursor != null;) {
+</span>                    // Move cursor to next before createAssignment gets chance
+                    // to change n.next
+<span class='uc' id='L293' title='2|2|2 - Total: 2'>                    Node n = cursor;
+</span><span class='uc' id='L294' title='3|3|3 - Total: 3'>                    cursor = cursor.getNext();
+</span><span class='uc' id='L295' title='2|2|2 - Total: 2'>                    if (n.getType() == Token.NAME) {
+</span><span class='uc' id='L296' title='2|2|2 - Total: 2'>                        if (!n.hasChildren())
+</span><span class='uc' id='L297' title='1|1|1 - Total: 1'>                            continue;
+</span><span class='uc' id='L298' title='3|3|3 - Total: 3'>                        Node init = n.getFirstChild();
+</span><span class='uc' id='L299' title='3|3|3 - Total: 3'>                        n.removeChild(init);
+</span><span class='uc' id='L300' title='4|4|4 - Total: 4'>                        n.setType(Token.BINDNAME);
+</span><span class='uc' id='L301' title='2|2|2 - Total: 2'>                        n = new Node(type == Token.CONST ?
+</span>                                         Token.SETCONST :
+                                         Token.SETNAME,
+                                     n, init);
+<span class='uc' id='L305' title='1|1|1 - Total: 1'>                    } else {
+</span>                        // May be a destructuring assignment already transformed
+                        // to a LETEXPR
+<span class='upc' id='L308' title='1|1|1 - Total: 2'>                        if (n.getType() != Token.LETEXPR)
+</span><span class='nc' id='L309' title='0|0|0 - Total: 2'>                            throw Kit.codeBug();
+</span>                    }
+<span class='uc' id='L311' title='8|8|8 - Total: 8'>                    Node pop = new Node(Token.EXPR_VOID, n, node.getLineno());
+</span><span class='uc' id='L312' title='3|3|3 - Total: 3'>                    result.addChildToBack(pop);
+</span><span class='uc' id='L313' title='1|1|1 - Total: 1'>                }
+</span><span class='uc' id='L314' title='6|6|6 - Total: 6'>                node = replaceCurrent(parent, previous, node, result);
+</span><span class='uc' id='L315' title='1|1|1 - Total: 1'>                break;
+</span>              }
+
+              case Token.TYPEOFNAME: {
+<span class='uc' id='L319' title='5|5|5 - Total: 5'>                Scope defining = scope.getDefiningScope(node.getString());
+</span><span class='uc' id='L320' title='2|2|2 - Total: 2'>                if (defining != null) {
+</span><span class='uc' id='L321' title='3|3|3 - Total: 3'>                    node.setScope(defining);
+</span>                }
+              }
+<span class='uc' id='L324' title='1|1|1 - Total: 1'>              break;
+</span>
+              case Token.TYPEOF:
+              case Token.IFNE: {
+                  /* We want to suppress warnings for undefined property o.p
+                   * for the following constructs: typeof o.p, if (o.p),
+                   * if (!o.p), if (o.p == undefined), if (undefined == o.p)
+                   */
+<span class='uc' id='L332' title='3|3|3 - Total: 3'>                Node child = node.getFirstChild();
+</span><span class='uc' id='L333' title='2|2|2 - Total: 2'>                if (type == Token.IFNE) {
+</span><span class='uc' id='L334' title='2|2|2 - Total: 2'>                  while (child.getType() == Token.NOT) {
+</span><span class='uc' id='L335' title='4|4|4 - Total: 4'>                    child = child.getFirstChild();
+</span>                  }
+<span class='uc' id='L337' title='2|2|2 - Total: 2'>                  if (child.getType() == Token.EQ ||
+</span><span class='uc' id='L338' title='2|2|2 - Total: 2'>                      child.getType() == Token.NE) {
+</span><span class='uc' id='L339' title='3|3|3 - Total: 3'>                    Node first = child.getFirstChild();
+</span><span class='uc' id='L340' title='3|3|3 - Total: 3'>                    Node last = child.getLastChild();
+</span><span class='uc' id='L341' title='2|2|2 - Total: 2'>                    if (first.getType() == Token.NAME &&
+</span><span class='upc' id='L342' title='1|1|1 - Total: 2'>                        first.getString().equals("undefined")) {
+</span><span class='nc' id='L343' title='0|0|0 - Total: 3'>                      child = last;
+</span><span class='uc' id='L344' title='2|2|2 - Total: 2'>                    } else if (last.getType() == Token.NAME &&
+</span><span class='uc' id='L345' title='2|2|2 - Total: 2'>                        last.getString().equals("undefined")) {
+</span><span class='uc' id='L346' title='2|2|2 - Total: 2'>                      child = first;
+</span>                    }
+                  }
+                }
+<span class='uc' id='L350' title='2|2|2 - Total: 2'>                if (child.getType() == Token.GETPROP) {
+</span><span class='uc' id='L351' title='5|5|5 - Total: 5'>                  child.setType(Token.GETPROPNOWARN);
+</span>                }
+                break;
+              }
+
+              case Token.SETNAME:
+<span class='uc' id='L357' title='2|2|2 - Total: 2'>                  if (inStrictMode) {
+</span><span class='uc' id='L358' title='4|4|4 - Total: 4'>                      node.setType(Token.STRICT_SETNAME);
+</span>                  }
+                  /* fall through */
+              case Token.NAME:
+              case Token.SETCONST:
+              case Token.DELPROP:
+              {
+                // Turn name to var for faster access if possible
+<span class='uc' id='L366' title='2|2|2 - Total: 2'>                if (createScopeObjects) {
+</span><span class='uc' id='L367' title='1|1|1 - Total: 1'>                    break;
+</span>                }
+                Node nameSource;
+<span class='uc' id='L370' title='2|2|2 - Total: 2'>                if (type == Token.NAME) {
+</span><span class='uc' id='L371' title='3|3|3 - Total: 3'>                    nameSource = node;
+</span>                } else {
+<span class='uc' id='L373' title='3|3|3 - Total: 3'>                    nameSource = node.getFirstChild();
+</span><span class='uc' id='L374' title='2|2|2 - Total: 2'>                    if (nameSource.getType() != Token.BINDNAME) {
+</span><span class='upc' id='L375' title='1|1|1 - Total: 2'>                        if (type == Token.DELPROP) {
+</span><span class='uc' id='L376' title='1|1|1 - Total: 1'>                            break;
+</span>                        }
+<span class='nc' id='L378' title='0|0|0 - Total: 2'>                        throw Kit.codeBug();
+</span>                    }
+                }
+<span class='upc' id='L381' title='1|1|1 - Total: 2'>                if (nameSource.getScope() != null) {
+</span><span class='nc' id='L382' title='0|0|0 - Total: 1'>                    break; // already have a scope set
+</span>                }
+<span class='uc' id='L384' title='3|3|3 - Total: 3'>                String name = nameSource.getString();
+</span><span class='uc' id='L385' title='4|4|4 - Total: 4'>                Scope defining = scope.getDefiningScope(name);
+</span><span class='uc' id='L386' title='2|2|2 - Total: 2'>                if (defining != null) {
+</span><span class='uc' id='L387' title='3|3|3 - Total: 3'>                    nameSource.setScope(defining);
+</span><span class='uc' id='L388' title='2|2|2 - Total: 2'>                    if (type == Token.NAME) {
+</span><span class='uc' id='L389' title='5|5|5 - Total: 5'>                        node.setType(Token.GETVAR);
+</span><span class='upc' id='L390' title='3|3|3 - Total: 4'>                    } else if (type == Token.SETNAME ||
+</span>                               type == Token.STRICT_SETNAME) {
+<span class='uc' id='L392' title='4|4|4 - Total: 4'>                        node.setType(Token.SETVAR);
+</span><span class='uc' id='L393' title='5|5|5 - Total: 5'>                        nameSource.setType(Token.STRING);
+</span><span class='uc' id='L394' title='2|2|2 - Total: 2'>                    } else if (type == Token.SETCONST) {
+</span><span class='uc' id='L395' title='4|4|4 - Total: 4'>                        node.setType(Token.SETCONSTVAR);
+</span><span class='uc' id='L396' title='5|5|5 - Total: 5'>                        nameSource.setType(Token.STRING);
+</span><span class='upc' id='L397' title='1|1|1 - Total: 2'>                    } else if (type == Token.DELPROP) {
+</span>                        // Local variables are by definition permanent
+<span class='uc' id='L399' title='5|5|5 - Total: 5'>                        Node n = new Node(Token.FALSE);
+</span><span class='uc' id='L400' title='6|6|6 - Total: 6'>                        node = replaceCurrent(parent, previous, node, n);
+</span><span class='uc' id='L401' title='1|1|1 - Total: 1'>                    } else {
+</span><span class='nc' id='L402' title='0|0|0 - Total: 2'>                        throw Kit.codeBug();
+</span>                    }
+                }
+                break;
+              }
+            }
+
+<span class='uc' id='L409' title='2|2|2 - Total: 2'>            transformCompilationUnit_r(tree, node,
+</span>                node instanceof Scope ? (Scope)node : scope,
+                createScopeObjects, inStrictMode);
+<span class='uc' id='L412' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L413' title='1|1|1 - Total: 1'>    }
+</span>
+    protected void visitNew(Node node, ScriptNode tree) {
+<span class='uc' id='L416' title='1|1|1 - Total: 1'>    }
+</span>
+    protected void visitCall(Node node, ScriptNode tree) {
+<span class='uc' id='L419' title='1|1|1 - Total: 1'>    }
+</span>
+    protected Node visitLet(boolean createWith, Node parent, Node previous,
+                            Node scopeNode)
+    {
+<span class='uc' id='L424' title='3|3|3 - Total: 3'>        Node vars = scopeNode.getFirstChild();
+</span><span class='uc' id='L425' title='3|3|3 - Total: 3'>        Node body = vars.getNext();
+</span><span class='uc' id='L426' title='3|3|3 - Total: 3'>        scopeNode.removeChild(vars);
+</span><span class='uc' id='L427' title='3|3|3 - Total: 3'>        scopeNode.removeChild(body);
+</span><span class='uc' id='L428' title='2|2|2 - Total: 2'>        boolean isExpression = scopeNode.getType() == Token.LETEXPR;
+</span>        Node result;
+        Node newVars;
+<span class='uc' id='L431' title='2|2|2 - Total: 2'>        if (createWith) {
+</span><span class='uc' id='L432' title='2|2|2 - Total: 2'>            result = new Node(isExpression ? Token.WITHEXPR : Token.BLOCK);
+</span><span class='uc' id='L433' title='6|6|6 - Total: 6'>            result = replaceCurrent(parent, previous, scopeNode, result);
+</span><span class='uc' id='L434' title='4|4|4 - Total: 4'>            ArrayList<Object> list = new ArrayList<Object>();
+</span><span class='uc' id='L435' title='5|5|5 - Total: 5'>            Node objectLiteral = new Node(Token.OBJECTLIT);
+</span><span class='uc' id='L436' title='2|2|2 - Total: 2'>            for (Node v=vars.getFirstChild(); v != null; v = v.getNext()) {
+</span><span class='uc' id='L437' title='2|2|2 - Total: 2'>                Node current = v;
+</span><span class='uc' id='L438' title='2|2|2 - Total: 2'>                if (current.getType() == Token.LETEXPR) {
+</span>                    // destructuring in let expr, e.g. let ([x, y] = [3, 4]) {}
+<span class='uc' id='L440' title='2|2|2 - Total: 2'>                    List<?> destructuringNames = (List<?>)
+</span><span class='uc' id='L441' title='3|3|3 - Total: 3'>                        current.getProp(Node.DESTRUCTURING_NAMES);
+</span><span class='uc' id='L442' title='3|3|3 - Total: 3'>                    Node c = current.getFirstChild();
+</span><span class='upc' id='L443' title='1|1|1 - Total: 2'>                    if (c.getType() != Token.LET) throw Kit.codeBug();
+</span>                    // Add initialization code to front of body
+<span class='uc' id='L445' title='2|2|2 - Total: 2'>                    if (isExpression) {
+</span><span class='uc' id='L446' title='9|9|9 - Total: 9'>                        body = new Node(Token.COMMA, c.getNext(), body);
+</span>                    } else {
+<span class='uc' id='L448' title='7|7|7 - Total: 7'>                        body = new Node(Token.BLOCK,
+</span><span class='uc' id='L449' title='5|5|5 - Total: 5'>                            new Node(Token.EXPR_VOID, c.getNext()),
+</span>                            body);
+                    }
+                    // Update "list" and "objectLiteral" for the variables
+                    // defined in the destructuring assignment
+<span class='upc' id='L454' title='1|1|1 - Total: 2'>                    if (destructuringNames != null) {
+</span><span class='uc' id='L455' title='4|4|4 - Total: 4'>                        list.addAll(destructuringNames);
+</span><span class='uc' id='L456' title='2|2|2 - Total: 2'>                        for (int i=0; i < destructuringNames.size(); i++) {
+</span><span class='uc' id='L457' title='6|6|6 - Total: 6'>                            objectLiteral.addChildToBack(
+</span><span class='uc' id='L458' title='2|2|2 - Total: 2'>                                new Node(Token.VOID, Node.newNumber(0.0)));
+</span>                        }
+                    }
+<span class='uc' id='L461' title='3|3|3 - Total: 3'>                    current = c.getFirstChild(); // should be a NAME, checked below
+</span>                }
+<span class='upc' id='L463' title='1|1|1 - Total: 2'>                if (current.getType() != Token.NAME) throw Kit.codeBug();
+</span><span class='uc' id='L464' title='6|6|6 - Total: 6'>                list.add(ScriptRuntime.getIndexObject(current.getString()));
+</span><span class='uc' id='L465' title='3|3|3 - Total: 3'>                Node init = current.getFirstChild();
+</span><span class='uc' id='L466' title='2|2|2 - Total: 2'>                if (init == null) {
+</span><span class='uc' id='L467' title='7|7|7 - Total: 7'>                    init = new Node(Token.VOID, Node.newNumber(0.0));
+</span>                }
+<span class='uc' id='L469' title='3|3|3 - Total: 3'>                objectLiteral.addChildToBack(init);
+</span>             }
+<span class='uc' id='L471' title='5|5|5 - Total: 5'>             objectLiteral.putProp(Node.OBJECT_IDS_PROP, list.toArray());
+</span><span class='uc' id='L472' title='6|6|6 - Total: 6'>             newVars = new Node(Token.ENTERWITH, objectLiteral);
+</span><span class='uc' id='L473' title='3|3|3 - Total: 3'>             result.addChildToBack(newVars);
+</span><span class='uc' id='L474' title='7|7|7 - Total: 7'>             result.addChildToBack(new Node(Token.WITH, body));
+</span><span class='uc' id='L475' title='6|6|6 - Total: 6'>             result.addChildToBack(new Node(Token.LEAVEWITH));
+</span><span class='uc' id='L476' title='1|1|1 - Total: 1'>        } else {
+</span><span class='uc' id='L477' title='2|2|2 - Total: 2'>            result = new Node(isExpression ? Token.COMMA : Token.BLOCK);
+</span><span class='uc' id='L478' title='6|6|6 - Total: 6'>            result = replaceCurrent(parent, previous, scopeNode, result);
+</span><span class='uc' id='L479' title='5|5|5 - Total: 5'>            newVars = new Node(Token.COMMA);
+</span><span class='uc' id='L480' title='2|2|2 - Total: 2'>            for (Node v=vars.getFirstChild(); v != null; v = v.getNext()) {
+</span><span class='uc' id='L481' title='2|2|2 - Total: 2'>                Node current = v;
+</span><span class='uc' id='L482' title='2|2|2 - Total: 2'>                if (current.getType() == Token.LETEXPR) {
+</span>                    // destructuring in let expr, e.g. let ([x, y] = [3, 4]) {}
+<span class='uc' id='L484' title='3|3|3 - Total: 3'>                    Node c = current.getFirstChild();
+</span><span class='upc' id='L485' title='1|1|1 - Total: 2'>                    if (c.getType() != Token.LET) throw Kit.codeBug();
+</span>                    // Add initialization code to front of body
+<span class='upc' id='L487' title='1|1|1 - Total: 2'>                    if (isExpression) {
+</span><span class='nc' id='L488' title='0|0|0 - Total: 9'>                        body = new Node(Token.COMMA, c.getNext(), body);
+</span>                    } else {
+<span class='uc' id='L490' title='7|7|7 - Total: 7'>                        body = new Node(Token.BLOCK,
+</span><span class='uc' id='L491' title='5|5|5 - Total: 5'>                            new Node(Token.EXPR_VOID, c.getNext()),
+</span>                            body);
+                    }
+                    // We're removing the LETEXPR, so move the symbols
+<span class='uc' id='L495' title='5|5|5 - Total: 5'>                    Scope.joinScopes((Scope)current,
+</span>                                          (Scope)scopeNode);
+<span class='uc' id='L497' title='3|3|3 - Total: 3'>                    current = c.getFirstChild(); // should be a NAME, checked below
+</span>                }
+<span class='upc' id='L499' title='1|1|1 - Total: 2'>                if (current.getType() != Token.NAME) throw Kit.codeBug();
+</span><span class='uc' id='L500' title='4|4|4 - Total: 4'>                Node stringNode = Node.newString(current.getString());
+</span><span class='uc' id='L501' title='4|4|4 - Total: 4'>                stringNode.setScope((Scope)scopeNode);
+</span><span class='uc' id='L502' title='3|3|3 - Total: 3'>                Node init = current.getFirstChild();
+</span><span class='uc' id='L503' title='2|2|2 - Total: 2'>                if (init == null) {
+</span><span class='uc' id='L504' title='7|7|7 - Total: 7'>                    init = new Node(Token.VOID, Node.newNumber(0.0));
+</span>                }
+<span class='uc' id='L506' title='8|8|8 - Total: 8'>                newVars.addChildToBack(new Node(Token.SETVAR, stringNode, init));
+</span>            }
+<span class='uc' id='L508' title='2|2|2 - Total: 2'>            if (isExpression) {
+</span><span class='uc' id='L509' title='3|3|3 - Total: 3'>                result.addChildToBack(newVars);
+</span><span class='uc' id='L510' title='4|4|4 - Total: 4'>                scopeNode.setType(Token.COMMA);
+</span><span class='uc' id='L511' title='3|3|3 - Total: 3'>                result.addChildToBack(scopeNode);
+</span><span class='uc' id='L512' title='3|3|3 - Total: 3'>                scopeNode.addChildToBack(body);
+</span><span class='upc' id='L513' title='1|1|1 - Total: 2'>                if (body instanceof Scope) {
+</span><span class='nc' id='L514' title='0|0|0 - Total: 4'>                    Scope scopeParent = ((Scope) body).getParentScope();
+</span><span class='nc' id='L515' title='0|0|0 - Total: 5'>                    ((Scope) body).setParentScope((Scope)scopeNode);
+</span><span class='nc' id='L516' title='0|0|0 - Total: 4'>                    ((Scope) scopeNode).setParentScope(scopeParent);
+</span><span class='nc' id='L517' title='0|0|0 - Total: 1'>                }
+</span>            } else {
+<span class='uc' id='L519' title='7|7|7 - Total: 7'>                result.addChildToBack(new Node(Token.EXPR_VOID, newVars));
+</span><span class='uc' id='L520' title='4|4|4 - Total: 4'>                scopeNode.setType(Token.BLOCK);
+</span><span class='uc' id='L521' title='3|3|3 - Total: 3'>                result.addChildToBack(scopeNode);
+</span><span class='uc' id='L522' title='3|3|3 - Total: 3'>                scopeNode.addChildrenToBack(body);
+</span><span class='uc' id='L523' title='2|2|2 - Total: 2'>                if (body instanceof Scope) {
+</span><span class='uc' id='L524' title='4|4|4 - Total: 4'>                    Scope scopeParent = ((Scope) body).getParentScope();
+</span><span class='uc' id='L525' title='5|5|5 - Total: 5'>                    ((Scope) body).setParentScope((Scope)scopeNode);
+</span><span class='uc' id='L526' title='4|4|4 - Total: 4'>                    ((Scope) scopeNode).setParentScope(scopeParent);
+</span>                }
+            }
+        }
+<span class='uc' id='L530' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private static Node addBeforeCurrent(Node parent, Node previous,
+                                         Node current, Node toAdd)
+    {
+<span class='upc' id='L536' title='1|1|1 - Total: 2'>        if (previous == null) {
+</span><span class='nc' id='L537' title='0|0|0 - Total: 2'>            if (!(current == parent.getFirstChild())) Kit.codeBug();
+</span><span class='nc' id='L538' title='0|0|0 - Total: 4'>            parent.addChildToFront(toAdd);
+</span>        } else {
+<span class='upc' id='L540' title='1|1|1 - Total: 2'>            if (!(current == previous.getNext())) Kit.codeBug();
+</span><span class='uc' id='L541' title='4|4|4 - Total: 4'>            parent.addChildAfter(toAdd, previous);
+</span>        }
+<span class='uc' id='L543' title='2|2|2 - Total: 2'>        return toAdd;
+</span>    }
+
+    private static Node replaceCurrent(Node parent, Node previous,
+                                       Node current, Node replacement)
+    {
+<span class='uc' id='L549' title='2|2|2 - Total: 2'>        if (previous == null) {
+</span><span class='upc' id='L550' title='1|1|1 - Total: 2'>            if (!(current == parent.getFirstChild())) Kit.codeBug();
+</span><span class='uc' id='L551' title='5|5|5 - Total: 5'>            parent.replaceChild(current, replacement);
+</span><span class='upc' id='L552' title='1|1|1 - Total: 2'>        } else if (previous.next == current) {
+</span>            // Check cachedPrev.next == current is necessary due to possible
+            // tree mutations
+<span class='uc' id='L555' title='5|5|5 - Total: 5'>            parent.replaceChildAfter(previous, replacement);
+</span>        } else {
+<span class='nc' id='L557' title='0|0|0 - Total: 4'>            parent.replaceChild(current, replacement);
+</span>        }
+<span class='uc' id='L559' title='2|2|2 - Total: 2'>        return replacement;
+</span>    }
+
+    private ObjArray loops;
+    private ObjArray loopEnds;
+    private boolean hasFinally;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

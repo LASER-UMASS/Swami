@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.SymbolKey.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.SymbolKey.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+/**
+ * A SymbolKey is one of the implementations of Symbol. It is really there
+ * so that we can easily use pre-defined symbols as keys in native code.
+ * A SymbolKey has the special property that two NativeSymbol objects
+ * with the same key are equal.
+ */
+
+public class SymbolKey
+    implements Symbol, Serializable
+{
+    static final long serialVersionUID = -6019782713330994754L;
+
+    // These are common SymbolKeys that are equivalent to well-known symbols
+    // defined in ECMAScript.
+<span class='uc' id='L19' title='5|5|5 - Total: 5'>    public static final SymbolKey ITERATOR = new SymbolKey("Symbol.iterator");
+</span><span class='uc' id='L20' title='5|5|5 - Total: 5'>    public static final SymbolKey TO_STRING_TAG = new SymbolKey("Symbol.toStringTag");
+</span><span class='uc' id='L21' title='5|5|5 - Total: 5'>    public static final SymbolKey SPECIES = new SymbolKey("Symbol.species");
+</span><span class='uc' id='L22' title='5|5|5 - Total: 5'>    public static final SymbolKey HAS_INSTANCE = new SymbolKey("Symbol.hasInstance");
+</span><span class='uc' id='L23' title='5|5|5 - Total: 5'>    public static final SymbolKey IS_CONCAT_SPREADABLE = new SymbolKey("Symbol.isConcatSpreadable");
+</span><span class='uc' id='L24' title='5|5|5 - Total: 5'>    public static final SymbolKey IS_REGEXP = new SymbolKey("Symbol.isRegExp");
+</span><span class='uc' id='L25' title='5|5|5 - Total: 5'>    public static final SymbolKey TO_PRIMITIVE = new SymbolKey("Symbol.toPrimitive");
+</span><span class='uc' id='L26' title='5|5|5 - Total: 5'>    public static final SymbolKey MATCH = new SymbolKey("Symbol.match");
+</span><span class='uc' id='L27' title='5|5|5 - Total: 5'>    public static final SymbolKey REPLACE = new SymbolKey("Symbol.replace");
+</span><span class='uc' id='L28' title='5|5|5 - Total: 5'>    public static final SymbolKey SEARCH = new SymbolKey("Symbol.search");
+</span><span class='uc' id='L29' title='5|5|5 - Total: 5'>    public static final SymbolKey SPLIT = new SymbolKey("Symbol.split");
+</span><span class='uc' id='L30' title='6|6|6 - Total: 6'>    public static final SymbolKey UNSCOPABLES = new SymbolKey("Symbol.unscopables");
+</span>
+    private String name;
+
+    public SymbolKey(String name)
+<span class='uc' id='L35' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L36' title='3|3|3 - Total: 3'>        this.name = name;
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    public String getName() {
+<span class='nc' id='L40' title='0|0|0 - Total: 3'>        return name;
+</span>    }
+
+    @Override
+    public int hashCode()
+    {
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>        return System.identityHashCode(this);
+</span>    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+<span class='uc' id='L52' title='2|2|2 - Total: 2'>        if (o instanceof SymbolKey) {
+</span><span class='upc' id='L53' title='1|1|1 - Total: 2'>            return o == this;
+</span>        }
+<span class='uc' id='L55' title='2|2|2 - Total: 2'>        if (o instanceof NativeSymbol) {
+</span><span class='uc' id='L56' title='2|2|2 - Total: 2'>            return ((NativeSymbol) o).getKey() == this;
+</span>        }
+<span class='uc' id='L58' title='2|2|2 - Total: 2'>        return false;
+</span>    }
+
+    @Override
+    public String toString()
+    {
+<span class='upc' id='L64' title='1|1|1 - Total: 2'>        if (name == null) {
+</span><span class='nc' id='L65' title='0|0|0 - Total: 2'>            return "Symbol()";
+</span>        }
+<span class='uc' id='L67' title='12|12|12 - Total: 12'>        return "Symbol(" + name + ')';
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

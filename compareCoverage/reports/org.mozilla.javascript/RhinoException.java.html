@@ -1,0 +1,446 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.RhinoException.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.RhinoException.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript;
+
+import java.io.CharArrayWriter;
+import java.io.FilenameFilter;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * The class of exceptions thrown by the JavaScript engine.
+ */
+public abstract class RhinoException extends RuntimeException
+{
+<span class='uc' id='L24' title='3|3|3 - Total: 3'>    private static final Pattern JAVA_STACK_PATTERN = Pattern.compile("_c_(.*)_\\d+");
+</span>
+    RhinoException()
+<span class='uc' id='L27' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L28' title='2|2|2 - Total: 2'>        Evaluator e = Context.createInterpreter();
+</span><span class='upc' id='L29' title='1|1|1 - Total: 2'>        if (e != null)
+</span><span class='uc' id='L30' title='3|3|3 - Total: 3'>            e.captureStackInfo(this);
+</span><span class='uc' id='L31' title='1|1|1 - Total: 1'>    }
+</span>
+    RhinoException(String details)
+    {
+<span class='uc' id='L35' title='3|3|3 - Total: 3'>        super(details);
+</span><span class='uc' id='L36' title='2|2|2 - Total: 2'>        Evaluator e = Context.createInterpreter();
+</span><span class='upc' id='L37' title='1|1|1 - Total: 2'>        if (e != null)
+</span><span class='uc' id='L38' title='3|3|3 - Total: 3'>            e.captureStackInfo(this);
+</span><span class='uc' id='L39' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public final String getMessage()
+    {
+<span class='uc' id='L44' title='3|3|3 - Total: 3'>        String details = details();
+</span><span class='upc' id='L45' title='3|3|3 - Total: 4'>        if (sourceName == null || lineNumber <= 0) {
+</span><span class='uc' id='L46' title='2|2|2 - Total: 2'>            return details;
+</span>        }
+<span class='uc' id='L48' title='5|5|5 - Total: 5'>        StringBuilder buf = new StringBuilder(details);
+</span><span class='uc' id='L49' title='4|4|4 - Total: 4'>        buf.append(" (");
+</span><span class='upc' id='L50' title='1|1|1 - Total: 2'>        if (sourceName != null) {
+</span><span class='uc' id='L51' title='5|5|5 - Total: 5'>            buf.append(sourceName);
+</span>        }
+<span class='upc' id='L53' title='1|1|1 - Total: 2'>        if (lineNumber > 0) {
+</span><span class='uc' id='L54' title='4|4|4 - Total: 4'>            buf.append('#');
+</span><span class='uc' id='L55' title='5|5|5 - Total: 5'>            buf.append(lineNumber);
+</span>        }
+<span class='uc' id='L57' title='4|4|4 - Total: 4'>        buf.append(')');
+</span><span class='uc' id='L58' title='3|3|3 - Total: 3'>        return buf.toString();
+</span>    }
+
+    public String details()
+    {
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        return super.getMessage();
+</span>    }
+
+    /**
+     * Get the uri of the script source containing the error, or null
+     * if that information is not available.
+     */
+    public final String sourceName()
+    {
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        return sourceName;
+</span>    }
+
+    /**
+     * Initialize the uri of the script source containing the error.
+     *
+     * @param sourceName the uri of the script source responsible for the error.
+     *                   It should not be <tt>null</tt>.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initSourceName(String sourceName)
+    {
+<span class='upc' id='L85' title='1|1|1 - Total: 2'>        if (sourceName == null) throw new IllegalArgumentException();
+</span><span class='upc' id='L86' title='1|1|1 - Total: 2'>        if (this.sourceName != null) throw new IllegalStateException();
+</span><span class='uc' id='L87' title='3|3|3 - Total: 3'>        this.sourceName = sourceName;
+</span><span class='uc' id='L88' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the line number of the statement causing the error,
+     * or zero if not available.
+     */
+    public final int lineNumber()
+    {
+<span class='uc' id='L96' title='3|3|3 - Total: 3'>        return lineNumber;
+</span>    }
+
+    /**
+     * Initialize the line number of the script statement causing the error.
+     *
+     * @param lineNumber the line number in the script source.
+     *                   It should be positive number.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initLineNumber(int lineNumber)
+    {
+<span class='upc' id='L109' title='1|1|1 - Total: 2'>        if (lineNumber <= 0) throw new IllegalArgumentException(String.valueOf(lineNumber));
+</span><span class='upc' id='L110' title='1|1|1 - Total: 2'>        if (this.lineNumber > 0) throw new IllegalStateException();
+</span><span class='uc' id='L111' title='3|3|3 - Total: 3'>        this.lineNumber = lineNumber;
+</span><span class='uc' id='L112' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * The column number of the location of the error, or zero if unknown.
+     */
+    public final int columnNumber()
+    {
+<span class='uc' id='L119' title='3|3|3 - Total: 3'>        return columnNumber;
+</span>    }
+
+    /**
+     * Initialize the column number of the script statement causing the error.
+     *
+     * @param columnNumber the column number in the script source.
+     *                     It should be positive number.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initColumnNumber(int columnNumber)
+    {
+<span class='upc' id='L132' title='1|1|1 - Total: 2'>        if (columnNumber <= 0) throw new IllegalArgumentException(String.valueOf(columnNumber));
+</span><span class='upc' id='L133' title='1|1|1 - Total: 2'>        if (this.columnNumber > 0) throw new IllegalStateException();
+</span><span class='uc' id='L134' title='3|3|3 - Total: 3'>        this.columnNumber = columnNumber;
+</span><span class='uc' id='L135' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * The source text of the line causing the error, or null if unknown.
+     */
+    public final String lineSource()
+    {
+<span class='uc' id='L142' title='3|3|3 - Total: 3'>        return lineSource;
+</span>    }
+
+    /**
+     * Initialize the text of the source line containing the error.
+     *
+     * @param lineSource the text of the source line responsible for the error.
+     *                   It should not be <tt>null</tt>.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initLineSource(String lineSource)
+    {
+<span class='upc' id='L155' title='1|1|1 - Total: 2'>        if (lineSource == null) throw new IllegalArgumentException();
+</span><span class='upc' id='L156' title='1|1|1 - Total: 2'>        if (this.lineSource != null) throw new IllegalStateException();
+</span><span class='uc' id='L157' title='3|3|3 - Total: 3'>        this.lineSource = lineSource;
+</span><span class='uc' id='L158' title='1|1|1 - Total: 1'>    }
+</span>
+    final void recordErrorOrigin(String sourceName, int lineNumber,
+                                 String lineSource, int columnNumber)
+    {
+        // XXX: for compatibility allow for now -1 to mean 0
+<span class='upc' id='L164' title='1|1|1 - Total: 2'>        if (lineNumber == -1) {
+</span><span class='nc' id='L165' title='0|0|0 - Total: 2'>            lineNumber = 0;
+</span>        }
+
+<span class='uc' id='L168' title='2|2|2 - Total: 2'>        if (sourceName != null) {
+</span><span class='uc' id='L169' title='3|3|3 - Total: 3'>            initSourceName(sourceName);
+</span>        }
+<span class='uc' id='L171' title='2|2|2 - Total: 2'>        if (lineNumber != 0) {
+</span><span class='uc' id='L172' title='3|3|3 - Total: 3'>            initLineNumber(lineNumber);
+</span>        }
+<span class='uc' id='L174' title='2|2|2 - Total: 2'>        if (lineSource != null) {
+</span><span class='uc' id='L175' title='3|3|3 - Total: 3'>            initLineSource(lineSource);
+</span>        }
+<span class='uc' id='L177' title='2|2|2 - Total: 2'>        if (columnNumber != 0) {
+</span><span class='uc' id='L178' title='3|3|3 - Total: 3'>            initColumnNumber(columnNumber);
+</span>        }
+<span class='uc' id='L180' title='1|1|1 - Total: 1'>    }
+</span>
+    private String generateStackTrace()
+    {
+        // Get stable reference to work properly with concurrent access
+<span class='nc' id='L185' title='0|0|0 - Total: 4'>        CharArrayWriter writer = new CharArrayWriter();
+</span><span class='nc' id='L186' title='0|0|0 - Total: 6'>        super.printStackTrace(new PrintWriter(writer));
+</span><span class='nc' id='L187' title='0|0|0 - Total: 3'>        String origStackTrace = writer.toString();
+</span><span class='nc' id='L188' title='0|0|0 - Total: 2'>        Evaluator e = Context.createInterpreter();
+</span><span class='nc' id='L189' title='0|0|0 - Total: 2'>        if (e != null)
+</span><span class='nc' id='L190' title='0|0|0 - Total: 5'>            return e.getPatchedStack(this, origStackTrace);
+</span><span class='nc' id='L191' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * @return a script stack dump
+     * @since 1.6R6
+     */
+    public String getScriptStackTrace()
+    {
+<span class='uc' id='L204' title='5|5|5 - Total: 5'>        return getScriptStackTrace(NativeError.DEFAULT_STACK_LIMIT, null);
+</span>    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * The optional "limit" parameter limits the number of stack frames returned.
+     * The "functionName" parameter will exclude any stack frames "below" the
+     * specified function on the stack.
+     *
+     * @param limit the number of stack frames returned
+     * @param functionName the name of a function on the stack -- frames below it will be ignored
+     * @return a script stack dump
+     * @since 1.8.0
+     */
+    public String getScriptStackTrace(int limit, String functionName)
+    {
+<span class='uc' id='L223' title='5|5|5 - Total: 5'>        ScriptStackElement[] stack = getScriptStack(limit, functionName);
+</span><span class='uc' id='L224' title='5|5|5 - Total: 5'>        return formatStackTrace(stack, details());
+</span>    }
+
+    static String formatStackTrace(ScriptStackElement[] stack, String message)
+    {
+<span class='uc' id='L229' title='4|4|4 - Total: 4'>        StringBuilder buffer = new StringBuilder();
+</span><span class='uc' id='L230' title='3|3|3 - Total: 3'>        String lineSeparator = SecurityUtilities.getSystemProperty("line.separator");
+</span>
+<span class='upc' id='L232' title='3|3|3 - Total: 4'>        if ((stackStyle == StackStyle.V8) && !"null".equals(message)) {
+</span>            // V8 Actually puts the error message at the top of "stack."
+<span class='uc' id='L234' title='4|4|4 - Total: 4'>            buffer.append(message);
+</span><span class='uc' id='L235' title='4|4|4 - Total: 4'>            buffer.append(lineSeparator);
+</span>        }
+
+<span class='uc' id='L238' title='2|2|2 - Total: 2'>        for (ScriptStackElement elem : stack) {
+</span><span class='upc' id='L239' title='3|3|3 - Total: 4'>            switch (stackStyle) {
+</span>            case MOZILLA:
+<span class='uc' id='L241' title='3|3|3 - Total: 3'>                elem.renderMozillaStyle(buffer);
+</span><span class='uc' id='L242' title='1|1|1 - Total: 1'>                break;
+</span>            case V8:
+<span class='uc' id='L244' title='3|3|3 - Total: 3'>                elem.renderV8Style(buffer);
+</span><span class='uc' id='L245' title='1|1|1 - Total: 1'>                break;
+</span>            case RHINO:
+<span class='uc' id='L247' title='3|3|3 - Total: 3'>                elem.renderJavaStyle(buffer);
+</span>                break;
+            }
+<span class='uc' id='L250' title='4|4|4 - Total: 4'>            buffer.append(lineSeparator);
+</span>        }
+<span class='uc' id='L252' title='3|3|3 - Total: 3'>        return buffer.toString();
+</span>    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * @deprecated the filter argument is ignored as we are able to
+     * recognize script stack elements by our own. Use
+     * #getScriptStackTrace() instead.
+     * @param filter ignored
+     * @return a script stack dump
+     * @since 1.6R6
+     */
+    @Deprecated
+    public String getScriptStackTrace(FilenameFilter filter)
+    {
+<span class='nc' id='L267' title='0|0|0 - Total: 3'>        return getScriptStackTrace();
+</span>    }
+
+    /**
+     * Get the script stack of this exception as an array of
+     * {@link ScriptStackElement}s.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * @return the script stack for this exception
+     * @since 1.7R3
+     */
+    public ScriptStackElement[] getScriptStack() {
+<span class='nc' id='L280' title='0|0|0 - Total: 5'>        return getScriptStack(-1, null);
+</span>    }
+
+    /**
+     * Get the script stack of this exception as an array of
+     * {@link ScriptStackElement}s.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     *
+     * @param limit the number of stack frames returned, or -1 for unlimited
+     * @param hideFunction the name of a function on the stack -- frames below it will be ignored, or null
+     * @return the script stack for this exception
+     * @since 1.8.0
+     */
+    public ScriptStackElement[] getScriptStack(int limit, String hideFunction) {
+<span class='uc' id='L296' title='4|4|4 - Total: 4'>        List<ScriptStackElement> list = new ArrayList<ScriptStackElement>();
+</span><span class='uc' id='L297' title='3|3|3 - Total: 3'>        ScriptStackElement[][] interpreterStack = null;
+</span><span class='uc' id='L298' title='2|2|2 - Total: 2'>        if (interpreterStackInfo != null) {
+</span><span class='uc' id='L299' title='2|2|2 - Total: 2'>            Evaluator interpreter = Context.createInterpreter();
+</span><span class='upc' id='L300' title='1|1|1 - Total: 2'>            if (interpreter instanceof Interpreter)
+</span><span class='uc' id='L301' title='5|5|5 - Total: 5'>                interpreterStack = ((Interpreter) interpreter).getScriptStackElements(this);
+</span>        }
+
+<span class='uc' id='L304' title='2|2|2 - Total: 2'>        int interpreterStackIndex = 0;
+</span><span class='uc' id='L305' title='3|3|3 - Total: 3'>        StackTraceElement[] stack = getStackTrace();
+</span><span class='uc' id='L306' title='2|2|2 - Total: 2'>        int count = 0;
+</span><span class='uc' id='L307' title='2|2|2 - Total: 2'>        boolean printStarted = (hideFunction == null);
+</span>
+        // Pattern to recover function name from java method name -
+        // see Codegen.getBodyMethodName()
+        // kudos to Marc Guillemot for coming up with this
+<span class='uc' id='L312' title='2|2|2 - Total: 2'>        for (StackTraceElement e : stack) {
+</span><span class='uc' id='L313' title='3|3|3 - Total: 3'>            String fileName = e.getFileName();
+</span><span class='uc' id='L314' title='2|2|2 - Total: 2'>            if (e.getMethodName().startsWith("_c_")
+</span><span class='upc' id='L315' title='3|3|3 - Total: 4'>                    && e.getLineNumber() > -1
+</span>                    && fileName != null
+<span class='upc' id='L317' title='1|1|1 - Total: 2'>                    && !fileName.endsWith(".java")) {
+</span><span class='uc' id='L318' title='3|3|3 - Total: 3'>                String methodName = e.getMethodName();
+</span><span class='uc' id='L319' title='4|4|4 - Total: 4'>                Matcher match = JAVA_STACK_PATTERN.matcher(methodName);
+</span>                // the method representing the main script is always "_c_script_0" -
+                // at least we hope so
+<span class='upc' id='L322' title='3|3|3 - Total: 4'>                methodName = !"_c_script_0".equals(methodName) && match.find() ?
+</span><span class='uc' id='L323' title='4|4|4 - Total: 4'>                        match.group(1) : null;
+</span>
+<span class='uc' id='L325' title='4|4|4 - Total: 4'>                if (!printStarted && hideFunction.equals(methodName)) {
+</span><span class='uc' id='L326' title='3|3|3 - Total: 3'>                    printStarted = true;
+</span><span class='uc' id='L327' title='6|6|6 - Total: 6'>                } else if (printStarted && ((limit < 0) || (count < limit))) {
+</span><span class='uc' id='L328' title='10|10|10 - Total: 10'>                    list.add(new ScriptStackElement(fileName, methodName, e.getLineNumber()));
+</span><span class='uc' id='L329' title='1|1|1 - Total: 1'>                    count++;
+</span>                }
+
+<span class='uc' id='L332' title='2|2|2 - Total: 2'>            } else if ("org.mozilla.javascript.Interpreter".equals(e.getClassName())
+</span><span class='upc' id='L333' title='4|4|4 - Total: 6'>                    && "interpretLoop".equals(e.getMethodName())
+</span>                    && interpreterStack != null
+                    && interpreterStack.length > interpreterStackIndex) {
+
+<span class='uc' id='L337' title='2|2|2 - Total: 2'>                for (ScriptStackElement elem : interpreterStack[interpreterStackIndex++]) {
+</span><span class='uc' id='L338' title='4|4|4 - Total: 4'>                    if (!printStarted && hideFunction.equals(elem.functionName)) {
+</span><span class='uc' id='L339' title='3|3|3 - Total: 3'>                        printStarted = true;
+</span><span class='uc' id='L340' title='6|6|6 - Total: 6'>                    } else if (printStarted && ((limit < 0) || (count < limit))) {
+</span><span class='uc' id='L341' title='4|4|4 - Total: 4'>                        list.add(elem);
+</span><span class='uc' id='L342' title='1|1|1 - Total: 1'>                        count++;
+</span>                    }
+                }
+            }
+        }
+<span class='uc' id='L347' title='7|7|7 - Total: 7'>        return list.toArray(new ScriptStackElement[list.size()]);
+</span>    }
+
+
+    @Override
+    public void printStackTrace(PrintWriter s)
+    {
+<span class='nc' id='L354' title='0|0|0 - Total: 2'>        if (interpreterStackInfo == null) {
+</span><span class='nc' id='L355' title='0|0|0 - Total: 4'>            super.printStackTrace(s);
+</span>        } else {
+<span class='nc' id='L357' title='0|0|0 - Total: 4'>            s.print(generateStackTrace());
+</span>        }
+<span class='nc' id='L359' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public void printStackTrace(PrintStream s)
+    {
+<span class='nc' id='L364' title='0|0|0 - Total: 2'>        if (interpreterStackInfo == null) {
+</span><span class='nc' id='L365' title='0|0|0 - Total: 4'>            super.printStackTrace(s);
+</span>        } else {
+<span class='nc' id='L367' title='0|0|0 - Total: 4'>            s.print(generateStackTrace());
+</span>        }
+<span class='nc' id='L369' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns true if subclasses of <code>RhinoException</code>
+     * use the Mozilla/Firefox style of rendering script stacks
+     * (<code>functionName()@fileName:lineNumber</code>)
+     * instead of Rhino's own Java-inspired format
+     * (<code>    at fileName:lineNumber (functionName)</code>).
+     * @return true if stack is rendered in Mozilla/Firefox style
+     * @see ScriptStackElement
+     * @since 1.7R3
+     */
+    public static boolean usesMozillaStackStyle() {
+<span class='nc' id='L382' title='0|0|0 - Total: 2'>        return (stackStyle == StackStyle.MOZILLA);
+</span>    }
+
+    /**
+     * Tell subclasses of <code>RhinoException</code> whether to
+     * use the Mozilla/Firefox style of rendering script stacks
+     * (<code>functionName()@fileName:lineNumber</code>)
+     * instead of Rhino's own Java-inspired format
+     * (<code>    at fileName:lineNumber (functionName)</code>).
+     * Use "setStackStyle" to select between more than just the "Mozilla" and "Rhino" formats.
+     * @param flag whether to render stacks in Mozilla/Firefox style
+     * @see ScriptStackElement
+     * @since 1.7R3
+     */
+    public static void useMozillaStackStyle(boolean flag) {
+<span class='uc' id='L397' title='2|2|2 - Total: 2'>        stackStyle = (flag ? StackStyle.MOZILLA : StackStyle.RHINO);
+</span><span class='uc' id='L398' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Specify the stack style to use from between three different formats: "Rhino" (the default),
+     * "Mozilla", and "V8." See StackStyle for information about each.
+     * @param style the style to select -- an instance of the StackStyle class
+     * @see StackStyle
+     * @since 1.8.0
+     */
+    public static void setStackStyle(StackStyle style) {
+<span class='uc' id='L408' title='2|2|2 - Total: 2'>        stackStyle = style;
+</span><span class='uc' id='L409' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Return the current stack style in use.
+     * Return the current stack style in use.
+     */
+    public static StackStyle getStackStyle() {
+<span class='nc' id='L416' title='0|0|0 - Total: 2'>        return stackStyle;
+</span>    }
+
+    static final long serialVersionUID = 1883500631321581169L;
+
+    // Just for testing!
+<span class='uc' id='L422' title='2|2|2 - Total: 2'>    private static StackStyle stackStyle = StackStyle.RHINO;
+</span>
+    private String sourceName;
+    private int lineNumber;
+    private String lineSource;
+    private int columnNumber;
+
+    Object interpreterStackInfo;
+    int[] interpreterLineData;
+
+    // Allow us to override default stack style for debugging.
+    static {
+<span class='uc' id='L434' title='3|3|3 - Total: 3'>        String style = System.getProperty("rhino.stack.style");
+</span><span class='upc' id='L435' title='1|1|1 - Total: 2'>        if (style != null) {
+</span><span class='nc' id='L436' title='0|0|0 - Total: 2'>            if ("Rhino".equalsIgnoreCase(style)) {
+</span><span class='nc' id='L437' title='0|0|0 - Total: 3'>                stackStyle = StackStyle.RHINO;
+</span><span class='nc' id='L438' title='0|0|0 - Total: 2'>            } else if ("Mozilla".equalsIgnoreCase(style)) {
+</span><span class='nc' id='L439' title='0|0|0 - Total: 3'>                stackStyle = StackStyle.MOZILLA;
+</span><span class='nc' id='L440' title='0|0|0 - Total: 2'>            } else if ("V8".equalsIgnoreCase(style)) {
+</span><span class='nc' id='L441' title='0|0|0 - Total: 2'>                stackStyle = StackStyle.V8;
+</span>            }
+        }
+<span class='uc' id='L444' title='1|1|1 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

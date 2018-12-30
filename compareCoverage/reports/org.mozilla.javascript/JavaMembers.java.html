@@ -1,0 +1,914 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.JavaMembers.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.JavaMembers.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.util.*;
+
+import static java.lang.reflect.Modifier.isProtected;
+import static java.lang.reflect.Modifier.isPublic;
+
+/**
+ *
+ * @author Mike Shaver
+ * @author Norris Boyd
+ * @see NativeJavaObject
+ * @see NativeJavaClass
+ */
+class JavaMembers
+{
+    JavaMembers(Scriptable scope, Class<?> cl)
+    {
+<span class='nc' id='L26' title='0|0|0 - Total: 5'>        this(scope, cl, false);
+</span><span class='nc' id='L27' title='0|0|0 - Total: 1'>    }
+</span>
+    JavaMembers(Scriptable scope, Class<?> cl, boolean includeProtected)
+<span class='bc' id='L30' title='0|2|2 - Total: 2'>    {
+</span>        try {
+<span class='bc' id='L32' title='0|3|3 - Total: 3'>            Context cx = ContextFactory.getGlobal().enterContext();
+</span><span class='bc' id='L33' title='0|3|3 - Total: 3'>            ClassShutter shutter = cx.getClassShutter();
+</span><span class='bpc' id='L34' title='0|1|1 - Total: 4'>            if (shutter != null && !shutter.visibleToScripts(cl.getName())) {
+</span><span class='nc' id='L35' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1("msg.access.prohibited",
+</span><span class='nc' id='L36' title='0|0|0 - Total: 1'>                                                  cl.getName());
+</span>            }
+<span class='bc' id='L38' title='0|5|5 - Total: 5'>            this.members = new HashMap<String,Object>();
+</span><span class='bc' id='L39' title='0|5|5 - Total: 5'>            this.staticMembers = new HashMap<String,Object>();
+</span><span class='bc' id='L40' title='0|3|3 - Total: 3'>            this.cl = cl;
+</span><span class='bc' id='L41' title='0|4|4 - Total: 4'>            boolean includePrivate = cx.hasFeature(
+</span>                    Context.FEATURE_ENHANCED_JAVA_ACCESS);
+<span class='bc' id='L43' title='0|5|5 - Total: 5'>            reflect(scope, includeProtected, includePrivate);
+</span>        } finally {
+<span class='bpc' id='L45' title='0|1|1 - Total: 3'>            Context.exit();
+</span><span class='bpc' id='L46' title='0|1|1 - Total: 3'>        }
+</span><span class='bc' id='L47' title='0|1|1 - Total: 1'>    }
+</span>
+    boolean has(String name, boolean isStatic)
+    {
+<span class='bc' id='L51' title='0|2|2 - Total: 2'>        Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L52' title='0|4|4 - Total: 4'>        Object obj = ht.get(name);
+</span><span class='bc' id='L53' title='0|2|2 - Total: 2'>        if (obj != null) {
+</span><span class='bc' id='L54' title='0|2|2 - Total: 2'>            return true;
+</span>        }
+<span class='bc' id='L56' title='0|2|2 - Total: 2'>        return findExplicitFunction(name, isStatic) != null;
+</span>    }
+
+    Object get(Scriptable scope, String name, Object javaObject,
+               boolean isStatic)
+    {
+<span class='bc' id='L62' title='0|2|2 - Total: 2'>        Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L63' title='0|4|4 - Total: 4'>        Object member = ht.get(name);
+</span><span class='bc' id='L64' title='0|4|4 - Total: 4'>        if (!isStatic && member == null) {
+</span>            // Try to get static member from instance (LC3)
+<span class='bc' id='L66' title='0|5|5 - Total: 5'>            member = staticMembers.get(name);
+</span>        }
+<span class='bc' id='L68' title='0|2|2 - Total: 2'>        if (member == null) {
+</span><span class='bc' id='L69' title='0|7|7 - Total: 7'>            member = this.getExplicitFunction(scope, name,
+</span>                                              javaObject, isStatic);
+<span class='bc' id='L71' title='0|2|2 - Total: 2'>            if (member == null)
+</span><span class='bc' id='L72' title='0|2|2 - Total: 2'>                return Scriptable.NOT_FOUND;
+</span>        }
+<span class='bc' id='L74' title='0|2|2 - Total: 2'>        if (member instanceof Scriptable) {
+</span><span class='bc' id='L75' title='0|2|2 - Total: 2'>            return member;
+</span>        }
+<span class='bc' id='L77' title='0|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span>        Object rval;
+        Class<?> type;
+        try {
+<span class='bc' id='L81' title='0|2|2 - Total: 2'>            if (member instanceof BeanProperty) {
+</span><span class='bc' id='L82' title='0|3|3 - Total: 3'>                BeanProperty bp = (BeanProperty) member;
+</span><span class='bpc' id='L83' title='0|1|1 - Total: 2'>                if (bp.getter == null)
+</span><span class='nc' id='L84' title='0|0|0 - Total: 2'>                    return Scriptable.NOT_FOUND;
+</span><span class='bc' id='L85' title='0|6|6 - Total: 6'>                rval = bp.getter.invoke(javaObject, Context.emptyArgs);
+</span><span class='bc' id='L86' title='0|5|5 - Total: 5'>                type = bp.getter.method().getReturnType();
+</span><span class='bc' id='L87' title='0|1|1 - Total: 1'>            } else {
+</span><span class='bc' id='L88' title='0|3|3 - Total: 3'>                Field field = (Field) member;
+</span><span class='bc' id='L89' title='0|2|2 - Total: 2'>                rval = field.get(isStatic ? null : javaObject);
+</span><span class='bc' id='L90' title='0|3|3 - Total: 3'>                type = field.getType();
+</span>            }
+<span class='nc' id='L92' title='0|0|0 - Total: 1'>        } catch (Exception ex) {
+</span><span class='nc' id='L93' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(ex);
+</span><span class='bc' id='L94' title='0|1|1 - Total: 1'>        }
+</span>        // Need to wrap the object before we return it.
+<span class='bc' id='L96' title='0|3|3 - Total: 3'>        scope = ScriptableObject.getTopLevelScope(scope);
+</span><span class='bc' id='L97' title='0|8|8 - Total: 8'>        return cx.getWrapFactory().wrap(cx, scope, rval, type);
+</span>    }
+
+    void put(Scriptable scope, String name, Object javaObject,
+             Object value, boolean isStatic)
+    {
+<span class='bpc' id='L103' title='0|1|1 - Total: 2'>        Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L104' title='0|4|4 - Total: 4'>        Object member = ht.get(name);
+</span><span class='bpc' id='L105' title='0|2|2 - Total: 4'>        if (!isStatic && member == null) {
+</span>            // Try to get static member from instance (LC3)
+<span class='nc' id='L107' title='0|0|0 - Total: 5'>            member = staticMembers.get(name);
+</span>        }
+<span class='bpc' id='L109' title='0|1|1 - Total: 2'>        if (member == null)
+</span><span class='nc' id='L110' title='0|0|0 - Total: 4'>            throw reportMemberNotFound(name);
+</span><span class='bpc' id='L111' title='0|1|1 - Total: 2'>        if (member instanceof FieldAndMethods) {
+</span><span class='nc' id='L112' title='0|0|0 - Total: 5'>            FieldAndMethods fam = (FieldAndMethods) ht.get(name);
+</span><span class='nc' id='L113' title='0|0|0 - Total: 3'>            member = fam.field;
+</span>        }
+
+        // Is this a bean property "set"?
+<span class='bpc' id='L117' title='0|1|1 - Total: 2'>        if (member instanceof BeanProperty) {
+</span><span class='bc' id='L118' title='0|3|3 - Total: 3'>            BeanProperty bp = (BeanProperty)member;
+</span><span class='bpc' id='L119' title='0|1|1 - Total: 2'>            if (bp.setter == null) {
+</span><span class='nc' id='L120' title='0|0|0 - Total: 4'>                throw reportMemberNotFound(name);
+</span>            }
+            // If there's only one setter or if the value is null, use the
+            // main setter. Otherwise, let the NativeJavaMethod decide which
+            // setter to use:
+<span class='bpc' id='L125' title='0|1|1 - Total: 4'>            if (bp.setters == null || value == null) {
+</span><span class='bc' id='L126' title='0|6|6 - Total: 6'>                Class<?> setType = bp.setter.argTypes[0];
+</span><span class='bc' id='L127' title='0|9|9 - Total: 9'>                Object[] args = { Context.jsToJava(value, setType) };
+</span>                try {
+<span class='bc' id='L129' title='0|6|6 - Total: 6'>                    bp.setter.invoke(javaObject, args);
+</span><span class='nc' id='L130' title='0|0|0 - Total: 1'>                } catch (Exception ex) {
+</span><span class='nc' id='L131' title='0|0|0 - Total: 3'>                  throw Context.throwAsScriptRuntimeEx(ex);
+</span><span class='bc' id='L132' title='0|1|1 - Total: 1'>                }
+</span><span class='bc' id='L133' title='0|1|1 - Total: 1'>            } else {
+</span><span class='nc' id='L134' title='0|0|0 - Total: 7'>                Object[] args = { value };
+</span><span class='nc' id='L135' title='0|0|0 - Total: 6'>                bp.setters.call(Context.getContext(),
+</span><span class='nc' id='L136' title='0|0|0 - Total: 3'>                                ScriptableObject.getTopLevelScope(scope),
+</span>                                scope, args);
+            }
+<span class='bc' id='L139' title='0|1|1 - Total: 1'>        }
+</span>        else {
+<span class='nc' id='L141' title='0|0|0 - Total: 2'>            if (!(member instanceof Field)) {
+</span><span class='nc' id='L142' title='0|0|0 - Total: 2'>                String str = (member == null) ? "msg.java.internal.private"
+</span>                                              : "msg.java.method.assign";
+<span class='nc' id='L144' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(str, name);
+</span>            }
+<span class='nc' id='L146' title='0|0|0 - Total: 3'>            Field field = (Field)member;
+</span><span class='nc' id='L147' title='0|0|0 - Total: 5'>            Object javaValue = Context.jsToJava(value, field.getType());
+</span>            try {
+<span class='nc' id='L149' title='0|0|0 - Total: 4'>                field.set(javaObject, javaValue);
+</span><span class='nc' id='L150' title='0|0|0 - Total: 1'>            } catch (IllegalAccessException accessEx) {
+</span><span class='nc' id='L151' title='0|0|0 - Total: 2'>                if ((field.getModifiers() & Modifier.FINAL) != 0) {
+</span>                    // treat Java final the same as JavaScript [[READONLY]]
+<span class='nc' id='L153' title='0|0|0 - Total: 1'>                    return;
+</span>                }
+<span class='nc' id='L155' title='0|0|0 - Total: 3'>                throw Context.throwAsScriptRuntimeEx(accessEx);
+</span><span class='nc' id='L156' title='0|0|0 - Total: 1'>            } catch (IllegalArgumentException argEx) {
+</span><span class='nc' id='L157' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError3(
+</span>                    "msg.java.internal.field.type",
+<span class='nc' id='L159' title='0|0|0 - Total: 4'>                    value.getClass().getName(), field,
+</span><span class='nc' id='L160' title='0|0|0 - Total: 2'>                    javaObject.getClass().getName());
+</span><span class='nc' id='L161' title='0|0|0 - Total: 1'>            }
+</span>        }
+<span class='bc' id='L163' title='0|1|1 - Total: 1'>    }
+</span>
+    Object[] getIds(boolean isStatic)
+    {
+<span class='nc' id='L167' title='0|0|0 - Total: 2'>        Map<String,Object> map = isStatic ? staticMembers : members;
+</span><span class='nc' id='L168' title='0|0|0 - Total: 7'>        return map.keySet().toArray(new Object[map.size()]);
+</span>    }
+
+    static String javaSignature(Class<?> type)
+    {
+<span class='bc' id='L173' title='0|2|2 - Total: 2'>        if (!type.isArray()) {
+</span><span class='bc' id='L174' title='0|3|3 - Total: 3'>            return type.getName();
+</span>        } else {
+<span class='bc' id='L176' title='0|2|2 - Total: 2'>            int arrayDimension = 0;
+</span>            do {
+<span class='bc' id='L178' title='0|1|1 - Total: 1'>                ++arrayDimension;
+</span><span class='bc' id='L179' title='0|3|3 - Total: 3'>                type = type.getComponentType();
+</span><span class='bpc' id='L180' title='0|1|1 - Total: 2'>            } while (type.isArray());
+</span><span class='bc' id='L181' title='0|3|3 - Total: 3'>            String name = type.getName();
+</span><span class='bc' id='L182' title='0|2|2 - Total: 2'>            String suffix = "[]";
+</span><span class='bpc' id='L183' title='0|1|1 - Total: 2'>            if (arrayDimension == 1) {
+</span><span class='bc' id='L184' title='0|4|4 - Total: 4'>                return name.concat(suffix);
+</span>            } else {
+<span class='nc' id='L186' title='0|0|0 - Total: 8'>                int length = name.length() + arrayDimension * suffix.length();
+</span><span class='nc' id='L187' title='0|0|0 - Total: 5'>                StringBuilder sb = new StringBuilder(length);
+</span><span class='nc' id='L188' title='0|0|0 - Total: 4'>                sb.append(name);
+</span><span class='nc' id='L189' title='0|0|0 - Total: 2'>                while (arrayDimension != 0) {
+</span><span class='nc' id='L190' title='0|0|0 - Total: 1'>                    --arrayDimension;
+</span><span class='nc' id='L191' title='0|0|0 - Total: 5'>                    sb.append(suffix);
+</span>                }
+<span class='nc' id='L193' title='0|0|0 - Total: 3'>                return sb.toString();
+</span>            }
+        }
+    }
+
+    static String liveConnectSignature(Class<?>[] argTypes)
+    {
+<span class='bc' id='L200' title='0|3|3 - Total: 3'>        int N = argTypes.length;
+</span><span class='bpc' id='L201' title='0|1|1 - Total: 2'>        if (N == 0) { return "()"; }
+</span><span class='bc' id='L202' title='0|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='bc' id='L203' title='0|4|4 - Total: 4'>        sb.append('(');
+</span><span class='bc' id='L204' title='0|2|2 - Total: 2'>        for (int i = 0; i != N; ++i) {
+</span><span class='bc' id='L205' title='0|2|2 - Total: 2'>            if (i != 0) {
+</span><span class='bc' id='L206' title='0|4|4 - Total: 4'>                sb.append(',');
+</span>            }
+<span class='bc' id='L208' title='0|7|7 - Total: 7'>            sb.append(javaSignature(argTypes[i]));
+</span>        }
+<span class='bc' id='L210' title='0|4|4 - Total: 4'>        sb.append(')');
+</span><span class='bc' id='L211' title='0|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    private MemberBox findExplicitFunction(String name, boolean isStatic)
+    {
+<span class='bc' id='L216' title='0|4|4 - Total: 4'>        int sigStart = name.indexOf('(');
+</span><span class='bc' id='L217' title='0|2|2 - Total: 2'>        if (sigStart < 0) { return null; }
+</span>
+<span class='bpc' id='L219' title='0|1|1 - Total: 2'>        Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L220' title='0|2|2 - Total: 2'>        MemberBox[] methodsOrCtors = null;
+</span><span class='bpc' id='L221' title='0|2|2 - Total: 4'>        boolean isCtor = (isStatic && sigStart == 0);
+</span>
+<span class='bpc' id='L223' title='0|1|1 - Total: 2'>        if (isCtor) {
+</span>            // Explicit request for an overloaded constructor
+<span class='nc' id='L225' title='0|0|0 - Total: 5'>            methodsOrCtors = ctors.methods;
+</span>        } else {
+            // Explicit request for an overloaded method
+<span class='bc' id='L228' title='0|5|5 - Total: 5'>            String trueName = name.substring(0,sigStart);
+</span><span class='bc' id='L229' title='0|4|4 - Total: 4'>            Object obj = ht.get(trueName);
+</span><span class='bpc' id='L230' title='0|1|1 - Total: 4'>            if (!isStatic && obj == null) {
+</span>                // Try to get static member from instance (LC3)
+<span class='nc' id='L232' title='0|0|0 - Total: 5'>                obj = staticMembers.get(trueName);
+</span>            }
+<span class='bpc' id='L234' title='0|1|1 - Total: 2'>            if (obj instanceof NativeJavaMethod) {
+</span><span class='bc' id='L235' title='0|3|3 - Total: 3'>                NativeJavaMethod njm = (NativeJavaMethod)obj;
+</span><span class='bc' id='L236' title='0|3|3 - Total: 3'>                methodsOrCtors = njm.methods;
+</span>            }
+        }
+
+<span class='bpc' id='L240' title='0|1|1 - Total: 2'>        if (methodsOrCtors != null) {
+</span><span class='bpc' id='L241' title='0|1|1 - Total: 2'>            for (MemberBox methodsOrCtor : methodsOrCtors) {
+</span><span class='bc' id='L242' title='0|3|3 - Total: 3'>                Class<?>[] type = methodsOrCtor.argTypes;
+</span><span class='bc' id='L243' title='0|3|3 - Total: 3'>                String sig = liveConnectSignature(type);
+</span><span class='bc' id='L244' title='0|2|2 - Total: 2'>                if (sigStart + sig.length() == name.length()
+</span><span class='bpc' id='L245' title='0|1|1 - Total: 2'>                        && name.regionMatches(sigStart, sig, 0, sig.length()))
+</span>                {
+<span class='bc' id='L247' title='0|2|2 - Total: 2'>                    return methodsOrCtor;
+</span>                }
+            }
+        }
+
+<span class='nc' id='L252' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    private Object getExplicitFunction(Scriptable scope, String name,
+                                       Object javaObject, boolean isStatic)
+    {
+<span class='bc' id='L258' title='0|2|2 - Total: 2'>        Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L259' title='0|2|2 - Total: 2'>        Object member = null;
+</span><span class='bc' id='L260' title='0|5|5 - Total: 5'>        MemberBox methodOrCtor = findExplicitFunction(name, isStatic);
+</span>
+<span class='bc' id='L262' title='0|2|2 - Total: 2'>        if (methodOrCtor != null) {
+</span><span class='bc' id='L263' title='0|1|1 - Total: 1'>            Scriptable prototype =
+</span><span class='bc' id='L264' title='0|2|2 - Total: 2'>                ScriptableObject.getFunctionPrototype(scope);
+</span>
+<span class='bpc' id='L266' title='0|1|1 - Total: 2'>            if (methodOrCtor.isCtor()) {
+</span><span class='nc' id='L267' title='0|0|0 - Total: 5'>                NativeJavaConstructor fun =
+</span>                    new NativeJavaConstructor(methodOrCtor);
+<span class='nc' id='L269' title='0|0|0 - Total: 3'>                fun.setPrototype(prototype);
+</span><span class='nc' id='L270' title='0|0|0 - Total: 2'>                member = fun;
+</span><span class='nc' id='L271' title='0|0|0 - Total: 5'>                ht.put(name, fun);
+</span><span class='nc' id='L272' title='0|0|0 - Total: 1'>            } else {
+</span><span class='bc' id='L273' title='0|3|3 - Total: 3'>                String trueName = methodOrCtor.getName();
+</span><span class='bc' id='L274' title='0|4|4 - Total: 4'>                member = ht.get(trueName);
+</span>
+<span class='bpc' id='L276' title='0|2|2 - Total: 4'>                if (member instanceof NativeJavaMethod &&
+</span>                    ((NativeJavaMethod)member).methods.length > 1 ) {
+<span class='bc' id='L278' title='0|6|6 - Total: 6'>                    NativeJavaMethod fun =
+</span>                        new NativeJavaMethod(methodOrCtor, name);
+<span class='bc' id='L280' title='0|3|3 - Total: 3'>                    fun.setPrototype(prototype);
+</span><span class='bc' id='L281' title='0|5|5 - Total: 5'>                    ht.put(name, fun);
+</span><span class='bc' id='L282' title='0|2|2 - Total: 2'>                    member = fun;
+</span>                }
+            }
+        }
+
+<span class='bc' id='L287' title='0|2|2 - Total: 2'>        return member;
+</span>    }
+
+    /**
+     * Retrieves mapping of methods to accessible methods for a class.
+     * In case the class is not public, retrieves methods with same
+     * signature as its public methods from public superclasses and
+     * interfaces (if they exist). Basically upcasts every method to the
+     * nearest accessible method.
+     */
+    private static Method[] discoverAccessibleMethods(Class<?> clazz,
+                                                      boolean includeProtected,
+                                                      boolean includePrivate)
+    {
+<span class='bc' id='L301' title='0|4|4 - Total: 4'>        Map<MethodSignature,Method> map = new HashMap<MethodSignature,Method>();
+</span><span class='bc' id='L302' title='0|5|5 - Total: 5'>        discoverAccessibleMethods(clazz, map, includeProtected, includePrivate);
+</span><span class='bc' id='L303' title='0|8|8 - Total: 8'>        return map.values().toArray(new Method[map.size()]);
+</span>    }
+
+    private static void discoverAccessibleMethods(Class<?> clazz,
+            Map<MethodSignature,Method> map, boolean includeProtected,
+            boolean includePrivate)
+    {
+<span class='bc' id='L310' title='0|4|4 - Total: 4'>        if (isPublic(clazz.getModifiers()) || includePrivate) {
+</span>            try {
+<span class='bc' id='L312' title='0|4|4 - Total: 4'>                if (includeProtected || includePrivate) {
+</span><span class='bc' id='L313' title='0|2|2 - Total: 2'>                    while (clazz != null) {
+</span>                        try {
+<span class='bc' id='L315' title='0|3|3 - Total: 3'>                            Method[] methods = clazz.getDeclaredMethods();
+</span><span class='bc' id='L316' title='0|2|2 - Total: 2'>                            for (Method method : methods) {
+</span><span class='bc' id='L317' title='0|3|3 - Total: 3'>                                int mods = method.getModifiers();
+</span>
+<span class='bc' id='L319' title='0|2|2 - Total: 2'>                                if (isPublic(mods)
+</span><span class='bc' id='L320' title='0|4|4 - Total: 4'>                                        || isProtected(mods)
+</span>                                        || includePrivate) {
+<span class='bc' id='L322' title='0|5|5 - Total: 5'>                                    MethodSignature sig = new MethodSignature(method);
+</span><span class='bc' id='L323' title='0|2|2 - Total: 2'>                                    if (!map.containsKey(sig)) {
+</span><span class='bpc' id='L324' title='0|3|3 - Total: 4'>                                        if (includePrivate && !method.isAccessible())
+</span><span class='bc' id='L325' title='0|3|3 - Total: 3'>                                            method.setAccessible(true);
+</span><span class='bc' id='L326' title='0|5|5 - Total: 5'>                                        map.put(sig, method);
+</span>                                    }
+                                }
+                            }
+<span class='bc' id='L330' title='0|3|3 - Total: 3'>                            Class<?>[] interfaces = clazz.getInterfaces();
+</span><span class='bc' id='L331' title='0|2|2 - Total: 2'>                            for (Class<?> intface : interfaces) {
+</span><span class='bc' id='L332' title='0|5|5 - Total: 5'>                                discoverAccessibleMethods(intface, map, includeProtected,
+</span>                                                          includePrivate);
+                            }
+<span class='bc' id='L335' title='0|3|3 - Total: 3'>                            clazz = clazz.getSuperclass();
+</span><span class='nc' id='L336' title='0|0|0 - Total: 1'>                        } catch (SecurityException e) {
+</span>                            // Some security settings (i.e., applets) disallow
+                            // access to Class.getDeclaredMethods. Fall back to
+                            // Class.getMethods.
+<span class='nc' id='L340' title='0|0|0 - Total: 3'>                            Method[] methods = clazz.getMethods();
+</span><span class='nc' id='L341' title='0|0|0 - Total: 2'>                            for (Method method : methods) {
+</span><span class='nc' id='L342' title='0|0|0 - Total: 5'>                                MethodSignature sig = new MethodSignature(method);
+</span><span class='nc' id='L343' title='0|0|0 - Total: 2'>                                if (!map.containsKey(sig))
+</span><span class='nc' id='L344' title='0|0|0 - Total: 5'>                                    map.put(sig, method);
+</span>                            }
+<span class='nc' id='L346' title='0|0|0 - Total: 1'>                            break; // getMethods gets superclass methods, no
+</span>                                   // need to loop any more
+<span class='bc' id='L348' title='0|1|1 - Total: 1'>                        }
+</span>                    }
+                } else {
+<span class='bc' id='L351' title='0|3|3 - Total: 3'>                    Method[] methods = clazz.getMethods();
+</span><span class='bc' id='L352' title='0|2|2 - Total: 2'>                    for (Method method : methods) {
+</span><span class='bc' id='L353' title='0|5|5 - Total: 5'>                        MethodSignature sig = new MethodSignature(method);
+</span>                        // Array may contain methods with same signature but different return value!
+<span class='bc' id='L355' title='0|2|2 - Total: 2'>                        if (!map.containsKey(sig))
+</span><span class='bc' id='L356' title='0|5|5 - Total: 5'>                            map.put(sig, method);
+</span>                    }
+                }
+<span class='bc' id='L359' title='0|1|1 - Total: 1'>                return;
+</span><span class='nc' id='L360' title='0|0|0 - Total: 1'>            } catch (SecurityException e) {
+</span><span class='nc' id='L361' title='0|0|0 - Total: 7'>                Context.reportWarning(
+</span>                        "Could not discover accessible methods of class " +
+<span class='nc' id='L363' title='0|0|0 - Total: 5'>                            clazz.getName() + " due to lack of privileges, " +
+</span>                            "attemping superclasses/interfaces.");
+                // Fall through and attempt to discover superclass/interface
+                // methods
+            }
+        }
+
+<span class='bc' id='L370' title='0|3|3 - Total: 3'>        Class<?>[] interfaces = clazz.getInterfaces();
+</span><span class='bc' id='L371' title='0|2|2 - Total: 2'>        for (Class<?> intface : interfaces) {
+</span><span class='bc' id='L372' title='0|5|5 - Total: 5'>            discoverAccessibleMethods(intface, map, includeProtected,
+</span>                    includePrivate);
+        }
+<span class='bc' id='L375' title='0|3|3 - Total: 3'>        Class<?> superclass = clazz.getSuperclass();
+</span><span class='bpc' id='L376' title='0|1|1 - Total: 2'>        if (superclass != null) {
+</span><span class='bc' id='L377' title='0|5|5 - Total: 5'>            discoverAccessibleMethods(superclass, map, includeProtected,
+</span>                    includePrivate);
+        }
+<span class='bc' id='L380' title='0|1|1 - Total: 1'>    }
+</span>
+    private static final class MethodSignature
+    {
+        private final String name;
+        private final Class<?>[] args;
+
+        private MethodSignature(String name, Class<?>[] args)
+        {
+            this.name = name;
+            this.args = args;
+        }
+
+        MethodSignature(Method method)
+        {
+            this(method.getName(), method.getParameterTypes());
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if(o instanceof MethodSignature)
+            {
+                MethodSignature ms = (MethodSignature)o;
+                return ms.name.equals(name) && Arrays.equals(args, ms.args);
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return name.hashCode() ^ args.length;
+        }
+    }
+
+    private void reflect(Scriptable scope,
+                         boolean includeProtected,
+                         boolean includePrivate)
+    {
+        // We reflect methods first, because we want overloaded field/method
+        // names to be allocated to the NativeJavaMethod before the field
+        // gets in the way.
+
+<span class='bc' id='L424' title='0|6|6 - Total: 6'>        Method[] methods = discoverAccessibleMethods(cl, includeProtected,
+</span>                                                     includePrivate);
+<span class='bc' id='L426' title='0|2|2 - Total: 2'>        for (Method method : methods) {
+</span><span class='bc' id='L427' title='0|3|3 - Total: 3'>            int mods = method.getModifiers();
+</span><span class='bc' id='L428' title='0|3|3 - Total: 3'>            boolean isStatic = Modifier.isStatic(mods);
+</span><span class='bc' id='L429' title='0|2|2 - Total: 2'>            Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L430' title='0|3|3 - Total: 3'>            String name = method.getName();
+</span><span class='bc' id='L431' title='0|4|4 - Total: 4'>            Object value = ht.get(name);
+</span><span class='bc' id='L432' title='0|2|2 - Total: 2'>            if (value == null) {
+</span><span class='bc' id='L433' title='0|6|6 - Total: 6'>                ht.put(name, method);
+</span>            } else {
+                ObjArray overloadedMethods;
+<span class='bc' id='L436' title='0|2|2 - Total: 2'>                if (value instanceof ObjArray) {
+</span><span class='bc' id='L437' title='0|4|4 - Total: 4'>                    overloadedMethods = (ObjArray)value;
+</span>                } else {
+<span class='bpc' id='L439' title='0|1|1 - Total: 2'>                    if (!(value instanceof Method)) Kit.codeBug();
+</span>                    // value should be instance of Method as at this stage
+                    // staticMembers and members can only contain methods
+<span class='bc' id='L442' title='0|4|4 - Total: 4'>                    overloadedMethods = new ObjArray();
+</span><span class='bc' id='L443' title='0|3|3 - Total: 3'>                    overloadedMethods.add(value);
+</span><span class='bc' id='L444' title='0|5|5 - Total: 5'>                    ht.put(name, overloadedMethods);
+</span>                }
+<span class='bc' id='L446' title='0|3|3 - Total: 3'>                overloadedMethods.add(method);
+</span>            }
+        }
+
+        // replace Method instances by wrapped NativeJavaMethod objects
+        // first in staticMembers and then in members
+<span class='bc' id='L452' title='0|2|2 - Total: 2'>        for (int tableCursor = 0; tableCursor != 2; ++tableCursor) {
+</span><span class='bc' id='L453' title='0|2|2 - Total: 2'>            boolean isStatic = (tableCursor == 0);
+</span><span class='bc' id='L454' title='0|2|2 - Total: 2'>            Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L455' title='0|2|2 - Total: 2'>            for (Map.Entry<String, Object> entry: ht.entrySet()) {
+</span>                MemberBox[] methodBoxes;
+<span class='bc' id='L457' title='0|3|3 - Total: 3'>                Object value = entry.getValue();
+</span><span class='bc' id='L458' title='0|2|2 - Total: 2'>                if (value instanceof Method) {
+</span><span class='bc' id='L459' title='0|3|3 - Total: 3'>                    methodBoxes = new MemberBox[1];
+</span><span class='bc' id='L460' title='0|9|9 - Total: 9'>                    methodBoxes[0] = new MemberBox((Method)value);
+</span>                } else {
+<span class='bc' id='L462' title='0|3|3 - Total: 3'>                    ObjArray overloadedMethods = (ObjArray)value;
+</span><span class='bc' id='L463' title='0|3|3 - Total: 3'>                    int N = overloadedMethods.size();
+</span><span class='bpc' id='L464' title='0|1|1 - Total: 2'>                    if (N < 2) Kit.codeBug();
+</span><span class='bc' id='L465' title='0|3|3 - Total: 3'>                    methodBoxes = new MemberBox[N];
+</span><span class='bc' id='L466' title='0|2|2 - Total: 2'>                    for (int i = 0; i != N; ++i) {
+</span><span class='bc' id='L467' title='0|5|5 - Total: 5'>                        Method method = (Method)overloadedMethods.get(i);
+</span><span class='bc' id='L468' title='0|7|7 - Total: 7'>                        methodBoxes[i] = new MemberBox(method);
+</span>                    }
+                }
+<span class='bc' id='L471' title='0|5|5 - Total: 5'>                NativeJavaMethod fun = new NativeJavaMethod(methodBoxes);
+</span><span class='bpc' id='L472' title='0|1|1 - Total: 2'>                if (scope != null) {
+</span><span class='bc' id='L473' title='0|3|3 - Total: 3'>                    ScriptRuntime.setFunctionProtoAndParent(fun, scope);
+</span>                }
+<span class='bc' id='L475' title='0|6|6 - Total: 6'>                ht.put(entry.getKey(), fun);
+</span><span class='bc' id='L476' title='0|1|1 - Total: 1'>            }
+</span>        }
+
+        // Reflect fields.
+<span class='bc' id='L480' title='0|5|5 - Total: 5'>        Field[] fields = getAccessibleFields(includeProtected, includePrivate);
+</span><span class='bc' id='L481' title='0|2|2 - Total: 2'>        for (Field field : fields) {
+</span><span class='bc' id='L482' title='0|3|3 - Total: 3'>            String name = field.getName();
+</span><span class='bc' id='L483' title='0|3|3 - Total: 3'>            int mods = field.getModifiers();
+</span>            try {
+<span class='bc' id='L485' title='0|3|3 - Total: 3'>                boolean isStatic = Modifier.isStatic(mods);
+</span><span class='bc' id='L486' title='0|2|2 - Total: 2'>                Map<String,Object> ht = isStatic ? staticMembers : members;
+</span><span class='bc' id='L487' title='0|4|4 - Total: 4'>                Object member = ht.get(name);
+</span><span class='bc' id='L488' title='0|2|2 - Total: 2'>                if (member == null) {
+</span><span class='bc' id='L489' title='0|6|6 - Total: 6'>                    ht.put(name, field);
+</span><span class='bc' id='L490' title='0|2|2 - Total: 2'>                } else if (member instanceof NativeJavaMethod) {
+</span><span class='bc' id='L491' title='0|3|3 - Total: 3'>                    NativeJavaMethod method = (NativeJavaMethod) member;
+</span><span class='bc' id='L492' title='0|8|8 - Total: 8'>                    FieldAndMethods fam
+</span>                        = new FieldAndMethods(scope, method.methods, field);
+<span class='bpc' id='L494' title='0|1|1 - Total: 2'>                    Map<String,FieldAndMethods> fmht = isStatic ? staticFieldAndMethods
+</span>                                              : fieldAndMethods;
+<span class='bpc' id='L496' title='0|1|1 - Total: 2'>                    if (fmht == null) {
+</span><span class='bc' id='L497' title='0|4|4 - Total: 4'>                        fmht = new HashMap<String,FieldAndMethods>();
+</span><span class='bpc' id='L498' title='0|1|1 - Total: 2'>                        if (isStatic) {
+</span><span class='nc' id='L499' title='0|0|0 - Total: 4'>                            staticFieldAndMethods = fmht;
+</span>                        } else {
+<span class='bc' id='L501' title='0|3|3 - Total: 3'>                            fieldAndMethods = fmht;
+</span>                        }
+                    }
+<span class='bc' id='L504' title='0|5|5 - Total: 5'>                    fmht.put(name, fam);
+</span><span class='bc' id='L505' title='0|5|5 - Total: 5'>                    ht.put(name, fam);
+</span><span class='bpc' id='L506' title='0|1|1 - Total: 2'>                } else if (member instanceof Field) {
+</span><span class='bc' id='L507' title='0|3|3 - Total: 3'>                    Field oldField = (Field) member;
+</span>                    // If this newly reflected field shadows an inherited field,
+                    // then replace it. Otherwise, since access to the field
+                    // would be ambiguous from Java, no field should be
+                    // reflected.
+                    // For now, the first field found wins, unless another field
+                    // explicitly shadows it.
+<span class='bc' id='L514' title='0|3|3 - Total: 3'>                    if (oldField.getDeclaringClass().
+</span><span class='bpc' id='L515' title='0|1|1 - Total: 2'>                            isAssignableFrom(field.getDeclaringClass()))
+</span>                    {
+<span class='nc' id='L517' title='0|0|0 - Total: 5'>                        ht.put(name, field);
+</span>                    }
+<span class='bc' id='L519' title='0|1|1 - Total: 1'>                } else {
+</span>                    // "unknown member type"
+<span class='nc' id='L521' title='0|0|0 - Total: 2'>                    Kit.codeBug();
+</span>                }
+<span class='nc' id='L523' title='0|0|0 - Total: 1'>            } catch (SecurityException e) {
+</span>                // skip this field
+<span class='nc' id='L525' title='0|0|0 - Total: 12'>                Context.reportWarning("Could not access field "
+</span><span class='nc' id='L526' title='0|0|0 - Total: 5'>                        + name + " of class " + cl.getName() +
+</span>                        " due to lack of privileges.");
+<span class='bc' id='L528' title='0|1|1 - Total: 1'>            }
+</span>        }
+
+        // Create bean properties from corresponding get/set methods first for
+        // static members and then for instance members
+<span class='bc' id='L533' title='0|2|2 - Total: 2'>        for (int tableCursor = 0; tableCursor != 2; ++tableCursor) {
+</span><span class='bc' id='L534' title='0|2|2 - Total: 2'>            boolean isStatic = (tableCursor == 0);
+</span><span class='bc' id='L535' title='0|2|2 - Total: 2'>            Map<String,Object> ht = isStatic ? staticMembers : members;
+</span>
+<span class='bc' id='L537' title='0|4|4 - Total: 4'>            Map<String,BeanProperty> toAdd = new HashMap<String,BeanProperty>();
+</span>
+            // Now, For each member, make "bean" properties.
+<span class='bc' id='L540' title='0|2|2 - Total: 2'>            for (String name: ht.keySet()) {
+</span>                // Is this a getter?
+<span class='bc' id='L542' title='0|4|4 - Total: 4'>                boolean memberIsGetMethod = name.startsWith("get");
+</span><span class='bc' id='L543' title='0|4|4 - Total: 4'>                boolean memberIsSetMethod = name.startsWith("set");
+</span><span class='bc' id='L544' title='0|4|4 - Total: 4'>                boolean memberIsIsMethod = name.startsWith("is");
+</span><span class='bc' id='L545' title='0|6|6 - Total: 6'>                if (memberIsGetMethod || memberIsIsMethod
+</span>                        || memberIsSetMethod) {
+                    // Double check name component.
+<span class='bc' id='L548' title='0|2|2 - Total: 2'>                    String nameComponent
+</span><span class='bc' id='L549' title='0|2|2 - Total: 2'>                        = name.substring(memberIsIsMethod ? 2 : 3);
+</span><span class='bc' id='L550' title='0|2|2 - Total: 2'>                    if (nameComponent.length() == 0)
+</span><span class='bc' id='L551' title='0|1|1 - Total: 1'>                        continue;
+</span>
+                    // Make the bean property name.
+<span class='bc' id='L554' title='0|2|2 - Total: 2'>                    String beanPropertyName = nameComponent;
+</span><span class='bc' id='L555' title='0|4|4 - Total: 4'>                    char ch0 = nameComponent.charAt(0);
+</span><span class='bc' id='L556' title='0|2|2 - Total: 2'>                    if (Character.isUpperCase(ch0)) {
+</span><span class='bc' id='L557' title='0|2|2 - Total: 2'>                        if (nameComponent.length() == 1) {
+</span><span class='bc' id='L558' title='0|4|4 - Total: 4'>                            beanPropertyName = nameComponent.toLowerCase();
+</span>                        } else {
+<span class='bc' id='L560' title='0|4|4 - Total: 4'>                            char ch1 = nameComponent.charAt(1);
+</span><span class='bc' id='L561' title='0|2|2 - Total: 2'>                            if (!Character.isUpperCase(ch1)) {
+</span><span class='bc' id='L562' title='0|8|8 - Total: 8'>                                beanPropertyName = Character.toLowerCase(ch0)
+</span><span class='bc' id='L563' title='0|4|4 - Total: 4'>                                                   +nameComponent.substring(1);
+</span>                            }
+                        }
+                    }
+
+                    // If we already have a member by this name, don't do this
+                    // property.
+<span class='bc' id='L570' title='0|2|2 - Total: 2'>                    if (toAdd.containsKey(beanPropertyName))
+</span><span class='bc' id='L571' title='0|1|1 - Total: 1'>                        continue;
+</span><span class='bc' id='L572' title='0|4|4 - Total: 4'>                    Object v = ht.get(beanPropertyName);
+</span><span class='bc' id='L573' title='0|2|2 - Total: 2'>                    if (v != null) {
+</span>                        // A private field shouldn't mask a public getter/setter
+<span class='bc' id='L575' title='0|4|4 - Total: 4'>                        if (!includePrivate || !(v instanceof Member) ||
+</span><span class='bc' id='L576' title='0|2|2 - Total: 2'>                            !Modifier.isPrivate(((Member)v).getModifiers()))
+</span>
+                        {
+<span class='bc' id='L579' title='0|1|1 - Total: 1'>                            continue;
+</span>                        }
+                    }
+
+                    // Find the getter method, or if there is none, the is-
+                    // method.
+<span class='bc' id='L585' title='0|2|2 - Total: 2'>                    MemberBox getter = null;
+</span><span class='bc' id='L586' title='0|7|7 - Total: 7'>                    getter = findGetter(isStatic, ht, "get", nameComponent);
+</span>                    // If there was no valid getter, check for an is- method.
+<span class='bc' id='L588' title='0|2|2 - Total: 2'>                    if (getter == null) {
+</span><span class='bc' id='L589' title='0|7|7 - Total: 7'>                        getter = findGetter(isStatic, ht, "is", nameComponent);
+</span>                    }
+
+                    // setter
+<span class='bc' id='L593' title='0|2|2 - Total: 2'>                    MemberBox setter = null;
+</span><span class='bc' id='L594' title='0|2|2 - Total: 2'>                    NativeJavaMethod setters = null;
+</span><span class='bc' id='L595' title='0|4|4 - Total: 4'>                    String setterName = "set".concat(nameComponent);
+</span>
+<span class='bc' id='L597' title='0|2|2 - Total: 2'>                    if (ht.containsKey(setterName)) {
+</span>                        // Is this value a method?
+<span class='bc' id='L599' title='0|4|4 - Total: 4'>                        Object member = ht.get(setterName);
+</span><span class='bc' id='L600' title='0|2|2 - Total: 2'>                        if (member instanceof NativeJavaMethod) {
+</span><span class='bc' id='L601' title='0|3|3 - Total: 3'>                            NativeJavaMethod njmSet = (NativeJavaMethod)member;
+</span><span class='bc' id='L602' title='0|2|2 - Total: 2'>                            if (getter != null) {
+</span>                                // We have a getter. Now, do we have a matching
+                                // setter?
+<span class='bc' id='L605' title='0|4|4 - Total: 4'>                                Class<?> type = getter.method().getReturnType();
+</span><span class='bc' id='L606' title='0|6|6 - Total: 6'>                                setter = extractSetMethod(type, njmSet.methods,
+</span>                                                            isStatic);
+<span class='bc' id='L608' title='0|1|1 - Total: 1'>                            } else {
+</span>                                // No getter, find any set method
+<span class='bc' id='L610' title='0|5|5 - Total: 5'>                                setter = extractSetMethod(njmSet.methods,
+</span>                                                            isStatic);
+                            }
+<span class='bc' id='L613' title='0|2|2 - Total: 2'>                            if (njmSet.methods.length > 1) {
+</span><span class='bc' id='L614' title='0|2|2 - Total: 2'>                                setters = njmSet;
+</span>                            }
+                        }
+                    }
+                    // Make the property.
+<span class='bc' id='L619' title='0|7|7 - Total: 7'>                    BeanProperty bp = new BeanProperty(getter, setter,
+</span>                                                       setters);
+<span class='bc' id='L621' title='0|5|5 - Total: 5'>                    toAdd.put(beanPropertyName, bp);
+</span>                }
+<span class='bc' id='L623' title='0|1|1 - Total: 1'>            }
+</span>
+            // Add the new bean properties.
+<span class='bc' id='L626' title='0|2|2 - Total: 2'>            for (String key: toAdd.keySet()) {
+</span><span class='bc' id='L627' title='0|4|4 - Total: 4'>                Object value = toAdd.get(key);
+</span><span class='bc' id='L628' title='0|5|5 - Total: 5'>                ht.put(key, value);
+</span><span class='bc' id='L629' title='0|1|1 - Total: 1'>            }
+</span>        }
+
+        // Reflect constructors
+<span class='bc' id='L633' title='0|4|4 - Total: 4'>        Constructor<?>[] constructors = getAccessibleConstructors(includePrivate);
+</span><span class='bc' id='L634' title='0|4|4 - Total: 4'>        MemberBox[] ctorMembers = new MemberBox[constructors.length];
+</span><span class='bc' id='L635' title='0|2|2 - Total: 2'>        for (int i = 0; i != constructors.length; ++i) {
+</span><span class='bc' id='L636' title='0|9|9 - Total: 9'>            ctorMembers[i] = new MemberBox(constructors[i]);
+</span>        }
+<span class='bc' id='L638' title='0|9|9 - Total: 9'>        ctors = new NativeJavaMethod(ctorMembers, cl.getSimpleName());
+</span><span class='bc' id='L639' title='0|1|1 - Total: 1'>    }
+</span>
+    private Constructor<?>[] getAccessibleConstructors(boolean includePrivate)
+    {
+      // The JVM currently doesn't allow changing access on java.lang.Class
+      // constructors, so don't try
+<span class='bpc' id='L645' title='0|3|3 - Total: 4'>      if (includePrivate && cl != ScriptRuntime.ClassClass) {
+</span>          try {
+<span class='bc' id='L647' title='0|4|4 - Total: 4'>              Constructor<?>[] cons = cl.getDeclaredConstructors();
+</span><span class='bc' id='L648' title='0|3|3 - Total: 3'>              AccessibleObject.setAccessible(cons, true);
+</span>
+<span class='bc' id='L650' title='0|2|2 - Total: 2'>              return cons;
+</span><span class='nc' id='L651' title='0|0|0 - Total: 1'>          } catch (SecurityException e) {
+</span>              // Fall through to !includePrivate case
+<span class='nc' id='L653' title='0|0|0 - Total: 8'>              Context.reportWarning("Could not access constructor " +
+</span><span class='nc' id='L654' title='0|0|0 - Total: 5'>                    " of class " + cl.getName() +
+</span>                    " due to lack of privileges.");
+          }
+      }
+<span class='bc' id='L658' title='0|4|4 - Total: 4'>      return cl.getConstructors();
+</span>    }
+
+    private Field[] getAccessibleFields(boolean includeProtected,
+                                        boolean includePrivate) {
+<span class='bc' id='L663' title='0|4|4 - Total: 4'>        if (includePrivate || includeProtected) {
+</span>            try {
+<span class='bc' id='L665' title='0|4|4 - Total: 4'>                List<Field> fieldsList = new ArrayList<Field>();
+</span><span class='bc' id='L666' title='0|3|3 - Total: 3'>                Class<?> currentClass = cl;
+</span>
+<span class='bc' id='L668' title='0|2|2 - Total: 2'>                while (currentClass != null) {
+</span>                    // get all declared fields in this class, make them
+                    // accessible, and save
+<span class='bc' id='L671' title='0|3|3 - Total: 3'>                    Field[] declared = currentClass.getDeclaredFields();
+</span><span class='bc' id='L672' title='0|2|2 - Total: 2'>                    for (Field field : declared) {
+</span><span class='bc' id='L673' title='0|3|3 - Total: 3'>                        int mod = field.getModifiers();
+</span><span class='bc' id='L674' title='0|6|6 - Total: 6'>                        if (includePrivate || isPublic(mod) || isProtected(mod)) {
+</span><span class='bpc' id='L675' title='0|1|1 - Total: 2'>                            if (!field.isAccessible())
+</span><span class='bc' id='L676' title='0|3|3 - Total: 3'>                                field.setAccessible(true);
+</span><span class='bc' id='L677' title='0|4|4 - Total: 4'>                            fieldsList.add(field);
+</span>                        }
+                    }
+                    // walk up superclass chain.  no need to deal specially with
+                    // interfaces, since they can't have fields
+<span class='bc' id='L682' title='0|3|3 - Total: 3'>                    currentClass = currentClass.getSuperclass();
+</span><span class='bc' id='L683' title='0|1|1 - Total: 1'>                }
+</span>
+<span class='bc' id='L685' title='0|7|7 - Total: 7'>                return fieldsList.toArray(new Field[fieldsList.size()]);
+</span><span class='nc' id='L686' title='0|0|0 - Total: 1'>            } catch (SecurityException e) {
+</span>                // fall through to !includePrivate case
+            }
+        }
+<span class='bc' id='L690' title='0|4|4 - Total: 4'>        return cl.getFields();
+</span>    }
+
+    private MemberBox findGetter(boolean isStatic, Map<String,Object> ht, String prefix,
+                                 String propertyName)
+    {
+<span class='bc' id='L696' title='0|4|4 - Total: 4'>        String getterName = prefix.concat(propertyName);
+</span><span class='bc' id='L697' title='0|2|2 - Total: 2'>        if (ht.containsKey(getterName)) {
+</span>            // Check that the getter is a method.
+<span class='bc' id='L699' title='0|4|4 - Total: 4'>            Object member = ht.get(getterName);
+</span><span class='bc' id='L700' title='0|2|2 - Total: 2'>            if (member instanceof NativeJavaMethod) {
+</span><span class='bc' id='L701' title='0|3|3 - Total: 3'>                NativeJavaMethod njmGet = (NativeJavaMethod) member;
+</span><span class='bc' id='L702' title='0|5|5 - Total: 5'>                return extractGetMethod(njmGet.methods, isStatic);
+</span>            }
+        }
+<span class='bc' id='L705' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private static MemberBox extractGetMethod(MemberBox[] methods,
+                                              boolean isStatic)
+    {
+        // Inspect the list of all MemberBox for the only one having no
+        // parameters
+<span class='bc' id='L713' title='0|2|2 - Total: 2'>        for (MemberBox method : methods) {
+</span>            // Does getter method have an empty parameter list with a return
+            // value (eg. a getSomething() or isSomething())?
+<span class='bpc' id='L716' title='0|5|5 - Total: 6'>            if (method.argTypes.length == 0 && (!isStatic || method.isStatic())) {
+</span><span class='bc' id='L717' title='0|4|4 - Total: 4'>                Class<?> type = method.method().getReturnType();
+</span><span class='bpc' id='L718' title='0|1|1 - Total: 2'>                if (type != Void.TYPE) {
+</span><span class='bc' id='L719' title='0|2|2 - Total: 2'>                    return method;
+</span>                }
+                break;
+            }
+        }
+<span class='bc' id='L724' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private static MemberBox extractSetMethod(Class<?> type, MemberBox[] methods,
+                                              boolean isStatic)
+    {
+        //
+        // Note: it may be preferable to allow NativeJavaMethod.findFunction()
+        //       to find the appropriate setter; unfortunately, it requires an
+        //       instance of the target arg to determine that.
+        //
+
+        // Make two passes: one to find a method with direct type assignment,
+        // and one to find a widening conversion.
+<span class='bc' id='L738' title='0|2|2 - Total: 2'>        for (int pass = 1; pass <= 2; ++pass) {
+</span><span class='bc' id='L739' title='0|2|2 - Total: 2'>            for (MemberBox method : methods) {
+</span><span class='bpc' id='L740' title='0|3|3 - Total: 4'>                if (!isStatic || method.isStatic()) {
+</span><span class='bc' id='L741' title='0|3|3 - Total: 3'>                    Class<?>[] params = method.argTypes;
+</span><span class='bc' id='L742' title='0|2|2 - Total: 2'>                    if (params.length == 1) {
+</span><span class='bpc' id='L743' title='0|1|1 - Total: 2'>                        if (pass == 1) {
+</span><span class='bpc' id='L744' title='0|1|1 - Total: 2'>                            if (params[0] == type) {
+</span><span class='bc' id='L745' title='0|2|2 - Total: 2'>                                return method;
+</span>                            }
+                        } else {
+<span class='nc' id='L748' title='0|0|0 - Total: 2'>                            if (pass != 2) Kit.codeBug();
+</span><span class='nc' id='L749' title='0|0|0 - Total: 2'>                            if (params[0].isAssignableFrom(type)) {
+</span><span class='nc' id='L750' title='0|0|0 - Total: 2'>                                return method;
+</span>                            }
+                        }
+                    }
+                }
+            }
+        }
+<span class='bc' id='L757' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private static MemberBox extractSetMethod(MemberBox[] methods,
+                                              boolean isStatic)
+    {
+
+<span class='bc' id='L764' title='0|2|2 - Total: 2'>        for (MemberBox method : methods) {
+</span><span class='bpc' id='L765' title='0|3|3 - Total: 4'>            if (!isStatic || method.isStatic()) {
+</span><span class='bc' id='L766' title='0|2|2 - Total: 2'>                if (method.method().getReturnType() == Void.TYPE) {
+</span><span class='bc' id='L767' title='0|2|2 - Total: 2'>                    if (method.argTypes.length == 1) {
+</span><span class='bc' id='L768' title='0|2|2 - Total: 2'>                        return method;
+</span>                    }
+                }
+            }
+        }
+<span class='bc' id='L773' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    Map<String,FieldAndMethods> getFieldAndMethodsObjects(Scriptable scope,
+            Object javaObject, boolean isStatic)
+    {
+<span class='bc' id='L779' title='0|2|2 - Total: 2'>        Map<String,FieldAndMethods> ht = isStatic ? staticFieldAndMethods : fieldAndMethods;
+</span><span class='bc' id='L780' title='0|2|2 - Total: 2'>        if (ht == null)
+</span><span class='bc' id='L781' title='0|2|2 - Total: 2'>            return null;
+</span><span class='bc' id='L782' title='0|3|3 - Total: 3'>        int len = ht.size();
+</span><span class='bc' id='L783' title='0|5|5 - Total: 5'>        Map<String,FieldAndMethods> result = new HashMap<String,FieldAndMethods>(len);
+</span><span class='bc' id='L784' title='0|2|2 - Total: 2'>        for (FieldAndMethods fam: ht.values()) {
+</span><span class='bc' id='L785' title='0|9|9 - Total: 9'>            FieldAndMethods famNew = new FieldAndMethods(scope, fam.methods,
+</span>                                                         fam.field);
+<span class='bc' id='L787' title='0|3|3 - Total: 3'>            famNew.javaObject = javaObject;
+</span><span class='bc' id='L788' title='0|7|7 - Total: 7'>            result.put(fam.field.getName(), famNew);
+</span><span class='bc' id='L789' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L790' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    static JavaMembers lookupClass(Scriptable scope, Class<?> dynamicType,
+                                   Class<?> staticType, boolean includeProtected)
+    {
+        JavaMembers members;
+<span class='bc' id='L797' title='0|3|3 - Total: 3'>        ClassCache cache = ClassCache.get(scope);
+</span><span class='bc' id='L798' title='0|3|3 - Total: 3'>        Map<Class<?>,JavaMembers> ct = cache.getClassCacheMap();
+</span>
+<span class='bc' id='L800' title='0|2|2 - Total: 2'>        Class<?> cl = dynamicType;
+</span>        for (;;) {
+<span class='bc' id='L802' title='0|5|5 - Total: 5'>            members = ct.get(cl);
+</span><span class='bc' id='L803' title='0|2|2 - Total: 2'>            if (members != null) {
+</span><span class='bpc' id='L804' title='0|1|1 - Total: 2'>                if (cl != dynamicType) {
+</span>                    // member lookup for the original class failed because of
+                    // missing privileges, cache the result so we don't try again
+<span class='nc' id='L807' title='0|0|0 - Total: 5'>                    ct.put(dynamicType, members);
+</span>                }
+<span class='bc' id='L809' title='0|2|2 - Total: 2'>                return members;
+</span>            }
+            try {
+<span class='bc' id='L812' title='0|8|8 - Total: 8'>                members = new JavaMembers(cache.getAssociatedScope(), cl,
+</span>                        includeProtected);
+<span class='bc' id='L814' title='0|1|1 - Total: 1'>                break;
+</span><span class='nc' id='L815' title='0|0|0 - Total: 1'>            } catch (SecurityException e) {
+</span>                // Reflection may fail for objects that are in a restricted
+                // access package (e.g. sun.*).  If we get a security
+                // exception, try again with the static type if it is interface.
+                // Otherwise, try superclass
+<span class='nc' id='L820' title='0|0|0 - Total: 4'>                if (staticType != null && staticType.isInterface()) {
+</span><span class='nc' id='L821' title='0|0|0 - Total: 2'>                    cl = staticType;
+</span><span class='nc' id='L822' title='0|0|0 - Total: 3'>                    staticType = null; // try staticType only once
+</span>                } else {
+<span class='nc' id='L824' title='0|0|0 - Total: 3'>                    Class<?> parent = cl.getSuperclass();
+</span><span class='nc' id='L825' title='0|0|0 - Total: 2'>                    if (parent == null) {
+</span><span class='nc' id='L826' title='0|0|0 - Total: 2'>                        if (cl.isInterface()) {
+</span>                            // last resort after failed staticType interface
+<span class='nc' id='L828' title='0|0|0 - Total: 3'>                            parent = ScriptRuntime.ObjectClass;
+</span>                        } else {
+<span class='nc' id='L830' title='0|0|0 - Total: 2'>                            throw e;
+</span>                        }
+                    }
+<span class='nc' id='L833' title='0|0|0 - Total: 2'>                    cl = parent;
+</span>                }
+<span class='nc' id='L835' title='0|0|0 - Total: 1'>            }
+</span>        }
+
+<span class='bpc' id='L838' title='0|1|1 - Total: 2'>        if (cache.isCachingEnabled()) {
+</span><span class='bc' id='L839' title='0|5|5 - Total: 5'>            ct.put(cl, members);
+</span><span class='bpc' id='L840' title='0|1|1 - Total: 2'>            if (cl != dynamicType) {
+</span>                // member lookup for the original class failed because of
+                // missing privileges, cache the result so we don't try again
+<span class='nc' id='L843' title='0|0|0 - Total: 5'>                ct.put(dynamicType, members);
+</span>            }
+        }
+<span class='bc' id='L846' title='0|2|2 - Total: 2'>        return members;
+</span>    }
+
+    RuntimeException reportMemberNotFound(String memberName)
+    {
+<span class='nc' id='L851' title='0|0|0 - Total: 5'>        return Context.reportRuntimeError2(
+</span><span class='nc' id='L852' title='0|0|0 - Total: 2'>            "msg.java.member.not.found", cl.getName(), memberName);
+</span>    }
+
+    private Class<?> cl;
+    private Map<String,Object> members;
+    private Map<String,FieldAndMethods> fieldAndMethods;
+    private Map<String,Object> staticMembers;
+    private Map<String,FieldAndMethods> staticFieldAndMethods;
+    NativeJavaMethod ctors; // we use NativeJavaMethod for ctor overload resolution
+}
+
+class BeanProperty
+{
+    BeanProperty(MemberBox getter, MemberBox setter, NativeJavaMethod setters)
+    {
+        this.getter = getter;
+        this.setter = setter;
+        this.setters = setters;
+    }
+
+    MemberBox getter;
+    MemberBox setter;
+    NativeJavaMethod setters;
+}
+
+class FieldAndMethods extends NativeJavaMethod
+{
+    static final long serialVersionUID = -9222428244284796755L;
+
+    FieldAndMethods(Scriptable scope, MemberBox[] methods, Field field)
+    {
+        super(methods);
+        this.field = field;
+        setParentScope(scope);
+        setPrototype(ScriptableObject.getFunctionPrototype(scope));
+    }
+
+    @Override
+    public Object getDefaultValue(Class<?> hint)
+    {
+        if (hint == ScriptRuntime.FunctionClass)
+            return this;
+        Object rval;
+        Class<?> type;
+        try {
+            rval = field.get(javaObject);
+            type = field.getType();
+        } catch (IllegalAccessException accEx) {
+            throw Context.reportRuntimeError1(
+                "msg.java.internal.private", field.getName());
+        }
+        Context cx  = Context.getContext();
+        rval = cx.getWrapFactory().wrap(cx, this, rval, type);
+        if (rval instanceof Scriptable) {
+            rval = ((Scriptable) rval).getDefaultValue(hint);
+        }
+        return rval;
+    }
+
+    Field field;
+    Object javaObject;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

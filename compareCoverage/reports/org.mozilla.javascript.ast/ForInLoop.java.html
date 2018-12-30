@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ForInLoop.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ForInLoop.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * For-in or for-each-in or for-of statement.  Node type is {@link Token#FOR}.<p>
+ *
+ * <pre><b>for</b> [<b>each</b>] ( LeftHandSideExpression <b>in</b> Expression ) Statement</pre>
+ * <pre><b>for</b> [<b>each</b>] ( <b>var</b> VariableDeclarationNoIn <b>in</b> Expression ) Statement</pre>
+ * <pre><b>for</b> ( LeftHandSideExpression <b>of</b> Expression ) Statement</pre>
+ * <pre><b>for</b> ( ForDeclaration <b>of</b> Expression ) Statement</pre>
+ */
+public class ForInLoop extends Loop {
+
+    protected AstNode iterator;
+    protected AstNode iteratedObject;
+<span class='upc' id='L23' title='3|3|3 - Total: 9'>    protected int inPosition = -1;
+</span><span class='upc' id='L24' title='3|3|3 - Total: 9'>    protected int eachPosition = -1;
+</span>    protected boolean isForEach;
+    protected boolean isForOf;
+
+    {
+<span class='upc' id='L29' title='3|3|3 - Total: 9'>        type = Token.FOR;
+</span>    }
+
+<span class='nc' id='L32' title='0|0|0 - Total: 2'>    public ForInLoop() {
+</span><span class='nc' id='L33' title='0|0|0 - Total: 1'>    }
+</span>
+    public ForInLoop(int pos) {
+<span class='uc' id='L36' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L37' title='1|1|1 - Total: 1'>    }
+</span>
+    public ForInLoop(int pos, int len) {
+<span class='nc' id='L40' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L41' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns loop iterator expression
+     */
+    public AstNode getIterator() {
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>        return iterator;
+</span>    }
+
+    /**
+     * Sets loop iterator expression:  the part before the "in" or "of" keyword.
+     * Also sets its parent to this node.
+     * @throws IllegalArgumentException if {@code iterator} is {@code null}
+     */
+    public void setIterator(AstNode iterator) {
+<span class='uc' id='L56' title='3|3|3 - Total: 3'>        assertNotNull(iterator);
+</span><span class='uc' id='L57' title='3|3|3 - Total: 3'>        this.iterator = iterator;
+</span><span class='uc' id='L58' title='3|3|3 - Total: 3'>        iterator.setParent(this);
+</span><span class='uc' id='L59' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns object being iterated over
+     */
+    public AstNode getIteratedObject() {
+<span class='uc' id='L65' title='3|3|3 - Total: 3'>        return iteratedObject;
+</span>    }
+
+    /**
+     * Sets object being iterated over, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code object} is {@code null}
+     */
+    public void setIteratedObject(AstNode object) {
+<span class='uc' id='L73' title='3|3|3 - Total: 3'>        assertNotNull(object);
+</span><span class='uc' id='L74' title='3|3|3 - Total: 3'>        this.iteratedObject = object;
+</span><span class='uc' id='L75' title='3|3|3 - Total: 3'>        object.setParent(this);
+</span><span class='uc' id='L76' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns whether the loop is a for-each loop
+     */
+    public boolean isForEach() {
+<span class='uc' id='L82' title='3|3|3 - Total: 3'>        return isForEach;
+</span>    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    public void setIsForEach(boolean isForEach) {
+<span class='uc' id='L89' title='3|3|3 - Total: 3'>        this.isForEach = isForEach;
+</span><span class='uc' id='L90' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns whether the loop is a for-of loop
+     */
+    public boolean isForOf() {
+<span class='uc' id='L96' title='3|3|3 - Total: 3'>        return isForOf;
+</span>    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    public void setIsForOf(boolean isForOf) {
+<span class='uc' id='L103' title='3|3|3 - Total: 3'>        this.isForOf = isForOf;
+</span><span class='uc' id='L104' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of "in" or "of" keyword
+     */
+    public int getInPosition() {
+<span class='nc' id='L110' title='0|0|0 - Total: 3'>        return inPosition;
+</span>    }
+
+    /**
+     * Sets position of "in" or "of" keyword
+     * @param inPosition position of "in" or "of" keyword,
+     * or -1 if not present (e.g. in presence of a syntax error)
+     */
+    public void setInPosition(int inPosition) {
+<span class='uc' id='L119' title='3|3|3 - Total: 3'>        this.inPosition = inPosition;
+</span><span class='uc' id='L120' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of "each" keyword
+     */
+    public int getEachPosition() {
+<span class='nc' id='L126' title='0|0|0 - Total: 3'>        return eachPosition;
+</span>    }
+
+    /**
+     * Sets position of "each" keyword
+     * @param eachPosition position of "each" keyword,
+     * or -1 if not present.
+     */
+    public void setEachPosition(int eachPosition) {
+<span class='uc' id='L135' title='3|3|3 - Total: 3'>        this.eachPosition = eachPosition;
+</span><span class='uc' id='L136' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L140' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L141' title='6|6|6 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='uc' id='L142' title='4|4|4 - Total: 4'>        sb.append("for ");
+</span><span class='upc' id='L143' title='1|1|1 - Total: 2'>        if (isForEach()) {
+</span><span class='nc' id='L144' title='0|0|0 - Total: 4'>            sb.append("each ");
+</span>        }
+<span class='uc' id='L146' title='4|4|4 - Total: 4'>        sb.append("(");
+</span><span class='uc' id='L147' title='7|7|7 - Total: 7'>        sb.append(iterator.toSource(0));
+</span><span class='upc' id='L148' title='1|1|1 - Total: 2'>        if (isForOf) {
+</span><span class='nc' id='L149' title='0|0|0 - Total: 5'>            sb.append(" of ");
+</span>        } else {
+<span class='uc' id='L151' title='4|4|4 - Total: 4'>            sb.append(" in ");
+</span>        }
+<span class='uc' id='L153' title='7|7|7 - Total: 7'>        sb.append(iteratedObject.toSource(0));
+</span><span class='uc' id='L154' title='4|4|4 - Total: 4'>        sb.append(") ");
+</span><span class='uc' id='L155' title='2|2|2 - Total: 2'>        if (body.getType() == Token.BLOCK) {
+</span><span class='uc' id='L156' title='11|11|11 - Total: 11'>            sb.append(body.toSource(depth).trim()).append("\n");
+</span>        } else {
+<span class='uc' id='L158' title='11|11|11 - Total: 11'>            sb.append("\n").append(body.toSource(depth+1));
+</span>        }
+<span class='uc' id='L160' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the iterator, the iterated object, and the body.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L168' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L169' title='0|0|0 - Total: 4'>            iterator.visit(v);
+</span><span class='nc' id='L170' title='0|0|0 - Total: 4'>            iteratedObject.visit(v);
+</span><span class='nc' id='L171' title='0|0|0 - Total: 4'>            body.visit(v);
+</span>        }
+<span class='nc' id='L173' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

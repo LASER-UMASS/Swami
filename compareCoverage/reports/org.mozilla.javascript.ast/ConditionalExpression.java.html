@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ConditionalExpression.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ConditionalExpression.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node representing the ternary operator.  Node type is
+ * {@link Token#HOOK}.
+ *
+ * <pre><i>ConditionalExpression</i> :
+ *        LogicalORExpression
+ *        LogicalORExpression ? AssignmentExpression
+ *                            : AssignmentExpression</pre>
+ *
+ * <i>ConditionalExpressionNoIn</i> :
+ *        LogicalORExpressionNoIn
+ *        LogicalORExpressionNoIn ? AssignmentExpression
+ *                                : AssignmentExpressionNoIn</pre>
+ */
+public class ConditionalExpression extends AstNode {
+
+    private AstNode testExpression;
+    private AstNode trueExpression;
+    private AstNode falseExpression;
+<span class='upc' id='L30' title='3|3|3 - Total: 9'>    private int questionMarkPosition = -1;
+</span><span class='upc' id='L31' title='3|3|3 - Total: 9'>    private int colonPosition = -1;
+</span>
+    {
+<span class='upc' id='L34' title='3|3|3 - Total: 9'>        type = Token.HOOK;
+</span>    }
+
+<span class='nc' id='L37' title='0|0|0 - Total: 2'>    public ConditionalExpression() {
+</span><span class='nc' id='L38' title='0|0|0 - Total: 1'>    }
+</span>
+    public ConditionalExpression(int pos) {
+<span class='nc' id='L41' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L42' title='0|0|0 - Total: 1'>    }
+</span>
+    public ConditionalExpression(int pos, int len) {
+<span class='uc' id='L45' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L46' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns test expression
+     */
+    public AstNode getTestExpression() {
+<span class='uc' id='L52' title='3|3|3 - Total: 3'>        return testExpression;
+</span>    }
+
+    /**
+     * Sets test expression, and sets its parent.
+     * @param testExpression test expression
+     * @throws IllegalArgumentException if testExpression is {@code null}
+     */
+    public void setTestExpression(AstNode testExpression) {
+<span class='uc' id='L61' title='3|3|3 - Total: 3'>        assertNotNull(testExpression);
+</span><span class='uc' id='L62' title='3|3|3 - Total: 3'>        this.testExpression = testExpression;
+</span><span class='uc' id='L63' title='3|3|3 - Total: 3'>        testExpression.setParent(this);
+</span><span class='uc' id='L64' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns expression to evaluate if test is true
+     */
+    public AstNode getTrueExpression() {
+<span class='uc' id='L70' title='3|3|3 - Total: 3'>        return trueExpression;
+</span>    }
+
+    /**
+     * Sets expression to evaluate if test is true, and
+     * sets its parent to this node.
+     * @param trueExpression expression to evaluate if test is true
+     * @throws IllegalArgumentException if expression is {@code null}
+     */
+    public void setTrueExpression(AstNode trueExpression) {
+<span class='uc' id='L80' title='3|3|3 - Total: 3'>        assertNotNull(trueExpression);
+</span><span class='uc' id='L81' title='3|3|3 - Total: 3'>        this.trueExpression = trueExpression;
+</span><span class='uc' id='L82' title='3|3|3 - Total: 3'>        trueExpression.setParent(this);
+</span><span class='uc' id='L83' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns expression to evaluate if test is false
+     */
+    public AstNode getFalseExpression() {
+<span class='uc' id='L89' title='3|3|3 - Total: 3'>        return falseExpression;
+</span>    }
+
+    /**
+     * Sets expression to evaluate if test is false, and sets its
+     * parent to this node.
+     * @param falseExpression expression to evaluate if test is false
+     * @throws IllegalArgumentException if {@code falseExpression}
+     * is {@code null}
+     */
+    public void setFalseExpression(AstNode falseExpression) {
+<span class='uc' id='L100' title='3|3|3 - Total: 3'>        assertNotNull(falseExpression);
+</span><span class='uc' id='L101' title='3|3|3 - Total: 3'>        this.falseExpression = falseExpression;
+</span><span class='uc' id='L102' title='3|3|3 - Total: 3'>        falseExpression.setParent(this);
+</span><span class='uc' id='L103' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of ? token
+     */
+    public int getQuestionMarkPosition() {
+<span class='nc' id='L109' title='0|0|0 - Total: 3'>        return questionMarkPosition;
+</span>    }
+
+    /**
+     * Sets position of ? token
+     * @param questionMarkPosition position of ? token
+     */
+    public void setQuestionMarkPosition(int questionMarkPosition) {
+<span class='uc' id='L117' title='3|3|3 - Total: 3'>        this.questionMarkPosition = questionMarkPosition;
+</span><span class='uc' id='L118' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of : token
+     */
+    public int getColonPosition() {
+<span class='nc' id='L124' title='0|0|0 - Total: 3'>        return colonPosition;
+</span>    }
+
+    /**
+     * Sets position of : token
+     * @param colonPosition position of : token
+     */
+    public void setColonPosition(int colonPosition) {
+<span class='uc' id='L132' title='3|3|3 - Total: 3'>        this.colonPosition = colonPosition;
+</span><span class='uc' id='L133' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public boolean hasSideEffects() {
+<span class='nc' id='L137' title='0|0|0 - Total: 6'>        if (testExpression == null
+</span>            || trueExpression == null
+<span class='nc' id='L139' title='0|0|0 - Total: 2'>            || falseExpression == null) codeBug();
+</span><span class='nc' id='L140' title='0|0|0 - Total: 2'>        return trueExpression.hasSideEffects()
+</span><span class='nc' id='L141' title='0|0|0 - Total: 2'>               && falseExpression.hasSideEffects();
+</span>    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L146' title='0|0|0 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='nc' id='L147' title='0|0|0 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='nc' id='L148' title='0|0|0 - Total: 7'>        sb.append(testExpression.toSource(depth));
+</span><span class='nc' id='L149' title='0|0|0 - Total: 4'>        sb.append(" ? ");
+</span><span class='nc' id='L150' title='0|0|0 - Total: 7'>        sb.append(trueExpression.toSource(0));
+</span><span class='nc' id='L151' title='0|0|0 - Total: 4'>        sb.append(" : ");
+</span><span class='nc' id='L152' title='0|0|0 - Total: 7'>        sb.append(falseExpression.toSource(0));
+</span><span class='nc' id='L153' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then the test-expression, the true-expression,
+     * and the false-expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L162' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L163' title='0|0|0 - Total: 4'>            testExpression.visit(v);
+</span><span class='nc' id='L164' title='0|0|0 - Total: 4'>            trueExpression.visit(v);
+</span><span class='nc' id='L165' title='0|0|0 - Total: 4'>            falseExpression.visit(v);
+</span>        }
+<span class='nc' id='L167' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

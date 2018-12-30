@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.jdk15.VMBridge_jdk15.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.jdk15.VMBridge_jdk15.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.jdk15;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.Iterator;
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+
+import org.mozilla.javascript.*;
+
+public class VMBridge_jdk15 extends VMBridge
+{
+<span class='uc' id='L21' title='2|2|2 - Total: 2'>    public VMBridge_jdk15() throws SecurityException, InstantiationException {
+</span>        try {
+            // Just try and see if we can access the isVarArgs method.
+            // We want to fail loading if the method does not exist
+            // so that we can load a bridge to an older JDK instead.
+<span class='uc' id='L26' title='6|6|6 - Total: 6'>            Method.class.getMethod("isVarArgs", (Class[]) null);
+</span><span class='nc' id='L27' title='0|0|0 - Total: 1'>        } catch (NoSuchMethodException e) {
+</span>            // Throw a fitting exception that is handled by
+            // org.mozilla.javascript.Kit.newInstanceOrNull:
+<span class='nc' id='L30' title='0|0|0 - Total: 6'>            throw new InstantiationException(e.getMessage());
+</span><span class='uc' id='L31' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L32' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='uc' id='L34' title='5|5|5 - Total: 5'>    private ThreadLocal<Object[]> contextLocal = new ThreadLocal<Object[]>();
+</span>
+    @Override
+    protected Object getThreadContextHelper()
+    {
+        // To make subsequent batch calls to getContext/setContext faster
+        // associate permanently one element array with contextLocal
+        // so getContext/setContext would need just to read/write the first
+        // array element.
+        // Note that it is necessary to use Object[], not Context[] to allow
+        // garbage collection of Rhino classes. For details see comments
+        // by Attila Szegedi in
+        // https://bugzilla.mozilla.org/show_bug.cgi?id=281067#c5
+
+<span class='uc' id='L48' title='5|5|5 - Total: 5'>        Object[] storage = contextLocal.get();
+</span><span class='uc' id='L49' title='2|2|2 - Total: 2'>        if (storage == null) {
+</span><span class='uc' id='L50' title='3|3|3 - Total: 3'>            storage = new Object[1];
+</span><span class='uc' id='L51' title='4|4|4 - Total: 4'>            contextLocal.set(storage);
+</span>        }
+<span class='uc' id='L53' title='2|2|2 - Total: 2'>        return storage;
+</span>    }
+
+    @Override
+    protected Context getContext(Object contextHelper)
+    {
+<span class='uc' id='L59' title='4|4|4 - Total: 4'>        Object[] storage = (Object[])contextHelper;
+</span><span class='uc' id='L60' title='5|5|5 - Total: 5'>        return (Context)storage[0];
+</span>    }
+
+    @Override
+    protected void setContext(Object contextHelper, Context cx)
+    {
+<span class='uc' id='L66' title='4|4|4 - Total: 4'>        Object[] storage = (Object[])contextHelper;
+</span><span class='uc' id='L67' title='4|4|4 - Total: 4'>        storage[0] = cx;
+</span><span class='uc' id='L68' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    protected boolean tryToMakeAccessible(AccessibleObject accessible)
+    {
+<span class='upc' id='L73' title='1|1|1 - Total: 2'>        if (accessible.isAccessible()) {
+</span><span class='nc' id='L74' title='0|0|0 - Total: 2'>            return true;
+</span>        }
+        try {
+<span class='uc' id='L77' title='3|3|3 - Total: 3'>            accessible.setAccessible(true);
+</span><span class='upc' id='L78' title='1|1|1 - Total: 2'>        } catch (Exception ex) { }
+</span>
+<span class='uc' id='L80' title='3|3|3 - Total: 3'>        return accessible.isAccessible();
+</span>    }
+
+    @Override
+    protected Object getInterfaceProxyHelper(ContextFactory cf,
+                                             Class<?>[] interfaces)
+    {
+        // XXX: How to handle interfaces array withclasses from different
+        // class loaders? Using cf.getApplicationClassLoader() ?
+<span class='uc' id='L89' title='5|5|5 - Total: 5'>        ClassLoader loader = interfaces[0].getClassLoader();
+</span><span class='uc' id='L90' title='4|4|4 - Total: 4'>        Class<?> cl = Proxy.getProxyClass(loader, interfaces);
+</span>        Constructor<?> c;
+        try {
+<span class='uc' id='L93' title='9|9|9 - Total: 9'>            c = cl.getConstructor(new Class[] { InvocationHandler.class });
+</span><span class='nc' id='L94' title='0|0|0 - Total: 1'>        } catch (NoSuchMethodException ex) {
+</span>            // Should not happen
+<span class='nc' id='L96' title='0|0|0 - Total: 6'>            throw Kit.initCause(new IllegalStateException(), ex);
+</span><span class='uc' id='L97' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L98' title='2|2|2 - Total: 2'>        return c;
+</span>    }
+
+    @Override
+    protected Object newInterfaceProxy(Object proxyHelper,
+                                       final ContextFactory cf,
+                                       final InterfaceAdapter adapter,
+                                       final Object target,
+                                       final Scriptable topScope)
+    {
+<span class='uc' id='L108' title='3|3|3 - Total: 3'>        Constructor<?> c = (Constructor<?>)proxyHelper;
+</span>
+<span class='uc' id='L110' title='9|9|9 - Total: 9'>        InvocationHandler handler = new InvocationHandler() {
+</span>                public Object invoke(Object proxy,
+                                     Method method,
+                                     Object[] args)
+                {
+                    // In addition to methods declared in the interface, proxies
+                    // also route some java.lang.Object methods through the
+                    // invocation handler.
+                    if (method.getDeclaringClass() == Object.class) {
+                        String methodName = method.getName();
+                        if (methodName.equals("equals")) {
+                            Object other = args[0];
+                            // Note: we could compare a proxy and its wrapped function
+                            // as equal here but that would break symmetry of equal().
+                            // The reason == suffices here is that proxies are cached
+                            // in ScriptableObject (see NativeJavaObject.coerceType())
+                            return Boolean.valueOf(proxy == other);
+                        }
+                        if (methodName.equals("hashCode")) {
+                            return Integer.valueOf(target.hashCode());
+                        }
+                        if (methodName.equals("toString")) {
+                            return "Proxy[" + target.toString() + "]";
+                        }
+                    }
+                    return adapter.invoke(cf, target, topScope, proxy, method, args);
+                }
+            };
+        Object proxy;
+        try {
+<span class='uc' id='L140' title='9|9|9 - Total: 9'>            proxy = c.newInstance(handler);
+</span><span class='nc' id='L141' title='0|0|0 - Total: 1'>        } catch (InvocationTargetException ex) {
+</span><span class='nc' id='L142' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(ex);
+</span><span class='nc' id='L143' title='0|0|0 - Total: 1'>        } catch (IllegalAccessException ex) {
+</span>            // Should not happen
+<span class='nc' id='L145' title='0|0|0 - Total: 6'>            throw Kit.initCause(new IllegalStateException(), ex);
+</span><span class='nc' id='L146' title='0|0|0 - Total: 1'>        } catch (InstantiationException ex) {
+</span>            // Should not happen
+<span class='nc' id='L148' title='0|0|0 - Total: 6'>            throw Kit.initCause(new IllegalStateException(), ex);
+</span><span class='uc' id='L149' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L150' title='2|2|2 - Total: 2'>        return proxy;
+</span>    }
+
+    /**
+     * If "obj" is a java.util.Iterator or a java.lang.Iterable, return a
+     * wrapping as a JavaScript Iterator. Otherwise, return null.
+     * This method is in VMBridge since Iterable is a JDK 1.5 addition.
+     */
+    @Override
+    protected Iterator<?> getJavaIterator(Context cx, Scriptable scope, Object obj) {
+<span class='uc' id='L160' title='2|2|2 - Total: 2'>        if (obj instanceof Wrapper) {
+</span><span class='uc' id='L161' title='4|4|4 - Total: 4'>            Object unwrapped = ((Wrapper) obj).unwrap();
+</span><span class='uc' id='L162' title='2|2|2 - Total: 2'>            Iterator<?> iterator = null;
+</span><span class='uc' id='L163' title='2|2|2 - Total: 2'>            if (unwrapped instanceof Iterator)
+</span><span class='uc' id='L164' title='3|3|3 - Total: 3'>                iterator = (Iterator<?>) unwrapped;
+</span><span class='uc' id='L165' title='2|2|2 - Total: 2'>            if (unwrapped instanceof Iterable)
+</span><span class='uc' id='L166' title='4|4|4 - Total: 4'>                iterator = ((Iterable<?>)unwrapped).iterator();
+</span><span class='uc' id='L167' title='2|2|2 - Total: 2'>            return iterator;
+</span>        }
+<span class='uc' id='L169' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    @Override
+    public boolean isDefaultMethod(Method method) {
+<span class='nc' id='L174' title='0|0|0 - Total: 2'>        return false;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

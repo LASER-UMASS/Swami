@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.RegExpLiteral.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.RegExpLiteral.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for a RegExp literal.
+ * Node type is {@link Token#REGEXP}.<p>
+ */
+public class RegExpLiteral extends AstNode {
+
+    private String value;
+    private String flags;
+
+    {
+<span class='upc' id='L21' title='3|3|3 - Total: 9'>        type = Token.REGEXP;
+</span>    }
+
+<span class='nc' id='L24' title='0|0|0 - Total: 2'>    public RegExpLiteral() {
+</span><span class='nc' id='L25' title='0|0|0 - Total: 1'>    }
+</span>
+    public RegExpLiteral(int pos) {
+<span class='nc' id='L28' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L29' title='0|0|0 - Total: 1'>    }
+</span>
+    public RegExpLiteral(int pos, int len) {
+<span class='uc' id='L32' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L33' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the regexp string without delimiters
+     */
+    public String getValue() {
+<span class='uc' id='L39' title='3|3|3 - Total: 3'>        return value;
+</span>    }
+
+    /**
+     * Sets the regexp string without delimiters
+     * @throws IllegalArgumentException} if value is {@code null}
+     */
+    public void setValue(String value) {
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>        assertNotNull(value);
+</span><span class='uc' id='L48' title='3|3|3 - Total: 3'>        this.value = value;
+</span><span class='uc' id='L49' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns regexp flags, {@code null} or "" if no flags specified
+     */
+    public String getFlags() {
+<span class='uc' id='L55' title='3|3|3 - Total: 3'>        return flags;
+</span>    }
+
+    /**
+     * Sets regexp flags.  Can be {@code null} or "".
+     */
+    public void setFlags(String flags) {
+<span class='uc' id='L62' title='3|3|3 - Total: 3'>        this.flags = flags;
+</span><span class='uc' id='L63' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L67' title='0|0|0 - Total: 2'>        return makeIndent(depth) + "/" + value + "/"
+</span>                + (flags == null ? "" : flags);
+    }
+
+    /**
+     * Visits this node.  There are no children to visit.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L76' title='0|0|0 - Total: 4'>        v.visit(this);
+</span><span class='nc' id='L77' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

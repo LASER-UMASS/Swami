@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.StringLiteral.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.StringLiteral.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+import org.mozilla.javascript.ScriptRuntime;
+
+/**
+ * AST node for a single- or double-quoted string literal.
+ * Node type is {@link Token#STRING}.<p>
+ */
+public class StringLiteral extends AstNode {
+
+    private String value;
+    private char quoteChar;
+
+    {
+<span class='upc' id='L22' title='3|3|3 - Total: 9'>        type = Token.STRING;
+</span>    }
+
+<span class='nc' id='L25' title='0|0|0 - Total: 2'>    public StringLiteral() {
+</span><span class='nc' id='L26' title='0|0|0 - Total: 1'>    }
+</span>
+    public StringLiteral(int pos) {
+<span class='nc' id='L29' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L30' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Creates a string literal node at the specified position.
+     * @param len the length <em>including</em> the enclosing quotes
+     */
+    public StringLiteral(int pos, int len) {
+<span class='uc' id='L37' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L38' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the node's value:  the parsed string without the enclosing quotes
+     * @return the node's value, a {@link String} of unescaped characters
+     * that includes the delimiter quotes.
+     */
+    public String getValue() {
+<span class='uc' id='L46' title='3|3|3 - Total: 3'>        return value;
+</span>    }
+
+    /**
+     * Returns the string value, optionally including the enclosing quotes.
+     */
+    public String getValue(boolean includeQuotes) {
+<span class='nc' id='L53' title='0|0|0 - Total: 2'>        if (!includeQuotes)
+</span><span class='nc' id='L54' title='0|0|0 - Total: 3'>            return value;
+</span><span class='nc' id='L55' title='0|0|0 - Total: 14'>        return quoteChar + value + quoteChar;
+</span>    }
+
+    /**
+     * Sets the node's value.  Do not include the enclosing quotes.
+     * @param value the node's value
+     * @throws IllegalArgumentException} if value is {@code null}
+     */
+    public void setValue(String value) {
+<span class='uc' id='L64' title='3|3|3 - Total: 3'>        assertNotNull(value);
+</span><span class='uc' id='L65' title='3|3|3 - Total: 3'>        this.value = value;
+</span><span class='uc' id='L66' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the character used as the delimiter for this string.
+     */
+    public char getQuoteCharacter() {
+<span class='nc' id='L72' title='0|0|0 - Total: 3'>        return quoteChar;
+</span>    }
+
+    public void setQuoteCharacter(char c) {
+<span class='uc' id='L76' title='3|3|3 - Total: 3'>        quoteChar = c;
+</span><span class='uc' id='L77' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L81' title='9|9|9 - Total: 9'>        return new StringBuilder(makeIndent(depth))
+</span><span class='uc' id='L82' title='5|5|5 - Total: 5'>                .append(quoteChar)
+</span><span class='uc' id='L83' title='4|4|4 - Total: 4'>                .append(ScriptRuntime.escapeString(value, quoteChar))
+</span><span class='uc' id='L84' title='1|1|1 - Total: 1'>                .append(quoteChar)
+</span><span class='uc' id='L85' title='1|1|1 - Total: 1'>                .toString();
+</span>    }
+
+    /**
+     * Visits this node.  There are no children to visit.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L93' title='0|0|0 - Total: 4'>        v.visit(this);
+</span><span class='nc' id='L94' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

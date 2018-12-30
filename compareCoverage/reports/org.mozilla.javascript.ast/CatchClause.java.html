@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.CatchClause.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.CatchClause.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * Node representing a catch-clause of a try-statement.
+ * Node type is {@link Token#CATCH}.
+ *
+ * <pre><i>CatchClause</i> :
+ *        <b>catch</b> ( <i><b>Identifier</b></i> [<b>if</b> Expression] ) Block</pre>
+ */
+public class CatchClause extends AstNode {
+
+    private Name varName;
+    private AstNode catchCondition;
+    private Block body;
+<span class='upc' id='L23' title='3|3|3 - Total: 9'>    private int ifPosition = -1;
+</span><span class='upc' id='L24' title='3|3|3 - Total: 9'>    private int lp = -1;
+</span><span class='upc' id='L25' title='3|3|3 - Total: 9'>    private int rp = -1;
+</span>
+    {
+<span class='upc' id='L28' title='3|3|3 - Total: 9'>        type = Token.CATCH;
+</span>    }
+
+<span class='nc' id='L31' title='0|0|0 - Total: 2'>    public CatchClause() {
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    public CatchClause(int pos) {
+<span class='uc' id='L35' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L36' title='1|1|1 - Total: 1'>    }
+</span>
+    public CatchClause(int pos, int len) {
+<span class='nc' id='L39' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L40' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns catch variable node
+     * @return catch variable
+     */
+    public Name getVarName() {
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>        return varName;
+</span>    }
+
+    /**
+     * Sets catch variable node, and sets its parent to this node.
+     * @param varName catch variable
+     * @throws IllegalArgumentException if varName is {@code null}
+     */
+    public void setVarName(Name varName) {
+<span class='uc' id='L56' title='3|3|3 - Total: 3'>        assertNotNull(varName);
+</span><span class='uc' id='L57' title='3|3|3 - Total: 3'>        this.varName = varName;
+</span><span class='uc' id='L58' title='3|3|3 - Total: 3'>        varName.setParent(this);
+</span><span class='uc' id='L59' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns catch condition node, if present
+     * @return catch condition node, {@code null} if not present
+     */
+    public AstNode getCatchCondition() {
+<span class='uc' id='L66' title='3|3|3 - Total: 3'>        return catchCondition;
+</span>    }
+
+    /**
+     * Sets catch condition node, and sets its parent to this node.
+     * @param catchCondition catch condition node.  Can be {@code null}.
+     */
+    public void setCatchCondition(AstNode catchCondition) {
+<span class='uc' id='L74' title='3|3|3 - Total: 3'>        this.catchCondition = catchCondition;
+</span><span class='uc' id='L75' title='2|2|2 - Total: 2'>        if (catchCondition != null)
+</span><span class='uc' id='L76' title='3|3|3 - Total: 3'>            catchCondition.setParent(this);
+</span><span class='uc' id='L77' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns catch body
+     */
+    public Block getBody() {
+<span class='uc' id='L83' title='3|3|3 - Total: 3'>        return body;
+</span>    }
+
+    /**
+     * Sets catch body, and sets its parent to this node.
+     * @throws IllegalArgumentException if body is {@code null}
+     */
+    public void setBody(Block body) {
+<span class='uc' id='L91' title='3|3|3 - Total: 3'>        assertNotNull(body);
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>        this.body = body;
+</span><span class='uc' id='L93' title='3|3|3 - Total: 3'>        body.setParent(this);
+</span><span class='uc' id='L94' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns left paren position
+     */
+    public int getLp() {
+<span class='nc' id='L100' title='0|0|0 - Total: 3'>        return lp;
+</span>    }
+
+    /**
+     * Sets left paren position
+     */
+    public void setLp(int lp) {
+<span class='nc' id='L107' title='0|0|0 - Total: 3'>        this.lp = lp;
+</span><span class='nc' id='L108' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns right paren position
+     */
+    public int getRp() {
+<span class='nc' id='L114' title='0|0|0 - Total: 3'>        return rp;
+</span>    }
+
+    /**
+     * Sets right paren position
+     */
+    public void setRp(int rp) {
+<span class='nc' id='L121' title='0|0|0 - Total: 3'>        this.rp = rp;
+</span><span class='nc' id='L122' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class='uc' id='L128' title='3|3|3 - Total: 3'>        this.lp = lp;
+</span><span class='uc' id='L129' title='3|3|3 - Total: 3'>        this.rp = rp;
+</span><span class='uc' id='L130' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of "if" keyword
+     * @return position of "if" keyword, if present, or -1
+     */
+    public int getIfPosition() {
+<span class='nc' id='L137' title='0|0|0 - Total: 3'>        return ifPosition;
+</span>    }
+
+    /**
+     * Sets position of "if" keyword
+     * @param ifPosition position of "if" keyword, if present, or -1
+     */
+    public void setIfPosition(int ifPosition) {
+<span class='uc' id='L145' title='3|3|3 - Total: 3'>        this.ifPosition = ifPosition;
+</span><span class='uc' id='L146' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L150' title='0|0|0 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='nc' id='L151' title='0|0|0 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='nc' id='L152' title='0|0|0 - Total: 4'>        sb.append("catch (");
+</span><span class='nc' id='L153' title='0|0|0 - Total: 7'>        sb.append(varName.toSource(0));
+</span><span class='nc' id='L154' title='0|0|0 - Total: 2'>        if (catchCondition != null) {
+</span><span class='nc' id='L155' title='0|0|0 - Total: 4'>            sb.append(" if ");
+</span><span class='nc' id='L156' title='0|0|0 - Total: 7'>            sb.append(catchCondition.toSource(0));
+</span>        }
+<span class='nc' id='L158' title='0|0|0 - Total: 4'>        sb.append(") ");
+</span><span class='nc' id='L159' title='0|0|0 - Total: 7'>        sb.append(body.toSource(0));
+</span><span class='nc' id='L160' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the catch var name node, the condition if
+     * non-{@code null}, and the catch body.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L169' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L170' title='0|0|0 - Total: 4'>            varName.visit(v);
+</span><span class='nc' id='L171' title='0|0|0 - Total: 2'>            if (catchCondition != null) {
+</span><span class='nc' id='L172' title='0|0|0 - Total: 4'>                catchCondition.visit(v);
+</span>            }
+<span class='nc' id='L174' title='0|0|0 - Total: 4'>            body.visit(v);
+</span>        }
+<span class='nc' id='L176' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

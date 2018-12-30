@@ -1,0 +1,2463 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.IRFactory.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.IRFactory.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.ArrayComprehension;
+import org.mozilla.javascript.ast.ArrayComprehensionLoop;
+import org.mozilla.javascript.ast.ArrayLiteral;
+import org.mozilla.javascript.ast.Assignment;
+import org.mozilla.javascript.ast.AstNode;
+import org.mozilla.javascript.ast.AstRoot;
+import org.mozilla.javascript.ast.Block;
+import org.mozilla.javascript.ast.BreakStatement;
+import org.mozilla.javascript.ast.CatchClause;
+import org.mozilla.javascript.ast.ConditionalExpression;
+import org.mozilla.javascript.ast.ContinueStatement;
+import org.mozilla.javascript.ast.DestructuringForm;
+import org.mozilla.javascript.ast.DoLoop;
+import org.mozilla.javascript.ast.ElementGet;
+import org.mozilla.javascript.ast.EmptyExpression;
+import org.mozilla.javascript.ast.ExpressionStatement;
+import org.mozilla.javascript.ast.ForInLoop;
+import org.mozilla.javascript.ast.ForLoop;
+import org.mozilla.javascript.ast.FunctionCall;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.GeneratorExpression;
+import org.mozilla.javascript.ast.GeneratorExpressionLoop;
+import org.mozilla.javascript.ast.IfStatement;
+import org.mozilla.javascript.ast.InfixExpression;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.Label;
+import org.mozilla.javascript.ast.LabeledStatement;
+import org.mozilla.javascript.ast.LetNode;
+import org.mozilla.javascript.ast.Loop;
+import org.mozilla.javascript.ast.Name;
+import org.mozilla.javascript.ast.NewExpression;
+import org.mozilla.javascript.ast.NumberLiteral;
+import org.mozilla.javascript.ast.ObjectLiteral;
+import org.mozilla.javascript.ast.ObjectProperty;
+import org.mozilla.javascript.ast.ParenthesizedExpression;
+import org.mozilla.javascript.ast.PropertyGet;
+import org.mozilla.javascript.ast.RegExpLiteral;
+import org.mozilla.javascript.ast.ReturnStatement;
+import org.mozilla.javascript.ast.Scope;
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ast.StringLiteral;
+import org.mozilla.javascript.ast.SwitchCase;
+import org.mozilla.javascript.ast.SwitchStatement;
+import org.mozilla.javascript.ast.Symbol;
+import org.mozilla.javascript.ast.ThrowStatement;
+import org.mozilla.javascript.ast.TryStatement;
+import org.mozilla.javascript.ast.UnaryExpression;
+import org.mozilla.javascript.ast.VariableDeclaration;
+import org.mozilla.javascript.ast.VariableInitializer;
+import org.mozilla.javascript.ast.WhileLoop;
+import org.mozilla.javascript.ast.WithStatement;
+import org.mozilla.javascript.ast.XmlDotQuery;
+import org.mozilla.javascript.ast.XmlElemRef;
+import org.mozilla.javascript.ast.XmlExpression;
+import org.mozilla.javascript.ast.XmlFragment;
+import org.mozilla.javascript.ast.XmlLiteral;
+import org.mozilla.javascript.ast.XmlMemberGet;
+import org.mozilla.javascript.ast.XmlPropRef;
+import org.mozilla.javascript.ast.XmlRef;
+import org.mozilla.javascript.ast.XmlString;
+import org.mozilla.javascript.ast.Yield;
+
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * This class rewrites the parse tree into an IR suitable for codegen.
+ *
+ * @see Node
+ * @author Mike McCabe
+ * @author Norris Boyd
+ */
+public final class IRFactory extends Parser
+{
+    private static final int LOOP_DO_WHILE = 0;
+    private static final int LOOP_WHILE    = 1;
+    private static final int LOOP_FOR      = 2;
+
+    private static final int ALWAYS_TRUE_BOOLEAN = 1;
+    private static final int ALWAYS_FALSE_BOOLEAN = -1;
+
+<span class='bpc' id='L90' title='0|5|5 - Total: 10'>    private Decompiler decompiler = new Decompiler();
+</span>
+    public IRFactory() {
+<span class='nc' id='L93' title='0|0|0 - Total: 2'>        super();
+</span><span class='nc' id='L94' title='0|0|0 - Total: 1'>    }
+</span>
+    public IRFactory(CompilerEnvirons env) {
+<span class='bc' id='L97' title='0|5|5 - Total: 5'>        this(env, env.getErrorReporter());
+</span><span class='bc' id='L98' title='0|1|1 - Total: 1'>    }
+</span>
+    public IRFactory(CompilerEnvirons env, ErrorReporter errorReporter) {
+<span class='bc' id='L101' title='0|4|4 - Total: 4'>        super(env, errorReporter);
+</span><span class='bc' id='L102' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Transforms the tree into a lower-level IR suitable for codegen.
+     * Optionally generates the encoded source.
+     */
+    public ScriptNode transformTree(AstRoot root) {
+<span class='bc' id='L109' title='0|3|3 - Total: 3'>        currentScriptOrFn = root;
+</span><span class='bc' id='L110' title='0|4|4 - Total: 4'>        this.inUseStrictDirective = root.isInStrictMode();
+</span><span class='bc' id='L111' title='0|4|4 - Total: 4'>        int sourceStartOffset = decompiler.getCurrentOffset();
+</span>
+        if (Token.printTrees) {
+            System.out.println("IRFactory.transformTree");
+            System.out.println(root.debugPrint());
+        }
+<span class='bc' id='L117' title='0|5|5 - Total: 5'>        ScriptNode script = (ScriptNode)transform(root);
+</span>
+<span class='bc' id='L119' title='0|4|4 - Total: 4'>        int sourceEndOffset = decompiler.getCurrentOffset();
+</span><span class='bc' id='L120' title='0|4|4 - Total: 4'>        script.setEncodedSourceBounds(sourceStartOffset,
+</span>                                      sourceEndOffset);
+
+<span class='bpc' id='L123' title='0|1|1 - Total: 2'>        if (compilerEnv.isGeneratingSource()) {
+</span><span class='bc' id='L124' title='0|5|5 - Total: 5'>            script.setEncodedSource(decompiler.getEncodedSource());
+</span>        }
+
+<span class='bc' id='L127' title='0|3|3 - Total: 3'>        decompiler = null;
+</span><span class='bc' id='L128' title='0|2|2 - Total: 2'>        return script;
+</span>    }
+
+    // Might want to convert this to polymorphism - move transform*
+    // functions into the AstNode subclasses.  OTOH that would make
+    // IR transformation part of the public AST API - desirable?
+    // Another possibility:  create AstTransformer interface and adapter.
+    public Node transform(AstNode node) {
+<span class='bc' id='L136' title='0|31|31 - Total: 31'>        switch (node.getType()) {
+</span>          case Token.ARRAYCOMP:
+<span class='bc' id='L138' title='0|5|5 - Total: 5'>              return transformArrayComp((ArrayComprehension)node);
+</span>          case Token.ARRAYLIT:
+<span class='bc' id='L140' title='0|5|5 - Total: 5'>              return transformArrayLiteral((ArrayLiteral)node);
+</span>          case Token.BLOCK:
+<span class='bc' id='L142' title='0|4|4 - Total: 4'>              return transformBlock(node);
+</span>          case Token.BREAK:
+<span class='bc' id='L144' title='0|5|5 - Total: 5'>              return transformBreak((BreakStatement)node);
+</span>          case Token.CALL:
+<span class='bc' id='L146' title='0|5|5 - Total: 5'>              return transformFunctionCall((FunctionCall)node);
+</span>          case Token.CONTINUE:
+<span class='bc' id='L148' title='0|5|5 - Total: 5'>              return transformContinue((ContinueStatement)node);
+</span>          case Token.DO:
+<span class='bc' id='L150' title='0|5|5 - Total: 5'>              return transformDoLoop((DoLoop)node);
+</span>          case Token.EMPTY:
+<span class='bc' id='L152' title='0|2|2 - Total: 2'>              return node;
+</span>          case Token.FOR:
+<span class='bc' id='L154' title='0|2|2 - Total: 2'>              if (node instanceof ForInLoop) {
+</span><span class='bc' id='L155' title='0|5|5 - Total: 5'>                  return transformForInLoop((ForInLoop)node);
+</span>              } else {
+<span class='bc' id='L157' title='0|5|5 - Total: 5'>                  return transformForLoop((ForLoop)node);
+</span>              }
+          case Token.FUNCTION:
+<span class='bc' id='L160' title='0|5|5 - Total: 5'>              return transformFunction((FunctionNode)node);
+</span>          case Token.GENEXPR:
+<span class='bc' id='L162' title='0|5|5 - Total: 5'>              return transformGenExpr((GeneratorExpression)node);
+</span>          case Token.GETELEM:
+<span class='bc' id='L164' title='0|5|5 - Total: 5'>              return transformElementGet((ElementGet)node);
+</span>          case Token.GETPROP:
+<span class='bc' id='L166' title='0|5|5 - Total: 5'>              return transformPropertyGet((PropertyGet)node);
+</span>          case Token.HOOK:
+<span class='bc' id='L168' title='0|5|5 - Total: 5'>              return transformCondExpr((ConditionalExpression)node);
+</span>          case Token.IF:
+<span class='bc' id='L170' title='0|5|5 - Total: 5'>              return transformIf((IfStatement)node);
+</span>
+          case Token.TRUE:
+          case Token.FALSE:
+          case Token.THIS:
+          case Token.NULL:
+          case Token.DEBUGGER:
+<span class='bc' id='L177' title='0|4|4 - Total: 4'>              return transformLiteral(node);
+</span>
+          case Token.NAME:
+<span class='bc' id='L180' title='0|5|5 - Total: 5'>              return transformName((Name)node);
+</span>          case Token.NUMBER:
+<span class='bc' id='L182' title='0|5|5 - Total: 5'>              return transformNumber((NumberLiteral)node);
+</span>          case Token.NEW:
+<span class='bc' id='L184' title='0|5|5 - Total: 5'>              return transformNewExpr((NewExpression)node);
+</span>          case Token.OBJECTLIT:
+<span class='bc' id='L186' title='0|5|5 - Total: 5'>              return transformObjectLiteral((ObjectLiteral)node);
+</span>          case Token.REGEXP:
+<span class='bc' id='L188' title='0|5|5 - Total: 5'>              return transformRegExp((RegExpLiteral)node);
+</span>          case Token.RETURN:
+<span class='bc' id='L190' title='0|5|5 - Total: 5'>              return transformReturn((ReturnStatement)node);
+</span>          case Token.SCRIPT:
+<span class='bc' id='L192' title='0|5|5 - Total: 5'>              return transformScript((ScriptNode)node);
+</span>          case Token.STRING:
+<span class='bc' id='L194' title='0|5|5 - Total: 5'>              return transformString((StringLiteral)node);
+</span>          case Token.SWITCH:
+<span class='bc' id='L196' title='0|5|5 - Total: 5'>              return transformSwitch((SwitchStatement)node);
+</span>          case Token.THROW:
+<span class='bc' id='L198' title='0|5|5 - Total: 5'>              return transformThrow((ThrowStatement)node);
+</span>          case Token.TRY:
+<span class='bc' id='L200' title='0|5|5 - Total: 5'>              return transformTry((TryStatement)node);
+</span>          case Token.WHILE:
+<span class='bc' id='L202' title='0|5|5 - Total: 5'>              return transformWhileLoop((WhileLoop)node);
+</span>          case Token.WITH:
+<span class='bc' id='L204' title='0|5|5 - Total: 5'>              return transformWith((WithStatement)node);
+</span>          case Token.YIELD:
+<span class='bc' id='L206' title='0|5|5 - Total: 5'>              return transformYield((Yield)node);
+</span>          default:
+<span class='bc' id='L208' title='0|2|2 - Total: 2'>              if (node instanceof ExpressionStatement) {
+</span><span class='bc' id='L209' title='0|5|5 - Total: 5'>                  return transformExprStmt((ExpressionStatement)node);
+</span>              }
+<span class='bc' id='L211' title='0|2|2 - Total: 2'>              if (node instanceof Assignment) {
+</span><span class='bc' id='L212' title='0|5|5 - Total: 5'>                  return transformAssignment((Assignment)node);
+</span>              }
+<span class='bc' id='L214' title='0|2|2 - Total: 2'>              if (node instanceof UnaryExpression) {
+</span><span class='bc' id='L215' title='0|5|5 - Total: 5'>                  return transformUnary((UnaryExpression)node);
+</span>              }
+<span class='bc' id='L217' title='0|2|2 - Total: 2'>              if (node instanceof XmlMemberGet) {
+</span><span class='bc' id='L218' title='0|5|5 - Total: 5'>                  return transformXmlMemberGet((XmlMemberGet)node);
+</span>              }
+<span class='bc' id='L220' title='0|2|2 - Total: 2'>              if (node instanceof InfixExpression) {
+</span><span class='bc' id='L221' title='0|5|5 - Total: 5'>                  return transformInfix((InfixExpression)node);
+</span>              }
+<span class='bc' id='L223' title='0|2|2 - Total: 2'>              if (node instanceof VariableDeclaration) {
+</span><span class='bc' id='L224' title='0|5|5 - Total: 5'>                  return transformVariables((VariableDeclaration)node);
+</span>              }
+<span class='bc' id='L226' title='0|2|2 - Total: 2'>              if (node instanceof ParenthesizedExpression) {
+</span><span class='bc' id='L227' title='0|5|5 - Total: 5'>                  return transformParenExpr((ParenthesizedExpression)node);
+</span>              }
+<span class='bc' id='L229' title='0|2|2 - Total: 2'>              if (node instanceof LabeledStatement) {
+</span><span class='bc' id='L230' title='0|5|5 - Total: 5'>                  return transformLabeledStatement((LabeledStatement)node);
+</span>              }
+<span class='bc' id='L232' title='0|2|2 - Total: 2'>              if (node instanceof LetNode) {
+</span><span class='bc' id='L233' title='0|5|5 - Total: 5'>                  return transformLetNode((LetNode)node);
+</span>              }
+<span class='bc' id='L235' title='0|2|2 - Total: 2'>              if (node instanceof XmlRef) {
+</span><span class='bc' id='L236' title='0|5|5 - Total: 5'>                  return transformXmlRef((XmlRef)node);
+</span>              }
+<span class='bpc' id='L238' title='0|1|1 - Total: 2'>              if (node instanceof XmlLiteral) {
+</span><span class='bc' id='L239' title='0|5|5 - Total: 5'>                  return transformXmlLiteral((XmlLiteral)node);
+</span>              }
+<span class='nc' id='L241' title='0|0|0 - Total: 12'>              throw new IllegalArgumentException("Can't transform: " + node);
+</span>        }
+    }
+
+    private Node transformArrayComp(ArrayComprehension node) {
+        // An array comprehension expression such as
+        //
+        //   [expr for (x in foo) for each ([y, z] in bar) if (cond)]
+        //
+        // is rewritten approximately as
+        //
+        // new Scope(ARRAYCOMP) {
+        //   new Node(BLOCK) {
+        //     let tmp1 = new Array;
+        //     for (let x in foo) {
+        //       for each (let tmp2 in bar) {
+        //         if (cond) {
+        //           tmp1.push([y, z] = tmp2, expr);
+        //         }
+        //       }
+        //     }
+        //   }
+        //   createName(tmp1)
+        // }
+
+<span class='bc' id='L266' title='0|3|3 - Total: 3'>        int lineno = node.getLineno();
+</span><span class='bc' id='L267' title='0|5|5 - Total: 5'>        Scope scopeNode = createScopeNode(Token.ARRAYCOMP, lineno);
+</span><span class='bc' id='L268' title='0|4|4 - Total: 4'>        String arrayName = currentScriptOrFn.getNextTempName();
+</span><span class='bc' id='L269' title='0|3|3 - Total: 3'>        pushScope(scopeNode);
+</span>        try {
+<span class='bc' id='L271' title='0|5|5 - Total: 5'>            defineSymbol(Token.LET, arrayName, false);
+</span><span class='bc' id='L272' title='0|6|6 - Total: 6'>            Node block = new Node(Token.BLOCK, lineno);
+</span><span class='bc' id='L273' title='0|7|7 - Total: 7'>            Node newArray = createCallOrNew(Token.NEW, createName("Array"));
+</span><span class='bc' id='L274' title='0|7|7 - Total: 7'>            Node init = new Node(Token.EXPR_VOID,
+</span><span class='bc' id='L275' title='0|4|4 - Total: 4'>                                 createAssignment(Token.ASSIGN,
+</span><span class='bc' id='L276' title='0|2|2 - Total: 2'>                                                  createName(arrayName),
+</span>                                                  newArray),
+                                 lineno);
+<span class='bc' id='L279' title='0|3|3 - Total: 3'>            block.addChildToBack(init);
+</span><span class='bc' id='L280' title='0|6|6 - Total: 6'>            block.addChildToBack(arrayCompTransformHelper(node, arrayName));
+</span><span class='bc' id='L281' title='0|3|3 - Total: 3'>            scopeNode.addChildToBack(block);
+</span><span class='bc' id='L282' title='0|5|5 - Total: 5'>            scopeNode.addChildToBack(createName(arrayName));
+</span><span class='bc' id='L283' title='0|4|4 - Total: 4'>            return scopeNode;
+</span>        } finally {
+<span class='bpc' id='L285' title='0|2|2 - Total: 5'>            popScope();
+</span><span class='nc' id='L286' title='0|0|0 - Total: 2'>        }
+</span>    }
+
+    private Node arrayCompTransformHelper(ArrayComprehension node,
+                                          String arrayName) {
+<span class='bc' id='L291' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LB);
+</span><span class='bc' id='L292' title='0|3|3 - Total: 3'>        int lineno = node.getLineno();
+</span><span class='bc' id='L293' title='0|5|5 - Total: 5'>        Node expr = transform(node.getResult());
+</span>
+<span class='bc' id='L295' title='0|3|3 - Total: 3'>        List<ArrayComprehensionLoop> loops = node.getLoops();
+</span><span class='bc' id='L296' title='0|3|3 - Total: 3'>        int numLoops = loops.size();
+</span>
+        // Walk through loops, collecting and defining their iterator symbols.
+<span class='bc' id='L299' title='0|3|3 - Total: 3'>        Node[] iterators = new Node[numLoops];
+</span><span class='bc' id='L300' title='0|3|3 - Total: 3'>        Node[] iteratedObjs = new Node[numLoops];
+</span>
+<span class='bc' id='L302' title='0|2|2 - Total: 2'>        for (int i = 0; i < numLoops; i++) {
+</span><span class='bc' id='L303' title='0|5|5 - Total: 5'>            ArrayComprehensionLoop acl = loops.get(i);
+</span><span class='bc' id='L304' title='0|4|4 - Total: 4'>            decompiler.addName(" ");
+</span><span class='bc' id='L305' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.FOR);
+</span><span class='bc' id='L306' title='0|2|2 - Total: 2'>            if (acl.isForEach()) {
+</span><span class='bc' id='L307' title='0|4|4 - Total: 4'>                decompiler.addName("each ");
+</span>            }
+<span class='bc' id='L309' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span>
+<span class='bc' id='L311' title='0|3|3 - Total: 3'>            AstNode iter = acl.getIterator();
+</span><span class='bc' id='L312' title='0|2|2 - Total: 2'>            String name = null;
+</span><span class='bc' id='L313' title='0|2|2 - Total: 2'>            if (iter.getType() == Token.NAME) {
+</span><span class='bc' id='L314' title='0|3|3 - Total: 3'>                name = iter.getString();
+</span><span class='bc' id='L315' title='0|5|5 - Total: 5'>                decompiler.addName(name);
+</span>            } else {
+                // destructuring assignment
+<span class='bc' id='L318' title='0|3|3 - Total: 3'>                decompile(iter);
+</span><span class='bc' id='L319' title='0|4|4 - Total: 4'>                name = currentScriptOrFn.getNextTempName();
+</span><span class='bc' id='L320' title='0|5|5 - Total: 5'>                defineSymbol(Token.LP, name, false);
+</span><span class='bc' id='L321' title='0|9|9 - Total: 9'>                expr = createBinary(Token.COMMA,
+</span><span class='bc' id='L322' title='0|2|2 - Total: 2'>                                    createAssignment(Token.ASSIGN,
+</span>                                                     iter,
+<span class='bc' id='L324' title='0|1|1 - Total: 1'>                                                     createName(name)),
+</span>                                    expr);
+            }
+<span class='bc' id='L327' title='0|4|4 - Total: 4'>            Node init = createName(name);
+</span>            // Define as a let since we want the scope of the variable to
+            // be restricted to the array comprehension
+<span class='bc' id='L330' title='0|5|5 - Total: 5'>            defineSymbol(Token.LET, name, false);
+</span><span class='bc' id='L331' title='0|4|4 - Total: 4'>            iterators[i] = init;
+</span>
+<span class='bc' id='L333' title='0|2|2 - Total: 2'>            if (acl.isForOf()) {
+</span><span class='bc' id='L334' title='0|5|5 - Total: 5'>                decompiler.addName("of ");
+</span>            } else {
+<span class='bc' id='L336' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.IN);
+</span>            }
+<span class='bc' id='L338' title='0|7|7 - Total: 7'>            iteratedObjs[i] = transform(acl.getIteratedObject());
+</span><span class='bc' id='L339' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+
+        // generate code for tmpArray.push(body)
+<span class='bc' id='L343' title='0|7|7 - Total: 7'>        Node call = createCallOrNew(Token.CALL,
+</span><span class='bc' id='L344' title='0|5|5 - Total: 5'>                                    createPropertyGet(createName(arrayName),
+</span>                                                      null,
+                                                      "push", 0));
+
+<span class='bc' id='L348' title='0|7|7 - Total: 7'>        Node body = new Node(Token.EXPR_VOID, call, lineno);
+</span>
+<span class='bc' id='L350' title='0|2|2 - Total: 2'>        if (node.getFilter() != null) {
+</span><span class='bc' id='L351' title='0|4|4 - Total: 4'>            decompiler.addName(" ");
+</span><span class='bc' id='L352' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.IF);
+</span><span class='bc' id='L353' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L354' title='0|10|10 - Total: 10'>            body = createIf(transform(node.getFilter()), body, null, lineno);
+</span><span class='bc' id='L355' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+
+        // Now walk loops in reverse to build up the body statement.
+<span class='bc' id='L359' title='0|2|2 - Total: 2'>        int pushed = 0;
+</span>        try {
+<span class='bc' id='L361' title='0|2|2 - Total: 2'>            for (int i = numLoops-1; i >= 0; i--) {
+</span><span class='bc' id='L362' title='0|5|5 - Total: 5'>                ArrayComprehensionLoop acl = loops.get(i);
+</span><span class='bc' id='L363' title='0|5|5 - Total: 5'>                Scope loop = createLoopNode(null,  // no label
+</span><span class='bc' id='L364' title='0|1|1 - Total: 1'>                                            acl.getLineno());
+</span><span class='bc' id='L365' title='0|3|3 - Total: 3'>                pushScope(loop);
+</span><span class='bc' id='L366' title='0|1|1 - Total: 1'>                pushed++;
+</span><span class='bc' id='L367' title='0|13|13 - Total: 13'>                body = createForIn(Token.LET,
+</span>                                   loop,
+                                   iterators[i],
+                                   iteratedObjs[i],
+                                   body,
+<span class='bc' id='L372' title='0|2|2 - Total: 2'>                                   acl.isForEach(),
+</span><span class='bc' id='L373' title='0|1|1 - Total: 1'>                                   acl.isForOf());
+</span>            }
+        } finally {
+<span class='bpc' id='L376' title='0|2|2 - Total: 4'>            for (int i = 0; i < pushed; i++) {
+</span><span class='bpc' id='L377' title='0|2|2 - Total: 4'>                popScope();
+</span>            }
+<span class='bpc' id='L379' title='0|1|1 - Total: 3'>        }
+</span>
+<span class='bc' id='L381' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RB);
+</span>
+        // Now that we've accumulated any destructuring forms,
+        // add expr to the call node; it's pushed on each iteration.
+<span class='bc' id='L385' title='0|3|3 - Total: 3'>        call.addChildToBack(expr);
+</span><span class='bc' id='L386' title='0|2|2 - Total: 2'>        return body;
+</span>    }
+
+    private Node transformArrayLiteral(ArrayLiteral node) {
+<span class='bc' id='L390' title='0|2|2 - Total: 2'>        if (node.isDestructuring()) {
+</span><span class='bc' id='L391' title='0|2|2 - Total: 2'>            return node;
+</span>        }
+<span class='bc' id='L393' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LB);
+</span><span class='bc' id='L394' title='0|3|3 - Total: 3'>        List<AstNode> elems = node.getElements();
+</span><span class='bc' id='L395' title='0|5|5 - Total: 5'>        Node array = new Node(Token.ARRAYLIT);
+</span><span class='bc' id='L396' title='0|2|2 - Total: 2'>        List<Integer> skipIndexes = null;
+</span><span class='bc' id='L397' title='0|2|2 - Total: 2'>        for (int i = 0; i < elems.size(); ++i) {
+</span><span class='bc' id='L398' title='0|5|5 - Total: 5'>            AstNode elem = elems.get(i);
+</span><span class='bc' id='L399' title='0|2|2 - Total: 2'>            if (elem.getType() != Token.EMPTY) {
+</span><span class='bc' id='L400' title='0|6|6 - Total: 6'>                array.addChildToBack(transform(elem));
+</span>            } else {
+<span class='bc' id='L402' title='0|2|2 - Total: 2'>                if (skipIndexes == null) {
+</span><span class='bc' id='L403' title='0|4|4 - Total: 4'>                    skipIndexes = new ArrayList<Integer>();
+</span>                }
+<span class='bc' id='L405' title='0|5|5 - Total: 5'>                skipIndexes.add(i);
+</span>            }
+<span class='bc' id='L407' title='0|2|2 - Total: 2'>            if (i < elems.size() - 1)
+</span><span class='bc' id='L408' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>        }
+<span class='bc' id='L410' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RB);
+</span><span class='bc' id='L411' title='0|4|4 - Total: 4'>        array.putIntProp(Node.DESTRUCTURING_ARRAY_LENGTH,
+</span><span class='bc' id='L412' title='0|1|1 - Total: 1'>                         node.getDestructuringLength());
+</span><span class='bc' id='L413' title='0|2|2 - Total: 2'>        if (skipIndexes != null) {
+</span><span class='bc' id='L414' title='0|4|4 - Total: 4'>            int[] skips = new int[skipIndexes.size()];
+</span><span class='bc' id='L415' title='0|2|2 - Total: 2'>            for (int i = 0; i < skipIndexes.size(); i++)
+</span><span class='bc' id='L416' title='0|8|8 - Total: 8'>                skips[i] = skipIndexes.get(i);
+</span><span class='bc' id='L417' title='0|4|4 - Total: 4'>            array.putProp(Node.SKIP_INDEXES_PROP, skips);
+</span>        }
+<span class='bc' id='L419' title='0|2|2 - Total: 2'>        return array;
+</span>    }
+
+    private Node transformAssignment(Assignment node) {
+<span class='bc' id='L423' title='0|5|5 - Total: 5'>        AstNode left = removeParens(node.getLeft());
+</span><span class='bc' id='L424' title='0|2|2 - Total: 2'>        Node target = null;
+</span><span class='bc' id='L425' title='0|2|2 - Total: 2'>        if (isDestructuring(left)) {
+</span><span class='bc' id='L426' title='0|3|3 - Total: 3'>            decompile(left);
+</span><span class='bc' id='L427' title='0|3|3 - Total: 3'>            target = left;
+</span>        } else {
+<span class='bc' id='L429' title='0|4|4 - Total: 4'>            target = transform(left);
+</span>        }
+<span class='bc' id='L431' title='0|5|5 - Total: 5'>        decompiler.addToken(node.getType());
+</span><span class='bc' id='L432' title='0|8|8 - Total: 8'>        return createAssignment(node.getType(),
+</span>                                target,
+<span class='bc' id='L434' title='0|2|2 - Total: 2'>                                transform(node.getRight()));
+</span>    }
+
+    private Node transformBlock(AstNode node) {
+<span class='bc' id='L438' title='0|2|2 - Total: 2'>        if (node instanceof Scope) {
+</span><span class='bc' id='L439' title='0|4|4 - Total: 4'>            pushScope((Scope)node);
+</span>        }
+        try {
+<span class='bc' id='L442' title='0|4|4 - Total: 4'>            List<Node> kids = new ArrayList<Node>();
+</span><span class='bc' id='L443' title='0|2|2 - Total: 2'>            for (Node kid : node) {
+</span><span class='bc' id='L444' title='0|7|7 - Total: 7'>                kids.add(transform((AstNode)kid));
+</span><span class='bc' id='L445' title='0|1|1 - Total: 1'>            }
+</span><span class='bc' id='L446' title='0|2|2 - Total: 2'>            node.removeChildren();
+</span><span class='bc' id='L447' title='0|2|2 - Total: 2'>            for (Node kid : kids) {
+</span><span class='bc' id='L448' title='0|3|3 - Total: 3'>                node.addChildToBack(kid);
+</span><span class='bc' id='L449' title='0|1|1 - Total: 1'>            }
+</span><span class='bc' id='L450' title='0|4|4 - Total: 4'>            return node;
+</span>        } finally {
+<span class='bpc' id='L452' title='0|3|3 - Total: 4'>            if (node instanceof Scope) {
+</span><span class='bpc' id='L453' title='0|2|2 - Total: 4'>                popScope();
+</span>            }
+<span class='bc' id='L455' title='0|2|2 - Total: 2'>        }
+</span>    }
+
+    private Node transformBreak(BreakStatement node) {
+<span class='bc' id='L459' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.BREAK);
+</span><span class='bc' id='L460' title='0|2|2 - Total: 2'>        if (node.getBreakLabel() != null) {
+</span><span class='bc' id='L461' title='0|6|6 - Total: 6'>            decompiler.addName(node.getBreakLabel().getIdentifier());
+</span>        }
+<span class='bc' id='L463' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L464' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformCondExpr(ConditionalExpression node) {
+<span class='bc' id='L468' title='0|5|5 - Total: 5'>        Node test = transform(node.getTestExpression());
+</span><span class='bc' id='L469' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.HOOK);
+</span><span class='bc' id='L470' title='0|5|5 - Total: 5'>        Node ifTrue = transform(node.getTrueExpression());
+</span><span class='bc' id='L471' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.COLON);
+</span><span class='bc' id='L472' title='0|5|5 - Total: 5'>        Node ifFalse = transform(node.getFalseExpression());
+</span><span class='bc' id='L473' title='0|6|6 - Total: 6'>        return createCondExpr(test, ifTrue, ifFalse);
+</span>    }
+
+    private Node transformContinue(ContinueStatement node) {
+<span class='bc' id='L477' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.CONTINUE);
+</span><span class='bc' id='L478' title='0|2|2 - Total: 2'>        if (node.getLabel() != null) {
+</span><span class='bc' id='L479' title='0|6|6 - Total: 6'>            decompiler.addName(node.getLabel().getIdentifier());
+</span>        }
+<span class='bc' id='L481' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L482' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformDoLoop(DoLoop loop) {
+<span class='bc' id='L486' title='0|4|4 - Total: 4'>        loop.setType(Token.LOOP);
+</span><span class='bc' id='L487' title='0|3|3 - Total: 3'>        pushScope(loop);
+</span>        try {
+<span class='bc' id='L489' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.DO);
+</span><span class='bc' id='L490' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L491' title='0|5|5 - Total: 5'>            Node body = transform(loop.getBody());
+</span><span class='bc' id='L492' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RC);
+</span><span class='bc' id='L493' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.WHILE);
+</span><span class='bc' id='L494' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L495' title='0|5|5 - Total: 5'>            Node cond = transform(loop.getCondition());
+</span><span class='bc' id='L496' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L497' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L498' title='0|11|11 - Total: 11'>            return createLoop(loop, LOOP_DO_WHILE,
+</span>                              body, cond, null, null);
+        } finally {
+<span class='bpc' id='L501' title='0|2|2 - Total: 5'>            popScope();
+</span><span class='nc' id='L502' title='0|0|0 - Total: 2'>        }
+</span>    }
+
+    private Node transformElementGet(ElementGet node) {
+        // OPT: could optimize to createPropertyGet
+        // iff elem is string that can not be number
+<span class='bc' id='L508' title='0|5|5 - Total: 5'>        Node target = transform(node.getTarget());
+</span><span class='bc' id='L509' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LB);
+</span><span class='bc' id='L510' title='0|5|5 - Total: 5'>        Node element = transform(node.getElement());
+</span><span class='bc' id='L511' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RB);
+</span><span class='bc' id='L512' title='0|7|7 - Total: 7'>        return new Node(Token.GETELEM, target, element);
+</span>    }
+
+    private Node transformExprStmt(ExpressionStatement node) {
+<span class='bc' id='L516' title='0|5|5 - Total: 5'>        Node expr = transform(node.getExpression());
+</span><span class='bc' id='L517' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L518' title='0|9|9 - Total: 9'>        return new Node(node.getType(), expr, node.getLineno());
+</span>    }
+
+    private Node transformForInLoop(ForInLoop loop) {
+<span class='bc' id='L522' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.FOR);
+</span><span class='bc' id='L523' title='0|2|2 - Total: 2'>        if (loop.isForEach())
+</span><span class='bc' id='L524' title='0|4|4 - Total: 4'>            decompiler.addName("each ");
+</span><span class='bc' id='L525' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span>
+<span class='bc' id='L527' title='0|4|4 - Total: 4'>        loop.setType(Token.LOOP);
+</span><span class='bc' id='L528' title='0|3|3 - Total: 3'>        pushScope(loop);
+</span>        try {
+<span class='bc' id='L530' title='0|2|2 - Total: 2'>            int declType = -1;
+</span><span class='bc' id='L531' title='0|3|3 - Total: 3'>            AstNode iter = loop.getIterator();
+</span><span class='bc' id='L532' title='0|2|2 - Total: 2'>            if (iter instanceof VariableDeclaration) {
+</span><span class='bc' id='L533' title='0|4|4 - Total: 4'>                declType = ((VariableDeclaration)iter).getType();
+</span>            }
+<span class='bc' id='L535' title='0|4|4 - Total: 4'>            Node lhs = transform(iter);
+</span><span class='bc' id='L536' title='0|2|2 - Total: 2'>            if (loop.isForOf()) {
+</span><span class='bc' id='L537' title='0|5|5 - Total: 5'>                decompiler.addName("of ");
+</span>            } else {
+<span class='bc' id='L539' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.IN);
+</span>            }
+<span class='bc' id='L541' title='0|5|5 - Total: 5'>            Node obj = transform(loop.getIteratedObject());
+</span><span class='bc' id='L542' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L543' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L544' title='0|5|5 - Total: 5'>            Node body = transform(loop.getBody());
+</span><span class='bc' id='L545' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L546' title='0|11|11 - Total: 11'>            return createForIn(declType, loop, lhs, obj, body,
+</span><span class='bc' id='L547' title='0|3|3 - Total: 3'>                               loop.isForEach(), loop.isForOf());
+</span>        } finally {
+<span class='bc' id='L549' title='0|5|5 - Total: 5'>            popScope();
+</span><span class='bc' id='L550' title='0|2|2 - Total: 2'>        }
+</span>    }
+
+    private Node transformForLoop(ForLoop loop) {
+<span class='bc' id='L554' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.FOR);
+</span><span class='bc' id='L555' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L556' title='0|4|4 - Total: 4'>        loop.setType(Token.LOOP);
+</span>        // XXX: Can't use pushScope/popScope here since 'createFor' may split
+        // the scope
+<span class='bc' id='L559' title='0|3|3 - Total: 3'>        Scope savedScope = currentScope;
+</span><span class='bc' id='L560' title='0|3|3 - Total: 3'>        currentScope = loop;
+</span>        try {
+<span class='bc' id='L562' title='0|5|5 - Total: 5'>            Node init = transform(loop.getInitializer());
+</span><span class='bc' id='L563' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.SEMI);
+</span><span class='bc' id='L564' title='0|5|5 - Total: 5'>            Node test = transform(loop.getCondition());
+</span><span class='bc' id='L565' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.SEMI);
+</span><span class='bc' id='L566' title='0|5|5 - Total: 5'>            Node incr = transform(loop.getIncrement());
+</span><span class='bc' id='L567' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L568' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L569' title='0|5|5 - Total: 5'>            Node body = transform(loop.getBody());
+</span><span class='bc' id='L570' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L571' title='0|10|10 - Total: 10'>            return createFor(loop, init, test, incr, body);
+</span>        } finally {
+<span class='bpc' id='L573' title='0|3|3 - Total: 7'>            currentScope = savedScope;
+</span><span class='nc' id='L574' title='0|0|0 - Total: 2'>        }
+</span>    }
+
+    private Node transformFunction(FunctionNode fn) {
+<span class='bc' id='L578' title='0|3|3 - Total: 3'>        int functionType = fn.getFunctionType();
+</span><span class='bc' id='L579' title='0|5|5 - Total: 5'>        int start = decompiler.markFunctionStart(functionType);
+</span><span class='bc' id='L580' title='0|4|4 - Total: 4'>        Node mexpr = decompileFunctionHeader(fn);
+</span><span class='bc' id='L581' title='0|5|5 - Total: 5'>        int index = currentScriptOrFn.addFunction(fn);
+</span>
+<span class='bc' id='L583' title='0|6|6 - Total: 6'>        PerFunctionVariables savedVars = new PerFunctionVariables(fn);
+</span>        try {
+            // If we start needing to record much more codegen metadata during
+            // function parsing, we should lump it all into a helper class.
+<span class='bc' id='L587' title='0|5|5 - Total: 5'>            Node destructuring = (Node)fn.getProp(Node.DESTRUCTURING_PARAMS);
+</span><span class='bc' id='L588' title='0|3|3 - Total: 3'>            fn.removeProp(Node.DESTRUCTURING_PARAMS);
+</span>
+<span class='bc' id='L590' title='0|4|4 - Total: 4'>            int lineno = fn.getBody().getLineno();
+</span><span class='bc' id='L591' title='0|6|6 - Total: 6'>            ++nestingOfFunction;  // only for body, not params
+</span><span class='bc' id='L592' title='0|5|5 - Total: 5'>            Node body = transform(fn.getBody());
+</span>
+<span class='bc' id='L594' title='0|2|2 - Total: 2'>            if (!fn.isExpressionClosure()) {
+</span><span class='bc' id='L595' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.RC);
+</span>            }
+<span class='bc' id='L597' title='0|7|7 - Total: 7'>            fn.setEncodedSourceBounds(start, decompiler.markFunctionEnd(start));
+</span>
+<span class='bc' id='L599' title='0|4|4 - Total: 4'>            if (functionType != FunctionNode.FUNCTION_EXPRESSION && !fn.isExpressionClosure()) {
+</span>                // Add EOL only if function is not part of expression
+                // since it gets SEMI + EOL from Statement in that case
+<span class='bc' id='L602' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.EOL);
+</span>            }
+
+<span class='bc' id='L605' title='0|2|2 - Total: 2'>            if (destructuring != null) {
+</span><span class='bc' id='L606' title='0|8|8 - Total: 8'>                body.addChildToFront(new Node(Token.EXPR_VOID,
+</span>                                              destructuring, lineno));
+            }
+
+<span class='bc' id='L610' title='0|3|3 - Total: 3'>            int syntheticType = fn.getFunctionType();
+</span><span class='bc' id='L611' title='0|7|7 - Total: 7'>            Node pn = initFunction(fn, index, body, syntheticType);
+</span><span class='bpc' id='L612' title='0|1|1 - Total: 2'>            if (mexpr != null) {
+</span><span class='nc' id='L613' title='0|0|0 - Total: 6'>                pn = createAssignment(Token.ASSIGN, mexpr, pn);
+</span><span class='nc' id='L614' title='0|0|0 - Total: 2'>                if (syntheticType != FunctionNode.FUNCTION_EXPRESSION) {
+</span><span class='nc' id='L615' title='0|0|0 - Total: 6'>                    pn = createExprStatementNoReturn(pn, fn.getLineno());
+</span>                }
+            }
+<span class='bc' id='L618' title='0|4|4 - Total: 4'>            return pn;
+</span>
+        } finally {
+<span class='bc' id='L621' title='0|13|13 - Total: 13'>            --nestingOfFunction;
+</span><span class='bc' id='L622' title='0|4|4 - Total: 4'>            savedVars.restore();
+</span><span class='bc' id='L623' title='0|2|2 - Total: 2'>        }
+</span>    }
+
+    private Node transformFunctionCall(FunctionCall node) {
+<span class='bc' id='L627' title='0|8|8 - Total: 8'>        Node call = createCallOrNew(Token.CALL, transform(node.getTarget()));
+</span><span class='bc' id='L628' title='0|4|4 - Total: 4'>        call.setLineno(node.getLineno());
+</span><span class='bc' id='L629' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L630' title='0|3|3 - Total: 3'>        List<AstNode> args = node.getArguments();
+</span><span class='bc' id='L631' title='0|2|2 - Total: 2'>        for (int i = 0; i < args.size(); i++) {
+</span><span class='bc' id='L632' title='0|5|5 - Total: 5'>            AstNode arg = args.get(i);
+</span><span class='bc' id='L633' title='0|5|5 - Total: 5'>            call.addChildToBack(transform(arg));
+</span><span class='bc' id='L634' title='0|2|2 - Total: 2'>            if (i < args.size() - 1) {
+</span><span class='bc' id='L635' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+        }
+<span class='bc' id='L638' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L639' title='0|2|2 - Total: 2'>        return call;
+</span>    }
+    
+    private Node transformGenExpr(GeneratorExpression node) {
+        Node pn;
+        
+<span class='bc' id='L645' title='0|4|4 - Total: 4'>        FunctionNode fn = new FunctionNode();
+</span><span class='bc' id='L646' title='0|5|5 - Total: 5'>        fn.setSourceName(currentScriptOrFn.getNextTempName());
+</span><span class='bc' id='L647' title='0|2|2 - Total: 2'>        fn.setIsGenerator();
+</span><span class='bc' id='L648' title='0|3|3 - Total: 3'>        fn.setFunctionType(FunctionNode.FUNCTION_EXPRESSION);
+</span><span class='bc' id='L649' title='0|2|2 - Total: 2'>        fn.setRequiresActivation();
+</span>      
+<span class='bc' id='L651' title='0|3|3 - Total: 3'>        int functionType = fn.getFunctionType();
+</span><span class='bc' id='L652' title='0|5|5 - Total: 5'>        int start = decompiler.markFunctionStart(functionType);
+</span><span class='bc' id='L653' title='0|4|4 - Total: 4'>        Node mexpr = decompileFunctionHeader(fn);
+</span><span class='bc' id='L654' title='0|5|5 - Total: 5'>        int index = currentScriptOrFn.addFunction(fn);
+</span>
+<span class='bc' id='L656' title='0|6|6 - Total: 6'>        PerFunctionVariables savedVars = new PerFunctionVariables(fn);
+</span>        try {
+            // If we start needing to record much more codegen metadata during
+            // function parsing, we should lump it all into a helper class.
+<span class='bc' id='L660' title='0|5|5 - Total: 5'>            Node destructuring = (Node)fn.getProp(Node.DESTRUCTURING_PARAMS);
+</span><span class='bc' id='L661' title='0|3|3 - Total: 3'>            fn.removeProp(Node.DESTRUCTURING_PARAMS);
+</span>
+<span class='bc' id='L663' title='0|3|3 - Total: 3'>            int lineno = node.lineno;
+</span><span class='bc' id='L664' title='0|6|6 - Total: 6'>            ++nestingOfFunction;  // only for body, not params
+</span><span class='bc' id='L665' title='0|4|4 - Total: 4'>            Node body = genExprTransformHelper(node);
+</span>
+<span class='bpc' id='L667' title='0|1|1 - Total: 2'>            if (!fn.isExpressionClosure()) {
+</span><span class='bc' id='L668' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.RC);
+</span>            }
+<span class='bc' id='L670' title='0|7|7 - Total: 7'>            fn.setEncodedSourceBounds(start, decompiler.markFunctionEnd(start));
+</span>
+<span class='bpc' id='L672' title='0|1|1 - Total: 4'>            if (functionType != FunctionNode.FUNCTION_EXPRESSION && !fn.isExpressionClosure()) {
+</span>                // Add EOL only if function is not part of expression
+                // since it gets SEMI + EOL from Statement in that case
+<span class='nc' id='L675' title='0|0|0 - Total: 4'>                decompiler.addToken(Token.EOL);
+</span>            }
+
+<span class='bpc' id='L678' title='0|1|1 - Total: 2'>            if (destructuring != null) {
+</span><span class='nc' id='L679' title='0|0|0 - Total: 8'>                body.addChildToFront(new Node(Token.EXPR_VOID,
+</span>                                              destructuring, lineno));
+            }
+
+<span class='bc' id='L683' title='0|3|3 - Total: 3'>            int syntheticType = fn.getFunctionType();
+</span><span class='bc' id='L684' title='0|7|7 - Total: 7'>            pn = initFunction(fn, index, body, syntheticType);
+</span><span class='bpc' id='L685' title='0|1|1 - Total: 2'>            if (mexpr != null) {
+</span><span class='nc' id='L686' title='0|0|0 - Total: 6'>                pn = createAssignment(Token.ASSIGN, mexpr, pn);
+</span><span class='nc' id='L687' title='0|0|0 - Total: 2'>                if (syntheticType != FunctionNode.FUNCTION_EXPRESSION) {
+</span><span class='nc' id='L688' title='0|0|0 - Total: 6'>                    pn = createExprStatementNoReturn(pn, fn.getLineno());
+</span>                }
+            }
+        } finally {
+<span class='bpc' id='L692' title='0|6|6 - Total: 13'>            --nestingOfFunction;
+</span><span class='bpc' id='L693' title='0|2|2 - Total: 4'>            savedVars.restore();
+</span><span class='bpc' id='L694' title='0|1|1 - Total: 3'>        }
+</span>       
+<span class='bc' id='L696' title='0|5|5 - Total: 5'>        Node call = createCallOrNew(Token.CALL, pn);
+</span><span class='bc' id='L697' title='0|4|4 - Total: 4'>        call.setLineno(node.getLineno());
+</span><span class='bc' id='L698' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L699' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L700' title='0|2|2 - Total: 2'>        return call;
+</span>    }
+    
+    private Node genExprTransformHelper(GeneratorExpression node) {
+<span class='bc' id='L704' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L705' title='0|3|3 - Total: 3'>        int lineno = node.getLineno();
+</span><span class='bc' id='L706' title='0|5|5 - Total: 5'>        Node expr = transform(node.getResult());
+</span>
+<span class='bc' id='L708' title='0|3|3 - Total: 3'>        List<GeneratorExpressionLoop> loops = node.getLoops();
+</span><span class='bc' id='L709' title='0|3|3 - Total: 3'>        int numLoops = loops.size();
+</span>
+        // Walk through loops, collecting and defining their iterator symbols.
+<span class='bc' id='L712' title='0|3|3 - Total: 3'>        Node[] iterators = new Node[numLoops];
+</span><span class='bc' id='L713' title='0|3|3 - Total: 3'>        Node[] iteratedObjs = new Node[numLoops];
+</span>
+<span class='bc' id='L715' title='0|2|2 - Total: 2'>        for (int i = 0; i < numLoops; i++) {
+</span><span class='bc' id='L716' title='0|5|5 - Total: 5'>            GeneratorExpressionLoop acl = loops.get(i);
+</span><span class='bc' id='L717' title='0|4|4 - Total: 4'>            decompiler.addName(" ");
+</span><span class='bc' id='L718' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.FOR);
+</span><span class='bc' id='L719' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span>
+<span class='bc' id='L721' title='0|3|3 - Total: 3'>            AstNode iter = acl.getIterator();
+</span><span class='bc' id='L722' title='0|2|2 - Total: 2'>            String name = null;
+</span><span class='bpc' id='L723' title='0|1|1 - Total: 2'>            if (iter.getType() == Token.NAME) {
+</span><span class='bc' id='L724' title='0|3|3 - Total: 3'>                name = iter.getString();
+</span><span class='bc' id='L725' title='0|5|5 - Total: 5'>                decompiler.addName(name);
+</span>            } else {
+                // destructuring assignment
+<span class='nc' id='L728' title='0|0|0 - Total: 3'>                decompile(iter);
+</span><span class='nc' id='L729' title='0|0|0 - Total: 4'>                name = currentScriptOrFn.getNextTempName();
+</span><span class='nc' id='L730' title='0|0|0 - Total: 5'>                defineSymbol(Token.LP, name, false);
+</span><span class='nc' id='L731' title='0|0|0 - Total: 9'>                expr = createBinary(Token.COMMA,
+</span><span class='nc' id='L732' title='0|0|0 - Total: 2'>                                    createAssignment(Token.ASSIGN,
+</span>                                                     iter,
+<span class='nc' id='L734' title='0|0|0 - Total: 1'>                                                     createName(name)),
+</span>                                    expr);
+            }
+<span class='bc' id='L737' title='0|4|4 - Total: 4'>            Node init = createName(name);
+</span>            // Define as a let since we want the scope of the variable to
+            // be restricted to the array comprehension
+<span class='bc' id='L740' title='0|5|5 - Total: 5'>            defineSymbol(Token.LET, name, false);
+</span><span class='bc' id='L741' title='0|4|4 - Total: 4'>            iterators[i] = init;
+</span>
+<span class='bpc' id='L743' title='0|1|1 - Total: 2'>            if (acl.isForOf()) {
+</span><span class='nc' id='L744' title='0|0|0 - Total: 5'>                decompiler.addName("of ");
+</span>            } else {
+<span class='bc' id='L746' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.IN);
+</span>            }
+<span class='bc' id='L748' title='0|7|7 - Total: 7'>            iteratedObjs[i] = transform(acl.getIteratedObject());
+</span><span class='bc' id='L749' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+
+        // generate code for tmpArray.push(body)
+<span class='bc' id='L753' title='0|8|8 - Total: 8'>        Node yield = new Node(Token.YIELD, expr, node.getLineno());
+</span>
+<span class='bc' id='L755' title='0|7|7 - Total: 7'>        Node body = new Node(Token.EXPR_VOID, yield, lineno);
+</span>
+<span class='bc' id='L757' title='0|2|2 - Total: 2'>        if (node.getFilter() != null) {
+</span><span class='bc' id='L758' title='0|4|4 - Total: 4'>            decompiler.addName(" ");
+</span><span class='bc' id='L759' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.IF);
+</span><span class='bc' id='L760' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L761' title='0|10|10 - Total: 10'>            body = createIf(transform(node.getFilter()), body, null, lineno);
+</span><span class='bc' id='L762' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+
+        // Now walk loops in reverse to build up the body statement.
+<span class='bc' id='L766' title='0|2|2 - Total: 2'>        int pushed = 0;
+</span>        try {
+<span class='bc' id='L768' title='0|2|2 - Total: 2'>            for (int i = numLoops-1; i >= 0; i--) {
+</span><span class='bc' id='L769' title='0|5|5 - Total: 5'>                GeneratorExpressionLoop acl = loops.get(i);
+</span><span class='bc' id='L770' title='0|5|5 - Total: 5'>                Scope loop = createLoopNode(null,  // no label
+</span><span class='bc' id='L771' title='0|1|1 - Total: 1'>                                            acl.getLineno());
+</span><span class='bc' id='L772' title='0|3|3 - Total: 3'>                pushScope(loop);
+</span><span class='bc' id='L773' title='0|1|1 - Total: 1'>                pushed++;
+</span><span class='bc' id='L774' title='0|13|13 - Total: 13'>                body = createForIn(Token.LET,
+</span>                                   loop,
+                                   iterators[i],
+                                   iteratedObjs[i],
+                                   body,
+<span class='bc' id='L779' title='0|2|2 - Total: 2'>                                   acl.isForEach(),
+</span><span class='bc' id='L780' title='0|1|1 - Total: 1'>                                   acl.isForOf());
+</span>            }
+        } finally {
+<span class='bpc' id='L783' title='0|2|2 - Total: 4'>            for (int i = 0; i < pushed; i++) {
+</span><span class='bpc' id='L784' title='0|2|2 - Total: 4'>                popScope();
+</span>            }
+<span class='bpc' id='L786' title='0|1|1 - Total: 3'>        }
+</span>
+<span class='bc' id='L788' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span>
+<span class='bc' id='L790' title='0|2|2 - Total: 2'>        return body;
+</span>    }
+
+    private Node transformIf(IfStatement n) {
+<span class='bc' id='L794' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.IF);
+</span><span class='bc' id='L795' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L796' title='0|5|5 - Total: 5'>        Node cond = transform(n.getCondition());
+</span><span class='bc' id='L797' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L798' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L799' title='0|5|5 - Total: 5'>        Node ifTrue = transform(n.getThenPart());
+</span><span class='bc' id='L800' title='0|2|2 - Total: 2'>        Node ifFalse = null;
+</span><span class='bc' id='L801' title='0|2|2 - Total: 2'>        if (n.getElsePart() != null) {
+</span><span class='bc' id='L802' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RC);
+</span><span class='bc' id='L803' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.ELSE);
+</span><span class='bc' id='L804' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L805' title='0|5|5 - Total: 5'>            ifFalse = transform(n.getElsePart());
+</span>        }
+<span class='bc' id='L807' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L808' title='0|8|8 - Total: 8'>        return createIf(cond, ifTrue, ifFalse, n.getLineno());
+</span>    }
+
+    private Node transformInfix(InfixExpression node) {
+<span class='bc' id='L812' title='0|5|5 - Total: 5'>        Node left = transform(node.getLeft());
+</span><span class='bc' id='L813' title='0|5|5 - Total: 5'>        decompiler.addToken(node.getType());
+</span><span class='bc' id='L814' title='0|5|5 - Total: 5'>        Node right = transform(node.getRight());
+</span><span class='bc' id='L815' title='0|2|2 - Total: 2'>        if (node instanceof XmlDotQuery) {
+</span><span class='bc' id='L816' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+<span class='bc' id='L818' title='0|7|7 - Total: 7'>        return createBinary(node.getType(), left, right);
+</span>    }
+
+    private Node transformLabeledStatement(LabeledStatement ls) {
+<span class='bc' id='L822' title='0|3|3 - Total: 3'>        Label label = ls.getFirstLabel();
+</span><span class='bc' id='L823' title='0|3|3 - Total: 3'>        List<Label> labels = ls.getLabels();
+</span><span class='bc' id='L824' title='0|5|5 - Total: 5'>        decompiler.addName(label.getName());
+</span><span class='bc' id='L825' title='0|2|2 - Total: 2'>        if (labels.size() > 1) {
+</span>            // more than one label
+<span class='bc' id='L827' title='0|2|2 - Total: 2'>            for (Label lb : labels.subList(1, labels.size())) {
+</span><span class='bc' id='L828' title='0|4|4 - Total: 4'>                decompiler.addEOL(Token.COLON);
+</span><span class='bc' id='L829' title='0|5|5 - Total: 5'>                decompiler.addName(lb.getName());
+</span><span class='bc' id='L830' title='0|1|1 - Total: 1'>            }
+</span>        }
+<span class='bc' id='L832' title='0|2|2 - Total: 2'>        if (ls.getStatement().getType() == Token.BLOCK) {
+</span>            // reuse OBJECTLIT for ':' workaround, cf. transformObjectLiteral()
+<span class='bc' id='L834' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.OBJECTLIT);
+</span><span class='bc' id='L835' title='0|5|5 - Total: 5'>            decompiler.addEOL(Token.LC);
+</span>        } else {
+<span class='bc' id='L837' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.COLON);
+</span>        }
+<span class='bc' id='L839' title='0|5|5 - Total: 5'>        Node statement = transform(ls.getStatement());
+</span><span class='bc' id='L840' title='0|2|2 - Total: 2'>        if (ls.getStatement().getType() == Token.BLOCK) {
+</span><span class='bc' id='L841' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span>        }
+
+        // Make a target and put it _after_ the statement node.  Add in the
+        // LABEL node, so breaks get the right target.
+<span class='bc' id='L846' title='0|2|2 - Total: 2'>        Node breakTarget = Node.newTarget();
+</span><span class='bc' id='L847' title='0|8|8 - Total: 8'>        Node block = new Node(Token.BLOCK, label, statement, breakTarget);
+</span><span class='bc' id='L848' title='0|3|3 - Total: 3'>        label.target = breakTarget;
+</span>
+<span class='bc' id='L850' title='0|2|2 - Total: 2'>        return block;
+</span>    }
+
+    private Node transformLetNode(LetNode node) {
+<span class='bc' id='L854' title='0|3|3 - Total: 3'>        pushScope(node);
+</span>        try {
+<span class='bc' id='L856' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LET);
+</span><span class='bc' id='L857' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L858' title='0|5|5 - Total: 5'>            Node vars = transformVariableInitializers(node.getVariables());
+</span><span class='bc' id='L859' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L860' title='0|3|3 - Total: 3'>            node.addChildToBack(vars);
+</span><span class='bc' id='L861' title='0|2|2 - Total: 2'>            boolean letExpr = node.getType() == Token.LETEXPR;
+</span><span class='bpc' id='L862' title='0|1|1 - Total: 2'>            if (node.getBody() != null) {
+</span><span class='bc' id='L863' title='0|2|2 - Total: 2'>                if (letExpr) {
+</span><span class='bc' id='L864' title='0|5|5 - Total: 5'>                    decompiler.addName(" ");
+</span>                } else {
+<span class='bc' id='L866' title='0|4|4 - Total: 4'>                    decompiler.addEOL(Token.LC);
+</span>                }
+<span class='bc' id='L868' title='0|6|6 - Total: 6'>                node.addChildToBack(transform(node.getBody()));
+</span><span class='bc' id='L869' title='0|2|2 - Total: 2'>                if (!letExpr) {
+</span><span class='bc' id='L870' title='0|4|4 - Total: 4'>                    decompiler.addEOL(Token.RC);
+</span>                }
+            }
+<span class='bc' id='L873' title='0|4|4 - Total: 4'>            return node;
+</span>        } finally {
+<span class='bpc' id='L875' title='0|2|2 - Total: 5'>            popScope();
+</span><span class='nc' id='L876' title='0|0|0 - Total: 2'>        }
+</span>    }
+
+    private Node transformLiteral(AstNode node) {
+<span class='bc' id='L880' title='0|5|5 - Total: 5'>        decompiler.addToken(node.getType());
+</span><span class='bc' id='L881' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformName(Name node) {
+<span class='bc' id='L885' title='0|5|5 - Total: 5'>        decompiler.addName(node.getIdentifier());
+</span><span class='bc' id='L886' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformNewExpr(NewExpression node) {
+<span class='bc' id='L890' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.NEW);
+</span><span class='bc' id='L891' title='0|8|8 - Total: 8'>        Node nx = createCallOrNew(Token.NEW, transform(node.getTarget()));
+</span><span class='bc' id='L892' title='0|4|4 - Total: 4'>        nx.setLineno(node.getLineno());
+</span><span class='bc' id='L893' title='0|3|3 - Total: 3'>        List<AstNode> args = node.getArguments();
+</span><span class='bc' id='L894' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L895' title='0|2|2 - Total: 2'>        for (int i = 0; i < args.size(); i++) {
+</span><span class='bc' id='L896' title='0|5|5 - Total: 5'>            AstNode arg = args.get(i);
+</span><span class='bc' id='L897' title='0|5|5 - Total: 5'>            nx.addChildToBack(transform(arg));
+</span><span class='bc' id='L898' title='0|2|2 - Total: 2'>            if (i < args.size() - 1) {
+</span><span class='bc' id='L899' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+        }
+<span class='bc' id='L902' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L903' title='0|2|2 - Total: 2'>        if (node.getInitializer() != null) {
+</span><span class='bc' id='L904' title='0|6|6 - Total: 6'>            nx.addChildToBack(transformObjectLiteral(node.getInitializer()));
+</span>        }
+<span class='bc' id='L906' title='0|2|2 - Total: 2'>        return nx;
+</span>    }
+
+    private Node transformNumber(NumberLiteral node) {
+<span class='bc' id='L910' title='0|5|5 - Total: 5'>        decompiler.addNumber(node.getNumber());
+</span><span class='bc' id='L911' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformObjectLiteral(ObjectLiteral node) {
+<span class='bpc' id='L915' title='0|1|1 - Total: 2'>        if (node.isDestructuring()) {
+</span><span class='nc' id='L916' title='0|0|0 - Total: 2'>            return node;
+</span>        }
+        // createObjectLiteral rewrites its argument as object
+        // creation plus object property entries, so later compiler
+        // stages don't need to know about object literals.
+<span class='bc' id='L921' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LC);
+</span><span class='bc' id='L922' title='0|3|3 - Total: 3'>        List<ObjectProperty> elems = node.getElements();
+</span><span class='bc' id='L923' title='0|5|5 - Total: 5'>        Node object = new Node(Token.OBJECTLIT);
+</span>        Object[] properties;
+<span class='bc' id='L925' title='0|2|2 - Total: 2'>        if (elems.isEmpty()) {
+</span><span class='bc' id='L926' title='0|3|3 - Total: 3'>            properties = ScriptRuntime.emptyArgs;
+</span>        } else {
+<span class='bc' id='L928' title='0|5|5 - Total: 5'>            int size = elems.size(), i = 0;
+</span><span class='bc' id='L929' title='0|3|3 - Total: 3'>            properties = new Object[size];
+</span><span class='bc' id='L930' title='0|2|2 - Total: 2'>            for (ObjectProperty prop : elems) {
+</span><span class='bc' id='L931' title='0|2|2 - Total: 2'>                if (prop.isGetterMethod()) {
+</span><span class='bc' id='L932' title='0|5|5 - Total: 5'>                    decompiler.addToken(Token.GET);
+</span><span class='bc' id='L933' title='0|2|2 - Total: 2'>                } else if (prop.isSetterMethod()) {
+</span><span class='bc' id='L934' title='0|5|5 - Total: 5'>                    decompiler.addToken(Token.SET);
+</span><span class='bc' id='L935' title='0|2|2 - Total: 2'>                } else if (prop.isNormalMethod()) {
+</span><span class='bc' id='L936' title='0|4|4 - Total: 4'>                    decompiler.addToken(Token.METHOD);
+</span>                }
+
+<span class='bc' id='L939' title='0|8|8 - Total: 8'>                properties[i++] = getPropKey(prop.getLeft());
+</span>
+                // OBJECTLIT is used as ':' in object literal for
+                // decompilation to solve spacing ambiguity.
+<span class='bc' id='L943' title='0|2|2 - Total: 2'>                if (!(prop.isMethod())) {
+</span><span class='bc' id='L944' title='0|4|4 - Total: 4'>                    decompiler.addToken(Token.OBJECTLIT);
+</span>                }
+
+<span class='bc' id='L947' title='0|5|5 - Total: 5'>                Node right = transform(prop.getRight());
+</span><span class='bc' id='L948' title='0|2|2 - Total: 2'>                if (prop.isGetterMethod()) {
+</span><span class='bc' id='L949' title='0|6|6 - Total: 6'>                    right = createUnary(Token.GET, right);
+</span><span class='bc' id='L950' title='0|2|2 - Total: 2'>                } else if (prop.isSetterMethod()) {
+</span><span class='bc' id='L951' title='0|6|6 - Total: 6'>                    right = createUnary(Token.SET, right);
+</span><span class='bc' id='L952' title='0|2|2 - Total: 2'>                } else if (prop.isNormalMethod()) {
+</span><span class='bc' id='L953' title='0|5|5 - Total: 5'>                    right = createUnary(Token.METHOD, right);
+</span>                }
+<span class='bc' id='L955' title='0|3|3 - Total: 3'>                object.addChildToBack(right);
+</span>
+<span class='bc' id='L957' title='0|2|2 - Total: 2'>                if (i < size) {
+</span><span class='bc' id='L958' title='0|4|4 - Total: 4'>                    decompiler.addToken(Token.COMMA);
+</span>                }
+<span class='bc' id='L960' title='0|1|1 - Total: 1'>            }
+</span>        }
+<span class='bc' id='L962' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RC);
+</span><span class='bc' id='L963' title='0|4|4 - Total: 4'>        object.putProp(Node.OBJECT_IDS_PROP, properties);
+</span><span class='bc' id='L964' title='0|2|2 - Total: 2'>        return object;
+</span>    }
+
+    private Object getPropKey(Node id) {
+        Object key;
+<span class='bc' id='L969' title='0|2|2 - Total: 2'>        if (id instanceof Name) {
+</span><span class='bc' id='L970' title='0|4|4 - Total: 4'>            String s = ((Name)id).getIdentifier();
+</span><span class='bc' id='L971' title='0|4|4 - Total: 4'>            decompiler.addName(s);
+</span><span class='bc' id='L972' title='0|3|3 - Total: 3'>            key = ScriptRuntime.getIndexObject(s);
+</span><span class='bc' id='L973' title='0|2|2 - Total: 2'>        } else if (id instanceof StringLiteral) {
+</span><span class='bc' id='L974' title='0|4|4 - Total: 4'>            String s = ((StringLiteral)id).getValue();
+</span><span class='bc' id='L975' title='0|4|4 - Total: 4'>            decompiler.addString(s);
+</span><span class='bc' id='L976' title='0|3|3 - Total: 3'>            key = ScriptRuntime.getIndexObject(s);
+</span><span class='bpc' id='L977' title='0|1|1 - Total: 2'>        } else if (id instanceof NumberLiteral) {
+</span><span class='bc' id='L978' title='0|4|4 - Total: 4'>            double n = ((NumberLiteral)id).getNumber();
+</span><span class='bc' id='L979' title='0|4|4 - Total: 4'>            decompiler.addNumber(n);
+</span><span class='bc' id='L980' title='0|3|3 - Total: 3'>            key = ScriptRuntime.getIndexObject(n);
+</span><span class='bc' id='L981' title='0|1|1 - Total: 1'>        } else {
+</span><span class='nc' id='L982' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+<span class='bc' id='L984' title='0|2|2 - Total: 2'>        return key;
+</span>    }
+
+    private Node transformParenExpr(ParenthesizedExpression node) {
+<span class='bc' id='L988' title='0|3|3 - Total: 3'>        AstNode expr = node.getExpression();
+</span><span class='bc' id='L989' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L990' title='0|2|2 - Total: 2'>        int count = 1;
+</span><span class='bc' id='L991' title='0|2|2 - Total: 2'>        while (expr instanceof ParenthesizedExpression) {
+</span><span class='bc' id='L992' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L993' title='0|1|1 - Total: 1'>            count++;
+</span><span class='bc' id='L994' title='0|5|5 - Total: 5'>            expr = ((ParenthesizedExpression)expr).getExpression();
+</span>        }
+<span class='bc' id='L996' title='0|4|4 - Total: 4'>        Node result = transform(expr);
+</span><span class='bc' id='L997' title='0|2|2 - Total: 2'>        for (int i = 0; i < count; i++) {
+</span><span class='bc' id='L998' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+<span class='bc' id='L1000' title='0|4|4 - Total: 4'>        result.putProp(Node.PARENTHESIZED_PROP, Boolean.TRUE);
+</span><span class='bc' id='L1001' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Node transformPropertyGet(PropertyGet node) {
+<span class='bc' id='L1005' title='0|5|5 - Total: 5'>        Node target = transform(node.getTarget());
+</span><span class='bc' id='L1006' title='0|4|4 - Total: 4'>        String name = node.getProperty().getIdentifier();
+</span><span class='bc' id='L1007' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.DOT);
+</span><span class='bc' id='L1008' title='0|4|4 - Total: 4'>        decompiler.addName(name);
+</span><span class='bc' id='L1009' title='0|7|7 - Total: 7'>        return createPropertyGet(target, null, name, 0);
+</span>    }
+
+    private Node transformRegExp(RegExpLiteral node) {
+<span class='bc' id='L1013' title='0|7|7 - Total: 7'>        decompiler.addRegexp(node.getValue(), node.getFlags());
+</span><span class='bc' id='L1014' title='0|4|4 - Total: 4'>        currentScriptOrFn.addRegExp(node);
+</span><span class='bc' id='L1015' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformReturn(ReturnStatement node) {
+<span class='bc' id='L1019' title='0|6|6 - Total: 6'>        boolean expClosure = Boolean.TRUE.equals(node.getProp(Node.EXPRESSION_CLOSURE_PROP));
+</span><span class='bc' id='L1020' title='0|6|6 - Total: 6'>        boolean isArrow = Boolean.TRUE.equals(node.getProp(Node.ARROW_FUNCTION_PROP));
+</span><span class='bc' id='L1021' title='0|2|2 - Total: 2'>        if (expClosure) {
+</span><span class='bc' id='L1022' title='0|2|2 - Total: 2'>            if (!isArrow) {
+</span><span class='bc' id='L1023' title='0|5|5 - Total: 5'>                decompiler.addName(" ");
+</span>            }
+        } else {
+<span class='bc' id='L1026' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RETURN);
+</span>        }
+<span class='bc' id='L1028' title='0|3|3 - Total: 3'>        AstNode rv = node.getReturnValue();
+</span><span class='bc' id='L1029' title='0|2|2 - Total: 2'>        Node value = rv == null ? null : transform(rv);
+</span><span class='bc' id='L1030' title='0|2|2 - Total: 2'>        if (!expClosure) decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L1031' title='0|2|2 - Total: 2'>        return rv == null
+</span><span class='bc' id='L1032' title='0|8|8 - Total: 8'>            ? new Node(Token.RETURN, node.getLineno())
+</span><span class='bc' id='L1033' title='0|2|2 - Total: 2'>            : new Node(Token.RETURN, value, node.getLineno());
+</span>    }
+
+    private Node transformScript(ScriptNode node) {
+<span class='bc' id='L1037' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.SCRIPT);
+</span><span class='bpc' id='L1038' title='0|1|1 - Total: 2'>        if (currentScope != null) Kit.codeBug();
+</span><span class='bc' id='L1039' title='0|3|3 - Total: 3'>        currentScope = node;
+</span><span class='bc' id='L1040' title='0|5|5 - Total: 5'>        Node body = new Node(Token.BLOCK);
+</span><span class='bc' id='L1041' title='0|2|2 - Total: 2'>        for (Node kid : node) {
+</span><span class='bc' id='L1042' title='0|6|6 - Total: 6'>            body.addChildToBack(transform((AstNode)kid));
+</span><span class='bc' id='L1043' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L1044' title='0|2|2 - Total: 2'>        node.removeChildren();
+</span><span class='bc' id='L1045' title='0|3|3 - Total: 3'>        Node children = body.getFirstChild();
+</span><span class='bc' id='L1046' title='0|2|2 - Total: 2'>        if (children != null) {
+</span><span class='bc' id='L1047' title='0|3|3 - Total: 3'>            node.addChildrenToBack(children);
+</span>        }
+<span class='bc' id='L1049' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformString(StringLiteral node) {
+<span class='bc' id='L1053' title='0|5|5 - Total: 5'>        decompiler.addString(node.getValue());
+</span><span class='bc' id='L1054' title='0|4|4 - Total: 4'>        return Node.newString(node.getValue());
+</span>    }
+
+    private Node transformSwitch(SwitchStatement node) {
+        // The switch will be rewritten from:
+        //
+        // switch (expr) {
+        //   case test1: statements1;
+        //   ...
+        //   default: statementsDefault;
+        //   ...
+        //   case testN: statementsN;
+        // }
+        //
+        // to:
+        //
+        // {
+        //     switch (expr) {
+        //       case test1: goto label1;
+        //       ...
+        //       case testN: goto labelN;
+        //     }
+        //     goto labelDefault;
+        //   label1:
+        //     statements1;
+        //   ...
+        //   labelDefault:
+        //     statementsDefault;
+        //   ...
+        //   labelN:
+        //     statementsN;
+        //   breakLabel:
+        // }
+        //
+        // where inside switch each "break;" without label will be replaced
+        // by "goto breakLabel".
+        //
+        // If the original switch does not have the default label, then
+        // after the switch he transformed code would contain this goto:
+        //     goto breakLabel;
+        // instead of:
+        //     goto labelDefault;
+
+<span class='bc' id='L1097' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.SWITCH);
+</span><span class='bc' id='L1098' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L1099' title='0|5|5 - Total: 5'>        Node switchExpr = transform(node.getExpression());
+</span><span class='bc' id='L1100' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L1101' title='0|3|3 - Total: 3'>        node.addChildToBack(switchExpr);
+</span>
+<span class='bc' id='L1103' title='0|8|8 - Total: 8'>        Node block = new Node(Token.BLOCK, node, node.getLineno());
+</span><span class='bc' id='L1104' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.LC);
+</span>
+<span class='bc' id='L1106' title='0|2|2 - Total: 2'>        for (SwitchCase sc : node.getCases()) {
+</span><span class='bc' id='L1107' title='0|3|3 - Total: 3'>            AstNode expr = sc.getExpression();
+</span><span class='bc' id='L1108' title='0|2|2 - Total: 2'>            Node caseExpr = null;
+</span>
+<span class='bc' id='L1110' title='0|2|2 - Total: 2'>            if (expr != null) {
+</span><span class='bc' id='L1111' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.CASE);
+</span><span class='bc' id='L1112' title='0|5|5 - Total: 5'>                caseExpr = transform(expr);
+</span>            } else {
+<span class='bc' id='L1114' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.DEFAULT);
+</span>            }
+<span class='bc' id='L1116' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.COLON);
+</span>
+<span class='bc' id='L1118' title='0|3|3 - Total: 3'>            List<AstNode> stmts = sc.getStatements();
+</span><span class='bc' id='L1119' title='0|4|4 - Total: 4'>            Node body = new Block();
+</span><span class='bc' id='L1120' title='0|2|2 - Total: 2'>            if (stmts != null) {
+</span><span class='bc' id='L1121' title='0|2|2 - Total: 2'>                for (AstNode kid : stmts) {
+</span><span class='bc' id='L1122' title='0|5|5 - Total: 5'>                    body.addChildToBack(transform(kid));
+</span><span class='bc' id='L1123' title='0|1|1 - Total: 1'>                }
+</span>            }
+<span class='bc' id='L1125' title='0|5|5 - Total: 5'>            addSwitchCase(block, caseExpr, body);
+</span><span class='bc' id='L1126' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L1127' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L1128' title='0|3|3 - Total: 3'>        closeSwitch(block);
+</span><span class='bc' id='L1129' title='0|2|2 - Total: 2'>        return block;
+</span>    }
+
+    private Node transformThrow(ThrowStatement node) {
+<span class='bc' id='L1133' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.THROW);
+</span><span class='bc' id='L1134' title='0|5|5 - Total: 5'>        Node value = transform(node.getExpression());
+</span><span class='bc' id='L1135' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.SEMI);
+</span><span class='bc' id='L1136' title='0|8|8 - Total: 8'>        return new Node(Token.THROW, value, node.getLineno());
+</span>    }
+
+    private Node transformTry(TryStatement node) {
+<span class='bc' id='L1140' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.TRY);
+</span><span class='bc' id='L1141' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L1142' title='0|5|5 - Total: 5'>        Node tryBlock = transform(node.getTryBlock());
+</span><span class='bc' id='L1143' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.RC);
+</span>
+<span class='bc' id='L1145' title='0|4|4 - Total: 4'>        Node catchBlocks = new Block();
+</span><span class='bc' id='L1146' title='0|2|2 - Total: 2'>        for (CatchClause cc : node.getCatchClauses()) {
+</span><span class='bc' id='L1147' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.CATCH);
+</span><span class='bc' id='L1148' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span>
+<span class='bc' id='L1150' title='0|4|4 - Total: 4'>            String varName = cc.getVarName().getIdentifier();
+</span><span class='bc' id='L1151' title='0|4|4 - Total: 4'>            decompiler.addName(varName);
+</span>
+<span class='bc' id='L1153' title='0|2|2 - Total: 2'>            Node catchCond = null;
+</span><span class='bc' id='L1154' title='0|3|3 - Total: 3'>            AstNode ccc = cc.getCatchCondition();
+</span><span class='bc' id='L1155' title='0|2|2 - Total: 2'>            if (ccc != null) {
+</span><span class='bc' id='L1156' title='0|4|4 - Total: 4'>                decompiler.addName(" ");
+</span><span class='bc' id='L1157' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.IF);
+</span><span class='bc' id='L1158' title='0|5|5 - Total: 5'>                catchCond = transform(ccc);
+</span>            } else {
+<span class='bc' id='L1160' title='0|4|4 - Total: 4'>                catchCond = new EmptyExpression();
+</span>            }
+<span class='bc' id='L1162' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L1163' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span>
+<span class='bc' id='L1165' title='0|5|5 - Total: 5'>            Node body = transform(cc.getBody());
+</span><span class='bc' id='L1166' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span>
+<span class='bc' id='L1168' title='0|8|8 - Total: 8'>            catchBlocks.addChildToBack(createCatch(varName, catchCond,
+</span><span class='bc' id='L1169' title='0|1|1 - Total: 1'>                                                   body, cc.getLineno()));
+</span><span class='bc' id='L1170' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L1171' title='0|2|2 - Total: 2'>        Node finallyBlock = null;
+</span><span class='bc' id='L1172' title='0|2|2 - Total: 2'>        if (node.getFinallyBlock() != null) {
+</span><span class='bc' id='L1173' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.FINALLY);
+</span><span class='bc' id='L1174' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L1175' title='0|5|5 - Total: 5'>            finallyBlock = transform(node.getFinallyBlock());
+</span><span class='bc' id='L1176' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span>        }
+<span class='bc' id='L1178' title='0|7|7 - Total: 7'>        return createTryCatchFinally(tryBlock, catchBlocks,
+</span><span class='bc' id='L1179' title='0|1|1 - Total: 1'>                                     finallyBlock, node.getLineno());
+</span>    }
+
+    private Node transformUnary(UnaryExpression node) {
+<span class='bc' id='L1183' title='0|3|3 - Total: 3'>        int type = node.getType();
+</span><span class='bc' id='L1184' title='0|2|2 - Total: 2'>        if (type == Token.DEFAULTNAMESPACE) {
+</span><span class='bc' id='L1185' title='0|4|4 - Total: 4'>            return transformDefaultXmlNamepace(node);
+</span>        }
+<span class='bc' id='L1187' title='0|2|2 - Total: 2'>        if (node.isPrefix()) {
+</span><span class='bc' id='L1188' title='0|4|4 - Total: 4'>            decompiler.addToken(type);
+</span>        }
+<span class='bc' id='L1190' title='0|5|5 - Total: 5'>        Node child = transform(node.getOperand());
+</span><span class='bc' id='L1191' title='0|2|2 - Total: 2'>        if (node.isPostfix()) {
+</span><span class='bc' id='L1192' title='0|4|4 - Total: 4'>            decompiler.addToken(type);
+</span>        }
+<span class='bc' id='L1194' title='0|4|4 - Total: 4'>        if (type == Token.INC || type == Token.DEC) {
+</span><span class='bc' id='L1195' title='0|7|7 - Total: 7'>            return createIncDec(type, node.isPostfix(), child);
+</span>        }
+<span class='bc' id='L1197' title='0|5|5 - Total: 5'>        return createUnary(type, child);
+</span>    }
+
+    private Node transformVariables(VariableDeclaration node) {
+<span class='bc' id='L1201' title='0|5|5 - Total: 5'>        decompiler.addToken(node.getType());
+</span><span class='bc' id='L1202' title='0|4|4 - Total: 4'>        transformVariableInitializers(node);
+</span>
+        // Might be most robust to have parser record whether it was
+        // a variable declaration statement, possibly as a node property.
+<span class='bc' id='L1206' title='0|3|3 - Total: 3'>        AstNode parent = node.getParent();
+</span><span class='bpc' id='L1207' title='0|3|3 - Total: 4'>        if (!(parent instanceof Loop)
+</span>            && !(parent instanceof LetNode)) {
+<span class='bc' id='L1209' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.SEMI);
+</span>        }
+<span class='bc' id='L1211' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformVariableInitializers(VariableDeclaration node) {
+<span class='bc' id='L1215' title='0|3|3 - Total: 3'>        List<VariableInitializer> vars = node.getVariables();
+</span><span class='bc' id='L1216' title='0|5|5 - Total: 5'>        int size = vars.size(), i = 0;
+</span><span class='bc' id='L1217' title='0|2|2 - Total: 2'>        for (VariableInitializer var : vars) {
+</span><span class='bc' id='L1218' title='0|3|3 - Total: 3'>            AstNode target = var.getTarget();
+</span><span class='bc' id='L1219' title='0|3|3 - Total: 3'>            AstNode init = var.getInitializer();
+</span>
+<span class='bc' id='L1221' title='0|2|2 - Total: 2'>            Node left = null;
+</span><span class='bc' id='L1222' title='0|2|2 - Total: 2'>            if (var.isDestructuring()) {
+</span><span class='bc' id='L1223' title='0|3|3 - Total: 3'>                decompile(target);  // decompile but don't transform
+</span><span class='bc' id='L1224' title='0|3|3 - Total: 3'>                left = target;
+</span>            } else {
+<span class='bc' id='L1226' title='0|4|4 - Total: 4'>                left = transform(target);
+</span>            }
+
+<span class='bc' id='L1229' title='0|2|2 - Total: 2'>            Node right = null;
+</span><span class='bc' id='L1230' title='0|2|2 - Total: 2'>            if (init != null) {
+</span><span class='bc' id='L1231' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.ASSIGN);
+</span><span class='bc' id='L1232' title='0|4|4 - Total: 4'>                right = transform(init);
+</span>            }
+
+<span class='bc' id='L1235' title='0|2|2 - Total: 2'>            if (var.isDestructuring()) {
+</span><span class='bc' id='L1236' title='0|2|2 - Total: 2'>                if (right == null) {  // TODO:  should this ever happen?
+</span><span class='bc' id='L1237' title='0|4|4 - Total: 4'>                    node.addChildToBack(left);
+</span>                } else {
+<span class='bc' id='L1239' title='0|7|7 - Total: 7'>                    Node d = createDestructuringAssignment(node.getType(),
+</span>                                                           left, right);
+<span class='bc' id='L1241' title='0|3|3 - Total: 3'>                    node.addChildToBack(d);
+</span><span class='bc' id='L1242' title='0|1|1 - Total: 1'>                }
+</span>            } else {
+<span class='bc' id='L1244' title='0|2|2 - Total: 2'>                if (right != null) {
+</span><span class='bc' id='L1245' title='0|3|3 - Total: 3'>                    left.addChildToBack(right);
+</span>                }
+<span class='bc' id='L1247' title='0|3|3 - Total: 3'>                node.addChildToBack(left);
+</span>            }
+<span class='bc' id='L1249' title='0|2|2 - Total: 2'>            if (i++ < size-1) {
+</span><span class='bc' id='L1250' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+<span class='bc' id='L1252' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L1253' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node transformWhileLoop(WhileLoop loop) {
+<span class='bc' id='L1257' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.WHILE);
+</span><span class='bc' id='L1258' title='0|4|4 - Total: 4'>        loop.setType(Token.LOOP);
+</span><span class='bc' id='L1259' title='0|3|3 - Total: 3'>        pushScope(loop);
+</span>        try {
+<span class='bc' id='L1261' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span><span class='bc' id='L1262' title='0|5|5 - Total: 5'>            Node cond = transform(loop.getCondition());
+</span><span class='bc' id='L1263' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span><span class='bc' id='L1264' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L1265' title='0|5|5 - Total: 5'>            Node body = transform(loop.getBody());
+</span><span class='bc' id='L1266' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L1267' title='0|11|11 - Total: 11'>            return createLoop(loop, LOOP_WHILE, body, cond, null, null);
+</span>        } finally {
+<span class='bpc' id='L1269' title='0|2|2 - Total: 5'>            popScope();
+</span><span class='nc' id='L1270' title='0|0|0 - Total: 2'>        }
+</span>    }
+
+    private Node transformWith(WithStatement node) {
+<span class='bc' id='L1274' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.WITH);
+</span><span class='bc' id='L1275' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LP);
+</span><span class='bc' id='L1276' title='0|5|5 - Total: 5'>        Node expr = transform(node.getExpression());
+</span><span class='bc' id='L1277' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RP);
+</span><span class='bc' id='L1278' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.LC);
+</span><span class='bc' id='L1279' title='0|5|5 - Total: 5'>        Node stmt = transform(node.getStatement());
+</span><span class='bc' id='L1280' title='0|4|4 - Total: 4'>        decompiler.addEOL(Token.RC);
+</span><span class='bc' id='L1281' title='0|7|7 - Total: 7'>        return createWith(expr, stmt, node.getLineno());
+</span>    }
+
+    private Node transformYield(Yield node) {
+<span class='bc' id='L1285' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.YIELD);
+</span><span class='bc' id='L1286' title='0|2|2 - Total: 2'>        Node kid = node.getValue() == null ? null : transform(node.getValue());
+</span><span class='bc' id='L1287' title='0|2|2 - Total: 2'>        if (kid != null)
+</span><span class='bc' id='L1288' title='0|8|8 - Total: 8'>            return new Node(Token.YIELD, kid, node.getLineno());
+</span>        else
+<span class='bc' id='L1290' title='0|7|7 - Total: 7'>            return new Node(Token.YIELD, node.getLineno());
+</span>    }
+
+    private Node transformXmlLiteral(XmlLiteral node) {
+        // a literal like <foo>{bar}</foo> is rewritten as
+        //   new XML("<foo>" + bar + "</foo>");
+
+<span class='bc' id='L1297' title='0|7|7 - Total: 7'>        Node pnXML = new Node(Token.NEW, node.getLineno());
+</span><span class='bc' id='L1298' title='0|3|3 - Total: 3'>        List<XmlFragment> frags = node.getFragments();
+</span>
+<span class='bc' id='L1300' title='0|5|5 - Total: 5'>        XmlString first = (XmlString)frags.get(0);
+</span><span class='bc' id='L1301' title='0|6|6 - Total: 6'>        boolean anon = first.getXml().trim().startsWith("<>");
+</span><span class='bc' id='L1302' title='0|2|2 - Total: 2'>        pnXML.addChildToBack(createName(anon ? "XMLList" : "XML"));
+</span>
+<span class='bc' id='L1304' title='0|2|2 - Total: 2'>        Node pn = null;
+</span><span class='bc' id='L1305' title='0|2|2 - Total: 2'>        for (XmlFragment frag : frags) {
+</span><span class='bc' id='L1306' title='0|2|2 - Total: 2'>            if (frag instanceof XmlString) {
+</span><span class='bc' id='L1307' title='0|4|4 - Total: 4'>                String xml = ((XmlString)frag).getXml();
+</span><span class='bc' id='L1308' title='0|4|4 - Total: 4'>                decompiler.addName(xml);
+</span><span class='bc' id='L1309' title='0|2|2 - Total: 2'>                if (pn == null) {
+</span><span class='bc' id='L1310' title='0|5|5 - Total: 5'>                    pn = createString(xml);
+</span>                } else {
+<span class='bc' id='L1312' title='0|8|8 - Total: 8'>                    pn = createBinary(Token.ADD, pn, createString(xml));
+</span>                }
+<span class='bc' id='L1314' title='0|1|1 - Total: 1'>            } else {
+</span><span class='bc' id='L1315' title='0|3|3 - Total: 3'>                XmlExpression xexpr = (XmlExpression)frag;
+</span><span class='bc' id='L1316' title='0|3|3 - Total: 3'>                boolean isXmlAttr = xexpr.isXmlAttribute();
+</span>                Node expr;
+<span class='bc' id='L1318' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.LC);
+</span><span class='bpc' id='L1319' title='0|1|1 - Total: 2'>                if (xexpr.getExpression() instanceof EmptyExpression) {
+</span><span class='nc' id='L1320' title='0|0|0 - Total: 5'>                    expr = createString("");
+</span>                } else {
+<span class='bc' id='L1322' title='0|5|5 - Total: 5'>                    expr = transform(xexpr.getExpression());
+</span>                }
+<span class='bc' id='L1324' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.RC);
+</span><span class='bc' id='L1325' title='0|2|2 - Total: 2'>                if (isXmlAttr) {
+</span>                    // Need to put the result in double quotes
+<span class='bc' id='L1327' title='0|5|5 - Total: 5'>                    expr = createUnary(Token.ESCXMLATTR, expr);
+</span><span class='bc' id='L1328' title='0|6|6 - Total: 6'>                    Node prepend = createBinary(Token.ADD,
+</span><span class='bc' id='L1329' title='0|2|2 - Total: 2'>                                                createString("\""),
+</span>                                                expr);
+<span class='bc' id='L1331' title='0|7|7 - Total: 7'>                    expr = createBinary(Token.ADD,
+</span>                                        prepend,
+<span class='bc' id='L1333' title='0|1|1 - Total: 1'>                                        createString("\""));
+</span><span class='bc' id='L1334' title='0|1|1 - Total: 1'>                } else {
+</span><span class='bc' id='L1335' title='0|5|5 - Total: 5'>                    expr = createUnary(Token.ESCXMLTEXT, expr);
+</span>                }
+<span class='bc' id='L1337' title='0|6|6 - Total: 6'>                pn = createBinary(Token.ADD, pn, expr);
+</span>            }
+<span class='bc' id='L1339' title='0|1|1 - Total: 1'>        }
+</span>
+<span class='bc' id='L1341' title='0|3|3 - Total: 3'>        pnXML.addChildToBack(pn);
+</span><span class='bc' id='L1342' title='0|2|2 - Total: 2'>        return pnXML;
+</span>    }
+
+    private Node transformXmlMemberGet(XmlMemberGet node) {
+<span class='bc' id='L1346' title='0|3|3 - Total: 3'>        XmlRef ref = node.getMemberRef();
+</span><span class='bc' id='L1347' title='0|5|5 - Total: 5'>        Node pn = transform(node.getLeft());
+</span><span class='bc' id='L1348' title='0|2|2 - Total: 2'>        int flags = ref.isAttributeAccess() ? Node.ATTRIBUTE_FLAG : 0;
+</span><span class='bc' id='L1349' title='0|2|2 - Total: 2'>        if (node.getType() == Token.DOTDOT) {
+</span><span class='bc' id='L1350' title='0|4|4 - Total: 4'>            flags |= Node.DESCENDANTS_FLAG;
+</span><span class='bc' id='L1351' title='0|5|5 - Total: 5'>            decompiler.addToken(Token.DOTDOT);
+</span>        } else {
+<span class='bc' id='L1353' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.DOT);
+</span>        }
+<span class='bc' id='L1355' title='0|6|6 - Total: 6'>        return transformXmlRef(pn, ref, flags);
+</span>    }
+
+    // We get here if we weren't a child of a . or .. infix node
+    private Node transformXmlRef(XmlRef node) {
+<span class='bc' id='L1360' title='0|2|2 - Total: 2'>        int memberTypeFlags = node.isAttributeAccess()
+</span>            ? Node.ATTRIBUTE_FLAG : 0;
+<span class='bc' id='L1362' title='0|6|6 - Total: 6'>        return transformXmlRef(null, node, memberTypeFlags);
+</span>    }
+
+    private Node transformXmlRef(Node pn, XmlRef node, int memberTypeFlags) {
+<span class='bc' id='L1366' title='0|2|2 - Total: 2'>        if ((memberTypeFlags & Node.ATTRIBUTE_FLAG) != 0)
+</span><span class='bc' id='L1367' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.XMLATTR);
+</span><span class='bc' id='L1368' title='0|3|3 - Total: 3'>        Name namespace = node.getNamespace();
+</span><span class='bc' id='L1369' title='0|2|2 - Total: 2'>        String ns = namespace != null ? namespace.getIdentifier() : null;
+</span><span class='bc' id='L1370' title='0|2|2 - Total: 2'>        if (ns != null) {
+</span><span class='bc' id='L1371' title='0|4|4 - Total: 4'>            decompiler.addName(ns);
+</span><span class='bc' id='L1372' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.COLONCOLON);
+</span>        }
+<span class='bc' id='L1374' title='0|2|2 - Total: 2'>        if (node instanceof XmlPropRef) {
+</span><span class='bc' id='L1375' title='0|5|5 - Total: 5'>            String name = ((XmlPropRef)node).getPropName().getIdentifier();
+</span><span class='bc' id='L1376' title='0|4|4 - Total: 4'>            decompiler.addName(name);
+</span><span class='bc' id='L1377' title='0|7|7 - Total: 7'>            return createPropertyGet(pn, ns, name, memberTypeFlags);
+</span>        } else {
+<span class='bc' id='L1379' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LB);
+</span><span class='bc' id='L1380' title='0|6|6 - Total: 6'>            Node expr = transform(((XmlElemRef)node).getExpression());
+</span><span class='bc' id='L1381' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RB);
+</span><span class='bc' id='L1382' title='0|7|7 - Total: 7'>            return createElementGet(pn, ns, expr, memberTypeFlags);
+</span>        }
+    }
+
+    private Node transformDefaultXmlNamepace(UnaryExpression node) {
+<span class='bc' id='L1387' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.DEFAULT);
+</span><span class='bc' id='L1388' title='0|4|4 - Total: 4'>        decompiler.addName(" xml");
+</span><span class='bc' id='L1389' title='0|4|4 - Total: 4'>        decompiler.addName(" namespace");
+</span><span class='bc' id='L1390' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.ASSIGN);
+</span><span class='bc' id='L1391' title='0|5|5 - Total: 5'>        Node child = transform(node.getOperand());
+</span><span class='bc' id='L1392' title='0|5|5 - Total: 5'>        return createUnary(Token.DEFAULTNAMESPACE, child);
+</span>    }
+
+    /**
+     * If caseExpression argument is null it indicates a default label.
+     */
+    private void addSwitchCase(Node switchBlock, Node caseExpression,
+                               Node statements)
+    {
+<span class='bpc' id='L1401' title='0|1|1 - Total: 2'>        if (switchBlock.getType() != Token.BLOCK) throw Kit.codeBug();
+</span><span class='bc' id='L1402' title='0|4|4 - Total: 4'>        Jump switchNode = (Jump)switchBlock.getFirstChild();
+</span><span class='bpc' id='L1403' title='0|1|1 - Total: 2'>        if (switchNode.getType() != Token.SWITCH) throw Kit.codeBug();
+</span>
+<span class='bc' id='L1405' title='0|2|2 - Total: 2'>        Node gotoTarget = Node.newTarget();
+</span><span class='bc' id='L1406' title='0|2|2 - Total: 2'>        if (caseExpression != null) {
+</span><span class='bc' id='L1407' title='0|6|6 - Total: 6'>            Jump caseNode = new Jump(Token.CASE, caseExpression);
+</span><span class='bc' id='L1408' title='0|3|3 - Total: 3'>            caseNode.target = gotoTarget;
+</span><span class='bc' id='L1409' title='0|3|3 - Total: 3'>            switchNode.addChildToBack(caseNode);
+</span><span class='bc' id='L1410' title='0|1|1 - Total: 1'>        } else {
+</span><span class='bc' id='L1411' title='0|3|3 - Total: 3'>            switchNode.setDefault(gotoTarget);
+</span>        }
+<span class='bc' id='L1413' title='0|3|3 - Total: 3'>        switchBlock.addChildToBack(gotoTarget);
+</span><span class='bc' id='L1414' title='0|3|3 - Total: 3'>        switchBlock.addChildToBack(statements);
+</span><span class='bc' id='L1415' title='0|1|1 - Total: 1'>    }
+</span>
+    private void closeSwitch(Node switchBlock)
+    {
+<span class='bpc' id='L1419' title='0|1|1 - Total: 2'>        if (switchBlock.getType() != Token.BLOCK) throw Kit.codeBug();
+</span><span class='bc' id='L1420' title='0|4|4 - Total: 4'>        Jump switchNode = (Jump)switchBlock.getFirstChild();
+</span><span class='bpc' id='L1421' title='0|1|1 - Total: 2'>        if (switchNode.getType() != Token.SWITCH) throw Kit.codeBug();
+</span>
+<span class='bc' id='L1423' title='0|2|2 - Total: 2'>        Node switchBreakTarget = Node.newTarget();
+</span>        // switchNode.target is only used by NodeTransformer
+        // to detect switch end
+<span class='bc' id='L1426' title='0|3|3 - Total: 3'>        switchNode.target = switchBreakTarget;
+</span>
+<span class='bc' id='L1428' title='0|3|3 - Total: 3'>        Node defaultTarget = switchNode.getDefault();
+</span><span class='bc' id='L1429' title='0|2|2 - Total: 2'>        if (defaultTarget == null) {
+</span><span class='bc' id='L1430' title='0|2|2 - Total: 2'>            defaultTarget = switchBreakTarget;
+</span>        }
+
+<span class='bc' id='L1433' title='0|7|7 - Total: 7'>        switchBlock.addChildAfter(makeJump(Token.GOTO, defaultTarget),
+</span>                                  switchNode);
+<span class='bc' id='L1435' title='0|3|3 - Total: 3'>        switchBlock.addChildToBack(switchBreakTarget);
+</span><span class='bc' id='L1436' title='0|1|1 - Total: 1'>    }
+</span>
+    private Node createExprStatementNoReturn(Node expr, int lineno) {
+<span class='nc' id='L1439' title='0|0|0 - Total: 7'>        return new Node(Token.EXPR_VOID, expr, lineno);
+</span>    }
+
+    private Node createString(String string) {
+<span class='bc' id='L1443' title='0|3|3 - Total: 3'>        return Node.newString(string);
+</span>    }
+
+    /**
+     * Catch clause of try/catch/finally
+     * @param varName the name of the variable to bind to the exception
+     * @param catchCond the condition under which to catch the exception.
+     *                  May be null if no condition is given.
+     * @param stmts the statements in the catch clause
+     * @param lineno the starting line number of the catch clause
+     */
+    private Node createCatch(String varName, Node catchCond, Node stmts,
+                             int lineno) {
+<span class='bpc' id='L1456' title='0|1|1 - Total: 2'>        if (catchCond == null) {
+</span><span class='nc' id='L1457' title='0|0|0 - Total: 5'>            catchCond = new Node(Token.EMPTY);
+</span>        }
+<span class='bc' id='L1459' title='0|11|11 - Total: 11'>        return new Node(Token.CATCH, createName(varName),
+</span>                        catchCond, stmts, lineno);
+    }
+
+    private Node initFunction(FunctionNode fnNode, int functionIndex,
+                              Node statements, int functionType) {
+<span class='bc' id='L1465' title='0|3|3 - Total: 3'>        fnNode.setFunctionType(functionType);
+</span><span class='bc' id='L1466' title='0|3|3 - Total: 3'>        fnNode.addChildToBack(statements);
+</span>
+<span class='bc' id='L1468' title='0|3|3 - Total: 3'>        int functionCount = fnNode.getFunctionCount();
+</span><span class='bc' id='L1469' title='0|2|2 - Total: 2'>        if (functionCount != 0) {
+</span>            // Functions containing other functions require activation objects
+<span class='bc' id='L1471' title='0|2|2 - Total: 2'>            fnNode.setRequiresActivation();
+</span>        }
+
+<span class='bc' id='L1474' title='0|2|2 - Total: 2'>        if (functionType == FunctionNode.FUNCTION_EXPRESSION) {
+</span><span class='bc' id='L1475' title='0|3|3 - Total: 3'>            Name name = fnNode.getFunctionName();
+</span><span class='bpc' id='L1476' title='0|3|3 - Total: 4'>            if (name != null && name.length() != 0
+</span><span class='bpc' id='L1477' title='0|1|1 - Total: 2'>                    && fnNode.getSymbol(name.getIdentifier()) == null) {
+</span>                // A function expression needs to have its name as a
+                // variable (if it isn't already allocated as a variable).
+                // See ECMA Ch. 13.  We add code to the beginning of the
+                // function to initialize a local variable of the
+                // function's name to the function value, but only if the
+                // function doesn't already define a formal parameter, var,
+                // or nested function with the same name.
+<span class='bc' id='L1485' title='0|8|8 - Total: 8'>                fnNode.putSymbol(new Symbol(Token.FUNCTION, name.getIdentifier()));
+</span><span class='bc' id='L1486' title='0|8|8 - Total: 8'>                Node setFn = new Node(Token.EXPR_VOID,
+</span>                                 new Node(Token.SETNAME,
+<span class='bc' id='L1488' title='0|8|8 - Total: 8'>                                          Node.newString(Token.BINDNAME,
+</span><span class='bc' id='L1489' title='0|1|1 - Total: 1'>                                                         name.getIdentifier()),
+</span>                                     new Node(Token.THISFN)));
+<span class='bc' id='L1491' title='0|3|3 - Total: 3'>                statements.addChildrenToFront(setFn);
+</span>            }
+        }
+
+        // Add return to end if needed.
+<span class='bc' id='L1496' title='0|3|3 - Total: 3'>        Node lastStmt = statements.getLastChild();
+</span><span class='bc' id='L1497' title='0|4|4 - Total: 4'>        if (lastStmt == null || lastStmt.getType() != Token.RETURN) {
+</span><span class='bc' id='L1498' title='0|6|6 - Total: 6'>            statements.addChildToBack(new Node(Token.RETURN));
+</span>        }
+
+<span class='bc' id='L1501' title='0|5|5 - Total: 5'>        Node result = Node.newString(Token.FUNCTION, fnNode.getName());
+</span><span class='bc' id='L1502' title='0|4|4 - Total: 4'>        result.putIntProp(Node.FUNCTION_PROP, functionIndex);
+</span><span class='bc' id='L1503' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Create loop node. The code generator will later call
+     * createWhile|createDoWhile|createFor|createForIn
+     * to finish loop generation.
+     */
+    private Scope createLoopNode(Node loopLabel, int lineno) {
+<span class='bc' id='L1512' title='0|5|5 - Total: 5'>        Scope result = createScopeNode(Token.LOOP, lineno);
+</span><span class='bpc' id='L1513' title='0|1|1 - Total: 2'>        if (loopLabel != null) {
+</span><span class='nc' id='L1514' title='0|0|0 - Total: 4'>            ((Jump)loopLabel).setLoop(result);
+</span>        }
+<span class='bc' id='L1516' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Node createFor(Scope loop, Node init,
+                           Node test, Node incr, Node body) {
+<span class='bc' id='L1521' title='0|2|2 - Total: 2'>        if (init.getType() == Token.LET) {
+</span>            // rewrite "for (let i=s; i < N; i++)..." as
+            // "let (i=s) { for (; i < N; i++)..." so that "s" is evaluated
+            // outside the scope of the for.
+<span class='bc' id='L1525' title='0|3|3 - Total: 3'>            Scope let = Scope.splitScope(loop);
+</span><span class='bc' id='L1526' title='0|4|4 - Total: 4'>            let.setType(Token.LET);
+</span><span class='bc' id='L1527' title='0|3|3 - Total: 3'>            let.addChildrenToBack(init);
+</span><span class='bc' id='L1528' title='0|13|13 - Total: 13'>            let.addChildToBack(createLoop(loop, LOOP_FOR, body, test,
+</span>                new Node(Token.EMPTY), incr));
+<span class='bc' id='L1530' title='0|2|2 - Total: 2'>            return let;
+</span>        }
+<span class='bc' id='L1532' title='0|9|9 - Total: 9'>        return createLoop(loop, LOOP_FOR, body, test, init, incr);
+</span>    }
+
+    private Node createLoop(Jump loop, int loopType, Node body,
+                            Node cond, Node init, Node incr)
+    {
+<span class='bc' id='L1538' title='0|2|2 - Total: 2'>        Node bodyTarget = Node.newTarget();
+</span><span class='bc' id='L1539' title='0|2|2 - Total: 2'>        Node condTarget = Node.newTarget();
+</span><span class='bc' id='L1540' title='0|4|4 - Total: 4'>        if (loopType == LOOP_FOR && cond.getType() == Token.EMPTY) {
+</span><span class='bc' id='L1541' title='0|5|5 - Total: 5'>            cond = new Node(Token.TRUE);
+</span>        }
+<span class='bc' id='L1543' title='0|6|6 - Total: 6'>        Jump IFEQ = new Jump(Token.IFEQ, cond);
+</span><span class='bc' id='L1544' title='0|3|3 - Total: 3'>        IFEQ.target = bodyTarget;
+</span><span class='bc' id='L1545' title='0|2|2 - Total: 2'>        Node breakTarget = Node.newTarget();
+</span>
+<span class='bc' id='L1547' title='0|3|3 - Total: 3'>        loop.addChildToBack(bodyTarget);
+</span><span class='bc' id='L1548' title='0|3|3 - Total: 3'>        loop.addChildrenToBack(body);
+</span><span class='bc' id='L1549' title='0|4|4 - Total: 4'>        if (loopType == LOOP_WHILE || loopType == LOOP_FOR) {
+</span>            // propagate lineno to condition
+<span class='bc' id='L1551' title='0|8|8 - Total: 8'>            loop.addChildrenToBack(new Node(Token.EMPTY, loop.getLineno()));
+</span>        }
+<span class='bc' id='L1553' title='0|3|3 - Total: 3'>        loop.addChildToBack(condTarget);
+</span><span class='bc' id='L1554' title='0|3|3 - Total: 3'>        loop.addChildToBack(IFEQ);
+</span><span class='bc' id='L1555' title='0|3|3 - Total: 3'>        loop.addChildToBack(breakTarget);
+</span>
+<span class='bc' id='L1557' title='0|3|3 - Total: 3'>        loop.target = breakTarget;
+</span><span class='bc' id='L1558' title='0|2|2 - Total: 2'>        Node continueTarget = condTarget;
+</span>
+<span class='bc' id='L1560' title='0|4|4 - Total: 4'>        if (loopType == LOOP_WHILE || loopType == LOOP_FOR) {
+</span>            // Just add a GOTO to the condition in the do..while
+<span class='bc' id='L1562' title='0|6|6 - Total: 6'>            loop.addChildToFront(makeJump(Token.GOTO, condTarget));
+</span>
+<span class='bc' id='L1564' title='0|2|2 - Total: 2'>            if (loopType == LOOP_FOR) {
+</span><span class='bc' id='L1565' title='0|3|3 - Total: 3'>                int initType = init.getType();
+</span><span class='bc' id='L1566' title='0|2|2 - Total: 2'>                if (initType != Token.EMPTY) {
+</span><span class='bpc' id='L1567' title='0|3|3 - Total: 4'>                    if (initType != Token.VAR && initType != Token.LET) {
+</span><span class='bc' id='L1568' title='0|6|6 - Total: 6'>                        init = new Node(Token.EXPR_VOID, init);
+</span>                    }
+<span class='bc' id='L1570' title='0|3|3 - Total: 3'>                    loop.addChildToFront(init);
+</span>                }
+<span class='bc' id='L1572' title='0|2|2 - Total: 2'>                Node incrTarget = Node.newTarget();
+</span><span class='bc' id='L1573' title='0|4|4 - Total: 4'>                loop.addChildAfter(incrTarget, body);
+</span><span class='bc' id='L1574' title='0|2|2 - Total: 2'>                if (incr.getType() != Token.EMPTY) {
+</span><span class='bc' id='L1575' title='0|6|6 - Total: 6'>                    incr = new Node(Token.EXPR_VOID, incr);
+</span><span class='bc' id='L1576' title='0|4|4 - Total: 4'>                    loop.addChildAfter(incr, incrTarget);
+</span>                }
+<span class='bc' id='L1578' title='0|2|2 - Total: 2'>                continueTarget = incrTarget;
+</span>            }
+        }
+
+<span class='bc' id='L1582' title='0|3|3 - Total: 3'>        loop.setContinue(continueTarget);
+</span><span class='bc' id='L1583' title='0|2|2 - Total: 2'>        return loop;
+</span>    }
+
+    /**
+     * Generate IR for a for..in loop.
+     */
+    private Node createForIn(int declType, Node loop, Node lhs,
+                             Node obj, Node body, boolean isForEach, boolean isForOf)
+    {
+<span class='bc' id='L1592' title='0|2|2 - Total: 2'>        int destructuring = -1;
+</span><span class='bc' id='L1593' title='0|2|2 - Total: 2'>        int destructuringLen = 0;
+</span>        Node lvalue;
+<span class='bc' id='L1595' title='0|3|3 - Total: 3'>        int type = lhs.getType();
+</span><span class='bc' id='L1596' title='0|4|4 - Total: 4'>        if (type == Token.VAR || type == Token.LET) {
+</span><span class='bc' id='L1597' title='0|3|3 - Total: 3'>            Node kid = lhs.getLastChild();
+</span><span class='bc' id='L1598' title='0|3|3 - Total: 3'>            int kidType = kid.getType();
+</span><span class='bc' id='L1599' title='0|4|4 - Total: 4'>            if (kidType == Token.ARRAYLIT || kidType == Token.OBJECTLIT)
+</span>            {
+<span class='bc' id='L1601' title='0|4|4 - Total: 4'>                type = destructuring = kidType;
+</span><span class='bc' id='L1602' title='0|2|2 - Total: 2'>                lvalue = kid;
+</span><span class='bc' id='L1603' title='0|2|2 - Total: 2'>                destructuringLen = 0;
+</span><span class='bc' id='L1604' title='0|2|2 - Total: 2'>                if (kid instanceof ArrayLiteral)
+</span><span class='bc' id='L1605' title='0|5|5 - Total: 5'>                    destructuringLen = ((ArrayLiteral) kid).getDestructuringLength();
+</span><span class='bpc' id='L1606' title='0|1|1 - Total: 2'>            } else if (kidType == Token.NAME) {
+</span><span class='bc' id='L1607' title='0|6|6 - Total: 6'>                lvalue = Node.newString(Token.NAME, kid.getString());
+</span>            } else {
+<span class='nc' id='L1609' title='0|0|0 - Total: 3'>                reportError("msg.bad.for.in.lhs");
+</span><span class='nc' id='L1610' title='0|0|0 - Total: 2'>                return null;
+</span>            }
+<span class='bpc' id='L1612' title='0|3|3 - Total: 4'>        } else if (type == Token.ARRAYLIT || type == Token.OBJECTLIT) {
+</span><span class='bc' id='L1613' title='0|2|2 - Total: 2'>            destructuring = type;
+</span><span class='bc' id='L1614' title='0|2|2 - Total: 2'>            lvalue = lhs;
+</span><span class='bc' id='L1615' title='0|2|2 - Total: 2'>            destructuringLen = 0;
+</span><span class='bpc' id='L1616' title='0|1|1 - Total: 2'>            if (lhs instanceof ArrayLiteral)
+</span><span class='bc' id='L1617' title='0|5|5 - Total: 5'>                destructuringLen = ((ArrayLiteral) lhs).getDestructuringLength();
+</span>        } else {
+<span class='bc' id='L1619' title='0|4|4 - Total: 4'>            lvalue = makeReference(lhs);
+</span><span class='bc' id='L1620' title='0|2|2 - Total: 2'>            if (lvalue == null) {
+</span><span class='nc' id='L1621' title='0|0|0 - Total: 3'>                reportError("msg.bad.for.in.lhs");
+</span><span class='nc' id='L1622' title='0|0|0 - Total: 2'>                return null;
+</span>            }
+        }
+
+<span class='bc' id='L1626' title='0|5|5 - Total: 5'>        Node localBlock = new Node(Token.LOCAL_BLOCK);
+</span><span class='bc' id='L1627' title='0|6|6 - Total: 6'>        int initType = isForEach ? Token.ENUM_INIT_VALUES
+</span>                       : isForOf ? Token.ENUM_INIT_VALUES_IN_ORDER
+                                 : (destructuring != -1
+                                    ? Token.ENUM_INIT_ARRAY
+                                    : Token.ENUM_INIT_KEYS);
+<span class='bc' id='L1632' title='0|6|6 - Total: 6'>        Node init = new Node(initType, obj);
+</span><span class='bc' id='L1633' title='0|4|4 - Total: 4'>        init.putProp(Node.LOCAL_BLOCK_PROP, localBlock);
+</span><span class='bc' id='L1634' title='0|5|5 - Total: 5'>        Node cond = new Node(Token.ENUM_NEXT);
+</span><span class='bc' id='L1635' title='0|4|4 - Total: 4'>        cond.putProp(Node.LOCAL_BLOCK_PROP, localBlock);
+</span><span class='bc' id='L1636' title='0|5|5 - Total: 5'>        Node id = new Node(Token.ENUM_ID);
+</span><span class='bc' id='L1637' title='0|4|4 - Total: 4'>        id.putProp(Node.LOCAL_BLOCK_PROP, localBlock);
+</span>
+<span class='bc' id='L1639' title='0|5|5 - Total: 5'>        Node newBody = new Node(Token.BLOCK);
+</span>        Node assign;
+<span class='bc' id='L1641' title='0|2|2 - Total: 2'>        if (destructuring != -1) {
+</span><span class='bc' id='L1642' title='0|6|6 - Total: 6'>            assign = createDestructuringAssignment(declType, lvalue, id);
+</span><span class='bpc' id='L1643' title='0|6|6 - Total: 8'>            if (!isForEach && !isForOf &&
+</span>                (destructuring == Token.OBJECTLIT ||
+                 destructuringLen != 2))
+            {
+                // destructuring assignment is only allowed in for..each or
+                // with an array type of length 2 (to hold key and value)
+<span class='nc' id='L1649' title='0|0|0 - Total: 4'>                reportError("msg.bad.for.in.destruct");
+</span>            }
+        } else {
+<span class='bc' id='L1652' title='0|5|5 - Total: 5'>            assign = simpleAssignment(lvalue, id);
+</span>        }
+<span class='bc' id='L1654' title='0|7|7 - Total: 7'>        newBody.addChildToBack(new Node(Token.EXPR_VOID, assign));
+</span><span class='bc' id='L1655' title='0|3|3 - Total: 3'>        newBody.addChildToBack(body);
+</span>
+<span class='bc' id='L1657' title='0|10|10 - Total: 10'>        loop = createLoop((Jump)loop, LOOP_WHILE, newBody, cond, null, null);
+</span><span class='bc' id='L1658' title='0|3|3 - Total: 3'>        loop.addChildToFront(init);
+</span><span class='bc' id='L1659' title='0|4|4 - Total: 4'>        if (type == Token.VAR || type == Token.LET)
+</span><span class='bc' id='L1660' title='0|3|3 - Total: 3'>            loop.addChildToFront(lhs);
+</span><span class='bc' id='L1661' title='0|3|3 - Total: 3'>        localBlock.addChildToBack(loop);
+</span>
+<span class='bc' id='L1663' title='0|2|2 - Total: 2'>        return localBlock;
+</span>    }
+
+    /**
+     * Try/Catch/Finally
+     *
+     * The IRFactory tries to express as much as possible in the tree;
+     * the responsibilities remaining for Codegen are to add the Java
+     * handlers: (Either (but not both) of TARGET and FINALLY might not
+     * be defined)
+     *
+     * - a catch handler for javascript exceptions that unwraps the
+     * exception onto the stack and GOTOes to the catch target
+     *
+     * - a finally handler
+     *
+     * ... and a goto to GOTO around these handlers.
+     */
+    private Node createTryCatchFinally(Node tryBlock, Node catchBlocks,
+                                       Node finallyBlock, int lineno)
+    {
+<span class='bc' id='L1684' title='0|2|2 - Total: 2'>        boolean hasFinally = (finallyBlock != null)
+</span><span class='bpc' id='L1685' title='0|1|1 - Total: 2'>                             && (finallyBlock.getType() != Token.BLOCK
+</span><span class='bc' id='L1686' title='0|2|2 - Total: 2'>                                 || finallyBlock.hasChildren());
+</span>
+        // short circuit
+<span class='bpc' id='L1689' title='0|5|5 - Total: 6'>        if (tryBlock.getType() == Token.BLOCK && !tryBlock.hasChildren()
+</span>            && !hasFinally)
+        {
+<span class='bc' id='L1692' title='0|2|2 - Total: 2'>            return tryBlock;
+</span>        }
+
+<span class='bc' id='L1695' title='0|3|3 - Total: 3'>        boolean hasCatch = catchBlocks.hasChildren();
+</span>
+        // short circuit
+<span class='bc' id='L1698' title='0|4|4 - Total: 4'>        if (!hasFinally && !hasCatch)  {
+</span>            // bc finally might be an empty block...
+<span class='bc' id='L1700' title='0|2|2 - Total: 2'>            return tryBlock;
+</span>        }
+
+<span class='bc' id='L1703' title='0|5|5 - Total: 5'>        Node handlerBlock  = new Node(Token.LOCAL_BLOCK);
+</span><span class='bc' id='L1704' title='0|7|7 - Total: 7'>        Jump pn = new Jump(Token.TRY, tryBlock, lineno);
+</span><span class='bc' id='L1705' title='0|4|4 - Total: 4'>        pn.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);
+</span>
+<span class='bc' id='L1707' title='0|2|2 - Total: 2'>        if (hasCatch) {
+</span>            // jump around catch code
+<span class='bc' id='L1709' title='0|2|2 - Total: 2'>            Node endCatch = Node.newTarget();
+</span><span class='bc' id='L1710' title='0|6|6 - Total: 6'>            pn.addChildToBack(makeJump(Token.GOTO, endCatch));
+</span>
+            // make a TARGET for the catch that the tcf node knows about
+<span class='bc' id='L1713' title='0|2|2 - Total: 2'>            Node catchTarget = Node.newTarget();
+</span><span class='bc' id='L1714' title='0|3|3 - Total: 3'>            pn.target = catchTarget;
+</span>            // mark it
+<span class='bc' id='L1716' title='0|3|3 - Total: 3'>            pn.addChildToBack(catchTarget);
+</span>
+            //
+            //  Given
+            //
+            //   try {
+            //       tryBlock;
+            //   } catch (e if condition1) {
+            //       something1;
+            //   ...
+            //
+            //   } catch (e if conditionN) {
+            //       somethingN;
+            //   } catch (e) {
+            //       somethingDefault;
+            //   }
+            //
+            //  rewrite as
+            //
+            //   try {
+            //       tryBlock;
+            //       goto after_catch:
+            //   } catch (x) {
+            //       with (newCatchScope(e, x)) {
+            //           if (condition1) {
+            //               something1;
+            //               goto after_catch;
+            //           }
+            //       }
+            //   ...
+            //       with (newCatchScope(e, x)) {
+            //           if (conditionN) {
+            //               somethingN;
+            //               goto after_catch;
+            //           }
+            //       }
+            //       with (newCatchScope(e, x)) {
+            //           somethingDefault;
+            //           goto after_catch;
+            //       }
+            //   }
+            // after_catch:
+            //
+            // If there is no default catch, then the last with block
+            // arround  "somethingDefault;" is replaced by "rethrow;"
+
+            // It is assumed that catch handler generation will store
+            // exeception object in handlerBlock register
+
+            // Block with local for exception scope objects
+<span class='bc' id='L1766' title='0|5|5 - Total: 5'>            Node catchScopeBlock = new Node(Token.LOCAL_BLOCK);
+</span>
+            // expects catchblocks children to be (cond block) pairs.
+<span class='bc' id='L1769' title='0|3|3 - Total: 3'>            Node cb = catchBlocks.getFirstChild();
+</span><span class='bc' id='L1770' title='0|2|2 - Total: 2'>            boolean hasDefault = false;
+</span><span class='bc' id='L1771' title='0|2|2 - Total: 2'>            int scopeIndex = 0;
+</span><span class='bc' id='L1772' title='0|2|2 - Total: 2'>            while (cb != null) {
+</span><span class='bc' id='L1773' title='0|3|3 - Total: 3'>                int catchLineNo = cb.getLineno();
+</span>
+<span class='bc' id='L1775' title='0|3|3 - Total: 3'>                Node name = cb.getFirstChild();
+</span><span class='bc' id='L1776' title='0|3|3 - Total: 3'>                Node cond = name.getNext();
+</span><span class='bc' id='L1777' title='0|3|3 - Total: 3'>                Node catchStatement = cond.getNext();
+</span><span class='bc' id='L1778' title='0|3|3 - Total: 3'>                cb.removeChild(name);
+</span><span class='bc' id='L1779' title='0|3|3 - Total: 3'>                cb.removeChild(cond);
+</span><span class='bc' id='L1780' title='0|3|3 - Total: 3'>                cb.removeChild(catchStatement);
+</span>
+                // Add goto to the catch statement to jump out of catch
+                // but prefix it with LEAVEWITH since try..catch produces
+                // "with"code in order to limit the scope of the exception
+                // object.
+<span class='bc' id='L1786' title='0|6|6 - Total: 6'>                catchStatement.addChildToBack(new Node(Token.LEAVEWITH));
+</span><span class='bc' id='L1787' title='0|6|6 - Total: 6'>                catchStatement.addChildToBack(makeJump(Token.GOTO, endCatch));
+</span>
+                // Create condition "if" when present
+                Node condStmt;
+<span class='bc' id='L1791' title='0|2|2 - Total: 2'>                if (cond.getType() == Token.EMPTY) {
+</span><span class='bc' id='L1792' title='0|2|2 - Total: 2'>                    condStmt = catchStatement;
+</span><span class='bc' id='L1793' title='0|3|3 - Total: 3'>                    hasDefault = true;
+</span>                } else {
+<span class='bc' id='L1795' title='0|7|7 - Total: 7'>                    condStmt = createIf(cond, catchStatement, null,
+</span>                                        catchLineNo);
+                }
+
+                // Generate code to create the scope object and store
+                // it in catchScopeBlock register
+<span class='bc' id='L1801' title='0|6|6 - Total: 6'>                Node catchScope = new Node(Token.CATCH_SCOPE, name,
+</span><span class='bc' id='L1802' title='0|3|3 - Total: 3'>                                           createUseLocal(handlerBlock));
+</span><span class='bc' id='L1803' title='0|4|4 - Total: 4'>                catchScope.putProp(Node.LOCAL_BLOCK_PROP, catchScopeBlock);
+</span><span class='bc' id='L1804' title='0|4|4 - Total: 4'>                catchScope.putIntProp(Node.CATCH_SCOPE_PROP, scopeIndex);
+</span><span class='bc' id='L1805' title='0|3|3 - Total: 3'>                catchScopeBlock.addChildToBack(catchScope);
+</span>
+                // Add with statement based on catch scope object
+<span class='bc' id='L1808' title='0|5|5 - Total: 5'>                catchScopeBlock.addChildToBack(
+</span><span class='bc' id='L1809' title='0|4|4 - Total: 4'>                    createWith(createUseLocal(catchScopeBlock), condStmt,
+</span>                               catchLineNo));
+
+                // move to next cb
+<span class='bc' id='L1813' title='0|3|3 - Total: 3'>                cb = cb.getNext();
+</span><span class='bc' id='L1814' title='0|1|1 - Total: 1'>                ++scopeIndex;
+</span><span class='bc' id='L1815' title='0|1|1 - Total: 1'>            }
+</span><span class='bc' id='L1816' title='0|3|3 - Total: 3'>            pn.addChildToBack(catchScopeBlock);
+</span><span class='bc' id='L1817' title='0|2|2 - Total: 2'>            if (!hasDefault) {
+</span>                // Generate code to rethrow if no catch clause was executed
+<span class='bc' id='L1819' title='0|5|5 - Total: 5'>                Node rethrow = new Node(Token.RETHROW);
+</span><span class='bc' id='L1820' title='0|4|4 - Total: 4'>                rethrow.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);
+</span><span class='bc' id='L1821' title='0|3|3 - Total: 3'>                pn.addChildToBack(rethrow);
+</span>            }
+
+<span class='bc' id='L1824' title='0|3|3 - Total: 3'>            pn.addChildToBack(endCatch);
+</span>        }
+
+<span class='bc' id='L1827' title='0|2|2 - Total: 2'>        if (hasFinally) {
+</span><span class='bc' id='L1828' title='0|2|2 - Total: 2'>            Node finallyTarget = Node.newTarget();
+</span><span class='bc' id='L1829' title='0|3|3 - Total: 3'>            pn.setFinally(finallyTarget);
+</span>
+            // add jsr finally to the try block
+<span class='bc' id='L1832' title='0|6|6 - Total: 6'>            pn.addChildToBack(makeJump(Token.JSR, finallyTarget));
+</span>
+            // jump around finally code
+<span class='bc' id='L1835' title='0|2|2 - Total: 2'>            Node finallyEnd = Node.newTarget();
+</span><span class='bc' id='L1836' title='0|6|6 - Total: 6'>            pn.addChildToBack(makeJump(Token.GOTO, finallyEnd));
+</span>
+<span class='bc' id='L1838' title='0|3|3 - Total: 3'>            pn.addChildToBack(finallyTarget);
+</span><span class='bc' id='L1839' title='0|6|6 - Total: 6'>            Node fBlock = new Node(Token.FINALLY, finallyBlock);
+</span><span class='bc' id='L1840' title='0|4|4 - Total: 4'>            fBlock.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);
+</span><span class='bc' id='L1841' title='0|3|3 - Total: 3'>            pn.addChildToBack(fBlock);
+</span>
+<span class='bc' id='L1843' title='0|3|3 - Total: 3'>            pn.addChildToBack(finallyEnd);
+</span>        }
+<span class='bc' id='L1845' title='0|3|3 - Total: 3'>        handlerBlock.addChildToBack(pn);
+</span><span class='bc' id='L1846' title='0|2|2 - Total: 2'>        return handlerBlock;
+</span>    }
+
+    private Node createWith(Node obj, Node body, int lineno) {
+<span class='bc' id='L1850' title='0|2|2 - Total: 2'>        setRequiresActivation();
+</span><span class='bc' id='L1851' title='0|6|6 - Total: 6'>        Node result = new Node(Token.BLOCK, lineno);
+</span><span class='bc' id='L1852' title='0|7|7 - Total: 7'>        result.addChildToBack(new Node(Token.ENTERWITH, obj));
+</span><span class='bc' id='L1853' title='0|7|7 - Total: 7'>        Node bodyNode = new Node(Token.WITH, body, lineno);
+</span><span class='bc' id='L1854' title='0|3|3 - Total: 3'>        result.addChildrenToBack(bodyNode);
+</span><span class='bc' id='L1855' title='0|6|6 - Total: 6'>        result.addChildToBack(new Node(Token.LEAVEWITH));
+</span><span class='bc' id='L1856' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Node createIf(Node cond, Node ifTrue, Node ifFalse, int lineno)
+    {
+<span class='bc' id='L1861' title='0|3|3 - Total: 3'>        int condStatus = isAlwaysDefinedBoolean(cond);
+</span><span class='bc' id='L1862' title='0|2|2 - Total: 2'>        if (condStatus == ALWAYS_TRUE_BOOLEAN) {
+</span><span class='bc' id='L1863' title='0|2|2 - Total: 2'>            return ifTrue;
+</span><span class='bc' id='L1864' title='0|2|2 - Total: 2'>        } else if (condStatus == ALWAYS_FALSE_BOOLEAN) {
+</span><span class='bc' id='L1865' title='0|2|2 - Total: 2'>            if (ifFalse != null) {
+</span><span class='bc' id='L1866' title='0|2|2 - Total: 2'>                return ifFalse;
+</span>            }
+            // Replace if (false) xxx by empty block
+<span class='bc' id='L1869' title='0|6|6 - Total: 6'>            return new Node(Token.BLOCK, lineno);
+</span>        }
+
+<span class='bc' id='L1872' title='0|6|6 - Total: 6'>        Node result = new Node(Token.BLOCK, lineno);
+</span><span class='bc' id='L1873' title='0|2|2 - Total: 2'>        Node ifNotTarget = Node.newTarget();
+</span><span class='bc' id='L1874' title='0|6|6 - Total: 6'>        Jump IFNE = new Jump(Token.IFNE, cond);
+</span><span class='bc' id='L1875' title='0|3|3 - Total: 3'>        IFNE.target = ifNotTarget;
+</span>
+<span class='bc' id='L1877' title='0|3|3 - Total: 3'>        result.addChildToBack(IFNE);
+</span><span class='bc' id='L1878' title='0|3|3 - Total: 3'>        result.addChildrenToBack(ifTrue);
+</span>
+<span class='bc' id='L1880' title='0|2|2 - Total: 2'>        if (ifFalse != null) {
+</span><span class='bc' id='L1881' title='0|2|2 - Total: 2'>            Node endTarget = Node.newTarget();
+</span><span class='bc' id='L1882' title='0|6|6 - Total: 6'>            result.addChildToBack(makeJump(Token.GOTO, endTarget));
+</span><span class='bc' id='L1883' title='0|3|3 - Total: 3'>            result.addChildToBack(ifNotTarget);
+</span><span class='bc' id='L1884' title='0|3|3 - Total: 3'>            result.addChildrenToBack(ifFalse);
+</span><span class='bc' id='L1885' title='0|3|3 - Total: 3'>            result.addChildToBack(endTarget);
+</span><span class='bc' id='L1886' title='0|1|1 - Total: 1'>        } else {
+</span><span class='bc' id='L1887' title='0|3|3 - Total: 3'>            result.addChildToBack(ifNotTarget);
+</span>        }
+
+<span class='bc' id='L1890' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Node createCondExpr(Node cond, Node ifTrue, Node ifFalse) {
+<span class='bc' id='L1894' title='0|3|3 - Total: 3'>        int condStatus = isAlwaysDefinedBoolean(cond);
+</span><span class='bc' id='L1895' title='0|2|2 - Total: 2'>        if (condStatus == ALWAYS_TRUE_BOOLEAN) {
+</span><span class='bc' id='L1896' title='0|2|2 - Total: 2'>            return ifTrue;
+</span><span class='bc' id='L1897' title='0|2|2 - Total: 2'>        } else if (condStatus == ALWAYS_FALSE_BOOLEAN) {
+</span><span class='bc' id='L1898' title='0|2|2 - Total: 2'>            return ifFalse;
+</span>        }
+<span class='bc' id='L1900' title='0|8|8 - Total: 8'>        return new Node(Token.HOOK, cond, ifTrue, ifFalse);
+</span>    }
+
+    private Node createUnary(int nodeType, Node child)
+    {
+<span class='bc' id='L1905' title='0|3|3 - Total: 3'>        int childType = child.getType();
+</span><span class='bc' id='L1906' title='0|6|6 - Total: 6'>        switch (nodeType) {
+</span>          case Token.DELPROP: {
+            Node n;
+<span class='bc' id='L1909' title='0|2|2 - Total: 2'>            if (childType == Token.NAME) {
+</span>                // Transform Delete(Name "a")
+                //  to Delete(Bind("a"), String("a"))
+<span class='bc' id='L1912' title='0|4|4 - Total: 4'>                child.setType(Token.BINDNAME);
+</span><span class='bc' id='L1913' title='0|2|2 - Total: 2'>                Node left = child;
+</span><span class='bc' id='L1914' title='0|4|4 - Total: 4'>                Node right = Node.newString(child.getString());
+</span><span class='bc' id='L1915' title='0|7|7 - Total: 7'>                n = new Node(nodeType, left, right);
+</span><span class='bc' id='L1916' title='0|4|4 - Total: 4'>            } else if (childType == Token.GETPROP ||
+</span>                       childType == Token.GETELEM)
+            {
+<span class='bc' id='L1919' title='0|3|3 - Total: 3'>                Node left = child.getFirstChild();
+</span><span class='bc' id='L1920' title='0|3|3 - Total: 3'>                Node right = child.getLastChild();
+</span><span class='bc' id='L1921' title='0|3|3 - Total: 3'>                child.removeChild(left);
+</span><span class='bc' id='L1922' title='0|3|3 - Total: 3'>                child.removeChild(right);
+</span><span class='bc' id='L1923' title='0|7|7 - Total: 7'>                n = new Node(nodeType, left, right);
+</span><span class='bc' id='L1924' title='0|2|2 - Total: 2'>            } else if (childType == Token.GET_REF) {
+</span><span class='bc' id='L1925' title='0|3|3 - Total: 3'>                Node ref = child.getFirstChild();
+</span><span class='bc' id='L1926' title='0|3|3 - Total: 3'>                child.removeChild(ref);
+</span><span class='bc' id='L1927' title='0|6|6 - Total: 6'>                n = new Node(Token.DEL_REF, ref);
+</span><span class='bc' id='L1928' title='0|1|1 - Total: 1'>            } else {
+</span>                // Always evaluate delete operand, see ES5 11.4.1 & bug #726121
+<span class='bc' id='L1930' title='0|10|10 - Total: 10'>                n = new Node(nodeType, new Node(Token.TRUE), child);
+</span>            }
+<span class='bc' id='L1932' title='0|2|2 - Total: 2'>            return n;
+</span>          }
+          case Token.TYPEOF:
+<span class='bc' id='L1935' title='0|2|2 - Total: 2'>            if (childType == Token.NAME) {
+</span><span class='bc' id='L1936' title='0|4|4 - Total: 4'>                child.setType(Token.TYPEOFNAME);
+</span><span class='bc' id='L1937' title='0|2|2 - Total: 2'>                return child;
+</span>            }
+            break;
+          case Token.BITNOT:
+<span class='bc' id='L1941' title='0|2|2 - Total: 2'>            if (childType == Token.NUMBER) {
+</span><span class='bc' id='L1942' title='0|4|4 - Total: 4'>                int value = ScriptRuntime.toInt32(child.getDouble());
+</span><span class='bc' id='L1943' title='0|6|6 - Total: 6'>                child.setDouble(~value);
+</span><span class='bc' id='L1944' title='0|2|2 - Total: 2'>                return child;
+</span>            }
+            break;
+          case Token.NEG:
+<span class='bc' id='L1948' title='0|2|2 - Total: 2'>            if (childType == Token.NUMBER) {
+</span><span class='bc' id='L1949' title='0|5|5 - Total: 5'>                child.setDouble(-child.getDouble());
+</span><span class='bc' id='L1950' title='0|2|2 - Total: 2'>                return child;
+</span>            }
+            break;
+          case Token.NOT: {
+<span class='bc' id='L1954' title='0|3|3 - Total: 3'>            int status = isAlwaysDefinedBoolean(child);
+</span><span class='bc' id='L1955' title='0|2|2 - Total: 2'>            if (status != 0) {
+</span>                int type;
+<span class='bc' id='L1957' title='0|2|2 - Total: 2'>                if (status == ALWAYS_TRUE_BOOLEAN) {
+</span><span class='bc' id='L1958' title='0|3|3 - Total: 3'>                    type = Token.FALSE;
+</span>                } else {
+<span class='bc' id='L1960' title='0|2|2 - Total: 2'>                    type = Token.TRUE;
+</span>                }
+<span class='bc' id='L1962' title='0|4|4 - Total: 4'>                if (childType == Token.TRUE || childType == Token.FALSE) {
+</span><span class='bc' id='L1963' title='0|4|4 - Total: 4'>                    child.setType(type);
+</span><span class='bc' id='L1964' title='0|2|2 - Total: 2'>                    return child;
+</span>                }
+<span class='bc' id='L1966' title='0|5|5 - Total: 5'>                return new Node(type);
+</span>            }
+            break;
+          }
+        }
+<span class='bc' id='L1971' title='0|6|6 - Total: 6'>        return new Node(nodeType, child);
+</span>    }
+
+    private Node createCallOrNew(int nodeType, Node child) {
+<span class='bc' id='L1975' title='0|2|2 - Total: 2'>        int type = Node.NON_SPECIALCALL;
+</span><span class='bc' id='L1976' title='0|2|2 - Total: 2'>        if (child.getType() == Token.NAME) {
+</span><span class='bc' id='L1977' title='0|3|3 - Total: 3'>            String name = child.getString();
+</span><span class='bc' id='L1978' title='0|2|2 - Total: 2'>            if (name.equals("eval")) {
+</span><span class='bc' id='L1979' title='0|3|3 - Total: 3'>                type = Node.SPECIALCALL_EVAL;
+</span><span class='bpc' id='L1980' title='0|1|1 - Total: 2'>            } else if (name.equals("With")) {
+</span><span class='nc' id='L1981' title='0|0|0 - Total: 2'>                type = Node.SPECIALCALL_WITH;
+</span>            }
+<span class='bc' id='L1983' title='0|2|2 - Total: 2'>        } else if (child.getType() == Token.GETPROP) {
+</span><span class='bc' id='L1984' title='0|4|4 - Total: 4'>            String name = child.getLastChild().getString();
+</span><span class='bc' id='L1985' title='0|2|2 - Total: 2'>            if (name.equals("eval")) {
+</span><span class='bc' id='L1986' title='0|2|2 - Total: 2'>                type = Node.SPECIALCALL_EVAL;
+</span>            }
+        }
+<span class='bc' id='L1989' title='0|6|6 - Total: 6'>        Node node = new Node(nodeType, child);
+</span><span class='bc' id='L1990' title='0|2|2 - Total: 2'>        if (type != Node.NON_SPECIALCALL) {
+</span>            // Calls to these functions require activation objects.
+<span class='bc' id='L1992' title='0|2|2 - Total: 2'>            setRequiresActivation();
+</span><span class='bc' id='L1993' title='0|4|4 - Total: 4'>            node.putIntProp(Node.SPECIALCALL_PROP, type);
+</span>        }
+<span class='bc' id='L1995' title='0|2|2 - Total: 2'>        return node;
+</span>    }
+
+    private Node createIncDec(int nodeType, boolean post, Node child)
+    {
+<span class='bc' id='L2000' title='0|4|4 - Total: 4'>        child = makeReference(child);
+</span><span class='bc' id='L2001' title='0|3|3 - Total: 3'>        int childType = child.getType();
+</span>
+<span class='bpc' id='L2003' title='0|1|1 - Total: 2'>        switch (childType) {
+</span>          case Token.NAME:
+          case Token.GETPROP:
+          case Token.GETELEM:
+          case Token.GET_REF: {
+<span class='bc' id='L2008' title='0|6|6 - Total: 6'>            Node n = new Node(nodeType, child);
+</span><span class='bc' id='L2009' title='0|2|2 - Total: 2'>            int incrDecrMask = 0;
+</span><span class='bc' id='L2010' title='0|2|2 - Total: 2'>            if (nodeType == Token.DEC) {
+</span><span class='bc' id='L2011' title='0|4|4 - Total: 4'>                incrDecrMask |= Node.DECR_FLAG;
+</span>            }
+<span class='bc' id='L2013' title='0|2|2 - Total: 2'>            if (post) {
+</span><span class='bc' id='L2014' title='0|4|4 - Total: 4'>                incrDecrMask |= Node.POST_FLAG;
+</span>            }
+<span class='bc' id='L2016' title='0|4|4 - Total: 4'>            n.putIntProp(Node.INCRDECR_PROP, incrDecrMask);
+</span><span class='bc' id='L2017' title='0|2|2 - Total: 2'>            return n;
+</span>          }
+        }
+<span class='nc' id='L2020' title='0|0|0 - Total: 2'>        throw Kit.codeBug();
+</span>    }
+
+    private Node createPropertyGet(Node target, String namespace, String name,
+                                   int memberTypeFlags)
+    {
+<span class='bc' id='L2026' title='0|4|4 - Total: 4'>        if (namespace == null && memberTypeFlags == 0) {
+</span><span class='bpc' id='L2027' title='0|1|1 - Total: 2'>            if (target == null) {
+</span><span class='nc' id='L2028' title='0|0|0 - Total: 4'>                return createName(name);
+</span>            }
+<span class='bc' id='L2030' title='0|4|4 - Total: 4'>            checkActivationName(name, Token.GETPROP);
+</span><span class='bc' id='L2031' title='0|2|2 - Total: 2'>            if (ScriptRuntime.isSpecialProperty(name)) {
+</span><span class='bc' id='L2032' title='0|6|6 - Total: 6'>                Node ref = new Node(Token.REF_SPECIAL, target);
+</span><span class='bc' id='L2033' title='0|4|4 - Total: 4'>                ref.putProp(Node.NAME_PROP, name);
+</span><span class='bc' id='L2034' title='0|6|6 - Total: 6'>                return new Node(Token.GET_REF, ref);
+</span>            }
+<span class='bc' id='L2036' title='0|8|8 - Total: 8'>            return new Node(Token.GETPROP, target, Node.newString(name));
+</span>        }
+<span class='bc' id='L2038' title='0|3|3 - Total: 3'>        Node elem = Node.newString(name);
+</span><span class='bc' id='L2039' title='0|4|4 - Total: 4'>        memberTypeFlags |= Node.PROPERTY_FLAG;
+</span><span class='bc' id='L2040' title='0|7|7 - Total: 7'>        return createMemberRefGet(target, namespace, elem, memberTypeFlags);
+</span>    }
+
+    /**
+     * @param target the node before the LB
+     * @param namespace optional namespace
+     * @param elem the node in the brackets
+     * @param memberTypeFlags E4X flags
+     */
+    private Node createElementGet(Node target, String namespace, Node elem,
+                                  int memberTypeFlags)
+    {
+        // OPT: could optimize to createPropertyGet
+        // iff elem is string that can not be number
+<span class='bpc' id='L2054' title='0|3|3 - Total: 4'>        if (namespace == null && memberTypeFlags == 0) {
+</span>            // stand-alone [aaa] as primary expression is array literal
+            // declaration and should not come here!
+<span class='nc' id='L2057' title='0|0|0 - Total: 2'>            if (target == null) throw Kit.codeBug();
+</span><span class='nc' id='L2058' title='0|0|0 - Total: 7'>            return new Node(Token.GETELEM, target, elem);
+</span>        }
+<span class='bc' id='L2060' title='0|7|7 - Total: 7'>        return createMemberRefGet(target, namespace, elem, memberTypeFlags);
+</span>    }
+
+    private Node createMemberRefGet(Node target, String namespace, Node elem,
+                                    int memberTypeFlags)
+    {
+<span class='bc' id='L2066' title='0|2|2 - Total: 2'>        Node nsNode = null;
+</span><span class='bc' id='L2067' title='0|2|2 - Total: 2'>        if (namespace != null) {
+</span>            // See 11.1.2 in ECMA 357
+<span class='bc' id='L2069' title='0|2|2 - Total: 2'>            if (namespace.equals("*")) {
+</span><span class='bc' id='L2070' title='0|6|6 - Total: 6'>                nsNode = new Node(Token.NULL);
+</span>            } else {
+<span class='bc' id='L2072' title='0|4|4 - Total: 4'>                nsNode = createName(namespace);
+</span>            }
+        }
+        Node ref;
+<span class='bc' id='L2076' title='0|2|2 - Total: 2'>        if (target == null) {
+</span><span class='bc' id='L2077' title='0|2|2 - Total: 2'>            if (namespace == null) {
+</span><span class='bc' id='L2078' title='0|7|7 - Total: 7'>                ref = new Node(Token.REF_NAME, elem);
+</span>            } else {
+<span class='bc' id='L2080' title='0|8|8 - Total: 8'>                ref = new Node(Token.REF_NS_NAME, nsNode, elem);
+</span>            }
+        } else {
+<span class='bc' id='L2083' title='0|2|2 - Total: 2'>            if (namespace == null) {
+</span><span class='bc' id='L2084' title='0|8|8 - Total: 8'>                ref = new Node(Token.REF_MEMBER, target, elem);
+</span>            } else {
+<span class='bc' id='L2086' title='0|8|8 - Total: 8'>                ref = new Node(Token.REF_NS_MEMBER, target, nsNode, elem);
+</span>            }
+        }
+<span class='bc' id='L2089' title='0|2|2 - Total: 2'>        if (memberTypeFlags != 0) {
+</span><span class='bc' id='L2090' title='0|4|4 - Total: 4'>            ref.putIntProp(Node.MEMBER_TYPE_PROP, memberTypeFlags);
+</span>        }
+<span class='bc' id='L2092' title='0|6|6 - Total: 6'>        return new Node(Token.GET_REF, ref);
+</span>    }
+
+    private Node createBinary(int nodeType, Node left, Node right) {
+<span class='bc' id='L2096' title='0|7|7 - Total: 7'>        switch (nodeType) {
+</span>
+          case Token.ADD:
+            // numerical addition and string concatenation
+<span class='bc' id='L2100' title='0|2|2 - Total: 2'>            if (left.type == Token.STRING) {
+</span>                String s2;
+<span class='bc' id='L2102' title='0|2|2 - Total: 2'>                if (right.type == Token.STRING) {
+</span><span class='bc' id='L2103' title='0|4|4 - Total: 4'>                    s2 = right.getString();
+</span><span class='bc' id='L2104' title='0|2|2 - Total: 2'>                } else if (right.type == Token.NUMBER) {
+</span><span class='bc' id='L2105' title='0|5|5 - Total: 5'>                    s2 = ScriptRuntime.numberToString(right.getDouble(), 10);
+</span>                } else {
+                    break;
+                }
+<span class='bc' id='L2109' title='0|3|3 - Total: 3'>                String s1 = left.getString();
+</span><span class='bc' id='L2110' title='0|5|5 - Total: 5'>                left.setString(s1.concat(s2));
+</span><span class='bc' id='L2111' title='0|2|2 - Total: 2'>                return left;
+</span><span class='bc' id='L2112' title='0|2|2 - Total: 2'>            } else if (left.type == Token.NUMBER) {
+</span><span class='bc' id='L2113' title='0|2|2 - Total: 2'>                if (right.type == Token.NUMBER) {
+</span><span class='bc' id='L2114' title='0|7|7 - Total: 7'>                    left.setDouble(left.getDouble() + right.getDouble());
+</span><span class='bc' id='L2115' title='0|2|2 - Total: 2'>                    return left;
+</span><span class='bc' id='L2116' title='0|2|2 - Total: 2'>                } else if (right.type == Token.STRING) {
+</span>                    String s1, s2;
+<span class='bc' id='L2118' title='0|5|5 - Total: 5'>                    s1 = ScriptRuntime.numberToString(left.getDouble(), 10);
+</span><span class='bc' id='L2119' title='0|3|3 - Total: 3'>                    s2 = right.getString();
+</span><span class='bc' id='L2120' title='0|5|5 - Total: 5'>                    right.setString(s1.concat(s2));
+</span><span class='bc' id='L2121' title='0|2|2 - Total: 2'>                    return right;
+</span>                }
+            }
+            // can't do anything if we don't know  both types - since
+            // 0 + object is supposed to call toString on the object and do
+            // string concantenation rather than addition
+            break;
+
+          case Token.SUB:
+            // numerical subtraction
+<span class='bc' id='L2131' title='0|2|2 - Total: 2'>            if (left.type == Token.NUMBER) {
+</span><span class='bc' id='L2132' title='0|3|3 - Total: 3'>                double ld = left.getDouble();
+</span><span class='bc' id='L2133' title='0|2|2 - Total: 2'>                if (right.type == Token.NUMBER) {
+</span>                    //both numbers
+<span class='bc' id='L2135' title='0|6|6 - Total: 6'>                    left.setDouble(ld - right.getDouble());
+</span><span class='bc' id='L2136' title='0|2|2 - Total: 2'>                    return left;
+</span><span class='bpc' id='L2137' title='0|1|1 - Total: 2'>                } else if (ld == 0.0) {
+</span>                    // first 0: 0-x -> -x
+<span class='nc' id='L2139' title='0|0|0 - Total: 6'>                    return new Node(Token.NEG, right);
+</span>                }
+<span class='bc' id='L2141' title='0|2|2 - Total: 2'>            } else if (right.type == Token.NUMBER) {
+</span><span class='bpc' id='L2142' title='0|1|1 - Total: 2'>                if (right.getDouble() == 0.0) {
+</span>                    //second 0: x - 0 -> +x
+                    // can not make simply x because x - 0 must be number
+<span class='nc' id='L2145' title='0|0|0 - Total: 6'>                    return new Node(Token.POS, left);
+</span>                }
+            }
+            break;
+
+          case Token.MUL:
+            // numerical multiplication
+<span class='bc' id='L2152' title='0|2|2 - Total: 2'>            if (left.type == Token.NUMBER) {
+</span><span class='bc' id='L2153' title='0|3|3 - Total: 3'>                double ld = left.getDouble();
+</span><span class='bc' id='L2154' title='0|2|2 - Total: 2'>                if (right.type == Token.NUMBER) {
+</span>                    //both numbers
+<span class='bc' id='L2156' title='0|6|6 - Total: 6'>                    left.setDouble(ld * right.getDouble());
+</span><span class='bc' id='L2157' title='0|2|2 - Total: 2'>                    return left;
+</span><span class='bc' id='L2158' title='0|2|2 - Total: 2'>                } else if (ld == 1.0) {
+</span>                    // first 1: 1 *  x -> +x
+<span class='bc' id='L2160' title='0|6|6 - Total: 6'>                    return new Node(Token.POS, right);
+</span>                }
+<span class='bc' id='L2162' title='0|2|2 - Total: 2'>            } else if (right.type == Token.NUMBER) {
+</span><span class='bc' id='L2163' title='0|2|2 - Total: 2'>                if (right.getDouble() == 1.0) {
+</span>                    //second 1: x * 1 -> +x
+                    // can not make simply x because x - 0 must be number
+<span class='bc' id='L2166' title='0|6|6 - Total: 6'>                    return new Node(Token.POS, left);
+</span>                }
+            }
+            // can't do x*0: Infinity * 0 gives NaN, not 0
+            break;
+
+          case Token.DIV:
+            // number division
+<span class='bc' id='L2174' title='0|2|2 - Total: 2'>            if (right.type == Token.NUMBER) {
+</span><span class='bc' id='L2175' title='0|3|3 - Total: 3'>                double rd = right.getDouble();
+</span><span class='bc' id='L2176' title='0|2|2 - Total: 2'>                if (left.type == Token.NUMBER) {
+</span>                    // both constants -- just divide, trust Java to handle x/0
+<span class='bc' id='L2178' title='0|6|6 - Total: 6'>                    left.setDouble(left.getDouble() / rd);
+</span><span class='bc' id='L2179' title='0|2|2 - Total: 2'>                    return left;
+</span><span class='bc' id='L2180' title='0|2|2 - Total: 2'>               } else if (rd == 1.0) {
+</span>                    // second 1: x/1 -> +x
+                    // not simply x to force number convertion
+<span class='bc' id='L2183' title='0|6|6 - Total: 6'>                    return new Node(Token.POS, left);
+</span>                }
+<span class='bc' id='L2185' title='0|1|1 - Total: 1'>            }
+</span>            break;
+
+          case Token.AND: {
+            // Since x && y gives x, not false, when Boolean(x) is false,
+            // and y, not Boolean(y), when Boolean(x) is true, x && y
+            // can only be simplified if x is defined. See bug 309957.
+
+<span class='bc' id='L2193' title='0|3|3 - Total: 3'>            int leftStatus = isAlwaysDefinedBoolean(left);
+</span><span class='bc' id='L2194' title='0|2|2 - Total: 2'>            if (leftStatus == ALWAYS_FALSE_BOOLEAN) {
+</span>                // if the first one is false, just return it
+<span class='bc' id='L2196' title='0|2|2 - Total: 2'>                return left;
+</span><span class='bc' id='L2197' title='0|2|2 - Total: 2'>            } else if (leftStatus == ALWAYS_TRUE_BOOLEAN) {
+</span>                // if first is true, set to second
+<span class='bc' id='L2199' title='0|2|2 - Total: 2'>                return right;
+</span>            }
+            break;
+          }
+
+          case Token.OR: {
+            // Since x || y gives x, not true, when Boolean(x) is true,
+            // and y, not Boolean(y), when Boolean(x) is false, x || y
+            // can only be simplified if x is defined. See bug 309957.
+
+<span class='bc' id='L2209' title='0|3|3 - Total: 3'>            int leftStatus = isAlwaysDefinedBoolean(left);
+</span><span class='bc' id='L2210' title='0|2|2 - Total: 2'>            if (leftStatus == ALWAYS_TRUE_BOOLEAN) {
+</span>                // if the first one is true, just return it
+<span class='bc' id='L2212' title='0|2|2 - Total: 2'>                return left;
+</span><span class='bc' id='L2213' title='0|2|2 - Total: 2'>            } else if (leftStatus == ALWAYS_FALSE_BOOLEAN) {
+</span>                // if first is false, set to second
+<span class='bc' id='L2215' title='0|2|2 - Total: 2'>                return right;
+</span>            }
+            break;
+          }
+        }
+
+<span class='bc' id='L2221' title='0|7|7 - Total: 7'>        return new Node(nodeType, left, right);
+</span>    }
+
+    private Node createAssignment(int assignType, Node left, Node right)
+    {
+<span class='bc' id='L2226' title='0|4|4 - Total: 4'>        Node ref = makeReference(left);
+</span><span class='bc' id='L2227' title='0|2|2 - Total: 2'>        if (ref == null) {
+</span><span class='bc' id='L2228' title='0|2|2 - Total: 2'>            if (left.getType() == Token.ARRAYLIT ||
+</span><span class='bpc' id='L2229' title='0|1|1 - Total: 2'>                left.getType() == Token.OBJECTLIT)
+</span>            {
+<span class='bpc' id='L2231' title='0|1|1 - Total: 2'>                if (assignType != Token.ASSIGN) {
+</span><span class='nc' id='L2232' title='0|0|0 - Total: 3'>                    reportError("msg.bad.destruct.op");
+</span><span class='nc' id='L2233' title='0|0|0 - Total: 2'>                    return right;
+</span>                }
+<span class='bc' id='L2235' title='0|6|6 - Total: 6'>                return createDestructuringAssignment(-1, left, right);
+</span>            }
+<span class='nc' id='L2237' title='0|0|0 - Total: 3'>            reportError("msg.bad.assign.left");
+</span><span class='nc' id='L2238' title='0|0|0 - Total: 2'>            return right;
+</span>        }
+<span class='bc' id='L2240' title='0|2|2 - Total: 2'>        left = ref;
+</span>
+        int assignOp;
+<span class='bpc' id='L2243' title='0|12|12 - Total: 13'>        switch (assignType) {
+</span>          case Token.ASSIGN:
+<span class='bc' id='L2245' title='0|5|5 - Total: 5'>            return simpleAssignment(left, right);
+</span><span class='bc' id='L2246' title='0|3|3 - Total: 3'>          case Token.ASSIGN_BITOR:  assignOp = Token.BITOR;  break;
+</span><span class='bc' id='L2247' title='0|3|3 - Total: 3'>          case Token.ASSIGN_BITXOR: assignOp = Token.BITXOR; break;
+</span><span class='bc' id='L2248' title='0|3|3 - Total: 3'>          case Token.ASSIGN_BITAND: assignOp = Token.BITAND; break;
+</span><span class='bc' id='L2249' title='0|3|3 - Total: 3'>          case Token.ASSIGN_LSH:    assignOp = Token.LSH;    break;
+</span><span class='bc' id='L2250' title='0|3|3 - Total: 3'>          case Token.ASSIGN_RSH:    assignOp = Token.RSH;    break;
+</span><span class='bc' id='L2251' title='0|3|3 - Total: 3'>          case Token.ASSIGN_URSH:   assignOp = Token.URSH;   break;
+</span><span class='bc' id='L2252' title='0|3|3 - Total: 3'>          case Token.ASSIGN_ADD:    assignOp = Token.ADD;    break;
+</span><span class='bc' id='L2253' title='0|3|3 - Total: 3'>          case Token.ASSIGN_SUB:    assignOp = Token.SUB;    break;
+</span><span class='bc' id='L2254' title='0|3|3 - Total: 3'>          case Token.ASSIGN_MUL:    assignOp = Token.MUL;    break;
+</span><span class='bc' id='L2255' title='0|3|3 - Total: 3'>          case Token.ASSIGN_DIV:    assignOp = Token.DIV;    break;
+</span><span class='bc' id='L2256' title='0|3|3 - Total: 3'>          case Token.ASSIGN_MOD:    assignOp = Token.MOD;    break;
+</span><span class='nc' id='L2257' title='0|0|0 - Total: 2'>          default: throw Kit.codeBug();
+</span>        }
+
+<span class='bc' id='L2260' title='0|3|3 - Total: 3'>        int nodeType = left.getType();
+</span><span class='bpc' id='L2261' title='0|3|3 - Total: 4'>        switch (nodeType) {
+</span>          case Token.NAME: {
+<span class='bc' id='L2263' title='0|7|7 - Total: 7'>            Node op = new Node(assignOp, left, right);
+</span><span class='bc' id='L2264' title='0|5|5 - Total: 5'>            Node lvalueLeft = Node.newString(Token.BINDNAME, left.getString());
+</span><span class='bc' id='L2265' title='0|7|7 - Total: 7'>            return new Node(Token.SETNAME, lvalueLeft, op);
+</span>          }
+          case Token.GETPROP:
+          case Token.GETELEM: {
+<span class='bc' id='L2269' title='0|3|3 - Total: 3'>            Node obj = left.getFirstChild();
+</span><span class='bc' id='L2270' title='0|3|3 - Total: 3'>            Node id = left.getLastChild();
+</span>
+<span class='bc' id='L2272' title='0|2|2 - Total: 2'>            int type = nodeType == Token.GETPROP
+</span>                       ? Token.SETPROP_OP
+                       : Token.SETELEM_OP;
+
+<span class='bc' id='L2276' title='0|5|5 - Total: 5'>            Node opLeft = new Node(Token.USE_STACK);
+</span><span class='bc' id='L2277' title='0|7|7 - Total: 7'>            Node op = new Node(assignOp, opLeft, right);
+</span><span class='bc' id='L2278' title='0|8|8 - Total: 8'>            return new Node(type, obj, id, op);
+</span>          }
+          case Token.GET_REF: {
+<span class='bc' id='L2281' title='0|3|3 - Total: 3'>            ref = left.getFirstChild();
+</span><span class='nc' id='L2282' title='0|0|0 - Total: 3'>            checkMutableReference(ref);
+</span><span class='nc' id='L2283' title='0|0|0 - Total: 5'>            Node opLeft = new Node(Token.USE_STACK);
+</span><span class='nc' id='L2284' title='0|0|0 - Total: 7'>            Node op = new Node(assignOp, opLeft, right);
+</span><span class='nc' id='L2285' title='0|0|0 - Total: 7'>            return new Node(Token.SET_REF_OP, ref, op);
+</span>          }
+        }
+
+<span class='nc' id='L2289' title='0|0|0 - Total: 2'>        throw Kit.codeBug();
+</span>    }
+
+    private Node createUseLocal(Node localBlock) {
+<span class='bpc' id='L2293' title='0|1|1 - Total: 2'>        if (Token.LOCAL_BLOCK != localBlock.getType()) throw Kit.codeBug();
+</span><span class='bc' id='L2294' title='0|5|5 - Total: 5'>        Node result = new Node(Token.LOCAL_LOAD);
+</span><span class='bc' id='L2295' title='0|4|4 - Total: 4'>        result.putProp(Node.LOCAL_BLOCK_PROP, localBlock);
+</span><span class='bc' id='L2296' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private Jump makeJump(int type, Node target) {
+<span class='bc' id='L2300' title='0|5|5 - Total: 5'>        Jump n = new Jump(type);
+</span><span class='bc' id='L2301' title='0|3|3 - Total: 3'>        n.target = target;
+</span><span class='bc' id='L2302' title='0|2|2 - Total: 2'>        return n;
+</span>    }
+
+    private Node makeReference(Node node) {
+<span class='bc' id='L2306' title='0|3|3 - Total: 3'>        int type = node.getType();
+</span><span class='bc' id='L2307' title='0|3|3 - Total: 3'>        switch (type) {
+</span>          case Token.NAME:
+          case Token.GETPROP:
+          case Token.GETELEM:
+          case Token.GET_REF:
+<span class='bc' id='L2312' title='0|2|2 - Total: 2'>            return node;
+</span>          case Token.CALL:
+<span class='bc' id='L2314' title='0|4|4 - Total: 4'>            node.setType(Token.REF_CALL);
+</span><span class='bc' id='L2315' title='0|6|6 - Total: 6'>            return new Node(Token.GET_REF, node);
+</span>        }
+        // Signal caller to report error
+<span class='bc' id='L2318' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    // Check if Node always mean true or false in boolean context
+    private static int isAlwaysDefinedBoolean(Node node) {
+<span class='bc' id='L2323' title='0|4|4 - Total: 4'>        switch (node.getType()) {
+</span>          case Token.FALSE:
+          case Token.NULL:
+<span class='bc' id='L2326' title='0|2|2 - Total: 2'>            return ALWAYS_FALSE_BOOLEAN;
+</span>          case Token.TRUE:
+<span class='bc' id='L2328' title='0|2|2 - Total: 2'>            return ALWAYS_TRUE_BOOLEAN;
+</span>          case Token.NUMBER: {
+<span class='bc' id='L2330' title='0|3|3 - Total: 3'>            double num = node.getDouble();
+</span><span class='bc' id='L2331' title='0|4|4 - Total: 4'>            if (num == num && num != 0.0) {
+</span><span class='bc' id='L2332' title='0|2|2 - Total: 2'>                return ALWAYS_TRUE_BOOLEAN;
+</span>            } else {
+<span class='bc' id='L2334' title='0|2|2 - Total: 2'>                return ALWAYS_FALSE_BOOLEAN;
+</span>            }
+          }
+        }
+<span class='bc' id='L2338' title='0|2|2 - Total: 2'>        return 0;
+</span>    }
+
+    // Check if node is the target of a destructuring bind.
+    boolean isDestructuring(Node n) {
+<span class='bc' id='L2343' title='0|2|2 - Total: 2'>        return n instanceof DestructuringForm
+</span><span class='bpc' id='L2344' title='0|1|1 - Total: 2'>            && ((DestructuringForm)n).isDestructuring();
+</span>    }
+
+    Node decompileFunctionHeader(FunctionNode fn) {
+<span class='bc' id='L2348' title='0|2|2 - Total: 2'>        Node mexpr = null;
+</span><span class='bc' id='L2349' title='0|2|2 - Total: 2'>        if (fn.getFunctionName() != null) {
+</span><span class='bc' id='L2350' title='0|6|6 - Total: 6'>            decompiler.addName(fn.getName());
+</span><span class='bpc' id='L2351' title='0|1|1 - Total: 2'>        } else if (fn.getMemberExprNode() != null) {
+</span><span class='nc' id='L2352' title='0|0|0 - Total: 5'>            mexpr = transform(fn.getMemberExprNode());
+</span>        }
+<span class='bc' id='L2354' title='0|2|2 - Total: 2'>        boolean isArrow = fn.getFunctionType() == FunctionNode.ARROW_FUNCTION;
+</span><span class='bc' id='L2355' title='0|4|4 - Total: 4'>        boolean noParen = isArrow && fn.getLp() == -1;
+</span><span class='bc' id='L2356' title='0|2|2 - Total: 2'>        if (!noParen) {
+</span><span class='bc' id='L2357' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.LP);
+</span>        }
+<span class='bc' id='L2359' title='0|3|3 - Total: 3'>        List<AstNode> params = fn.getParams();
+</span><span class='bc' id='L2360' title='0|2|2 - Total: 2'>        for (int i = 0; i < params.size(); i++) {
+</span><span class='bc' id='L2361' title='0|6|6 - Total: 6'>            decompile(params.get(i));
+</span><span class='bc' id='L2362' title='0|2|2 - Total: 2'>            if (i < params.size() - 1) {
+</span><span class='bc' id='L2363' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+        }
+<span class='bc' id='L2366' title='0|2|2 - Total: 2'>        if (!noParen) {
+</span><span class='bc' id='L2367' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.RP);
+</span>        }
+<span class='bc' id='L2369' title='0|2|2 - Total: 2'>        if (isArrow) {
+</span><span class='bc' id='L2370' title='0|4|4 - Total: 4'>            decompiler.addToken(Token.ARROW);
+</span>        }
+<span class='bc' id='L2372' title='0|2|2 - Total: 2'>        if (!fn.isExpressionClosure()) {
+</span><span class='bc' id='L2373' title='0|4|4 - Total: 4'>            decompiler.addEOL(Token.LC);
+</span>        }
+<span class='bc' id='L2375' title='0|2|2 - Total: 2'>        return mexpr;
+</span>    }
+
+    void decompile(AstNode node) {
+<span class='bpc' id='L2379' title='0|7|7 - Total: 10'>        switch (node.getType()) {
+</span>          case Token.ARRAYLIT:
+<span class='bc' id='L2381' title='0|4|4 - Total: 4'>              decompileArrayLiteral((ArrayLiteral)node);
+</span><span class='bc' id='L2382' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.OBJECTLIT:
+<span class='bc' id='L2384' title='0|4|4 - Total: 4'>              decompileObjectLiteral((ObjectLiteral)node);
+</span><span class='bc' id='L2385' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.STRING:
+<span class='nc' id='L2387' title='0|0|0 - Total: 6'>              decompiler.addString(((StringLiteral)node).getValue());
+</span><span class='nc' id='L2388' title='0|0|0 - Total: 1'>              break;
+</span>          case Token.NAME:
+<span class='bc' id='L2390' title='0|6|6 - Total: 6'>              decompiler.addName(((Name)node).getIdentifier());
+</span><span class='bc' id='L2391' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.NUMBER:
+<span class='bc' id='L2393' title='0|6|6 - Total: 6'>              decompiler.addNumber(((NumberLiteral)node).getNumber());
+</span><span class='bc' id='L2394' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.GETPROP:
+<span class='bc' id='L2396' title='0|4|4 - Total: 4'>              decompilePropertyGet((PropertyGet)node);
+</span><span class='bc' id='L2397' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.EMPTY:
+<span class='bc' id='L2399' title='0|1|1 - Total: 1'>              break;
+</span>          case Token.GETELEM:
+<span class='nc' id='L2401' title='0|0|0 - Total: 4'>              decompileElementGet((ElementGet) node);
+</span><span class='nc' id='L2402' title='0|0|0 - Total: 1'>              break;
+</span>          case Token.THIS:
+<span class='bc' id='L2404' title='0|5|5 - Total: 5'>              decompiler.addToken(node.getType());
+</span><span class='bc' id='L2405' title='0|1|1 - Total: 1'>              break;
+</span>          default:
+<span class='nc' id='L2407' title='0|0|0 - Total: 8'>              Kit.codeBug("unexpected token: "
+</span><span class='nc' id='L2408' title='0|0|0 - Total: 4'>                          + Token.typeToName(node.getType()));
+</span>        }
+<span class='bc' id='L2410' title='0|1|1 - Total: 1'>    }
+</span>
+    // used for destructuring forms, since we don't transform() them
+    void decompileArrayLiteral(ArrayLiteral node) {
+<span class='bc' id='L2414' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LB);
+</span><span class='bc' id='L2415' title='0|3|3 - Total: 3'>        List<AstNode> elems = node.getElements();
+</span><span class='bc' id='L2416' title='0|3|3 - Total: 3'>        int size = elems.size();
+</span><span class='bc' id='L2417' title='0|2|2 - Total: 2'>        for (int i = 0; i < size; i++) {
+</span><span class='bc' id='L2418' title='0|5|5 - Total: 5'>            AstNode elem = elems.get(i);
+</span><span class='bc' id='L2419' title='0|3|3 - Total: 3'>            decompile(elem);
+</span><span class='bc' id='L2420' title='0|2|2 - Total: 2'>            if (i < size - 1) {
+</span><span class='bc' id='L2421' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+        }
+<span class='bc' id='L2424' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RB);
+</span><span class='bc' id='L2425' title='0|1|1 - Total: 1'>    }
+</span>
+    // only used for destructuring forms
+    void decompileObjectLiteral(ObjectLiteral node) {
+<span class='bc' id='L2429' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.LC);
+</span><span class='bc' id='L2430' title='0|3|3 - Total: 3'>        List<ObjectProperty> props = node.getElements();
+</span><span class='bc' id='L2431' title='0|3|3 - Total: 3'>        int size = props.size();
+</span><span class='bc' id='L2432' title='0|2|2 - Total: 2'>        for (int i = 0; i < size; i++) {
+</span><span class='bc' id='L2433' title='0|5|5 - Total: 5'>            ObjectProperty prop = props.get(i);
+</span><span class='bc' id='L2434' title='0|3|3 - Total: 3'>            boolean destructuringShorthand =
+</span><span class='bc' id='L2435' title='0|3|3 - Total: 3'>                    Boolean.TRUE.equals(prop.getProp(Node.DESTRUCTURING_SHORTHAND));
+</span><span class='bc' id='L2436' title='0|4|4 - Total: 4'>            decompile(prop.getLeft());
+</span><span class='bc' id='L2437' title='0|2|2 - Total: 2'>            if (!destructuringShorthand) {
+</span><span class='bc' id='L2438' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COLON);
+</span><span class='bc' id='L2439' title='0|4|4 - Total: 4'>                decompile(prop.getRight());
+</span>            }
+<span class='bc' id='L2441' title='0|2|2 - Total: 2'>            if (i < size - 1) {
+</span><span class='bc' id='L2442' title='0|4|4 - Total: 4'>                decompiler.addToken(Token.COMMA);
+</span>            }
+        }
+<span class='bc' id='L2445' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.RC);
+</span><span class='bc' id='L2446' title='0|1|1 - Total: 1'>    }
+</span>
+    // only used for destructuring forms
+    void decompilePropertyGet(PropertyGet node) {
+<span class='bc' id='L2450' title='0|4|4 - Total: 4'>        decompile(node.getTarget());
+</span><span class='bc' id='L2451' title='0|4|4 - Total: 4'>        decompiler.addToken(Token.DOT);
+</span><span class='bc' id='L2452' title='0|4|4 - Total: 4'>        decompile(node.getProperty());
+</span><span class='bc' id='L2453' title='0|1|1 - Total: 1'>    }
+</span>
+    // only used for destructuring forms
+    void decompileElementGet(ElementGet node) {
+<span class='nc' id='L2457' title='0|0|0 - Total: 4'>        decompile(node.getTarget());
+</span><span class='nc' id='L2458' title='0|0|0 - Total: 4'>        decompiler.addToken(Token.LB);
+</span><span class='nc' id='L2459' title='0|0|0 - Total: 4'>        decompile(node.getElement());
+</span><span class='nc' id='L2460' title='0|0|0 - Total: 4'>        decompiler.addToken(Token.RB);
+</span><span class='nc' id='L2461' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

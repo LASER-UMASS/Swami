@@ -1,0 +1,183 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ArrayComprehension.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ArrayComprehension.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * AST node for a JavaScript 1.7 Array comprehension.
+ * Node type is {@link Token#ARRAYCOMP}.<p>
+ */
+public class ArrayComprehension extends Scope {
+
+    private AstNode result;
+<span class='upc' id='L21' title='5|5|5 - Total: 15'>    private List<ArrayComprehensionLoop> loops =
+</span>        new ArrayList<ArrayComprehensionLoop>();
+    private AstNode filter;
+<span class='upc' id='L24' title='3|3|3 - Total: 9'>    private int ifPosition = -1;
+</span><span class='upc' id='L25' title='3|3|3 - Total: 9'>    private int lp = -1;
+</span><span class='upc' id='L26' title='3|3|3 - Total: 9'>    private int rp = -1;
+</span>
+    {
+<span class='upc' id='L29' title='3|3|3 - Total: 9'>        type = Token.ARRAYCOMP;
+</span>    }
+
+<span class='nc' id='L32' title='0|0|0 - Total: 2'>    public ArrayComprehension() {
+</span><span class='nc' id='L33' title='0|0|0 - Total: 1'>    }
+</span>
+    public ArrayComprehension(int pos) {
+<span class='nc' id='L36' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L37' title='0|0|0 - Total: 1'>    }
+</span>
+    public ArrayComprehension(int pos, int len) {
+<span class='uc' id='L40' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L41' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns result expression node (just after opening bracket)
+     */
+    public AstNode getResult() {
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>        return result;
+</span>    }
+
+    /**
+     * Sets result expression, and sets its parent to this node.
+     * @throws IllegalArgumentException if result is {@code null}
+     */
+    public void setResult(AstNode result) {
+<span class='uc' id='L55' title='3|3|3 - Total: 3'>        assertNotNull(result);
+</span><span class='uc' id='L56' title='3|3|3 - Total: 3'>        this.result = result;
+</span><span class='uc' id='L57' title='3|3|3 - Total: 3'>        result.setParent(this);
+</span><span class='uc' id='L58' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns loop list
+     */
+    public List<ArrayComprehensionLoop> getLoops() {
+<span class='uc' id='L64' title='3|3|3 - Total: 3'>        return loops;
+</span>    }
+
+    /**
+     * Sets loop list
+     * @throws IllegalArgumentException if loops is {@code null}
+     */
+    public void setLoops(List<ArrayComprehensionLoop> loops) {
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        assertNotNull(loops);
+</span><span class='uc' id='L73' title='3|3|3 - Total: 3'>        this.loops.clear();
+</span><span class='uc' id='L74' title='2|2|2 - Total: 2'>        for (ArrayComprehensionLoop acl : loops) {
+</span><span class='uc' id='L75' title='3|3|3 - Total: 3'>            addLoop(acl);
+</span><span class='uc' id='L76' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L77' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Adds a child loop node, and sets its parent to this node.
+     * @throws IllegalArgumentException if acl is {@code null}
+     */
+    public void addLoop(ArrayComprehensionLoop acl) {
+<span class='uc' id='L84' title='3|3|3 - Total: 3'>        assertNotNull(acl);
+</span><span class='uc' id='L85' title='5|5|5 - Total: 5'>        loops.add(acl);
+</span><span class='uc' id='L86' title='3|3|3 - Total: 3'>        acl.setParent(this);
+</span><span class='uc' id='L87' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns filter expression, or {@code null} if not present
+     */
+    public AstNode getFilter() {
+<span class='uc' id='L93' title='3|3|3 - Total: 3'>        return filter;
+</span>    }
+
+    /**
+     * Sets filter expression, and sets its parent to this node.
+     * Can be {@code null}.
+     */
+    public void setFilter(AstNode filter) {
+<span class='uc' id='L101' title='3|3|3 - Total: 3'>        this.filter = filter;
+</span><span class='upc' id='L102' title='1|1|1 - Total: 2'>        if (filter != null)
+</span><span class='uc' id='L103' title='3|3|3 - Total: 3'>            filter.setParent(this);
+</span><span class='uc' id='L104' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of 'if' keyword, -1 if not present
+     */
+    public int getIfPosition() {
+<span class='nc' id='L110' title='0|0|0 - Total: 3'>        return ifPosition;
+</span>    }
+
+    /**
+     * Sets position of 'if' keyword
+     */
+    public void setIfPosition(int ifPosition) {
+<span class='uc' id='L117' title='3|3|3 - Total: 3'>        this.ifPosition = ifPosition;
+</span><span class='uc' id='L118' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns filter left paren position, or -1 if no filter
+     */
+    public int getFilterLp() {
+<span class='nc' id='L124' title='0|0|0 - Total: 3'>        return lp;
+</span>    }
+
+    /**
+     * Sets filter left paren position, or -1 if no filter
+     */
+    public void setFilterLp(int lp) {
+<span class='uc' id='L131' title='3|3|3 - Total: 3'>        this.lp = lp;
+</span><span class='uc' id='L132' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns filter right paren position, or -1 if no filter
+     */
+    public int getFilterRp() {
+<span class='nc' id='L138' title='0|0|0 - Total: 3'>        return rp;
+</span>    }
+
+    /**
+     * Sets filter right paren position, or -1 if no filter
+     */
+    public void setFilterRp(int rp) {
+<span class='uc' id='L145' title='3|3|3 - Total: 3'>        this.rp = rp;
+</span><span class='uc' id='L146' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L150' title='0|0|0 - Total: 5'>        StringBuilder sb = new StringBuilder(250);
+</span><span class='nc' id='L151' title='0|0|0 - Total: 4'>        sb.append("[");
+</span><span class='nc' id='L152' title='0|0|0 - Total: 7'>        sb.append(result.toSource(0));
+</span><span class='nc' id='L153' title='0|0|0 - Total: 2'>        for (ArrayComprehensionLoop loop : loops) {
+</span><span class='nc' id='L154' title='0|0|0 - Total: 6'>            sb.append(loop.toSource(0));
+</span><span class='nc' id='L155' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L156' title='0|0|0 - Total: 2'>        if (filter != null) {
+</span><span class='nc' id='L157' title='0|0|0 - Total: 4'>            sb.append(" if (");
+</span><span class='nc' id='L158' title='0|0|0 - Total: 7'>            sb.append(filter.toSource(0));
+</span><span class='nc' id='L159' title='0|0|0 - Total: 4'>            sb.append(")");
+</span>        }
+<span class='nc' id='L161' title='0|0|0 - Total: 4'>        sb.append("]");
+</span><span class='nc' id='L162' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, the result expression, the loops, and the optional
+     * filter.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L171' title='0|0|0 - Total: 2'>        if (!v.visit(this)) {
+</span><span class='nc' id='L172' title='0|0|0 - Total: 1'>            return;
+</span>        }
+<span class='nc' id='L174' title='0|0|0 - Total: 4'>        result.visit(v);
+</span><span class='nc' id='L175' title='0|0|0 - Total: 2'>        for (ArrayComprehensionLoop loop : loops) {
+</span><span class='nc' id='L176' title='0|0|0 - Total: 3'>            loop.visit(v);
+</span><span class='nc' id='L177' title='0|0|0 - Total: 1'>        }
+</span><span class='nc' id='L178' title='0|0|0 - Total: 2'>        if (filter != null) {
+</span><span class='nc' id='L179' title='0|0|0 - Total: 4'>            filter.visit(v);
+</span>        }
+<span class='nc' id='L181' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

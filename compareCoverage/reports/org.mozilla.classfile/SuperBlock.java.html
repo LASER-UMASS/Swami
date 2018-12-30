@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.classfile.SuperBlock.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.classfile.SuperBlock.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.classfile;
+
+/**
+ * A super block is defined as a contiguous chunk of code with a single entry
+ * point and multiple exit points (therefore ending in an unconditional jump
+ * or the end of the method). This is used to emulate OpenJDK's compiler, which
+ * outputs stack map frames at the start of every super block except the method
+ * start.
+ */
+final class SuperBlock {
+<span class='uc' id='L17' title='2|2|2 - Total: 2'>  SuperBlock(int index, int start, int end, int[] initialLocals) {
+</span><span class='uc' id='L18' title='3|3|3 - Total: 3'>    this.index = index;
+</span><span class='uc' id='L19' title='3|3|3 - Total: 3'>    this.start = start;
+</span><span class='uc' id='L20' title='3|3|3 - Total: 3'>    this.end = end;
+</span><span class='uc' id='L21' title='5|5|5 - Total: 5'>    locals = new int[initialLocals.length];
+</span><span class='uc' id='L22' title='8|8|8 - Total: 8'>    System.arraycopy(initialLocals, 0, locals, 0, initialLocals.length);
+</span><span class='uc' id='L23' title='4|4|4 - Total: 4'>    stack = new int[0];
+</span><span class='uc' id='L24' title='3|3|3 - Total: 3'>    isInitialized = false;
+</span><span class='uc' id='L25' title='3|3|3 - Total: 3'>    isInQueue = false;
+</span><span class='uc' id='L26' title='1|1|1 - Total: 1'>  }
+</span>
+  int getIndex() {
+<span class='uc' id='L29' title='3|3|3 - Total: 3'>    return index;
+</span>  }
+
+  int[] getLocals() {
+<span class='uc' id='L33' title='5|5|5 - Total: 5'>    int[] copy = new int[locals.length];
+</span><span class='uc' id='L34' title='9|9|9 - Total: 9'>    System.arraycopy(locals, 0, copy, 0, locals.length);
+</span><span class='uc' id='L35' title='2|2|2 - Total: 2'>    return copy;
+</span>  }
+
+  /**
+   * Get a copy of the super block's locals without any trailing TOP types.
+   *
+   * This is useful for actual writing stack maps; during the computation of
+   * stack map types, all local arrays have the same size; the max locals for
+   * the method. In addition, DOUBLE and LONG types have trailing TOP types
+   * because they occupy two words. For writing purposes, these are not
+   * useful.
+   */
+  int[] getTrimmedLocals() {
+<span class='uc' id='L48' title='6|6|6 - Total: 6'>    int last = locals.length - 1;
+</span>    // Exclude all of the trailing TOPs not bound to a DOUBLE/LONG
+<span class='uc' id='L50' title='4|4|4 - Total: 4'>    while (last >= 0 && locals[last] == TypeInfo.TOP &&
+</span><span class='uc' id='L51' title='2|2|2 - Total: 2'>        !TypeInfo.isTwoWords(locals[last - 1])) {
+</span><span class='uc' id='L52' title='2|2|2 - Total: 2'>      last--;
+</span>    }
+<span class='uc' id='L54' title='1|1|1 - Total: 1'>    last++;
+</span>    // Exclude trailing TOPs following a DOUBLE/LONG
+<span class='uc' id='L56' title='2|2|2 - Total: 2'>    int size = last;
+</span><span class='uc' id='L57' title='2|2|2 - Total: 2'>    for (int i = 0; i < last; i++) {
+</span><span class='uc' id='L58' title='2|2|2 - Total: 2'>      if (TypeInfo.isTwoWords(locals[i])) {
+</span><span class='uc' id='L59' title='1|1|1 - Total: 1'>        size--;
+</span>      }
+    }
+<span class='uc' id='L62' title='3|3|3 - Total: 3'>    int[] copy = new int[size];
+</span><span class='uc' id='L63' title='2|2|2 - Total: 2'>    for (int i = 0, j = 0; i < size; i++, j++) {
+</span><span class='uc' id='L64' title='7|7|7 - Total: 7'>      copy[i] = locals[j];
+</span><span class='uc' id='L65' title='2|2|2 - Total: 2'>      if (TypeInfo.isTwoWords(locals[j])) {
+</span><span class='uc' id='L66' title='1|1|1 - Total: 1'>        j++;
+</span>      }
+    }
+<span class='uc' id='L69' title='2|2|2 - Total: 2'>    return copy;
+</span>  }
+
+  int[] getStack() {
+<span class='uc' id='L73' title='5|5|5 - Total: 5'>    int[] copy = new int[stack.length];
+</span><span class='uc' id='L74' title='9|9|9 - Total: 9'>    System.arraycopy(stack, 0, copy, 0, stack.length);
+</span><span class='uc' id='L75' title='2|2|2 - Total: 2'>    return copy;
+</span>  }
+
+  boolean merge(int[] locals, int localsTop, int[] stack, int stackTop,
+      ConstantPool pool) {
+<span class='uc' id='L80' title='2|2|2 - Total: 2'>    if (!isInitialized) {
+</span><span class='uc' id='L81' title='7|7|7 - Total: 7'>      System.arraycopy(locals, 0, this.locals, 0, localsTop);
+</span><span class='uc' id='L82' title='4|4|4 - Total: 4'>      this.stack = new int[stackTop];
+</span><span class='uc' id='L83' title='7|7|7 - Total: 7'>      System.arraycopy(stack, 0, this.stack, 0, stackTop);
+</span><span class='uc' id='L84' title='3|3|3 - Total: 3'>      isInitialized = true;
+</span><span class='uc' id='L85' title='2|2|2 - Total: 2'>      return true;
+</span><span class='upc' id='L86' title='2|2|2 - Total: 4'>    } else if (this.locals.length == localsTop &&
+</span>        this.stack.length == stackTop) {
+<span class='uc' id='L88' title='8|8|8 - Total: 8'>      boolean localsChanged = mergeState(this.locals, locals, localsTop,
+</span>          pool);
+<span class='uc' id='L90' title='8|8|8 - Total: 8'>      boolean stackChanged = mergeState(this.stack, stack, stackTop,
+</span>          pool);
+<span class='uc' id='L92' title='4|4|4 - Total: 4'>      return localsChanged || stackChanged;
+</span>    } else {
+      if (ClassFileWriter.StackMapTable.DEBUGSTACKMAP) {
+        System.out.println("bad merge");
+        System.out.println("current type state:");
+        TypeInfo.print(this.locals, this.stack, pool);
+        System.out.println("incoming type state:");
+        TypeInfo.print(locals, localsTop, stack, stackTop, pool);
+      }
+<span class='nc' id='L101' title='0|0|0 - Total: 5'>      throw new IllegalArgumentException("bad merge attempt");
+</span>    }
+  }
+
+  /**
+   * Merge an operand stack or local variable array with incoming state.
+   *
+   * They are treated the same way; by this point, it should already be
+   * ensured that the array sizes are the same, which is the only additional
+   * constraint that is imposed on merging operand stacks (the local variable
+   * array is always the same size).
+   */
+  private boolean mergeState(int[] current, int[] incoming, int size,
+      ConstantPool pool) {
+<span class='uc' id='L115' title='2|2|2 - Total: 2'>    boolean changed = false;
+</span><span class='uc' id='L116' title='2|2|2 - Total: 2'>    for (int i = 0; i < size; i++) {
+</span><span class='uc' id='L117' title='4|4|4 - Total: 4'>      int currentType = current[i];
+</span>
+<span class='uc' id='L119' title='11|11|11 - Total: 11'>      current[i] = TypeInfo.merge(current[i], incoming[i], pool);
+</span><span class='uc' id='L120' title='2|2|2 - Total: 2'>      if (currentType != current[i]) {
+</span><span class='uc' id='L121' title='2|2|2 - Total: 2'>        changed = true;
+</span>      }
+    }
+<span class='uc' id='L124' title='2|2|2 - Total: 2'>    return changed;
+</span>  }
+
+  int getStart() {
+<span class='uc' id='L128' title='3|3|3 - Total: 3'>    return start;
+</span>  }
+
+  int getEnd() {
+<span class='uc' id='L132' title='3|3|3 - Total: 3'>    return end;
+</span>  }
+
+  @Override
+  public String toString() {
+<span class='nc' id='L137' title='0|0|0 - Total: 10'>    return "sb " + index;
+</span>  }
+
+  boolean isInitialized() {
+<span class='uc' id='L141' title='3|3|3 - Total: 3'>    return isInitialized;
+</span>  }
+
+  void setInitialized(boolean b) {
+<span class='uc' id='L145' title='3|3|3 - Total: 3'>    isInitialized = b;
+</span><span class='uc' id='L146' title='1|1|1 - Total: 1'>  }
+</span>
+  boolean isInQueue() {
+<span class='uc' id='L149' title='3|3|3 - Total: 3'>    return isInQueue;
+</span>  }
+
+  void setInQueue(boolean b) {
+<span class='uc' id='L153' title='3|3|3 - Total: 3'>    isInQueue = b;
+</span><span class='uc' id='L154' title='1|1|1 - Total: 1'>  }
+</span>
+  private int index;
+  private int start;
+  private int end;
+  private int[] locals;
+  private int[] stack;
+  private boolean isInitialized;
+  private boolean isInQueue;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

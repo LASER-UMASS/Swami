@@ -1,0 +1,452 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.Arguments.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.Arguments.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the "arguments" object.
+ *
+ * See ECMA 10.1.8
+ *
+ * @see org.mozilla.javascript.NativeCall
+ * @author Norris Boyd
+ */
+final class Arguments extends IdScriptableObject
+{
+    static final long serialVersionUID = 4275508002492040609L;
+
+    private static final String FTAG = "Arguments";
+
+    public Arguments(NativeCall activation)
+<span class='uc' id='L24' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L25' title='3|3|3 - Total: 3'>        this.activation = activation;
+</span>
+<span class='uc' id='L27' title='3|3|3 - Total: 3'>        Scriptable parent = activation.getParentScope();
+</span><span class='uc' id='L28' title='3|3|3 - Total: 3'>        setParentScope(parent);
+</span><span class='uc' id='L29' title='4|4|4 - Total: 4'>        setPrototype(ScriptableObject.getObjectPrototype(parent));
+</span>
+<span class='uc' id='L31' title='4|4|4 - Total: 4'>        args = activation.originalArgs;
+</span><span class='uc' id='L32' title='6|6|6 - Total: 6'>        lengthObj = Integer.valueOf(args.length);
+</span>
+<span class='uc' id='L34' title='3|3|3 - Total: 3'>        NativeFunction f = activation.function;
+</span><span class='uc' id='L35' title='3|3|3 - Total: 3'>        calleeObj = f;
+</span>
+<span class='uc' id='L37' title='3|3|3 - Total: 3'>        int version = f.getLanguageVersion();
+</span><span class='uc' id='L38' title='4|4|4 - Total: 4'>        if (version <= Context.VERSION_1_3
+</span>            && version != Context.VERSION_DEFAULT)
+        {
+<span class='uc' id='L41' title='4|4|4 - Total: 4'>            callerObj = null;
+</span>        } else {
+<span class='uc' id='L43' title='3|3|3 - Total: 3'>            callerObj = NOT_FOUND;
+</span>        }
+
+<span class='uc' id='L46' title='5|5|5 - Total: 5'>        defineProperty(SymbolKey.ITERATOR, iteratorMethod, ScriptableObject.DONTENUM);
+</span><span class='uc' id='L47' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String getClassName()
+    {
+<span class='uc' id='L52' title='2|2|2 - Total: 2'>        return FTAG;
+</span>    }
+
+    private Object arg(int index) {
+<span class='upc' id='L56' title='3|3|3 - Total: 4'>      if (index < 0 || args.length <= index) return NOT_FOUND;
+</span><span class='uc' id='L57' title='5|5|5 - Total: 5'>      return args[index];
+</span>    }
+
+    // the following helper methods assume that 0 < index < args.length
+
+    private void putIntoActivation(int index, Object value) {
+<span class='uc' id='L63' title='6|6|6 - Total: 6'>        String argName = activation.function.getParamOrVarName(index);
+</span><span class='uc' id='L64' title='7|7|7 - Total: 7'>        activation.put(argName, activation, value);
+</span><span class='uc' id='L65' title='1|1|1 - Total: 1'>    }
+</span>
+    private Object getFromActivation(int index) {
+<span class='uc' id='L68' title='6|6|6 - Total: 6'>        String argName = activation.function.getParamOrVarName(index);
+</span><span class='uc' id='L69' title='7|7|7 - Total: 7'>        return activation.get(argName, activation);
+</span>    }
+
+    private void replaceArg(int index, Object value) {
+<span class='uc' id='L73' title='2|2|2 - Total: 2'>      if (sharedWithActivation(index)) {
+</span><span class='uc' id='L74' title='4|4|4 - Total: 4'>        putIntoActivation(index, value);
+</span>      }
+<span class='uc' id='L76' title='4|4|4 - Total: 4'>      synchronized (this) {
+</span><span class='upc' id='L77' title='1|1|1 - Total: 2'>        if (args == activation.originalArgs) {
+</span><span class='uc' id='L78' title='6|6|6 - Total: 6'>          args = args.clone();
+</span>        }
+<span class='uc' id='L80' title='5|5|5 - Total: 5'>        args[index] = value;
+</span><span class='upc' id='L81' title='3|3|3 - Total: 8'>      }
+</span><span class='uc' id='L82' title='1|1|1 - Total: 1'>    }
+</span>
+    private void removeArg(int index) {
+<span class='uc' id='L85' title='4|4|4 - Total: 4'>      synchronized (this) {
+</span><span class='upc' id='L86' title='1|1|1 - Total: 2'>        if (args[index] != NOT_FOUND) {
+</span><span class='uc' id='L87' title='2|2|2 - Total: 2'>          if (args == activation.originalArgs) {
+</span><span class='uc' id='L88' title='6|6|6 - Total: 6'>            args = args.clone();
+</span>          }
+<span class='uc' id='L90' title='5|5|5 - Total: 5'>          args[index] = NOT_FOUND;
+</span>        }
+<span class='upc' id='L92' title='3|3|3 - Total: 8'>      }
+</span><span class='uc' id='L93' title='1|1|1 - Total: 1'>    }
+</span>
+    // end helpers
+
+    @Override
+    public boolean has(int index, Scriptable start)
+    {
+<span class='uc' id='L100' title='2|2|2 - Total: 2'>        if (arg(index) != NOT_FOUND) {
+</span><span class='uc' id='L101' title='2|2|2 - Total: 2'>          return true;
+</span>        }
+<span class='uc' id='L103' title='5|5|5 - Total: 5'>        return super.has(index, start);
+</span>    }
+
+    @Override
+    public Object get(int index, Scriptable start)
+    {
+<span class='uc' id='L109' title='4|4|4 - Total: 4'>      final Object value = arg(index);
+</span><span class='uc' id='L110' title='2|2|2 - Total: 2'>      if (value == NOT_FOUND) {
+</span><span class='uc' id='L111' title='5|5|5 - Total: 5'>        return super.get(index, start);
+</span>      } else {
+<span class='uc' id='L113' title='2|2|2 - Total: 2'>        if (sharedWithActivation(index)) {
+</span><span class='uc' id='L114' title='4|4|4 - Total: 4'>          return getFromActivation(index);
+</span>        } else {
+<span class='uc' id='L116' title='2|2|2 - Total: 2'>          return value;
+</span>        }
+      }
+    }
+
+    private boolean sharedWithActivation(int index)
+    {
+<span class='uc' id='L123' title='2|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='upc' id='L124' title='1|1|1 - Total: 2'>        if (cx.isStrictMode()) {
+</span><span class='nc' id='L125' title='0|0|0 - Total: 2'>            return false;
+</span>        }
+<span class='uc' id='L127' title='4|4|4 - Total: 4'>        NativeFunction f = activation.function;
+</span><span class='uc' id='L128' title='3|3|3 - Total: 3'>        int definedCount = f.getParamCount();
+</span><span class='uc' id='L129' title='2|2|2 - Total: 2'>        if (index < definedCount) {
+</span>            // Check if argument is not hidden by later argument with the same
+            // name as hidden arguments are not shared with activation
+<span class='uc' id='L132' title='2|2|2 - Total: 2'>            if (index < definedCount - 1) {
+</span><span class='uc' id='L133' title='4|4|4 - Total: 4'>                String argName = f.getParamOrVarName(index);
+</span><span class='uc' id='L134' title='2|2|2 - Total: 2'>                for (int i = index + 1; i < definedCount; i++) {
+</span><span class='uc' id='L135' title='2|2|2 - Total: 2'>                    if (argName.equals(f.getParamOrVarName(i))) {
+</span><span class='uc' id='L136' title='2|2|2 - Total: 2'>                        return false;
+</span>                    }
+                }
+            }
+<span class='uc' id='L140' title='2|2|2 - Total: 2'>            return true;
+</span>        }
+<span class='uc' id='L142' title='2|2|2 - Total: 2'>        return false;
+</span>    }
+
+    @Override
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class='uc' id='L148' title='2|2|2 - Total: 2'>        if (arg(index) == NOT_FOUND) {
+</span><span class='uc' id='L149' title='6|6|6 - Total: 6'>          super.put(index, start, value);
+</span>        } else {
+<span class='uc' id='L151' title='4|4|4 - Total: 4'>          replaceArg(index, value);
+</span>        }
+<span class='uc' id='L153' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class='uc' id='L158' title='5|5|5 - Total: 5'>        super.put(name, start, value);
+</span><span class='uc' id='L159' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public void delete(int index)
+    {
+<span class='upc' id='L164' title='2|2|2 - Total: 4'>        if (0 <= index && index < args.length) {
+</span><span class='uc' id='L165' title='3|3|3 - Total: 3'>          removeArg(index);
+</span>        }
+<span class='uc' id='L167' title='3|3|3 - Total: 3'>        super.delete(index);
+</span><span class='uc' id='L168' title='1|1|1 - Total: 1'>    }
+</span>
+// #string_id_map#
+
+    private static final int
+        Id_callee           = 1,
+        Id_length           = 2,
+        Id_caller           = 3,
+
+        MAX_INSTANCE_ID     = Id_caller;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class='uc' id='L182' title='2|2|2 - Total: 2'>        return MAX_INSTANCE_ID;
+</span>    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2010-01-06 05:48:21 ARST
+<span class='uc' id='L190' title='4|4|4 - Total: 4'>        L0: { id = 0; String X = null; int c;
+</span><span class='uc' id='L191' title='3|3|3 - Total: 3'>            int s_length = s.length();
+</span><span class='uc' id='L192' title='2|2|2 - Total: 2'>            if (s_length==6) {
+</span><span class='uc' id='L193' title='4|4|4 - Total: 4'>                c=s.charAt(5);
+</span><span class='uc' id='L194' title='2|2|2 - Total: 2'>                if (c=='e') { X="callee";id=Id_callee; }
+</span><span class='uc' id='L195' title='2|2|2 - Total: 2'>                else if (c=='h') { X="length";id=Id_length; }
+</span><span class='upc' id='L196' title='1|1|1 - Total: 2'>                else if (c=='r') { X="caller";id=Id_caller; }
+</span>            }
+<span class='upc' id='L198' title='5|5|5 - Total: 6'>            if (X!=null && X!=s && !X.equals(s)) id = 0;
+</span>            break L0;
+        }
+// #/generated#
+<span class='uc' id='L202' title='2|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='uc' id='L203' title='2|2|2 - Total: 2'>        if (cx.isStrictMode()) {
+</span><span class='uc' id='L204' title='4|4|4 - Total: 4'>            if (id == Id_callee || id == Id_caller) {
+</span><span class='uc' id='L205' title='4|4|4 - Total: 4'>                return super.findInstanceIdInfo(s);
+</span>            }
+        }
+
+
+<span class='uc' id='L210' title='2|2|2 - Total: 2'>        if (id == 0) return super.findInstanceIdInfo(s);
+</span>
+        int attr;
+<span class='upc' id='L213' title='3|3|3 - Total: 4'>        switch (id) {
+</span>          case Id_callee:
+<span class='uc' id='L215' title='3|3|3 - Total: 3'>            attr = calleeAttr;
+</span><span class='uc' id='L216' title='1|1|1 - Total: 1'>            break;
+</span>          case Id_caller:
+<span class='uc' id='L218' title='3|3|3 - Total: 3'>            attr = callerAttr;
+</span><span class='uc' id='L219' title='1|1|1 - Total: 1'>            break;
+</span>          case Id_length:
+<span class='uc' id='L221' title='3|3|3 - Total: 3'>            attr = lengthAttr;
+</span><span class='uc' id='L222' title='1|1|1 - Total: 1'>            break;
+</span><span class='nc' id='L223' title='0|0|0 - Total: 4'>          default: throw new IllegalStateException();
+</span>        }
+<span class='uc' id='L225' title='4|4|4 - Total: 4'>        return instanceIdInfo(attr, id);
+</span>    }
+
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class='upc' id='L233' title='3|3|3 - Total: 4'>        switch (id) {
+</span><span class='uc' id='L234' title='2|2|2 - Total: 2'>            case Id_callee: return "callee";
+</span><span class='uc' id='L235' title='2|2|2 - Total: 2'>            case Id_length: return "length";
+</span><span class='uc' id='L236' title='2|2|2 - Total: 2'>            case Id_caller: return "caller";
+</span>        }
+<span class='nc' id='L238' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class='upc' id='L244' title='3|3|3 - Total: 4'>        switch (id) {
+</span><span class='uc' id='L245' title='3|3|3 - Total: 3'>            case Id_callee: return calleeObj;
+</span><span class='uc' id='L246' title='3|3|3 - Total: 3'>            case Id_length: return lengthObj;
+</span>            case Id_caller: {
+<span class='uc' id='L248' title='3|3|3 - Total: 3'>                Object value = callerObj;
+</span><span class='upc' id='L249' title='1|1|1 - Total: 2'>                if (value == UniqueTag.NULL_VALUE) { value = null; }
+</span><span class='upc' id='L250' title='1|1|1 - Total: 2'>                else if (value == null) {
+</span><span class='nc' id='L251' title='0|0|0 - Total: 4'>                    NativeCall caller = activation.parentActivationCall;
+</span><span class='nc' id='L252' title='0|0|0 - Total: 2'>                    if (caller != null) {
+</span><span class='nc' id='L253' title='0|0|0 - Total: 5'>                        value = caller.get("arguments", caller);
+</span>                    }
+                }
+<span class='uc' id='L256' title='2|2|2 - Total: 2'>                return value;
+</span>            }
+        }
+<span class='nc' id='L259' title='0|0|0 - Total: 4'>        return super.getInstanceIdValue(id);
+</span>    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class='upc' id='L265' title='1|1|1 - Total: 4'>        switch (id) {
+</span><span class='nc' id='L266' title='0|0|0 - Total: 4'>            case Id_callee: calleeObj = value; return;
+</span><span class='uc' id='L267' title='4|4|4 - Total: 4'>            case Id_length: lengthObj = value; return;
+</span>            case Id_caller:
+<span class='nc' id='L269' title='0|0|0 - Total: 2'>                callerObj = (value != null) ? value : UniqueTag.NULL_VALUE;
+</span><span class='nc' id='L270' title='0|0|0 - Total: 1'>                return;
+</span>        }
+<span class='nc' id='L272' title='0|0|0 - Total: 4'>        super.setInstanceIdValue(id, value);
+</span><span class='nc' id='L273' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr)
+    {
+<span class='nc' id='L278' title='0|0|0 - Total: 4'>        switch (id) {
+</span><span class='nc' id='L279' title='0|0|0 - Total: 4'>            case Id_callee: calleeAttr = attr; return;
+</span><span class='nc' id='L280' title='0|0|0 - Total: 4'>            case Id_length: lengthAttr = attr; return;
+</span><span class='nc' id='L281' title='0|0|0 - Total: 4'>            case Id_caller: callerAttr = attr; return;
+</span>        }
+<span class='nc' id='L283' title='0|0|0 - Total: 4'>        super.setInstanceIdAttributes(id, attr);
+</span><span class='nc' id='L284' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    Object[] getIds(boolean getNonEnumerable, boolean getSymbols)
+    {
+<span class='uc' id='L289' title='5|5|5 - Total: 5'>        Object[] ids = super.getIds(getNonEnumerable, getSymbols);
+</span><span class='uc' id='L290' title='2|2|2 - Total: 2'>        if (args.length != 0) {
+</span><span class='uc' id='L291' title='5|5|5 - Total: 5'>            boolean[] present = new boolean[args.length];
+</span><span class='uc' id='L292' title='4|4|4 - Total: 4'>            int extraCount = args.length;
+</span><span class='uc' id='L293' title='2|2|2 - Total: 2'>            for (int i = 0; i != ids.length; ++i) {
+</span><span class='uc' id='L294' title='4|4|4 - Total: 4'>                Object id = ids[i];
+</span><span class='upc' id='L295' title='1|1|1 - Total: 2'>                if (id instanceof Integer) {
+</span><span class='nc' id='L296' title='0|0|0 - Total: 4'>                    int index = ((Integer)id).intValue();
+</span><span class='nc' id='L297' title='0|0|0 - Total: 4'>                    if (0 <= index && index < args.length) {
+</span><span class='nc' id='L298' title='0|0|0 - Total: 2'>                        if (!present[index]) {
+</span><span class='nc' id='L299' title='0|0|0 - Total: 4'>                            present[index] = true;
+</span><span class='nc' id='L300' title='0|0|0 - Total: 1'>                            extraCount--;
+</span>                        }
+                    }
+                }
+            }
+<span class='upc' id='L305' title='1|1|1 - Total: 2'>            if (!getNonEnumerable) { // avoid adding args which were redefined to non-enumerable
+</span><span class='uc' id='L306' title='2|2|2 - Total: 2'>              for (int i = 0; i < present.length; i++) {
+</span><span class='upc' id='L307' title='3|3|3 - Total: 4'>                if (!present[i] && super.has(i, this)) {
+</span><span class='uc' id='L308' title='4|4|4 - Total: 4'>                  present[i] = true;
+</span><span class='uc' id='L309' title='1|1|1 - Total: 1'>                  extraCount--;
+</span>                }
+              }
+            }
+<span class='uc' id='L313' title='2|2|2 - Total: 2'>            if (extraCount != 0) {
+</span><span class='uc' id='L314' title='6|6|6 - Total: 6'>                Object[] tmp = new Object[extraCount + ids.length];
+</span><span class='uc' id='L315' title='7|7|7 - Total: 7'>                System.arraycopy(ids, 0, tmp, extraCount, ids.length);
+</span><span class='uc' id='L316' title='2|2|2 - Total: 2'>                ids = tmp;
+</span><span class='uc' id='L317' title='2|2|2 - Total: 2'>                int offset = 0;
+</span><span class='uc' id='L318' title='2|2|2 - Total: 2'>                for (int i = 0; i != args.length; ++i) {
+</span><span class='upc' id='L319' title='2|2|2 - Total: 4'>                    if (present == null || !present[i]) {
+</span><span class='uc' id='L320' title='5|5|5 - Total: 5'>                        ids[offset] = Integer.valueOf(i);
+</span><span class='uc' id='L321' title='1|1|1 - Total: 1'>                        ++offset;
+</span>                    }
+                }
+<span class='upc' id='L324' title='1|1|1 - Total: 2'>                if (offset != extraCount) Kit.codeBug();
+</span>            }
+        }
+<span class='uc' id='L327' title='2|2|2 - Total: 2'>        return ids;
+</span>    }
+
+    @Override
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class='upc' id='L332' title='1|1|1 - Total: 2'>        if (id instanceof Scriptable) {
+</span><span class='nc' id='L333' title='0|0|0 - Total: 5'>           return super.getOwnPropertyDescriptor(cx, id);
+</span>        }
+<span class='uc' id='L335' title='3|3|3 - Total: 3'>      double d = ScriptRuntime.toNumber(id);
+</span><span class='uc' id='L336' title='3|3|3 - Total: 3'>      int index = (int) d;
+</span><span class='uc' id='L337' title='2|2|2 - Total: 2'>      if (d != index) {
+</span><span class='uc' id='L338' title='5|5|5 - Total: 5'>        return super.getOwnPropertyDescriptor(cx, id);
+</span>      }
+<span class='uc' id='L340' title='4|4|4 - Total: 4'>      Object value = arg(index);
+</span><span class='uc' id='L341' title='2|2|2 - Total: 2'>      if (value == NOT_FOUND) {
+</span><span class='uc' id='L342' title='5|5|5 - Total: 5'>        return super.getOwnPropertyDescriptor(cx, id);
+</span>      }
+<span class='uc' id='L344' title='2|2|2 - Total: 2'>      if (sharedWithActivation(index)) {
+</span><span class='uc' id='L345' title='4|4|4 - Total: 4'>        value = getFromActivation(index);
+</span>      }
+<span class='uc' id='L347' title='2|2|2 - Total: 2'>      if (super.has(index, this)) { // the descriptor has been redefined
+</span><span class='uc' id='L348' title='5|5|5 - Total: 5'>        ScriptableObject desc = super.getOwnPropertyDescriptor(cx, id);
+</span><span class='uc' id='L349' title='5|5|5 - Total: 5'>        desc.put("value", desc, value);
+</span><span class='uc' id='L350' title='2|2|2 - Total: 2'>        return desc;
+</span>      } else {
+<span class='uc' id='L352' title='3|3|3 - Total: 3'>        Scriptable scope = getParentScope();
+</span><span class='upc' id='L353' title='1|1|1 - Total: 2'>        if (scope == null) scope = this;
+</span><span class='uc' id='L354' title='5|5|5 - Total: 5'>        return buildDataDescriptor(scope, value, EMPTY);
+</span>      }
+    }
+
+    @Override
+    protected void defineOwnProperty(Context cx, Object id,
+                                     ScriptableObject desc,
+                                     boolean checkValid) {
+<span class='uc' id='L362' title='6|6|6 - Total: 6'>      super.defineOwnProperty(cx, id, desc, checkValid);
+</span>
+<span class='uc' id='L364' title='3|3|3 - Total: 3'>      double d = ScriptRuntime.toNumber(id);
+</span><span class='uc' id='L365' title='3|3|3 - Total: 3'>      int index = (int) d;
+</span><span class='uc' id='L366' title='2|2|2 - Total: 2'>      if (d != index) return;
+</span>
+<span class='uc' id='L368' title='4|4|4 - Total: 4'>      Object value = arg(index);
+</span><span class='upc' id='L369' title='1|1|1 - Total: 2'>      if (value == NOT_FOUND) return;
+</span>
+<span class='uc' id='L371' title='2|2|2 - Total: 2'>      if (isAccessorDescriptor(desc)) {
+</span><span class='uc' id='L372' title='3|3|3 - Total: 3'>        removeArg(index);
+</span><span class='uc' id='L373' title='1|1|1 - Total: 1'>        return;
+</span>      }
+
+<span class='uc' id='L376' title='4|4|4 - Total: 4'>      Object newValue = getProperty(desc, "value");
+</span><span class='uc' id='L377' title='2|2|2 - Total: 2'>      if (newValue == NOT_FOUND) return;
+</span>
+<span class='uc' id='L379' title='4|4|4 - Total: 4'>      replaceArg(index, newValue);
+</span>
+<span class='upc' id='L381' title='1|1|1 - Total: 2'>      if (isFalse(getProperty(desc, "writable"))) {
+</span><span class='uc' id='L382' title='3|3|3 - Total: 3'>        removeArg(index);
+</span>      }
+<span class='uc' id='L384' title='1|1|1 - Total: 1'>    }
+</span>
+    // ECMAScript2015
+    // 9.4.4.6 CreateUnmappedArgumentsObject(argumentsList)
+    //   8. Perform DefinePropertyOrThrow(obj, "caller", PropertyDescriptor {[[Get]]: %ThrowTypeError%,
+    //      [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
+    //   9. Perform DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {[[Get]]: %ThrowTypeError%,
+    //      [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
+    void defineAttributesForStrictMode() {
+<span class='uc' id='L393' title='2|2|2 - Total: 2'>        Context cx = Context.getContext();
+</span><span class='uc' id='L394' title='2|2|2 - Total: 2'>        if (!cx.isStrictMode()) {
+</span><span class='uc' id='L395' title='1|1|1 - Total: 1'>            return;
+</span>        }
+<span class='uc' id='L397' title='9|9|9 - Total: 9'>        setGetterOrSetter("caller", 0, new ThrowTypeError("caller"), true);
+</span><span class='uc' id='L398' title='9|9|9 - Total: 9'>        setGetterOrSetter("caller", 0, new ThrowTypeError("caller"), false);
+</span><span class='uc' id='L399' title='9|9|9 - Total: 9'>        setGetterOrSetter("callee", 0, new ThrowTypeError("callee"), true);
+</span><span class='uc' id='L400' title='9|9|9 - Total: 9'>        setGetterOrSetter("callee", 0, new ThrowTypeError("callee"), false);
+</span><span class='uc' id='L401' title='4|4|4 - Total: 4'>        setAttributes("caller", DONTENUM | PERMANENT);
+</span><span class='uc' id='L402' title='4|4|4 - Total: 4'>        setAttributes("callee", DONTENUM | PERMANENT);
+</span><span class='uc' id='L403' title='3|3|3 - Total: 3'>        callerObj = null;
+</span><span class='uc' id='L404' title='3|3|3 - Total: 3'>        calleeObj = null;
+</span><span class='uc' id='L405' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='uc' id='L407' title='5|5|5 - Total: 5'>    private static BaseFunction iteratorMethod = new BaseFunction() {
+</span>        @Override
+        public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                           Object[] args) {
+            // TODO : call %ArrayProto_values%
+            // 9.4.4.6 CreateUnmappedArgumentsObject(argumentsList)
+            //  1. Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%,
+            //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+            return new NativeArrayIterator(scope, thisObj);
+        }
+    };
+
+    private static class ThrowTypeError extends BaseFunction {
+        private String propertyName;
+
+        ThrowTypeError(String propertyName) {
+            this.propertyName = propertyName;
+        }
+
+        @Override
+        public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+            throw ScriptRuntime.typeError1("msg.arguments.not.access.strict", propertyName);
+        }
+    }
+
+// Fields to hold caller, callee and length properties,
+// where NOT_FOUND value tags deleted properties.
+// In addition if callerObj == NULL_VALUE, it tags null for scripts, as
+// initial callerObj == null means access to caller arguments available
+// only in JS <= 1.3 scripts
+    private Object callerObj;
+    private Object calleeObj;
+    private Object lengthObj;
+
+<span class='uc' id='L441' title='3|3|3 - Total: 3'>    private int callerAttr = DONTENUM;
+</span><span class='uc' id='L442' title='3|3|3 - Total: 3'>    private int calleeAttr = DONTENUM;
+</span><span class='uc' id='L443' title='3|3|3 - Total: 3'>    private int lengthAttr = DONTENUM;
+</span>
+    private NativeCall activation;
+
+// Initially args holds activation.getOriginalArgs(), but any modification
+// of its elements triggers creation of a copy. If its element holds NOT_FOUND,
+// it indicates deleted index, in which case super class is queried.
+    private Object[] args;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

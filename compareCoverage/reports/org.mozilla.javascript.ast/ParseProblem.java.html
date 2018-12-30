@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ParseProblem.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ParseProblem.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+/**
+ * Encapsulates information for a JavaScript parse error or warning.
+ */
+public class ParseProblem {
+
+    public static enum Type {Error, Warning}
+
+    private Type type;
+    private String message;
+    private String sourceName;
+    private int offset;
+    private int length;
+
+    /**
+     * Constructs a new ParseProblem.
+     */
+    public ParseProblem(ParseProblem.Type type, String message,
+<span class='nc' id='L26' title='0|0|0 - Total: 2'>                        String sourceName, int offset, int length) {
+</span><span class='nc' id='L27' title='0|0|0 - Total: 3'>        setType(type);
+</span><span class='nc' id='L28' title='0|0|0 - Total: 3'>        setMessage(message);
+</span><span class='nc' id='L29' title='0|0|0 - Total: 3'>        setSourceName(sourceName);
+</span><span class='nc' id='L30' title='0|0|0 - Total: 3'>        setFileOffset(offset);
+</span><span class='nc' id='L31' title='0|0|0 - Total: 3'>        setLength(length);
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+    public ParseProblem.Type getType() {
+<span class='nc' id='L35' title='0|0|0 - Total: 3'>        return type;
+</span>    }
+
+    public void setType(ParseProblem.Type type) {
+<span class='nc' id='L39' title='0|0|0 - Total: 3'>        this.type = type;
+</span><span class='nc' id='L40' title='0|0|0 - Total: 1'>    }
+</span>
+    public String getMessage() {
+<span class='nc' id='L43' title='0|0|0 - Total: 3'>        return message;
+</span>    }
+
+    public void setMessage(String msg) {
+<span class='nc' id='L47' title='0|0|0 - Total: 3'>        this.message = msg;
+</span><span class='nc' id='L48' title='0|0|0 - Total: 1'>    }
+</span>
+    public String getSourceName() {
+<span class='nc' id='L51' title='0|0|0 - Total: 3'>        return sourceName;
+</span>    }
+
+    public void setSourceName(String name) {
+<span class='nc' id='L55' title='0|0|0 - Total: 3'>        this.sourceName = name;
+</span><span class='nc' id='L56' title='0|0|0 - Total: 1'>    }
+</span>
+    public int getFileOffset() {
+<span class='nc' id='L59' title='0|0|0 - Total: 3'>        return offset;
+</span>    }
+
+    public void setFileOffset(int offset) {
+<span class='nc' id='L63' title='0|0|0 - Total: 3'>        this.offset = offset;
+</span><span class='nc' id='L64' title='0|0|0 - Total: 1'>    }
+</span>
+    public int getLength() {
+<span class='nc' id='L67' title='0|0|0 - Total: 3'>        return length;
+</span>    }
+
+    public void setLength(int length) {
+<span class='nc' id='L71' title='0|0|0 - Total: 3'>        this.length = length;
+</span><span class='nc' id='L72' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public String toString() {
+<span class='nc' id='L76' title='0|0|0 - Total: 5'>        StringBuilder sb = new StringBuilder(200);
+</span><span class='nc' id='L77' title='0|0|0 - Total: 7'>        sb.append(sourceName).append(":");
+</span><span class='nc' id='L78' title='0|0|0 - Total: 9'>        sb.append("offset=").append(offset).append(",");
+</span><span class='nc' id='L79' title='0|0|0 - Total: 9'>        sb.append("length=").append(length).append(",");
+</span><span class='nc' id='L80' title='0|0|0 - Total: 2'>        sb.append(type == Type.Error ? "error: " : "warning: ");
+</span><span class='nc' id='L81' title='0|0|0 - Total: 5'>        sb.append(message);
+</span><span class='nc' id='L82' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

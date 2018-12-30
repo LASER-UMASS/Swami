@@ -1,0 +1,547 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.FunctionObject.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.FunctionObject.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.io.*;
+
+public class FunctionObject extends BaseFunction
+{
+    static final long serialVersionUID = -5332312783643935019L;
+
+    /**
+     * Create a JavaScript function object from a Java method.
+     *
+     * <p>The <code>member</code> argument must be either a java.lang.reflect.Method
+     * or a java.lang.reflect.Constructor and must match one of two forms.<p>
+     *
+     * The first form is a member with zero or more parameters
+     * of the following types: Object, String, boolean, Scriptable,
+     * int, or double. The Long type is not supported
+     * because the double representation of a long (which is the
+     * EMCA-mandated storage type for Numbers) may lose precision.
+     * If the member is a Method, the return value must be void or one
+     * of the types allowed for parameters.<p>
+     *
+     * The runtime will perform appropriate conversions based
+     * upon the type of the parameter. A parameter type of
+     * Object specifies that no conversions are to be done. A parameter
+     * of type String will use Context.toString to convert arguments.
+     * Similarly, parameters of type double, boolean, and Scriptable
+     * will cause Context.toNumber, Context.toBoolean, and
+     * Context.toObject, respectively, to be called.<p>
+     *
+     * If the method is not static, the Java 'this' value will
+     * correspond to the JavaScript 'this' value. Any attempt
+     * to call the function with a 'this' value that is not
+     * of the right Java type will result in an error.<p>
+     *
+     * The second form is the variable arguments (or "varargs")
+     * form. If the FunctionObject will be used as a constructor,
+     * the member must have the following parameters
+     * <pre>
+     *      (Context cx, Object[] args, Function ctorObj,
+     *       boolean inNewExpr)</pre>
+     * and if it is a Method, be static and return an Object result.<p>
+     *
+     * Otherwise, if the FunctionObject will <i>not</i> be used to define a
+     * constructor, the member must be a static Method with parameters
+     * <pre>
+     *      (Context cx, Scriptable thisObj, Object[] args,
+     *       Function funObj) </pre>
+     * and an Object result.<p>
+     *
+     * When the function varargs form is called as part of a function call,
+     * the <code>args</code> parameter contains the
+     * arguments, with <code>thisObj</code>
+     * set to the JavaScript 'this' value. <code>funObj</code>
+     * is the function object for the invoked function.<p>
+     *
+     * When the constructor varargs form is called or invoked while evaluating
+     * a <code>new</code> expression, <code>args</code> contains the
+     * arguments, <code>ctorObj</code> refers to this FunctionObject, and
+     * <code>inNewExpr</code> is true if and only if  a <code>new</code>
+     * expression caused the call. This supports defining a function that
+     * has different behavior when called as a constructor than when
+     * invoked as a normal function call. (For example, the Boolean
+     * constructor, when called as a function,
+     * will convert to boolean rather than creating a new object.)<p>
+     *
+     * @param name the name of the function
+     * @param methodOrConstructor a java.lang.reflect.Method or a java.lang.reflect.Constructor
+     *                            that defines the object
+     * @param scope enclosing scope of function
+     * @see org.mozilla.javascript.Scriptable
+     */
+    public FunctionObject(String name, Member methodOrConstructor,
+                          Scriptable scope)
+<span class='uc' id='L84' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L85' title='2|2|2 - Total: 2'>        if (methodOrConstructor instanceof Constructor) {
+</span><span class='uc' id='L86' title='7|7|7 - Total: 7'>            member = new MemberBox((Constructor<?>) methodOrConstructor);
+</span><span class='uc' id='L87' title='4|4|4 - Total: 4'>            isStatic = true; // well, doesn't take a 'this'
+</span>        } else {
+<span class='uc' id='L89' title='7|7|7 - Total: 7'>            member = new MemberBox((Method) methodOrConstructor);
+</span><span class='uc' id='L90' title='5|5|5 - Total: 5'>            isStatic = member.isStatic();
+</span>        }
+<span class='uc' id='L92' title='4|4|4 - Total: 4'>        String methodName = member.getName();
+</span><span class='uc' id='L93' title='3|3|3 - Total: 3'>        this.functionName = name;
+</span><span class='uc' id='L94' title='4|4|4 - Total: 4'>        Class<?>[] types = member.argTypes;
+</span><span class='uc' id='L95' title='3|3|3 - Total: 3'>        int arity = types.length;
+</span><span class='upc' id='L96' title='4|4|4 - Total: 6'>        if (arity == 4 && (types[1].isArray() || types[2].isArray())) {
+</span>            // Either variable args or an error.
+<span class='upc' id='L98' title='1|1|1 - Total: 2'>            if (types[1].isArray()) {
+</span><span class='nc' id='L99' title='0|0|0 - Total: 4'>                if (!isStatic ||
+</span>                    types[0] != ScriptRuntime.ContextClass ||
+<span class='nc' id='L101' title='0|0|0 - Total: 6'>                    types[1].getComponentType() != ScriptRuntime.ObjectClass ||
+</span>                    types[2] != ScriptRuntime.FunctionClass ||
+                    types[3] != Boolean.TYPE)
+                {
+<span class='nc' id='L105' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError1(
+</span>                        "msg.varargs.ctor", methodName);
+                }
+<span class='nc' id='L108' title='0|0|0 - Total: 4'>                parmsLength = VARARGS_CTOR;
+</span>            } else {
+<span class='upc' id='L110' title='3|3|3 - Total: 6'>                if (!isStatic ||
+</span>                    types[0] != ScriptRuntime.ContextClass ||
+                    types[1] != ScriptRuntime.ScriptableClass ||
+<span class='upc' id='L113' title='2|2|2 - Total: 4'>                    types[2].getComponentType() != ScriptRuntime.ObjectClass ||
+</span>                    types[3] != ScriptRuntime.FunctionClass)
+                {
+<span class='nc' id='L116' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError1(
+</span>                        "msg.varargs.fun", methodName);
+                }
+<span class='uc' id='L119' title='4|4|4 - Total: 4'>                parmsLength = VARARGS_METHOD;
+</span>            }
+        } else {
+<span class='uc' id='L122' title='3|3|3 - Total: 3'>            parmsLength = arity;
+</span><span class='uc' id='L123' title='2|2|2 - Total: 2'>            if (arity > 0) {
+</span><span class='uc' id='L124' title='4|4|4 - Total: 4'>                typeTags = new byte[arity];
+</span><span class='uc' id='L125' title='2|2|2 - Total: 2'>                for (int i = 0; i != arity; ++i) {
+</span><span class='uc' id='L126' title='5|5|5 - Total: 5'>                    int tag = getTypeTag(types[i]);
+</span><span class='upc' id='L127' title='1|1|1 - Total: 2'>                    if (tag == JAVA_UNSUPPORTED_TYPE) {
+</span><span class='nc' id='L128' title='0|0|0 - Total: 6'>                        throw Context.reportRuntimeError2(
+</span><span class='nc' id='L129' title='0|0|0 - Total: 2'>                            "msg.bad.parms", types[i].getName(), methodName);
+</span>                    }
+<span class='uc' id='L131' title='6|6|6 - Total: 6'>                    typeTags[i] = (byte)tag;
+</span>                }
+            }
+        }
+
+<span class='uc' id='L136' title='2|2|2 - Total: 2'>        if (member.isMethod()) {
+</span><span class='uc' id='L137' title='4|4|4 - Total: 4'>            Method method = member.method();
+</span><span class='uc' id='L138' title='3|3|3 - Total: 3'>            Class<?> returnType = method.getReturnType();
+</span><span class='uc' id='L139' title='2|2|2 - Total: 2'>            if (returnType == Void.TYPE) {
+</span><span class='uc' id='L140' title='4|4|4 - Total: 4'>                hasVoidReturn = true;
+</span>            } else {
+<span class='uc' id='L142' title='4|4|4 - Total: 4'>                returnTypeTag = getTypeTag(returnType);
+</span>            }
+<span class='uc' id='L144' title='1|1|1 - Total: 1'>        } else {
+</span><span class='uc' id='L145' title='4|4|4 - Total: 4'>            Class<?> ctorType = member.getDeclaringClass();
+</span><span class='upc' id='L146' title='1|1|1 - Total: 2'>            if (!ScriptRuntime.ScriptableClass.isAssignableFrom(ctorType)) {
+</span><span class='nc' id='L147' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span><span class='nc' id='L148' title='0|0|0 - Total: 1'>                    "msg.bad.ctor.return", ctorType.getName());
+</span>            }
+        }
+
+<span class='uc' id='L152' title='3|3|3 - Total: 3'>        ScriptRuntime.setFunctionProtoAndParent(this, scope);
+</span><span class='uc' id='L153' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * @return One of <tt>JAVA_*_TYPE</tt> constants to indicate desired type
+     *         or {@link #JAVA_UNSUPPORTED_TYPE} if the convertion is not
+     *         possible
+     */
+    public static int getTypeTag(Class<?> type)
+    {
+<span class='uc' id='L162' title='2|2|2 - Total: 2'>        if (type == ScriptRuntime.StringClass)
+</span><span class='uc' id='L163' title='2|2|2 - Total: 2'>            return JAVA_STRING_TYPE;
+</span><span class='upc' id='L164' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.IntegerClass || type == Integer.TYPE)
+</span><span class='uc' id='L165' title='2|2|2 - Total: 2'>            return JAVA_INT_TYPE;
+</span><span class='upc' id='L166' title='2|2|2 - Total: 4'>        if (type == ScriptRuntime.BooleanClass || type == Boolean.TYPE)
+</span><span class='nc' id='L167' title='0|0|0 - Total: 2'>            return JAVA_BOOLEAN_TYPE;
+</span><span class='upc' id='L168' title='3|3|3 - Total: 4'>        if (type == ScriptRuntime.DoubleClass || type == Double.TYPE)
+</span><span class='uc' id='L169' title='2|2|2 - Total: 2'>            return JAVA_DOUBLE_TYPE;
+</span><span class='uc' id='L170' title='2|2|2 - Total: 2'>        if (ScriptRuntime.ScriptableClass.isAssignableFrom(type))
+</span><span class='uc' id='L171' title='2|2|2 - Total: 2'>            return JAVA_SCRIPTABLE_TYPE;
+</span><span class='upc' id='L172' title='1|1|1 - Total: 2'>        if (type == ScriptRuntime.ObjectClass)
+</span><span class='uc' id='L173' title='2|2|2 - Total: 2'>            return JAVA_OBJECT_TYPE;
+</span>
+        // Note that the long type is not supported; see the javadoc for
+        // the constructor for this class
+
+<span class='nc' id='L178' title='0|0|0 - Total: 2'>        return JAVA_UNSUPPORTED_TYPE;
+</span>    }
+
+    public static Object convertArg(Context cx, Scriptable scope,
+                                    Object arg, int typeTag)
+    {
+<span class='upc' id='L184' title='4|4|4 - Total: 7'>        switch (typeTag) {
+</span>          case JAVA_STRING_TYPE:
+<span class='upc' id='L186' title='1|1|1 - Total: 2'>              if (arg instanceof String)
+</span><span class='uc' id='L187' title='2|2|2 - Total: 2'>                return arg;
+</span><span class='nc' id='L188' title='0|0|0 - Total: 3'>            return ScriptRuntime.toString(arg);
+</span>          case JAVA_INT_TYPE:
+<span class='uc' id='L190' title='2|2|2 - Total: 2'>              if (arg instanceof Integer)
+</span><span class='uc' id='L191' title='2|2|2 - Total: 2'>                return arg;
+</span><span class='uc' id='L192' title='4|4|4 - Total: 4'>            return Integer.valueOf(ScriptRuntime.toInt32(arg));
+</span>          case JAVA_BOOLEAN_TYPE:
+<span class='nc' id='L194' title='0|0|0 - Total: 2'>              if (arg instanceof Boolean)
+</span><span class='nc' id='L195' title='0|0|0 - Total: 2'>                return arg;
+</span><span class='nc' id='L196' title='0|0|0 - Total: 2'>            return ScriptRuntime.toBoolean(arg) ? Boolean.TRUE
+</span>                                                : Boolean.FALSE;
+          case JAVA_DOUBLE_TYPE:
+<span class='nc' id='L199' title='0|0|0 - Total: 2'>            if (arg instanceof Double)
+</span><span class='nc' id='L200' title='0|0|0 - Total: 2'>                return arg;
+</span><span class='nc' id='L201' title='0|0|0 - Total: 6'>            return new Double(ScriptRuntime.toNumber(arg));
+</span>          case JAVA_SCRIPTABLE_TYPE:
+<span class='uc' id='L203' title='5|5|5 - Total: 5'>              return ScriptRuntime.toObjectOrNull(cx, arg, scope);
+</span>          case JAVA_OBJECT_TYPE:
+<span class='uc' id='L205' title='2|2|2 - Total: 2'>            return arg;
+</span>          default:
+<span class='nc' id='L207' title='0|0|0 - Total: 4'>            throw new IllegalArgumentException();
+</span>        }
+    }
+
+    /**
+     * Return the value defined by  the method used to construct the object
+     * (number of parameters of the method, or 1 if the method is a "varargs"
+     * form).
+     */
+    @Override
+    public int getArity() {
+<span class='upc' id='L218' title='1|1|1 - Total: 2'>        return parmsLength < 0 ? 1 : parmsLength;
+</span>    }
+
+    /**
+     * Return the same value as {@link #getArity()}.
+     */
+    @Override
+    public int getLength() {
+<span class='nc' id='L226' title='0|0|0 - Total: 3'>        return getArity();
+</span>    }
+
+    @Override
+    public String getFunctionName()
+    {
+<span class='upc' id='L232' title='1|1|1 - Total: 2'>        return (functionName == null) ? "" : functionName;
+</span>    }
+
+    /**
+     * Get Java method or constructor this function represent.
+     */
+    public Member getMethodOrConstructor()
+    {
+<span class='nc' id='L240' title='0|0|0 - Total: 2'>        if (member.isMethod()) {
+</span><span class='nc' id='L241' title='0|0|0 - Total: 4'>            return member.method();
+</span>        } else {
+<span class='nc' id='L243' title='0|0|0 - Total: 4'>            return member.ctor();
+</span>        }
+    }
+
+    static Method findSingleMethod(Method[] methods, String name)
+    {
+<span class='uc' id='L249' title='2|2|2 - Total: 2'>        Method found = null;
+</span><span class='uc' id='L250' title='2|2|2 - Total: 2'>        for (int i = 0, N = methods.length; i != N; ++i) {
+</span><span class='uc' id='L251' title='4|4|4 - Total: 4'>            Method method = methods[i];
+</span><span class='upc' id='L252' title='3|3|3 - Total: 4'>            if (method != null && name.equals(method.getName())) {
+</span><span class='upc' id='L253' title='1|1|1 - Total: 2'>                if (found != null) {
+</span><span class='nc' id='L254' title='0|0|0 - Total: 5'>                    throw Context.reportRuntimeError2(
+</span>                        "msg.no.overload", name,
+<span class='nc' id='L256' title='0|0|0 - Total: 2'>                        method.getDeclaringClass().getName());
+</span>                }
+<span class='uc' id='L258' title='2|2|2 - Total: 2'>                found = method;
+</span>            }
+        }
+<span class='uc' id='L261' title='2|2|2 - Total: 2'>        return found;
+</span>    }
+
+    /**
+     * Returns all public methods declared by the specified class. This excludes
+     * inherited methods.
+     *
+     * @param clazz the class from which to pull public declared methods
+     * @return the public methods declared in the specified class
+     * @see Class#getDeclaredMethods()
+     */
+    static Method[] getMethodList(Class<?> clazz) {
+<span class='uc' id='L273' title='2|2|2 - Total: 2'>        Method[] methods = null;
+</span>        try {
+            // getDeclaredMethods may be rejected by the security manager
+            // but getMethods is more expensive
+<span class='upc' id='L277' title='1|1|1 - Total: 2'>            if (!sawSecurityException)
+</span><span class='uc' id='L278' title='3|3|3 - Total: 3'>                methods = clazz.getDeclaredMethods();
+</span><span class='nc' id='L279' title='0|0|0 - Total: 1'>        } catch (SecurityException e) {
+</span>            // If we get an exception once, give up on getDeclaredMethods
+<span class='nc' id='L281' title='0|0|0 - Total: 2'>            sawSecurityException = true;
+</span><span class='uc' id='L282' title='1|1|1 - Total: 1'>        }
+</span><span class='upc' id='L283' title='1|1|1 - Total: 2'>        if (methods == null) {
+</span><span class='nc' id='L284' title='0|0|0 - Total: 3'>            methods = clazz.getMethods();
+</span>        }
+<span class='uc' id='L286' title='2|2|2 - Total: 2'>        int count = 0;
+</span><span class='uc' id='L287' title='2|2|2 - Total: 2'>        for (int i=0; i < methods.length; i++) {
+</span><span class='upc' id='L288' title='1|1|1 - Total: 2'>            if (sawSecurityException
+</span><span class='nc' id='L289' title='0|0|0 - Total: 2'>                ? methods[i].getDeclaringClass() != clazz
+</span><span class='uc' id='L290' title='2|2|2 - Total: 2'>                : !Modifier.isPublic(methods[i].getModifiers()))
+</span>            {
+<span class='uc' id='L292' title='5|5|5 - Total: 5'>                methods[i] = null;
+</span>            } else {
+<span class='uc' id='L294' title='1|1|1 - Total: 1'>                count++;
+</span>            }
+        }
+<span class='uc' id='L297' title='3|3|3 - Total: 3'>        Method[] result = new Method[count];
+</span><span class='uc' id='L298' title='2|2|2 - Total: 2'>        int j=0;
+</span><span class='uc' id='L299' title='2|2|2 - Total: 2'>        for (int i=0; i < methods.length; i++) {
+</span><span class='uc' id='L300' title='2|2|2 - Total: 2'>            if (methods[i] != null)
+</span><span class='uc' id='L301' title='7|7|7 - Total: 7'>                result[j++] = methods[i];
+</span>        }
+<span class='uc' id='L303' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Define this function as a JavaScript constructor.
+     * <p>
+     * Sets up the "prototype" and "constructor" properties. Also
+     * calls setParent and setPrototype with appropriate values.
+     * Then adds the function object as a property of the given scope, using
+     *      <code>prototype.getClassName()</code>
+     * as the name of the property.
+     *
+     * @param scope the scope in which to define the constructor (typically
+     *              the global object)
+     * @param prototype the prototype object
+     * @see org.mozilla.javascript.Scriptable#setParentScope
+     * @see org.mozilla.javascript.Scriptable#setPrototype
+     * @see org.mozilla.javascript.Scriptable#getClassName
+     */
+    public void addAsConstructor(Scriptable scope, Scriptable prototype)
+    {
+<span class='nc' id='L324' title='0|0|0 - Total: 4'>        initAsConstructor(scope, prototype);
+</span><span class='nc' id='L325' title='0|0|0 - Total: 6'>        defineProperty(scope, prototype.getClassName(),
+</span>                       this, ScriptableObject.DONTENUM);
+<span class='nc' id='L327' title='0|0|0 - Total: 1'>    }
+</span>
+    void initAsConstructor(Scriptable scope, Scriptable prototype)
+    {
+<span class='uc' id='L331' title='3|3|3 - Total: 3'>        ScriptRuntime.setFunctionProtoAndParent(this, scope);
+</span><span class='uc' id='L332' title='3|3|3 - Total: 3'>        setImmunePrototypeProperty(prototype);
+</span>
+<span class='uc' id='L334' title='3|3|3 - Total: 3'>        prototype.setParentScope(this);
+</span>
+<span class='uc' id='L336' title='5|5|5 - Total: 5'>        defineProperty(prototype, "constructor", this,
+</span>                       ScriptableObject.DONTENUM  |
+                       ScriptableObject.PERMANENT |
+                       ScriptableObject.READONLY);
+<span class='uc' id='L340' title='3|3|3 - Total: 3'>        setParentScope(scope);
+</span><span class='uc' id='L341' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * @deprecated Use {@link #getTypeTag(Class)}
+     * and {@link #convertArg(Context, Scriptable, Object, int)}
+     * for type conversion.
+     */
+    @Deprecated
+    public static Object convertArg(Context cx, Scriptable scope,
+                                    Object arg, Class<?> desired)
+    {
+<span class='nc' id='L352' title='0|0|0 - Total: 3'>        int tag = getTypeTag(desired);
+</span><span class='nc' id='L353' title='0|0|0 - Total: 2'>        if (tag == JAVA_UNSUPPORTED_TYPE) {
+</span><span class='nc' id='L354' title='0|0|0 - Total: 2'>            throw Context.reportRuntimeError1
+</span><span class='nc' id='L355' title='0|0|0 - Total: 3'>                ("msg.cant.convert", desired.getName());
+</span>        }
+<span class='nc' id='L357' title='0|0|0 - Total: 6'>        return convertArg(cx, scope, arg, tag);
+</span>    }
+
+    /**
+     * Performs conversions on argument types if needed and
+     * invokes the underlying Java method or constructor.
+     * <p>
+     * Implements Function.call.
+     *
+     * @see org.mozilla.javascript.Function#call(
+     *          Context, Scriptable, Scriptable, Object[])
+     */
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+        Object result;
+<span class='uc' id='L374' title='2|2|2 - Total: 2'>        boolean checkMethodResult = false;
+</span><span class='uc' id='L375' title='3|3|3 - Total: 3'>        int argsLength = args.length;
+</span>
+<span class='uc' id='L377' title='2|2|2 - Total: 2'>        for (int i = 0; i < argsLength; i++) {
+</span>            // flatten cons-strings before passing them as arguments
+<span class='uc' id='L379' title='2|2|2 - Total: 2'>            if (args[i] instanceof ConsString) {
+</span><span class='uc' id='L380' title='7|7|7 - Total: 7'>                args[i] = args[i].toString();
+</span>            }
+        }
+
+<span class='uc' id='L384' title='2|2|2 - Total: 2'>        if (parmsLength < 0) {
+</span><span class='upc' id='L385' title='1|1|1 - Total: 2'>            if (parmsLength == VARARGS_METHOD) {
+</span><span class='uc' id='L386' title='19|19|19 - Total: 19'>                Object[] invokeArgs = { cx, thisObj, args, this };
+</span><span class='uc' id='L387' title='6|6|6 - Total: 6'>                result = member.invoke(null, invokeArgs);
+</span><span class='uc' id='L388' title='2|2|2 - Total: 2'>                checkMethodResult = true;
+</span><span class='uc' id='L389' title='1|1|1 - Total: 1'>            } else {
+</span><span class='nc' id='L390' title='0|0|0 - Total: 2'>                boolean inNewExpr = (thisObj == null);
+</span><span class='nc' id='L391' title='0|0|0 - Total: 2'>                Boolean b = inNewExpr ? Boolean.TRUE : Boolean.FALSE;
+</span><span class='nc' id='L392' title='0|0|0 - Total: 19'>                Object[] invokeArgs = { cx, args, this, b };
+</span><span class='nc' id='L393' title='0|0|0 - Total: 2'>                result = (member.isCtor())
+</span><span class='nc' id='L394' title='0|0|0 - Total: 6'>                         ? member.newInstance(invokeArgs)
+</span><span class='nc' id='L395' title='0|0|0 - Total: 2'>                         : member.invoke(null, invokeArgs);
+</span><span class='nc' id='L396' title='0|0|0 - Total: 1'>            }
+</span>
+        } else {
+<span class='uc' id='L399' title='2|2|2 - Total: 2'>            if (!isStatic) {
+</span><span class='uc' id='L400' title='4|4|4 - Total: 4'>                Class<?> clazz = member.getDeclaringClass();
+</span><span class='upc' id='L401' title='1|1|1 - Total: 2'>                if (!clazz.isInstance(thisObj)) {
+</span><span class='nc' id='L402' title='0|0|0 - Total: 2'>                    boolean compatible = false;
+</span><span class='nc' id='L403' title='0|0|0 - Total: 2'>                    if (thisObj == scope) {
+</span><span class='nc' id='L404' title='0|0|0 - Total: 3'>                        Scriptable parentScope = getParentScope();
+</span><span class='nc' id='L405' title='0|0|0 - Total: 2'>                        if (scope != parentScope) {
+</span>                            // Call with dynamic scope for standalone function,
+                            // use parentScope as thisObj
+<span class='nc' id='L408' title='0|0|0 - Total: 4'>                            compatible = clazz.isInstance(parentScope);
+</span><span class='nc' id='L409' title='0|0|0 - Total: 2'>                            if (compatible) {
+</span><span class='nc' id='L410' title='0|0|0 - Total: 2'>                                thisObj = parentScope;
+</span>                            }
+                        }
+                    }
+<span class='nc' id='L414' title='0|0|0 - Total: 2'>                    if (!compatible) {
+</span>                        // Couldn't find an object to call this on.
+<span class='nc' id='L416' title='0|0|0 - Total: 5'>                        throw ScriptRuntime.typeError1("msg.incompat.call",
+</span>                                                       functionName);
+                    }
+                }
+            }
+
+            Object[] invokeArgs;
+<span class='uc' id='L423' title='2|2|2 - Total: 2'>            if (parmsLength == argsLength) {
+</span>                // Do not allocate new argument array if java arguments are
+                // the same as the original js ones.
+<span class='uc' id='L426' title='2|2|2 - Total: 2'>                invokeArgs = args;
+</span><span class='uc' id='L427' title='2|2|2 - Total: 2'>                for (int i = 0; i != parmsLength; ++i) {
+</span><span class='uc' id='L428' title='4|4|4 - Total: 4'>                    Object arg = args[i];
+</span><span class='uc' id='L429' title='9|9|9 - Total: 9'>                    Object converted = convertArg(cx, scope, arg, typeTags[i]);
+</span><span class='uc' id='L430' title='2|2|2 - Total: 2'>                    if (arg != converted) {
+</span><span class='upc' id='L431' title='1|1|1 - Total: 2'>                        if (invokeArgs == args) {
+</span><span class='uc' id='L432' title='4|4|4 - Total: 4'>                            invokeArgs = args.clone();
+</span>                        }
+<span class='uc' id='L434' title='4|4|4 - Total: 4'>                        invokeArgs[i] = converted;
+</span>                    }
+                }
+<span class='upc' id='L437' title='1|1|1 - Total: 2'>            } else if (parmsLength == 0) {
+</span><span class='uc' id='L438' title='3|3|3 - Total: 3'>                invokeArgs = ScriptRuntime.emptyArgs;
+</span>            } else {
+<span class='nc' id='L440' title='0|0|0 - Total: 4'>                invokeArgs = new Object[parmsLength];
+</span><span class='nc' id='L441' title='0|0|0 - Total: 2'>                for (int i = 0; i != parmsLength; ++i) {
+</span><span class='nc' id='L442' title='0|0|0 - Total: 2'>                    Object arg = (i < argsLength)
+</span>                                 ? args[i]
+                                 : Undefined.instance;
+<span class='nc' id='L445' title='0|0|0 - Total: 11'>                    invokeArgs[i] = convertArg(cx, scope, arg, typeTags[i]);
+</span>                }
+            }
+
+<span class='uc' id='L449' title='2|2|2 - Total: 2'>            if (member.isMethod()) {
+</span><span class='uc' id='L450' title='6|6|6 - Total: 6'>                result = member.invoke(thisObj, invokeArgs);
+</span><span class='uc' id='L451' title='3|3|3 - Total: 3'>                checkMethodResult = true;
+</span>            } else {
+<span class='uc' id='L453' title='5|5|5 - Total: 5'>                result = member.newInstance(invokeArgs);
+</span>            }
+
+        }
+
+<span class='uc' id='L458' title='2|2|2 - Total: 2'>        if (checkMethodResult) {
+</span><span class='uc' id='L459' title='2|2|2 - Total: 2'>            if (hasVoidReturn) {
+</span><span class='uc' id='L460' title='3|3|3 - Total: 3'>                result = Undefined.instance;
+</span><span class='upc' id='L461' title='1|1|1 - Total: 2'>            } else if (returnTypeTag == JAVA_UNSUPPORTED_TYPE) {
+</span><span class='nc' id='L462' title='0|0|0 - Total: 8'>                result = cx.getWrapFactory().wrap(cx, scope, result, null);
+</span>            }
+            // XXX: the code assumes that if returnTypeTag == JAVA_OBJECT_TYPE
+            // then the Java method did a proper job of converting the
+            // result to JS primitive or Scriptable to avoid
+            // potentially costly Context.javaToJS call.
+        }
+
+<span class='uc' id='L470' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Return new {@link Scriptable} instance using the default
+     * constructor for the class of the underlying Java method.
+     * Return null to indicate that the call method should be used to create
+     * new objects.
+     */
+    @Override
+    public Scriptable createObject(Context cx, Scriptable scope) {
+<span class='upc' id='L481' title='3|3|3 - Total: 4'>        if (member.isCtor() || parmsLength == VARARGS_CTOR) {
+</span><span class='uc' id='L482' title='2|2|2 - Total: 2'>            return null;
+</span>        }
+        Scriptable result;
+        try {
+<span class='uc' id='L486' title='6|6|6 - Total: 6'>            result = (Scriptable) member.getDeclaringClass().newInstance();
+</span><span class='nc' id='L487' title='0|0|0 - Total: 1'>        } catch (Exception ex) {
+</span><span class='nc' id='L488' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(ex);
+</span><span class='uc' id='L489' title='1|1|1 - Total: 1'>        }
+</span>
+<span class='uc' id='L491' title='4|4|4 - Total: 4'>        result.setPrototype(getClassPrototype());
+</span><span class='uc' id='L492' title='4|4|4 - Total: 4'>        result.setParentScope(getParentScope());
+</span><span class='uc' id='L493' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    boolean isVarArgsMethod() {
+<span class='upc' id='L497' title='1|1|1 - Total: 2'>        return parmsLength == VARARGS_METHOD;
+</span>    }
+
+    boolean isVarArgsConstructor() {
+<span class='upc' id='L501' title='1|1|1 - Total: 2'>        return parmsLength == VARARGS_CTOR;
+</span>    }
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='nc' id='L507' title='0|0|0 - Total: 2'>        in.defaultReadObject();
+</span><span class='nc' id='L508' title='0|0|0 - Total: 2'>        if (parmsLength > 0) {
+</span><span class='nc' id='L509' title='0|0|0 - Total: 4'>            Class<?>[] types = member.argTypes;
+</span><span class='nc' id='L510' title='0|0|0 - Total: 5'>            typeTags = new byte[parmsLength];
+</span><span class='nc' id='L511' title='0|0|0 - Total: 2'>            for (int i = 0; i != parmsLength; ++i) {
+</span><span class='nc' id='L512' title='0|0|0 - Total: 9'>                typeTags[i] = (byte)getTypeTag(types[i]);
+</span>            }
+        }
+<span class='nc' id='L515' title='0|0|0 - Total: 2'>        if (member.isMethod()) {
+</span><span class='nc' id='L516' title='0|0|0 - Total: 4'>            Method method = member.method();
+</span><span class='nc' id='L517' title='0|0|0 - Total: 3'>            Class<?> returnType = method.getReturnType();
+</span><span class='nc' id='L518' title='0|0|0 - Total: 2'>            if (returnType == Void.TYPE) {
+</span><span class='nc' id='L519' title='0|0|0 - Total: 4'>                hasVoidReturn = true;
+</span>            } else {
+<span class='nc' id='L521' title='0|0|0 - Total: 4'>                returnTypeTag = getTypeTag(returnType);
+</span>            }
+        }
+<span class='nc' id='L524' title='0|0|0 - Total: 1'>    }
+</span>
+    private static final short VARARGS_METHOD = -1;
+    private static final short VARARGS_CTOR =   -2;
+
+    private static boolean sawSecurityException;
+
+    public static final int JAVA_UNSUPPORTED_TYPE = 0;
+    public static final int JAVA_STRING_TYPE      = 1;
+    public static final int JAVA_INT_TYPE         = 2;
+    public static final int JAVA_BOOLEAN_TYPE     = 3;
+    public static final int JAVA_DOUBLE_TYPE      = 4;
+    public static final int JAVA_SCRIPTABLE_TYPE  = 5;
+    public static final int JAVA_OBJECT_TYPE      = 6;
+
+    MemberBox member;
+    private String functionName;
+    private transient byte[] typeTags;
+    private int parmsLength;
+    private transient boolean hasVoidReturn;
+    private transient int returnTypeTag;
+    private boolean isStatic;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.GeneratorExpressionLoop.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.GeneratorExpressionLoop.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+/**
+ */
+public class GeneratorExpressionLoop extends ForInLoop {
+    
+<span class='nc' id='L13' title='0|0|0 - Total: 2'>    public GeneratorExpressionLoop() {
+</span><span class='nc' id='L14' title='0|0|0 - Total: 1'>    }
+</span>
+    public GeneratorExpressionLoop(int pos) {
+<span class='uc' id='L17' title='3|3|3 - Total: 3'>        super(pos);
+</span><span class='uc' id='L18' title='1|1|1 - Total: 1'>    }
+</span>
+    public GeneratorExpressionLoop(int pos, int len) {
+<span class='nc' id='L21' title='0|0|0 - Total: 4'>        super(pos, len);
+</span><span class='nc' id='L22' title='0|0|0 - Total: 1'>    }
+</span>    
+    /**
+     * Returns whether the loop is a for-each loop
+     */
+    @Override
+    public boolean isForEach() {
+<span class='uc' id='L29' title='2|2|2 - Total: 2'>        return false;
+</span>    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    @Override
+    public void setIsForEach(boolean isForEach) {
+<span class='nc' id='L37' title='0|0|0 - Total: 5'>        throw new UnsupportedOperationException("this node type does not support for each");
+</span>    }
+
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L42' title='0|0|0 - Total: 11'>        return makeIndent(depth)
+</span>                + " for "
+<span class='nc' id='L44' title='0|0|0 - Total: 2'>                + (isForEach()?"each ":"")
+</span>                + "("
+<span class='nc' id='L46' title='0|0|0 - Total: 3'>                + iterator.toSource(0)
+</span><span class='nc' id='L47' title='0|0|0 - Total: 2'>                + (isForOf()?" of ":" in ")
+</span><span class='nc' id='L48' title='0|0|0 - Total: 5'>                + iteratedObject.toSource(0)
+</span>                + ")";
+    }
+
+    /**
+     * Visits the iterator expression and the iterated object expression.
+     * There is no body-expression for this loop type.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L58' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L59' title='0|0|0 - Total: 4'>            iterator.visit(v);
+</span><span class='nc' id='L60' title='0|0|0 - Total: 4'>            iteratedObject.visit(v);
+</span>        }
+<span class='nc' id='L62' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

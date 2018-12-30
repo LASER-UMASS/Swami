@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.SwitchStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.SwitchStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Switch statement AST node type.
+ * Node type is {@link Token#SWITCH}.<p>
+ *
+ * <pre><i>SwitchStatement</i> :
+ *        <b>switch</b> ( Expression ) CaseBlock
+ * <i>CaseBlock</i> :
+ *        { [CaseClauses] }
+ *        { [CaseClauses] DefaultClause [CaseClauses] }
+ * <i>CaseClauses</i> :
+ *        CaseClause
+ *        CaseClauses CaseClause
+ * <i>CaseClause</i> :
+ *        <b>case</b> Expression : [StatementList]
+ * <i>DefaultClause</i> :
+ *        <b>default</b> : [StatementList]</pre>
+ */
+public class SwitchStatement extends Jump {
+
+<span class='uc' id='L34' title='4|4|4 - Total: 4'>    private static final List<SwitchCase> NO_CASES =
+</span><span class='uc' id='L35' title='2|2|2 - Total: 2'>        Collections.unmodifiableList(new ArrayList<SwitchCase>());
+</span>
+    private AstNode expression;
+    private List<SwitchCase> cases;
+<span class='upc' id='L39' title='3|3|3 - Total: 9'>    private int lp = -1;
+</span><span class='upc' id='L40' title='3|3|3 - Total: 9'>    private int rp = -1;
+</span>
+    {
+<span class='upc' id='L43' title='3|3|3 - Total: 9'>        type = Token.SWITCH;
+</span>    }
+
+<span class='nc' id='L46' title='0|0|0 - Total: 2'>    public SwitchStatement() {
+</span><span class='nc' id='L47' title='0|0|0 - Total: 1'>    }
+</span>
+<span class='uc' id='L49' title='2|2|2 - Total: 2'>    public SwitchStatement(int pos) {
+</span>        // can't call super (Jump) for historical reasons
+<span class='uc' id='L51' title='3|3|3 - Total: 3'>        position = pos;
+</span><span class='uc' id='L52' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='nc' id='L54' title='0|0|0 - Total: 2'>    public SwitchStatement(int pos, int len) {
+</span><span class='nc' id='L55' title='0|0|0 - Total: 3'>        position = pos;
+</span><span class='nc' id='L56' title='0|0|0 - Total: 3'>        length = len;
+</span><span class='nc' id='L57' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns the switch discriminant expression
+     */
+    public AstNode getExpression() {
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        return expression;
+</span>    }
+
+    /**
+     * Sets the switch discriminant expression, and sets its parent
+     * to this node.
+     * @throws IllegalArgumentException} if expression is {@code null}
+     */
+    public void setExpression(AstNode expression) {
+<span class='uc' id='L72' title='3|3|3 - Total: 3'>        assertNotNull(expression);
+</span><span class='uc' id='L73' title='3|3|3 - Total: 3'>        this.expression = expression;
+</span><span class='uc' id='L74' title='3|3|3 - Total: 3'>        expression.setParent(this);
+</span><span class='uc' id='L75' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns case statement list.  If there are no cases,
+     * returns an immutable empty list.
+     */
+    public List<SwitchCase> getCases() {
+<span class='uc' id='L82' title='2|2|2 - Total: 2'>        return cases != null ? cases : NO_CASES;
+</span>    }
+
+    /**
+     * Sets case statement list, and sets the parent of each child
+     * case to this node.
+     * @param cases list, which may be {@code null} to remove all the cases
+     */
+    public void setCases(List<SwitchCase> cases) {
+<span class='nc' id='L91' title='0|0|0 - Total: 2'>        if (cases == null) {
+</span><span class='nc' id='L92' title='0|0|0 - Total: 4'>            this.cases = null;
+</span>        } else {
+<span class='nc' id='L94' title='0|0|0 - Total: 2'>            if (this.cases != null)
+</span><span class='nc' id='L95' title='0|0|0 - Total: 3'>                this.cases.clear();
+</span><span class='nc' id='L96' title='0|0|0 - Total: 2'>            for (SwitchCase sc : cases)
+</span><span class='nc' id='L97' title='0|0|0 - Total: 4'>                addCase(sc);
+</span>        }
+<span class='nc' id='L99' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Adds a switch case statement to the end of the list.
+     * @throws IllegalArgumentException} if switchCase is {@code null}
+     */
+    public void addCase(SwitchCase switchCase) {
+<span class='uc' id='L106' title='3|3|3 - Total: 3'>        assertNotNull(switchCase);
+</span><span class='uc' id='L107' title='2|2|2 - Total: 2'>        if (cases == null) {
+</span><span class='uc' id='L108' title='5|5|5 - Total: 5'>            cases = new ArrayList<SwitchCase>();
+</span>        }
+<span class='uc' id='L110' title='5|5|5 - Total: 5'>        cases.add(switchCase);
+</span><span class='uc' id='L111' title='3|3|3 - Total: 3'>        switchCase.setParent(this);
+</span><span class='uc' id='L112' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns left paren position, -1 if missing
+     */
+    public int getLp() {
+<span class='nc' id='L118' title='0|0|0 - Total: 3'>        return lp;
+</span>    }
+
+    /**
+     * Sets left paren position
+     */
+    public void setLp(int lp) {
+<span class='uc' id='L125' title='3|3|3 - Total: 3'>        this.lp = lp;
+</span><span class='uc' id='L126' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns right paren position, -1 if missing
+     */
+    public int getRp() {
+<span class='nc' id='L132' title='0|0|0 - Total: 3'>        return rp;
+</span>    }
+
+    /**
+     * Sets right paren position
+     */
+    public void setRp(int rp) {
+<span class='uc' id='L139' title='3|3|3 - Total: 3'>        this.rp = rp;
+</span><span class='uc' id='L140' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class='nc' id='L146' title='0|0|0 - Total: 3'>        this.lp = lp;
+</span><span class='nc' id='L147' title='0|0|0 - Total: 3'>        this.rp = rp;
+</span><span class='nc' id='L148' title='0|0|0 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='uc' id='L152' title='4|4|4 - Total: 4'>        String pad = makeIndent(depth);
+</span><span class='uc' id='L153' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='uc' id='L154' title='4|4|4 - Total: 4'>        sb.append(pad);
+</span><span class='uc' id='L155' title='4|4|4 - Total: 4'>        sb.append("switch (");
+</span><span class='uc' id='L156' title='7|7|7 - Total: 7'>        sb.append(expression.toSource(0));
+</span><span class='uc' id='L157' title='4|4|4 - Total: 4'>        sb.append(") {\n");
+</span><span class='uc' id='L158' title='2|2|2 - Total: 2'>        if (cases != null) {
+</span><span class='uc' id='L159' title='2|2|2 - Total: 2'>            for (SwitchCase sc : cases) {
+</span><span class='uc' id='L160' title='8|8|8 - Total: 8'>                sb.append(sc.toSource(depth + 1));
+</span><span class='uc' id='L161' title='1|1|1 - Total: 1'>            }
+</span>        }
+<span class='uc' id='L163' title='4|4|4 - Total: 4'>        sb.append(pad);
+</span><span class='uc' id='L164' title='4|4|4 - Total: 4'>        sb.append("}\n");
+</span><span class='uc' id='L165' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then the switch-expression, then the cases
+     * in lexical order.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L174' title='0|0|0 - Total: 2'>        if (v.visit(this)) {
+</span><span class='nc' id='L175' title='0|0|0 - Total: 4'>            expression.visit(v);
+</span><span class='nc' id='L176' title='0|0|0 - Total: 2'>            for (SwitchCase sc: getCases()) {
+</span><span class='nc' id='L177' title='0|0|0 - Total: 3'>                sc.visit(v);
+</span><span class='nc' id='L178' title='0|0|0 - Total: 1'>            }
+</span>        }
+<span class='nc' id='L180' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

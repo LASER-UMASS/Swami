@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.IdFunctionObject.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.IdFunctionObject.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+public class IdFunctionObject extends BaseFunction
+{
+
+    static final long serialVersionUID = -5332312783643935019L;
+
+    public IdFunctionObject(IdFunctionCall idcall, Object tag, int id, int arity)
+<span class='uc' id='L17' title='2|2|2 - Total: 2'>    {
+</span><span class='upc' id='L18' title='1|1|1 - Total: 2'>        if (arity < 0)
+</span><span class='nc' id='L19' title='0|0|0 - Total: 4'>            throw new IllegalArgumentException();
+</span>
+<span class='uc' id='L21' title='3|3|3 - Total: 3'>        this.idcall = idcall;
+</span><span class='uc' id='L22' title='3|3|3 - Total: 3'>        this.tag = tag;
+</span><span class='uc' id='L23' title='3|3|3 - Total: 3'>        this.methodId = id;
+</span><span class='uc' id='L24' title='3|3|3 - Total: 3'>        this.arity = arity;
+</span><span class='upc' id='L25' title='1|1|1 - Total: 2'>        if (arity < 0) throw new IllegalArgumentException();
+</span><span class='uc' id='L26' title='1|1|1 - Total: 1'>    }
+</span>
+    public IdFunctionObject(IdFunctionCall idcall, Object tag, int id,
+                            String name, int arity, Scriptable scope)
+    {
+<span class='uc' id='L31' title='4|4|4 - Total: 4'>        super(scope, null);
+</span>
+<span class='upc' id='L33' title='1|1|1 - Total: 2'>        if (arity < 0)
+</span><span class='nc' id='L34' title='0|0|0 - Total: 4'>            throw new IllegalArgumentException();
+</span><span class='upc' id='L35' title='1|1|1 - Total: 2'>        if (name == null)
+</span><span class='nc' id='L36' title='0|0|0 - Total: 4'>            throw new IllegalArgumentException();
+</span>
+<span class='uc' id='L38' title='3|3|3 - Total: 3'>        this.idcall = idcall;
+</span><span class='uc' id='L39' title='3|3|3 - Total: 3'>        this.tag = tag;
+</span><span class='uc' id='L40' title='3|3|3 - Total: 3'>        this.methodId = id;
+</span><span class='uc' id='L41' title='3|3|3 - Total: 3'>        this.arity = arity;
+</span><span class='uc' id='L42' title='3|3|3 - Total: 3'>        this.functionName = name;
+</span><span class='uc' id='L43' title='1|1|1 - Total: 1'>    }
+</span>
+    public void initFunction(String name, Scriptable scope)
+    {
+<span class='upc' id='L47' title='1|1|1 - Total: 2'>        if (name == null) throw new IllegalArgumentException();
+</span><span class='upc' id='L48' title='1|1|1 - Total: 2'>        if (scope == null) throw new IllegalArgumentException();
+</span><span class='uc' id='L49' title='3|3|3 - Total: 3'>        this.functionName = name;
+</span><span class='uc' id='L50' title='3|3|3 - Total: 3'>        setParentScope(scope);
+</span><span class='uc' id='L51' title='1|1|1 - Total: 1'>    }
+</span>
+    public final boolean hasTag(Object tag)
+    {
+<span class='upc' id='L55' title='1|1|1 - Total: 4'>        return tag == null ? this.tag == null : tag.equals(this.tag);
+</span>    }
+
+    public Object getTag() {
+<span class='uc' id='L59' title='3|3|3 - Total: 3'>        return tag;
+</span>    }
+
+    public final int methodId()
+    {
+<span class='uc' id='L64' title='3|3|3 - Total: 3'>        return methodId;
+</span>    }
+
+    public final void markAsConstructor(Scriptable prototypeProperty)
+    {
+<span class='uc' id='L69' title='3|3|3 - Total: 3'>        useCallAsConstructor = true;
+</span><span class='uc' id='L70' title='3|3|3 - Total: 3'>        setImmunePrototypeProperty(prototypeProperty);
+</span><span class='uc' id='L71' title='1|1|1 - Total: 1'>    }
+</span>
+    public final void addAsProperty(Scriptable target)
+    {
+<span class='uc' id='L75' title='6|6|6 - Total: 6'>        ScriptableObject.defineProperty(target, functionName, this,
+</span>                                        ScriptableObject.DONTENUM);
+<span class='uc' id='L77' title='1|1|1 - Total: 1'>    }
+</span>
+    public void exportAsScopeProperty()
+    {
+<span class='uc' id='L81' title='4|4|4 - Total: 4'>        addAsProperty(getParentScope());
+</span><span class='uc' id='L82' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public Scriptable getPrototype()
+    {
+        // Lazy initialization of prototype: for native functions this
+        // may not be called at all
+<span class='uc' id='L89' title='3|3|3 - Total: 3'>        Scriptable proto = super.getPrototype();
+</span><span class='uc' id='L90' title='2|2|2 - Total: 2'>        if (proto == null) {
+</span><span class='uc' id='L91' title='4|4|4 - Total: 4'>            proto = getFunctionPrototype(getParentScope());
+</span><span class='uc' id='L92' title='3|3|3 - Total: 3'>            setPrototype(proto);
+</span>        }
+<span class='uc' id='L94' title='2|2|2 - Total: 2'>        return proto;
+</span>    }
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class='uc' id='L101' title='9|9|9 - Total: 9'>        return idcall.execIdCall(this, cx, scope, thisObj, args);
+</span>    }
+
+    @Override
+    public Scriptable createObject(Context cx, Scriptable scope)
+    {
+<span class='uc' id='L107' title='2|2|2 - Total: 2'>        if (useCallAsConstructor) {
+</span><span class='uc' id='L108' title='2|2|2 - Total: 2'>            return null;
+</span>        }
+        // Throw error if not explicitly coded to be used as constructor,
+        // to satisfy ECMAScript standard (see bugzilla 202019).
+        // To follow current (2003-05-01) SpiderMonkey behavior, change it to:
+        // return super.createObject(cx, scope);
+<span class='uc' id='L114' title='5|5|5 - Total: 5'>        throw ScriptRuntime.typeError1("msg.not.ctor", functionName);
+</span>    }
+
+    @Override
+    String decompile(int indent, int flags)
+    {
+<span class='uc' id='L120' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='upc' id='L121' title='1|1|1 - Total: 2'>        boolean justbody = (0 != (flags & Decompiler.ONLY_BODY_FLAG));
+</span><span class='upc' id='L122' title='1|1|1 - Total: 2'>        if (!justbody) {
+</span><span class='uc' id='L123' title='4|4|4 - Total: 4'>            sb.append("function ");
+</span><span class='uc' id='L124' title='5|5|5 - Total: 5'>            sb.append(getFunctionName());
+</span><span class='uc' id='L125' title='4|4|4 - Total: 4'>            sb.append("() { ");
+</span>        }
+<span class='uc' id='L127' title='4|4|4 - Total: 4'>        sb.append("[native code for ");
+</span><span class='uc' id='L128' title='2|2|2 - Total: 2'>        if (idcall instanceof Scriptable) {
+</span><span class='uc' id='L129' title='4|4|4 - Total: 4'>            Scriptable sobj = (Scriptable)idcall;
+</span><span class='uc' id='L130' title='5|5|5 - Total: 5'>            sb.append(sobj.getClassName());
+</span><span class='uc' id='L131' title='4|4|4 - Total: 4'>            sb.append('.');
+</span>        }
+<span class='uc' id='L133' title='5|5|5 - Total: 5'>        sb.append(getFunctionName());
+</span><span class='uc' id='L134' title='4|4|4 - Total: 4'>        sb.append(", arity=");
+</span><span class='uc' id='L135' title='5|5|5 - Total: 5'>        sb.append(getArity());
+</span><span class='upc' id='L136' title='1|1|1 - Total: 2'>        sb.append(justbody ? "]\n" : "] }\n");
+</span><span class='uc' id='L137' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    @Override
+    public int getArity()
+    {
+<span class='uc' id='L143' title='3|3|3 - Total: 3'>        return arity;
+</span>    }
+
+    @Override
+<span class='uc' id='L147' title='3|3|3 - Total: 3'>    public int getLength() { return getArity(); }
+</span>
+    @Override
+    public String getFunctionName()
+    {
+<span class='upc' id='L152' title='1|1|1 - Total: 2'>        return (functionName == null) ? "" : functionName;
+</span>    }
+
+    public final RuntimeException unknown()
+    {
+        // It is program error to call id-like methods for unknown function
+<span class='nc' id='L158' title='0|0|0 - Total: 18'>        return new IllegalArgumentException(
+</span>            "BAD FUNCTION ID="+methodId+" MASTER="+idcall);
+    }
+
+    private final IdFunctionCall idcall;
+    private final Object tag;
+    private final int methodId;
+    private int arity;
+    private boolean useCallAsConstructor;
+    private String functionName;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

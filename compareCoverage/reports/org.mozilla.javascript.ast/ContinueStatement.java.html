@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.ContinueStatement.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.ContinueStatement.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * A continue statement.
+ * Node type is {@link Token#CONTINUE}.<p>
+ *
+ * <pre><i>ContinueStatement</i> :
+ *   <b>continue</b> [<i>no LineTerminator here</i>] [Identifier] ;</pre>
+ */
+public class ContinueStatement extends Jump {
+
+    private Name label;
+    private Loop target;
+
+    {
+<span class='upc' id='L24' title='3|3|3 - Total: 9'>        type = Token.CONTINUE;
+</span>    }
+
+<span class='nc' id='L27' title='0|0|0 - Total: 2'>    public ContinueStatement() {
+</span><span class='nc' id='L28' title='0|0|0 - Total: 1'>    }
+</span>
+    public ContinueStatement(int pos) {
+<span class='nc' id='L31' title='0|0|0 - Total: 4'>        this(pos, -1);
+</span><span class='nc' id='L32' title='0|0|0 - Total: 1'>    }
+</span>
+<span class='uc' id='L34' title='2|2|2 - Total: 2'>    public ContinueStatement(int pos, int len) {
+</span>        // can't call super (Jump) for historical reasons
+<span class='uc' id='L36' title='3|3|3 - Total: 3'>        position = pos;
+</span><span class='uc' id='L37' title='3|3|3 - Total: 3'>        length = len;
+</span><span class='uc' id='L38' title='1|1|1 - Total: 1'>    }
+</span>
+<span class='nc' id='L40' title='0|0|0 - Total: 2'>    public ContinueStatement(Name label) {
+</span><span class='nc' id='L41' title='0|0|0 - Total: 3'>        setLabel(label);
+</span><span class='nc' id='L42' title='0|0|0 - Total: 1'>    }
+</span>
+    public ContinueStatement(int pos, Name label) {
+<span class='nc' id='L45' title='0|0|0 - Total: 3'>        this(pos);
+</span><span class='nc' id='L46' title='0|0|0 - Total: 3'>        setLabel(label);
+</span><span class='nc' id='L47' title='0|0|0 - Total: 1'>    }
+</span>
+    public ContinueStatement(int pos, int len, Name label) {
+<span class='nc' id='L50' title='0|0|0 - Total: 4'>        this(pos, len);
+</span><span class='nc' id='L51' title='0|0|0 - Total: 3'>        setLabel(label);
+</span><span class='nc' id='L52' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns continue target
+     */
+    public Loop getTarget() {
+<span class='nc' id='L58' title='0|0|0 - Total: 3'>        return target;
+</span>    }
+
+    /**
+     * Sets continue target.  Does NOT set the parent of the target node:
+     * the target node is an ancestor of this node.
+     * @param target continue target
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setTarget(Loop target) {
+<span class='uc' id='L68' title='3|3|3 - Total: 3'>        assertNotNull(target);
+</span><span class='uc' id='L69' title='3|3|3 - Total: 3'>        this.target = target;
+</span><span class='uc' id='L70' title='3|3|3 - Total: 3'>        setJumpStatement(target);
+</span><span class='uc' id='L71' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the intended label of this continue statement
+     * @return the continue label.  Will be {@code null} if the statement
+     * consisted only of the keyword "continue".
+     */
+    public Name getLabel() {
+<span class='uc' id='L79' title='3|3|3 - Total: 3'>        return label;
+</span>    }
+
+    /**
+     * Sets the intended label of this continue statement.
+     * Only applies if the statement was of the form "continue &lt;label&gt;".
+     * @param label the continue label, or {@code null} if not present.
+     */
+    public void setLabel(Name label) {
+<span class='uc' id='L88' title='3|3|3 - Total: 3'>        this.label = label;
+</span><span class='uc' id='L89' title='2|2|2 - Total: 2'>        if (label != null)
+</span><span class='uc' id='L90' title='3|3|3 - Total: 3'>            label.setParent(this);
+</span><span class='uc' id='L91' title='1|1|1 - Total: 1'>    }
+</span>
+    @Override
+    public String toSource(int depth) {
+<span class='nc' id='L95' title='0|0|0 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='nc' id='L96' title='0|0|0 - Total: 6'>        sb.append(makeIndent(depth));
+</span><span class='nc' id='L97' title='0|0|0 - Total: 4'>        sb.append("continue");
+</span><span class='nc' id='L98' title='0|0|0 - Total: 2'>        if (label != null) {
+</span><span class='nc' id='L99' title='0|0|0 - Total: 4'>            sb.append(" ");
+</span><span class='nc' id='L100' title='0|0|0 - Total: 7'>            sb.append(label.toSource(0));
+</span>        }
+<span class='nc' id='L102' title='0|0|0 - Total: 4'>        sb.append(";\n");
+</span><span class='nc' id='L103' title='0|0|0 - Total: 3'>        return sb.toString();
+</span>    }
+
+    /**
+     * Visits this node, then visits the label if non-{@code null}.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class='nc' id='L111' title='0|0|0 - Total: 4'>        if (v.visit(this) && label != null) {
+</span><span class='nc' id='L112' title='0|0|0 - Total: 4'>            label.visit(v);
+</span>        }
+<span class='nc' id='L114' title='0|0|0 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

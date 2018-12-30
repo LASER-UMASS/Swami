@@ -1,0 +1,756 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.regexp.RegExpImpl.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.regexp.RegExpImpl.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.regexp;
+
+import org.mozilla.javascript.*;
+
+/**
+ *
+ */
+<span class='bc' id='L14' title='0|3|3 - Total: 3'>public class RegExpImpl implements RegExpProxy {
+</span>
+    public boolean isRegExp(Scriptable obj) {
+<span class='bc' id='L17' title='0|3|3 - Total: 3'>        return obj instanceof NativeRegExp;
+</span>    }
+
+    public Object compileRegExp(Context cx, String source, String flags)
+    {
+<span class='bc' id='L22' title='0|6|6 - Total: 6'>        return NativeRegExp.compileRE(cx, source, flags, false);
+</span>    }
+
+    public Scriptable wrapRegExp(Context cx, Scriptable scope,
+                                 Object compiled)
+    {
+<span class='bc' id='L28' title='0|7|7 - Total: 7'>        return new NativeRegExp(scope, (RECompiled) compiled);
+</span>    }
+
+    public Object action(Context cx, Scriptable scope,
+                         Scriptable thisObj, Object[] args,
+                         int actionType)
+    {
+<span class='bc' id='L35' title='0|4|4 - Total: 4'>        GlobData data = new GlobData();
+</span><span class='bc' id='L36' title='0|3|3 - Total: 3'>        data.mode = actionType;
+</span><span class='bc' id='L37' title='0|4|4 - Total: 4'>        data.str = ScriptRuntime.toString(thisObj);
+</span>
+<span class='bpc' id='L39' title='0|3|3 - Total: 4'>        switch (actionType) {
+</span>          case RA_MATCH:
+            {
+<span class='bc' id='L42' title='0|7|7 - Total: 7'>                NativeRegExp re = createRegExp(cx, scope, args, 1, false);
+</span><span class='bc' id='L43' title='0|9|9 - Total: 9'>                Object rval = matchOrReplace(cx, scope, thisObj, args,
+</span>                                             this, data, re);
+<span class='bc' id='L45' title='0|2|2 - Total: 2'>                return data.arrayobj == null ? rval : data.arrayobj;
+</span>            }
+
+          case RA_SEARCH:
+            {
+<span class='bc' id='L50' title='0|7|7 - Total: 7'>                NativeRegExp re = createRegExp(cx, scope, args, 1, false);
+</span><span class='bc' id='L51' title='0|9|9 - Total: 9'>                return matchOrReplace(cx, scope, thisObj, args,
+</span>                                      this, data, re);
+            }
+
+          case RA_REPLACE:
+            {
+<span class='bpc' id='L57' title='0|5|5 - Total: 6'>                boolean useRE = (args.length > 0 && args[0] instanceof NativeRegExp)
+</span>                                || args.length > 2;
+<span class='bc' id='L59' title='0|2|2 - Total: 2'>                NativeRegExp re = null;
+</span><span class='bc' id='L60' title='0|2|2 - Total: 2'>                String search = null;
+</span><span class='bc' id='L61' title='0|2|2 - Total: 2'>                if (useRE) {
+</span><span class='bc' id='L62' title='0|8|8 - Total: 8'>                    re = createRegExp(cx, scope, args, 2, true);
+</span>                } else {
+<span class='bpc' id='L64' title='0|1|1 - Total: 2'>                    Object arg0 = args.length < 1 ? Undefined.instance : args[0];
+</span><span class='bc' id='L65' title='0|3|3 - Total: 3'>                    search = ScriptRuntime.toString(arg0);
+</span>                }
+
+<span class='bpc' id='L68' title='0|1|1 - Total: 2'>                Object arg1 = args.length < 2 ? Undefined.instance : args[1];
+</span><span class='bc' id='L69' title='0|2|2 - Total: 2'>                String repstr = null;
+</span><span class='bc' id='L70' title='0|2|2 - Total: 2'>                Function lambda = null;
+</span><span class='bc' id='L71' title='0|2|2 - Total: 2'>                if (arg1 instanceof Function) {
+</span><span class='bc' id='L72' title='0|4|4 - Total: 4'>                    lambda = (Function) arg1;
+</span>                } else {
+<span class='bc' id='L74' title='0|3|3 - Total: 3'>                    repstr = ScriptRuntime.toString(arg1);
+</span>                }
+
+<span class='bc' id='L77' title='0|3|3 - Total: 3'>                data.lambda = lambda;
+</span><span class='bc' id='L78' title='0|3|3 - Total: 3'>                data.repstr = repstr;
+</span><span class='bc' id='L79' title='0|2|2 - Total: 2'>                data.dollar = repstr == null ? -1 : repstr.indexOf('$');
+</span><span class='bc' id='L80' title='0|3|3 - Total: 3'>                data.charBuf = null;
+</span><span class='bc' id='L81' title='0|3|3 - Total: 3'>                data.leftIndex = 0;
+</span>
+                Object val;
+<span class='bc' id='L84' title='0|2|2 - Total: 2'>                if (useRE) {
+</span><span class='bc' id='L85' title='0|10|10 - Total: 10'>                    val = matchOrReplace(cx, scope, thisObj, args,
+</span>                                         this, data, re);
+                } else {
+<span class='bc' id='L88' title='0|3|3 - Total: 3'>                    String str = data.str;
+</span><span class='bc' id='L89' title='0|4|4 - Total: 4'>                    int index = str.indexOf(search);
+</span><span class='bc' id='L90' title='0|2|2 - Total: 2'>                    if (index >= 0) {
+</span><span class='bc' id='L91' title='0|3|3 - Total: 3'>                        int slen = search.length();
+</span><span class='bc' id='L92' title='0|3|3 - Total: 3'>                        this.lastParen = null;
+</span><span class='bc' id='L93' title='0|8|8 - Total: 8'>                        this.leftContext = new SubString(str, 0, index);
+</span><span class='bc' id='L94' title='0|8|8 - Total: 8'>                        this.lastMatch = new SubString(str, index, slen);
+</span><span class='bc' id='L95' title='0|15|15 - Total: 15'>                        this.rightContext = new SubString(str, index + slen, str.length() - index - slen);
+</span><span class='bc' id='L96' title='0|2|2 - Total: 2'>                        val = Boolean.TRUE;
+</span><span class='bc' id='L97' title='0|1|1 - Total: 1'>                    } else {
+</span><span class='bc' id='L98' title='0|2|2 - Total: 2'>                        val = Boolean.FALSE;
+</span>                    }
+                }
+
+<span class='bc' id='L102' title='0|2|2 - Total: 2'>                if (data.charBuf == null) {
+</span><span class='bc' id='L103' title='0|4|4 - Total: 4'>                    if (data.global || val == null
+</span><span class='bc' id='L104' title='0|2|2 - Total: 2'>                        || !val.equals(Boolean.TRUE))
+</span>                    {
+                        /* Didn't match even once. */
+<span class='bc' id='L107' title='0|3|3 - Total: 3'>                        return data.str;
+</span>                    }
+<span class='bc' id='L109' title='0|3|3 - Total: 3'>                    SubString lc = this.leftContext;
+</span><span class='bc' id='L110' title='0|9|9 - Total: 9'>                    replace_glob(data, cx, scope, this, lc.index, lc.length);
+</span>                }
+<span class='bc' id='L112' title='0|3|3 - Total: 3'>                SubString rc = this.rightContext;
+</span><span class='bc' id='L113' title='0|13|13 - Total: 13'>                data.charBuf.append(rc.str, rc.index, rc.index + rc.length);
+</span><span class='bc' id='L114' title='0|4|4 - Total: 4'>                return data.charBuf.toString();
+</span>            }
+
+          default:
+<span class='nc' id='L118' title='0|0|0 - Total: 2'>            throw Kit.codeBug();
+</span>        }
+    }
+
+    private static NativeRegExp createRegExp(Context cx, Scriptable scope,
+                                             Object[] args, int optarg,
+                                             boolean forceFlat)
+    {
+        NativeRegExp re;
+<span class='bc' id='L127' title='0|3|3 - Total: 3'>        Scriptable topScope = ScriptableObject.getTopLevelScope(scope);
+</span><span class='bpc' id='L128' title='0|3|3 - Total: 4'>        if (args.length == 0 || args[0] == Undefined.instance) {
+</span><span class='bc' id='L129' title='0|6|6 - Total: 6'>            RECompiled compiled = NativeRegExp.compileRE(cx, "", "", false);
+</span><span class='bc' id='L130' title='0|6|6 - Total: 6'>            re = new NativeRegExp(topScope, compiled);
+</span><span class='bc' id='L131' title='0|2|2 - Total: 2'>        } else if (args[0] instanceof NativeRegExp) {
+</span><span class='bc' id='L132' title='0|6|6 - Total: 6'>            re = (NativeRegExp) args[0];
+</span>        } else {
+<span class='bc' id='L134' title='0|5|5 - Total: 5'>            String src = ScriptRuntime.toString(args[0]);
+</span>            String opt;
+<span class='bc' id='L136' title='0|2|2 - Total: 2'>            if (optarg < args.length) {
+</span><span class='bc' id='L137' title='0|4|4 - Total: 4'>                args[0] = src;
+</span><span class='bc' id='L138' title='0|6|6 - Total: 6'>                opt = ScriptRuntime.toString(args[optarg]);
+</span>            } else {
+<span class='bc' id='L140' title='0|2|2 - Total: 2'>                opt = null;
+</span>            }
+<span class='bc' id='L142' title='0|6|6 - Total: 6'>            RECompiled compiled = NativeRegExp.compileRE(cx, src, opt, forceFlat);
+</span><span class='bc' id='L143' title='0|6|6 - Total: 6'>            re = new NativeRegExp(topScope, compiled);
+</span>        }
+<span class='bc' id='L145' title='0|2|2 - Total: 2'>        return re;
+</span>    }
+
+    /**
+     * Analog of C match_or_replace.
+     */
+    private static Object matchOrReplace(Context cx, Scriptable scope,
+                                         Scriptable thisObj, Object[] args,
+                                         RegExpImpl reImpl,
+                                         GlobData data, NativeRegExp re)
+    {
+<span class='bc' id='L156' title='0|3|3 - Total: 3'>        String str = data.str;
+</span><span class='bc' id='L157' title='0|2|2 - Total: 2'>        data.global = (re.getFlags() & NativeRegExp.JSREG_GLOB) != 0;
+</span><span class='bc' id='L158' title='0|7|7 - Total: 7'>        int[] indexp = { 0 };
+</span><span class='bc' id='L159' title='0|2|2 - Total: 2'>        Object result = null;
+</span><span class='bc' id='L160' title='0|2|2 - Total: 2'>        if (data.mode == RA_SEARCH) {
+</span><span class='bc' id='L161' title='0|9|9 - Total: 9'>            result = re.executeRegExp(cx, scope, reImpl,
+</span>                                      str, indexp, NativeRegExp.TEST);
+<span class='bpc' id='L163' title='0|3|3 - Total: 4'>            if (result != null && result.equals(Boolean.TRUE))
+</span><span class='bc' id='L164' title='0|6|6 - Total: 6'>                result = Integer.valueOf(reImpl.leftContext.length);
+</span>            else
+<span class='bc' id='L166' title='0|4|4 - Total: 4'>                result = Integer.valueOf(-1);
+</span><span class='bc' id='L167' title='0|2|2 - Total: 2'>        } else if (data.global) {
+</span><span class='bc' id='L168' title='0|4|4 - Total: 4'>            re.lastIndex = 0d;
+</span><span class='bpc' id='L169' title='0|1|1 - Total: 2'>            for (int count = 0; indexp[0] <= str.length(); count++) {
+</span><span class='bc' id='L170' title='0|9|9 - Total: 9'>                result = re.executeRegExp(cx, scope, reImpl,
+</span>                                          str, indexp, NativeRegExp.TEST);
+<span class='bpc' id='L172' title='0|3|3 - Total: 4'>                if (result == null || !result.equals(Boolean.TRUE))
+</span><span class='nc' id='L173' title='0|0|0 - Total: 1'>                    break;
+</span><span class='bc' id='L174' title='0|2|2 - Total: 2'>                if (data.mode == RA_MATCH) {
+</span><span class='bc' id='L175' title='0|7|7 - Total: 7'>                    match_glob(data, cx, scope, count, reImpl);
+</span>                } else {
+<span class='bpc' id='L177' title='0|1|1 - Total: 2'>                    if (data.mode != RA_REPLACE) Kit.codeBug();
+</span><span class='bc' id='L178' title='0|3|3 - Total: 3'>                    SubString lastMatch = reImpl.lastMatch;
+</span><span class='bc' id='L179' title='0|3|3 - Total: 3'>                    int leftIndex = data.leftIndex;
+</span><span class='bc' id='L180' title='0|5|5 - Total: 5'>                    int leftlen = lastMatch.index - leftIndex;
+</span><span class='bc' id='L181' title='0|7|7 - Total: 7'>                    data.leftIndex = lastMatch.index + lastMatch.length;
+</span><span class='bc' id='L182' title='0|7|7 - Total: 7'>                    replace_glob(data, cx, scope, reImpl, leftIndex, leftlen);
+</span>                }
+<span class='bc' id='L184' title='0|2|2 - Total: 2'>                if (reImpl.lastMatch.length == 0) {
+</span><span class='bpc' id='L185' title='0|1|1 - Total: 2'>                    if (indexp[0] == str.length())
+</span><span class='bc' id='L186' title='0|1|1 - Total: 1'>                        break;
+</span><span class='nc' id='L187' title='0|0|0 - Total: 7'>                    indexp[0]++;
+</span>                }
+            }
+        } else {
+<span class='bc' id='L191' title='0|2|2 - Total: 2'>            result = re.executeRegExp(cx, scope, reImpl, str, indexp,
+</span>                                      ((data.mode == RA_REPLACE)
+                                       ? NativeRegExp.TEST
+                                       : NativeRegExp.MATCH));
+        }
+
+<span class='bc' id='L197' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+
+
+    public int find_split(Context cx, Scriptable scope, String target,
+                          String separator, Scriptable reObj,
+                          int[] ip, int[] matchlen,
+                          boolean[] matched, String[][] parensp)
+    {
+<span class='bc' id='L207' title='0|4|4 - Total: 4'>        int i = ip[0];
+</span><span class='bc' id='L208' title='0|3|3 - Total: 3'>        int length = target.length();
+</span>        int result;
+
+<span class='bc' id='L211' title='0|3|3 - Total: 3'>        int version = cx.getLanguageVersion();
+</span><span class='bc' id='L212' title='0|3|3 - Total: 3'>        NativeRegExp re = (NativeRegExp) reObj;
+</span>        again:
+        while (true) {  // imitating C label
+            /* JS1.2 deviated from Perl by never matching at end of string. */
+<span class='bc' id='L216' title='0|4|4 - Total: 4'>            int ipsave = ip[0]; // reuse ip to save object creation
+</span><span class='bc' id='L217' title='0|4|4 - Total: 4'>            ip[0] = i;
+</span><span class='bc' id='L218' title='0|9|9 - Total: 9'>            Object ret = re.executeRegExp(cx, scope, this, target, ip,
+</span>                                          NativeRegExp.TEST);
+<span class='bc' id='L220' title='0|2|2 - Total: 2'>            if (ret != Boolean.TRUE) {
+</span>                // Mismatch: ensure our caller advances i past end of string.
+<span class='bc' id='L222' title='0|4|4 - Total: 4'>                ip[0] = ipsave;
+</span><span class='bc' id='L223' title='0|4|4 - Total: 4'>                matchlen[0] = 1;
+</span><span class='bc' id='L224' title='0|4|4 - Total: 4'>                matched[0] = false;
+</span><span class='bc' id='L225' title='0|2|2 - Total: 2'>                return length;
+</span>            }
+<span class='bc' id='L227' title='0|4|4 - Total: 4'>            i = ip[0];
+</span><span class='bc' id='L228' title='0|4|4 - Total: 4'>            ip[0] = ipsave;
+</span><span class='bc' id='L229' title='0|4|4 - Total: 4'>            matched[0] = true;
+</span>
+<span class='bc' id='L231' title='0|3|3 - Total: 3'>            SubString sep = this.lastMatch;
+</span><span class='bc' id='L232' title='0|5|5 - Total: 5'>            matchlen[0] = sep.length;
+</span><span class='bc' id='L233' title='0|2|2 - Total: 2'>            if (matchlen[0] == 0) {
+</span>                /*
+                 * Empty string match: never split on an empty
+                 * match at the start of a find_split cycle.  Same
+                 * rule as for an empty global match in
+                 * match_or_replace.
+                 */
+<span class='bc' id='L240' title='0|2|2 - Total: 2'>                if (i == ip[0]) {
+</span>                    /*
+                     * "Bump-along" to avoid sticking at an empty
+                     * match, but don't bump past end of string --
+                     * our caller must do that by adding
+                     * sep->length to our return value.
+                     */
+<span class='bc' id='L247' title='0|2|2 - Total: 2'>                    if (i == length) {
+</span><span class='bpc' id='L248' title='0|1|1 - Total: 2'>                        if (version == Context.VERSION_1_2) {
+</span><span class='nc' id='L249' title='0|0|0 - Total: 4'>                            matchlen[0] = 1;
+</span><span class='nc' id='L250' title='0|0|0 - Total: 3'>                            result = i;
+</span>                        }
+                        else
+<span class='bc' id='L253' title='0|2|2 - Total: 2'>                            result = -1;
+</span><span class='bc' id='L254' title='0|1|1 - Total: 1'>                        break;
+</span>                    }
+<span class='bc' id='L256' title='0|1|1 - Total: 1'>                    i++;
+</span><span class='bc' id='L257' title='0|1|1 - Total: 1'>                    continue again; // imitating C goto
+</span>                }
+            }
+            // PR_ASSERT((size_t)i >= sep->length);
+<span class='bc' id='L261' title='0|6|6 - Total: 6'>            result = i - matchlen[0];
+</span><span class='bc' id='L262' title='0|1|1 - Total: 1'>            break;
+</span>        }
+<span class='bc' id='L264' title='0|2|2 - Total: 2'>        int size = (parens == null) ? 0 : parens.length;
+</span><span class='bc' id='L265' title='0|5|5 - Total: 5'>        parensp[0] = new String[size];
+</span><span class='bc' id='L266' title='0|2|2 - Total: 2'>        for (int num = 0; num < size; num++) {
+</span><span class='bc' id='L267' title='0|4|4 - Total: 4'>            SubString parsub = getParenSubString(num);
+</span><span class='bc' id='L268' title='0|7|7 - Total: 7'>            parensp[0][num] = parsub.toString();
+</span>        }
+<span class='bc' id='L270' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Analog of REGEXP_PAREN_SUBSTRING in C jsregexp.h.
+     * Assumes zero-based; i.e., for $3, i==2
+     */
+    SubString getParenSubString(int i)
+    {
+<span class='bc' id='L279' title='0|4|4 - Total: 4'>        if (parens != null && i < parens.length) {
+</span><span class='bc' id='L280' title='0|5|5 - Total: 5'>            SubString parsub = parens[i];
+</span><span class='bc' id='L281' title='0|2|2 - Total: 2'>            if (parsub != null) {
+</span><span class='bc' id='L282' title='0|2|2 - Total: 2'>                return parsub;
+</span>            }
+        }
+<span class='bc' id='L285' title='0|4|4 - Total: 4'>        return new SubString();
+</span>    }
+
+    /*
+     * Analog of match_glob() in jsstr.c
+     */
+    private static void match_glob(GlobData mdata, Context cx,
+                                   Scriptable scope, int count,
+                                   RegExpImpl reImpl)
+    {
+<span class='bc' id='L295' title='0|2|2 - Total: 2'>        if (mdata.arrayobj == null) {
+</span><span class='bc' id='L296' title='0|6|6 - Total: 6'>            mdata.arrayobj = cx.newArray(scope, 0);
+</span>        }
+<span class='bc' id='L298' title='0|3|3 - Total: 3'>        SubString matchsub = reImpl.lastMatch;
+</span><span class='bc' id='L299' title='0|3|3 - Total: 3'>        String matchstr = matchsub.toString();
+</span><span class='bc' id='L300' title='0|7|7 - Total: 7'>        mdata.arrayobj.put(count, mdata.arrayobj, matchstr);
+</span><span class='bc' id='L301' title='0|1|1 - Total: 1'>    }
+</span>
+    /*
+     * Analog of replace_glob() in jsstr.c
+     */
+    private static void replace_glob(GlobData rdata, Context cx,
+                                     Scriptable scope, RegExpImpl reImpl,
+                                     int leftIndex, int leftlen)
+    {
+        int replen;
+        String lambdaStr;
+<span class='bc' id='L312' title='0|2|2 - Total: 2'>        if (rdata.lambda != null) {
+</span>            // invoke lambda function with args lastMatch, $1, $2, ... $n,
+            // leftContext.length, whole string.
+<span class='bc' id='L315' title='0|3|3 - Total: 3'>            SubString[] parens = reImpl.parens;
+</span><span class='bc' id='L316' title='0|2|2 - Total: 2'>            int parenCount = (parens == null) ? 0 : parens.length;
+</span><span class='bc' id='L317' title='0|5|5 - Total: 5'>            Object[] args = new Object[parenCount + 3];
+</span><span class='bc' id='L318' title='0|6|6 - Total: 6'>            args[0] = reImpl.lastMatch.toString();
+</span><span class='bc' id='L319' title='0|2|2 - Total: 2'>            for (int i=0; i < parenCount; i++) {
+</span><span class='bc' id='L320' title='0|4|4 - Total: 4'>                SubString sub = parens[i];
+</span><span class='bc' id='L321' title='0|2|2 - Total: 2'>                if (sub != null) {
+</span><span class='bc' id='L322' title='0|8|8 - Total: 8'>                    args[i+1] = sub.toString();
+</span>                } else {
+<span class='bc' id='L324' title='0|6|6 - Total: 6'>                    args[i+1] = Undefined.instance;
+</span>                }
+            }
+<span class='bc' id='L327' title='0|9|9 - Total: 9'>            args[parenCount+1] = Integer.valueOf(reImpl.leftContext.length);
+</span><span class='bc' id='L328' title='0|7|7 - Total: 7'>            args[parenCount+2] = rdata.str;
+</span>            // This is a hack to prevent expose of reImpl data to
+            // JS function which can run new regexps modifing
+            // regexp that are used later by the engine.
+            // TODO: redesign is necessary
+<span class='bpc' id='L333' title='0|1|1 - Total: 2'>            if (reImpl != ScriptRuntime.getRegExpProxy(cx)) Kit.codeBug();
+</span><span class='bc' id='L334' title='0|4|4 - Total: 4'>            RegExpImpl re2 = new RegExpImpl();
+</span><span class='bc' id='L335' title='0|4|4 - Total: 4'>            re2.multiline = reImpl.multiline;
+</span><span class='bc' id='L336' title='0|4|4 - Total: 4'>            re2.input = reImpl.input;
+</span><span class='bc' id='L337' title='0|3|3 - Total: 3'>            ScriptRuntime.setRegExpProxy(cx, re2);
+</span>            try {
+<span class='bc' id='L339' title='0|3|3 - Total: 3'>                Scriptable parent = ScriptableObject.getTopLevelScope(scope);
+</span><span class='bc' id='L340' title='0|8|8 - Total: 8'>                Object result = rdata.lambda.call(cx, parent, parent, args);
+</span><span class='bc' id='L341' title='0|3|3 - Total: 3'>                lambdaStr = ScriptRuntime.toString(result);
+</span>            } finally {
+<span class='bc' id='L343' title='0|7|7 - Total: 7'>                ScriptRuntime.setRegExpProxy(cx, reImpl);
+</span><span class='bc' id='L344' title='0|3|3 - Total: 3'>            }
+</span><span class='bc' id='L345' title='0|3|3 - Total: 3'>            replen = lambdaStr.length();
+</span><span class='bc' id='L346' title='0|1|1 - Total: 1'>        } else {
+</span><span class='bc' id='L347' title='0|2|2 - Total: 2'>            lambdaStr = null;
+</span><span class='bc' id='L348' title='0|4|4 - Total: 4'>            replen = rdata.repstr.length();
+</span><span class='bc' id='L349' title='0|2|2 - Total: 2'>            if (rdata.dollar >= 0) {
+</span><span class='bc' id='L350' title='0|3|3 - Total: 3'>                int[] skip = new int[1];
+</span><span class='bc' id='L351' title='0|3|3 - Total: 3'>                int dp = rdata.dollar;
+</span>                do {
+<span class='bc' id='L353' title='0|8|8 - Total: 8'>                    SubString sub = interpretDollar(cx, reImpl, rdata.repstr,
+</span>                                                    dp, skip);
+<span class='bc' id='L355' title='0|2|2 - Total: 2'>                    if (sub != null) {
+</span><span class='bc' id='L356' title='0|9|9 - Total: 9'>                        replen += sub.length - skip[0];
+</span><span class='bc' id='L357' title='0|7|7 - Total: 7'>                        dp += skip[0];
+</span>                    } else {
+<span class='bc' id='L359' title='0|1|1 - Total: 1'>                        ++dp;
+</span>                    }
+<span class='bc' id='L361' title='0|6|6 - Total: 6'>                    dp = rdata.repstr.indexOf('$', dp);
+</span><span class='bc' id='L362' title='0|2|2 - Total: 2'>                } while (dp >= 0);
+</span>            }
+        }
+
+<span class='bc' id='L366' title='0|8|8 - Total: 8'>        int growth = leftlen + replen + reImpl.rightContext.length;
+</span><span class='bc' id='L367' title='0|3|3 - Total: 3'>        StringBuilder charBuf = rdata.charBuf;
+</span><span class='bc' id='L368' title='0|2|2 - Total: 2'>        if (charBuf == null) {
+</span><span class='bc' id='L369' title='0|5|5 - Total: 5'>            charBuf = new StringBuilder(growth);
+</span><span class='bc' id='L370' title='0|4|4 - Total: 4'>            rdata.charBuf = charBuf;
+</span>        } else {
+<span class='bc' id='L372' title='0|7|7 - Total: 7'>            charBuf.ensureCapacity(rdata.charBuf.length() + growth);
+</span>        }
+
+<span class='bc' id='L375' title='0|10|10 - Total: 10'>        charBuf.append(reImpl.leftContext.str, leftIndex, leftIndex + leftlen);
+</span><span class='bc' id='L376' title='0|2|2 - Total: 2'>        if (rdata.lambda != null) {
+</span><span class='bc' id='L377' title='0|5|5 - Total: 5'>            charBuf.append(lambdaStr);
+</span>        } else {
+<span class='bc' id='L379' title='0|4|4 - Total: 4'>            do_replace(rdata, cx, reImpl);
+</span>        }
+<span class='bc' id='L381' title='0|1|1 - Total: 1'>    }
+</span>
+    private static SubString interpretDollar(Context cx, RegExpImpl res,
+                                             String da, int dp, int[] skip)
+    {
+        char dc;
+        int num, tmp;
+
+<span class='bpc' id='L389' title='0|1|1 - Total: 2'>        if (da.charAt(dp) != '$') Kit.codeBug();
+</span>
+        /* Allow a real backslash (literal "\\") to escape "$1" etc. */
+<span class='bc' id='L392' title='0|3|3 - Total: 3'>        int version = cx.getLanguageVersion();
+</span><span class='bpc' id='L393' title='0|2|2 - Total: 4'>        if (version != Context.VERSION_DEFAULT
+</span>            && version <= Context.VERSION_1_4)
+        {
+<span class='nc' id='L396' title='0|0|0 - Total: 4'>            if (dp > 0 && da.charAt(dp - 1) == '\\')
+</span><span class='nc' id='L397' title='0|0|0 - Total: 2'>                return null;
+</span>        }
+<span class='bc' id='L399' title='0|3|3 - Total: 3'>        int daL = da.length();
+</span><span class='bc' id='L400' title='0|2|2 - Total: 2'>        if (dp + 1 >= daL)
+</span><span class='bc' id='L401' title='0|2|2 - Total: 2'>            return null;
+</span>        /* Interpret all Perl match-induced dollar variables. */
+<span class='bc' id='L403' title='0|6|6 - Total: 6'>        dc = da.charAt(dp + 1);
+</span><span class='bpc' id='L404' title='0|1|1 - Total: 2'>        if (NativeRegExp.isDigit(dc)) {
+</span>            int cp;
+<span class='bpc' id='L406' title='0|2|2 - Total: 4'>            if (version != Context.VERSION_DEFAULT
+</span>                && version <= Context.VERSION_1_4)
+            {
+<span class='nc' id='L409' title='0|0|0 - Total: 2'>                if (dc == '0')
+</span><span class='nc' id='L410' title='0|0|0 - Total: 2'>                    return null;
+</span>                /* Check for overflow to avoid gobbling arbitrary decimal digits. */
+<span class='nc' id='L412' title='0|0|0 - Total: 2'>                num = 0;
+</span><span class='nc' id='L413' title='0|0|0 - Total: 2'>                cp = dp;
+</span><span class='nc' id='L414' title='0|0|0 - Total: 4'>                while (++cp < daL && NativeRegExp.isDigit(dc = da.charAt(cp)))
+</span>                {
+<span class='nc' id='L416' title='0|0|0 - Total: 8'>                    tmp = 10 * num + (dc - '0');
+</span><span class='nc' id='L417' title='0|0|0 - Total: 2'>                    if (tmp < num)
+</span><span class='nc' id='L418' title='0|0|0 - Total: 1'>                        break;
+</span><span class='nc' id='L419' title='0|0|0 - Total: 3'>                    num = tmp;
+</span>                }
+            }
+            else {  /* ECMA 3, 1-9 or 01-99 */
+<span class='bpc' id='L423' title='0|1|1 - Total: 2'>                int parenCount = (res.parens == null) ? 0 : res.parens.length;
+</span><span class='bc' id='L424' title='0|4|4 - Total: 4'>                num = dc - '0';
+</span><span class='bpc' id='L425' title='0|1|1 - Total: 2'>                if (num > parenCount)
+</span><span class='nc' id='L426' title='0|0|0 - Total: 2'>                    return null;
+</span><span class='bc' id='L427' title='0|4|4 - Total: 4'>                cp = dp + 2;
+</span><span class='bc' id='L428' title='0|2|2 - Total: 2'>                if ((dp + 2) < daL) {
+</span><span class='bc' id='L429' title='0|6|6 - Total: 6'>                    dc = da.charAt(dp + 2);
+</span><span class='bc' id='L430' title='0|2|2 - Total: 2'>                    if (NativeRegExp.isDigit(dc)) {
+</span><span class='bc' id='L431' title='0|8|8 - Total: 8'>                        tmp = 10 * num + (dc - '0');
+</span><span class='bpc' id='L432' title='0|1|1 - Total: 2'>                        if (tmp <= parenCount) {
+</span><span class='nc' id='L433' title='0|0|0 - Total: 1'>                            cp++;
+</span><span class='nc' id='L434' title='0|0|0 - Total: 2'>                            num = tmp;
+</span>                        }
+                    }
+                }
+<span class='bpc' id='L438' title='0|1|1 - Total: 2'>                if (num == 0) return null;  /* $0 or $00 is not valid */
+</span>            }
+            /* Adjust num from 1 $n-origin to 0 array-index-origin. */
+<span class='bc' id='L441' title='0|1|1 - Total: 1'>            num--;
+</span><span class='bc' id='L442' title='0|6|6 - Total: 6'>            skip[0] = cp - dp;
+</span><span class='bc' id='L443' title='0|4|4 - Total: 4'>            return res.getParenSubString(num);
+</span>        }
+
+<span class='nc' id='L446' title='0|0|0 - Total: 4'>        skip[0] = 2;
+</span><span class='nc' id='L447' title='0|0|0 - Total: 6'>        switch (dc) {
+</span>          case '$':
+<span class='nc' id='L449' title='0|0|0 - Total: 5'>            return new SubString("$");
+</span>          case '&':
+<span class='nc' id='L451' title='0|0|0 - Total: 3'>            return res.lastMatch;
+</span>          case '+':
+<span class='nc' id='L453' title='0|0|0 - Total: 3'>            return res.lastParen;
+</span>          case '`':
+<span class='nc' id='L455' title='0|0|0 - Total: 2'>            if (version == Context.VERSION_1_2) {
+</span>                /*
+                 * JS1.2 imitated the Perl4 bug where left context at each step
+                 * in an iterative use of a global regexp started from last match,
+                 * not from the start of the target string.  But Perl4 does start
+                 * $` at the beginning of the target string when it is used in a
+                 * substitution, so we emulate that special case here.
+                 */
+<span class='nc' id='L463' title='0|0|0 - Total: 4'>                res.leftContext.index = 0;
+</span><span class='nc' id='L464' title='0|0|0 - Total: 6'>                res.leftContext.length = res.lastMatch.index;
+</span>            }
+<span class='nc' id='L466' title='0|0|0 - Total: 3'>            return res.leftContext;
+</span>          case '\'':
+<span class='nc' id='L468' title='0|0|0 - Total: 3'>            return res.rightContext;
+</span>        }
+<span class='nc' id='L470' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Analog of do_replace in jsstr.c
+     */
+    private static void do_replace(GlobData rdata, Context cx,
+                                   RegExpImpl regExpImpl)
+    {
+<span class='bc' id='L479' title='0|3|3 - Total: 3'>        StringBuilder charBuf = rdata.charBuf;
+</span><span class='bc' id='L480' title='0|2|2 - Total: 2'>        int cp = 0;
+</span><span class='bc' id='L481' title='0|3|3 - Total: 3'>        String da = rdata.repstr;
+</span><span class='bc' id='L482' title='0|3|3 - Total: 3'>        int dp = rdata.dollar;
+</span><span class='bc' id='L483' title='0|2|2 - Total: 2'>        if (dp != -1) {
+</span><span class='bc' id='L484' title='0|3|3 - Total: 3'>            int[] skip = new int[1];
+</span>            do {
+<span class='bc' id='L486' title='0|4|4 - Total: 4'>                int len = dp - cp;
+</span><span class='bc' id='L487' title='0|7|7 - Total: 7'>                charBuf.append(da.substring(cp, dp));
+</span><span class='bc' id='L488' title='0|2|2 - Total: 2'>                cp = dp;
+</span><span class='bc' id='L489' title='0|7|7 - Total: 7'>                SubString sub = interpretDollar(cx, regExpImpl, da,
+</span>                                                dp, skip);
+<span class='bc' id='L491' title='0|2|2 - Total: 2'>                if (sub != null) {
+</span><span class='bc' id='L492' title='0|3|3 - Total: 3'>                    len = sub.length;
+</span><span class='bc' id='L493' title='0|2|2 - Total: 2'>                    if (len > 0) {
+</span><span class='bc' id='L494' title='0|11|11 - Total: 11'>                        charBuf.append(sub.str, sub.index, sub.index + len);
+</span>                    }
+<span class='bc' id='L496' title='0|6|6 - Total: 6'>                    cp += skip[0];
+</span><span class='bc' id='L497' title='0|7|7 - Total: 7'>                    dp += skip[0];
+</span>                } else {
+<span class='bc' id='L499' title='0|1|1 - Total: 1'>                    ++dp;
+</span>                }
+<span class='bc' id='L501' title='0|5|5 - Total: 5'>                dp = da.indexOf('$', dp);
+</span><span class='bc' id='L502' title='0|2|2 - Total: 2'>            } while (dp >= 0);
+</span>        }
+<span class='bc' id='L504' title='0|3|3 - Total: 3'>        int daL = da.length();
+</span><span class='bc' id='L505' title='0|2|2 - Total: 2'>        if (daL > cp) {
+</span><span class='bc' id='L506' title='0|7|7 - Total: 7'>            charBuf.append(da.substring(cp, daL));
+</span>        }
+<span class='bc' id='L508' title='0|1|1 - Total: 1'>    }
+</span>
+    /*
+     * See ECMA 15.5.4.8.  Modified to match JS 1.2 - optionally takes
+     * a limit argument and accepts a regular expression as the split
+     * argument.
+     */
+    public Object js_split(Context cx, Scriptable scope,
+                                   String target, Object[] args)
+    {
+        // create an empty Array to return;
+<span class='bc' id='L519' title='0|5|5 - Total: 5'>        Scriptable result = cx.newArray(scope, 0);
+</span>
+        // Use the second argument as the split limit, if given.
+<span class='bc' id='L522' title='0|4|4 - Total: 4'>        boolean limited = (args.length > 1) && (args[1] != Undefined.instance);
+</span><span class='bc' id='L523' title='0|2|2 - Total: 2'>        long limit = 0;  // Initialize to avoid warning.
+</span><span class='bc' id='L524' title='0|2|2 - Total: 2'>        if (limited) {
+</span>            /* Clamp limit between 0 and 1 + string length. */
+<span class='bc' id='L526' title='0|5|5 - Total: 5'>            limit = ScriptRuntime.toUint32(args[1]);
+</span><span class='bc' id='L527' title='0|2|2 - Total: 2'>            if (limit > target.length())
+</span><span class='bc' id='L528' title='0|6|6 - Total: 6'>                limit = 1 + target.length();
+</span>        }
+
+        // return an array consisting of the target if no separator given
+<span class='bc' id='L532' title='0|4|4 - Total: 4'>        if (args.length < 1 || args[0] == Undefined.instance) {
+</span><span class='bc' id='L533' title='0|5|5 - Total: 5'>            result.put(0, result, target);
+</span><span class='bc' id='L534' title='0|2|2 - Total: 2'>            return result;
+</span>        }
+
+<span class='bc' id='L537' title='0|2|2 - Total: 2'>        String separator = null;
+</span><span class='bc' id='L538' title='0|3|3 - Total: 3'>        int[] matchlen = new int[1];
+</span><span class='bc' id='L539' title='0|2|2 - Total: 2'>        Scriptable re = null;
+</span><span class='bc' id='L540' title='0|2|2 - Total: 2'>        RegExpProxy reProxy = null;
+</span><span class='bc' id='L541' title='0|2|2 - Total: 2'>        if (args[0] instanceof Scriptable) {
+</span><span class='bc' id='L542' title='0|3|3 - Total: 3'>            reProxy = ScriptRuntime.getRegExpProxy(cx);
+</span><span class='bpc' id='L543' title='0|1|1 - Total: 2'>            if (reProxy != null) {
+</span><span class='bc' id='L544' title='0|5|5 - Total: 5'>                Scriptable test = (Scriptable)args[0];
+</span><span class='bpc' id='L545' title='0|1|1 - Total: 2'>                if (reProxy.isRegExp(test)) {
+</span><span class='bc' id='L546' title='0|2|2 - Total: 2'>                    re = test;
+</span>                }
+            }
+        }
+<span class='bc' id='L550' title='0|2|2 - Total: 2'>        if (re == null) {
+</span><span class='bc' id='L551' title='0|5|5 - Total: 5'>            separator = ScriptRuntime.toString(args[0]);
+</span><span class='bc' id='L552' title='0|5|5 - Total: 5'>            matchlen[0] = separator.length();
+</span>        }
+
+        // split target with separator or re
+<span class='bc' id='L556' title='0|7|7 - Total: 7'>        int[] ip = { 0 };
+</span>        int match;
+<span class='bc' id='L558' title='0|2|2 - Total: 2'>        int len = 0;
+</span><span class='bc' id='L559' title='0|7|7 - Total: 7'>        boolean[] matched = { false };
+</span><span class='bc' id='L560' title='0|7|7 - Total: 7'>        String[][] parens = { null };
+</span><span class='bc' id='L561' title='0|3|3 - Total: 3'>        int version = cx.getLanguageVersion();
+</span><span class='bc' id='L562' title='0|2|2 - Total: 2'>        while ((match = find_split(cx, scope, target, separator, version,
+</span>                                   reProxy, re, ip, matchlen, matched, parens))
+               >= 0)
+        {
+<span class='bpc' id='L566' title='0|5|5 - Total: 6'>            if ((limited && len >= limit) || (match > target.length()))
+</span><span class='nc' id='L567' title='0|0|0 - Total: 1'>                break;
+</span>
+            String substr;
+<span class='bc' id='L570' title='0|2|2 - Total: 2'>            if (target.length() == 0)
+</span><span class='bc' id='L571' title='0|3|3 - Total: 3'>                substr = target;
+</span>            else
+<span class='bc' id='L573' title='0|7|7 - Total: 7'>                substr = target.substring(ip[0], match);
+</span>
+<span class='bc' id='L575' title='0|5|5 - Total: 5'>            result.put(len, result, substr);
+</span><span class='bc' id='L576' title='0|1|1 - Total: 1'>            len++;
+</span>        /*
+         * Imitate perl's feature of including parenthesized substrings
+         * that matched part of the delimiter in the new array, after the
+         * split substring that was delimited.
+         */
+<span class='bc' id='L582' title='0|4|4 - Total: 4'>            if (re != null && matched[0]) {
+</span><span class='bc' id='L583' title='0|5|5 - Total: 5'>                int size = parens[0].length;
+</span><span class='bc' id='L584' title='0|2|2 - Total: 2'>                for (int num = 0; num < size; num++) {
+</span><span class='bpc' id='L585' title='0|1|1 - Total: 4'>                    if (limited && len >= limit)
+</span><span class='nc' id='L586' title='0|0|0 - Total: 1'>                        break;
+</span><span class='bc' id='L587' title='0|9|9 - Total: 9'>                    result.put(len, result, parens[0][num]);
+</span><span class='bc' id='L588' title='0|1|1 - Total: 1'>                    len++;
+</span>                }
+<span class='bc' id='L590' title='0|4|4 - Total: 4'>                matched[0] = false;
+</span>            }
+<span class='bc' id='L592' title='0|8|8 - Total: 8'>            ip[0] = match + matchlen[0];
+</span>
+<span class='bc' id='L594' title='0|4|4 - Total: 4'>            if (version < Context.VERSION_1_3
+</span>                && version != Context.VERSION_DEFAULT)
+            {
+        /*
+         * Deviate from ECMA to imitate Perl, which omits a final
+         * split unless a limit argument is given and big enough.
+         */
+<span class='bc' id='L601' title='0|4|4 - Total: 4'>                if (!limited && ip[0] == target.length())
+</span><span class='bc' id='L602' title='0|1|1 - Total: 1'>                    break;
+</span>            }
+<span class='bc' id='L604' title='0|1|1 - Total: 1'>        }
+</span><span class='bc' id='L605' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /*
+     * Used by js_split to find the next split point in target,
+     * starting at offset ip and looking either for the given
+     * separator substring, or for the next re match.  ip and
+     * matchlen must be reference variables (assumed to be arrays of
+     * length 1) so they can be updated in the leading whitespace or
+     * re case.
+     *
+     * Return -1 on end of string, >= 0 for a valid index of the next
+     * separator occurrence if found, or the string length if no
+     * separator is found.
+     */
+    private static int find_split(Context cx, Scriptable scope, String target,
+                                  String separator, int version,
+                                  RegExpProxy reProxy, Scriptable re,
+                                  int[] ip, int[] matchlen, boolean[] matched,
+                                  String[][] parensp)
+    {
+<span class='bc' id='L626' title='0|4|4 - Total: 4'>        int i = ip[0];
+</span><span class='bc' id='L627' title='0|3|3 - Total: 3'>        int length = target.length();
+</span>
+        /*
+         * Perl4 special case for str.split(' '), only if the user has selected
+         * JavaScript1.2 explicitly.  Split on whitespace, and skip leading w/s.
+         * Strange but true, apparently modeled after awk.
+         */
+<span class='bc' id='L634' title='0|4|4 - Total: 4'>        if (version == Context.VERSION_1_2 &&
+</span><span class='bpc' id='L635' title='0|3|3 - Total: 4'>            re == null && separator.length() == 1 && separator.charAt(0) == ' ')
+</span>        {
+            /* Skip leading whitespace if at front of str. */
+<span class='nc' id='L638' title='0|0|0 - Total: 2'>            if (i == 0) {
+</span><span class='nc' id='L639' title='0|0|0 - Total: 4'>                while (i < length && Character.isWhitespace(target.charAt(i)))
+</span><span class='nc' id='L640' title='0|0|0 - Total: 2'>                    i++;
+</span><span class='nc' id='L641' title='0|0|0 - Total: 4'>                ip[0] = i;
+</span>            }
+
+            /* Don't delimit whitespace at end of string. */
+<span class='nc' id='L645' title='0|0|0 - Total: 2'>            if (i == length)
+</span><span class='nc' id='L646' title='0|0|0 - Total: 2'>                return -1;
+</span>
+            /* Skip over the non-whitespace chars. */
+<span class='nc' id='L649' title='0|0|0 - Total: 2'>            while (i < length
+</span><span class='nc' id='L650' title='0|0|0 - Total: 2'>                   && !Character.isWhitespace(target.charAt(i)))
+</span><span class='nc' id='L651' title='0|0|0 - Total: 2'>                i++;
+</span>
+            /* Now skip the next run of whitespace. */
+<span class='nc' id='L654' title='0|0|0 - Total: 2'>            int j = i;
+</span><span class='nc' id='L655' title='0|0|0 - Total: 4'>            while (j < length && Character.isWhitespace(target.charAt(j)))
+</span><span class='nc' id='L656' title='0|0|0 - Total: 2'>                j++;
+</span>
+            /* Update matchlen to count delimiter chars. */
+<span class='nc' id='L659' title='0|0|0 - Total: 6'>            matchlen[0] = j - i;
+</span><span class='nc' id='L660' title='0|0|0 - Total: 2'>            return i;
+</span>        }
+
+        /*
+         * Stop if past end of string.  If at end of string, we will
+         * return target length, so that
+         *
+         *  "ab,".split(',') => new Array("ab", "")
+         *
+         * and the resulting array converts back to the string "ab,"
+         * for symmetry.  NB: This differs from perl, which drops the
+         * trailing empty substring if the LIMIT argument is omitted.
+         */
+<span class='bc' id='L673' title='0|2|2 - Total: 2'>        if (i > length)
+</span><span class='bc' id='L674' title='0|2|2 - Total: 2'>            return -1;
+</span>
+        /*
+         * Match a regular expression against the separator at or
+         * above index i.  Return -1 at end of string instead of
+         * trying for a match, so we don't get stuck in a loop.
+         */
+<span class='bc' id='L681' title='0|2|2 - Total: 2'>        if (re != null) {
+</span><span class='bc' id='L682' title='0|12|12 - Total: 12'>            return reProxy.find_split(cx, scope, target, separator, re,
+</span>                                      ip, matchlen, matched, parensp);
+        }
+
+        /*
+         * Deviate from ECMA by never splitting an empty string by any separator
+         * string into a non-empty array (an array of length 1 that contains the
+         * empty string).
+         */
+<span class='bpc' id='L691' title='0|5|5 - Total: 6'>        if (version != Context.VERSION_DEFAULT && version < Context.VERSION_1_3
+</span>            && length == 0)
+<span class='bc' id='L693' title='0|2|2 - Total: 2'>            return -1;
+</span>
+        /*
+         * Special case: if sep is the empty string, split str into
+         * one character substrings.  Let our caller worry about
+         * whether to split once at end of string into an empty
+         * substring.
+         *
+         * For 1.2 compatibility, at the end of the string, we return the length as
+         * the result, and set the separator length to 1 -- this allows the caller
+         * to include an additional null string at the end of the substring list.
+         */
+<span class='bc' id='L705' title='0|2|2 - Total: 2'>        if (separator.length() == 0) {
+</span><span class='bpc' id='L706' title='0|1|1 - Total: 2'>            if (version == Context.VERSION_1_2) {
+</span><span class='nc' id='L707' title='0|0|0 - Total: 2'>                if (i == length) {
+</span><span class='nc' id='L708' title='0|0|0 - Total: 4'>                    matchlen[0] = 1;
+</span><span class='nc' id='L709' title='0|0|0 - Total: 2'>                    return i;
+</span>                }
+<span class='nc' id='L711' title='0|0|0 - Total: 4'>                return i + 1;
+</span>            }
+<span class='bc' id='L713' title='0|2|2 - Total: 2'>            return (i == length) ? -1 : i + 1;
+</span>        }
+
+        /* Punt to j.l.s.indexOf; return target length if separator is
+         * not found.
+         */
+<span class='bc' id='L719' title='0|2|2 - Total: 2'>        if (ip[0] >= length)
+</span><span class='bc' id='L720' title='0|2|2 - Total: 2'>            return length;
+</span>
+<span class='bc' id='L722' title='0|7|7 - Total: 7'>        i = target.indexOf(separator, ip[0]);
+</span>
+<span class='bc' id='L724' title='0|2|2 - Total: 2'>        return (i != -1) ? i : length;
+</span>    }
+
+    protected String          input;         /* input string to match (perl $_, GC root) */
+    protected boolean         multiline;     /* whether input contains newlines (perl $*) */
+    protected SubString[]     parens;        /* Vector of SubString; last set of parens
+                                      matched (perl $1, $2) */
+    protected SubString       lastMatch;     /* last string matched (perl $&) */
+    protected SubString       lastParen;     /* last paren matched (perl $+) */
+    protected SubString       leftContext;   /* input to left of last match (perl $`) */
+    protected SubString       rightContext;  /* input to right of last match (perl $') */
+}
+
+
+final class GlobData
+{
+    int      mode;      /* input: return index, match object, or void */
+    boolean  global;    /* output: whether regexp was global */
+    String   str;       /* output: 'this' parameter object as string */
+
+    // match-specific data
+
+    Scriptable arrayobj;
+
+    // replace-specific data
+
+    Function      lambda;        /* replacement function object or null */
+    String        repstr;        /* replacement string */
+    int           dollar = -1;   /* -1 or index of first $ in repstr */
+    StringBuilder charBuf;       /* result characters, null initially */
+    int           leftIndex;     /* leftContext index, always 0 for JS1.2 */
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

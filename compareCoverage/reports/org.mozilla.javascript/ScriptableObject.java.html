@@ -1,0 +1,3069 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ScriptableObject.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ScriptableObject.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+import org.mozilla.javascript.debug.DebuggableObject;
+import org.mozilla.javascript.annotations.JSConstructor;
+import org.mozilla.javascript.annotations.JSFunction;
+import org.mozilla.javascript.annotations.JSGetter;
+import org.mozilla.javascript.annotations.JSSetter;
+import org.mozilla.javascript.annotations.JSStaticFunction;
+
+/**
+ * This is the default implementation of the Scriptable interface. This
+ * class provides convenient default behavior that makes it easier to
+ * define host objects.
+ * <p>
+ * Various properties and methods of JavaScript objects can be conveniently
+ * defined using methods of ScriptableObject.
+ * <p>
+ * Classes extending ScriptableObject must define the getClassName method.
+ *
+ * @see org.mozilla.javascript.Scriptable
+ * @author Norris Boyd
+ */
+
+<span class='bpc' id='L49' title='0|1|1 - Total: 2'>public abstract class ScriptableObject implements Scriptable,
+</span>                                                  SymbolScriptable,
+                                                  Serializable,
+                                                  DebuggableObject,
+                                                  ConstProperties
+{
+
+    static final long serialVersionUID = 2829861078851942586L;
+    
+    /**
+     * The empty property attribute.
+     *
+     * Used by getAttributes() and setAttributes().
+     *
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int EMPTY =     0x00;
+
+    /**
+     * Property attribute indicating assignment to this property is ignored.
+     *
+     * @see org.mozilla.javascript.ScriptableObject
+     *      #put(String, Scriptable, Object)
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int READONLY =  0x01;
+
+    /**
+     * Property attribute indicating property is not enumerated.
+     *
+     * Only enumerated properties will be returned by getIds().
+     *
+     * @see org.mozilla.javascript.ScriptableObject#getIds()
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int DONTENUM =  0x02;
+
+    /**
+     * Property attribute indicating property cannot be deleted.
+     *
+     * @see org.mozilla.javascript.ScriptableObject#delete(String)
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int PERMANENT = 0x04;
+
+    /**
+     * Property attribute indicating that this is a const property that has not
+     * been assigned yet.  The first 'const' assignment to the property will
+     * clear this bit.
+     */
+    public static final int UNINITIALIZED_CONST = 0x08;
+
+    public static final int CONST = PERMANENT|READONLY|UNINITIALIZED_CONST;
+    /**
+     * The prototype of this object.
+     */
+    private Scriptable prototypeObject;
+
+    /**
+     * The parent scope of this object.
+     */
+    private Scriptable parentScopeObject;
+
+    /**
+     * This holds all the slots. It may or may not be thread-safe, and may expand itself to
+     * a different data structure depending on the size of the object.
+     */
+    private transient SlotMapContainer slotMap;
+
+    // Where external array data is stored.
+    private transient ExternalArrayData externalData;
+
+    private volatile Map<Object,Object> associatedValues;
+
+    enum SlotAccess {
+        QUERY, MODIFY, MODIFY_CONST, MODIFY_GETTER_SETTER, CONVERT_ACCESSOR_TO_DATA
+    }
+
+<span class='bc' id='L131' title='0|6|6 - Total: 6'>    private boolean isExtensible = true;
+</span><span class='bc' id='L132' title='0|6|6 - Total: 6'>    private boolean isSealed = false;
+</span>
+    private static final Method GET_ARRAY_LENGTH;
+
+    static {
+        try {
+<span class='bc' id='L138' title='0|6|6 - Total: 6'>            GET_ARRAY_LENGTH = ScriptableObject.class.getMethod("getExternalArrayLength");
+</span><span class='nc' id='L139' title='0|0|0 - Total: 1'>        } catch (NoSuchMethodException nsm) {
+</span><span class='nc' id='L140' title='0|0|0 - Total: 5'>            throw new RuntimeException(nsm);
+</span><span class='bc' id='L141' title='0|1|1 - Total: 1'>        }
+</span>    }
+
+    /**
+     * This is the object that is stored in the SlotMap. For historical reasons it remains
+     * inside this class. SlotMap references a number of members of this class directly.
+     */
+    static class Slot implements Serializable
+    {
+        private static final long serialVersionUID = -6090581677123995491L;
+        Object name; // This can change due to caching
+        int indexOrHash;
+        private short attributes;
+        Object value;
+        transient Slot next; // next in hash table bucket
+        transient Slot orderedNext; // next in linked list
+
+        Slot(Object name, int indexOrHash, int attributes)
+        {
+            this.name = name;
+            this.indexOrHash = indexOrHash;
+            this.attributes = (short)attributes;
+        }
+
+        private void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException
+        {
+            in.defaultReadObject();
+            if (name != null) {
+                indexOrHash = name.hashCode();
+            }
+        }
+
+        boolean setValue(Object value, Scriptable owner, Scriptable start) {
+            if ((attributes & READONLY) != 0) {
+                Context cx = Context.getContext();
+                if (cx.isStrictMode()) {
+                    throw ScriptRuntime.typeError1("msg.modify.readonly", name);
+                }
+                return true;
+            }
+            if (owner == start) {
+                this.value = value;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        Object getValue(Scriptable start) {
+            return value;
+        }
+
+        int getAttributes()
+        {
+            return attributes;
+        }
+
+        synchronized void setAttributes(int value)
+        {
+            checkValidAttributes(value);
+            attributes = (short)value;
+        }
+
+        ScriptableObject getPropertyDescriptor(Context cx, Scriptable scope) {
+            return buildDataDescriptor(scope, value, attributes);
+        }
+
+    }
+
+    protected static ScriptableObject buildDataDescriptor(Scriptable scope,
+                                                          Object value,
+                                                          int attributes) {
+<span class='bc' id='L214' title='0|4|4 - Total: 4'>        ScriptableObject desc = new NativeObject();
+</span><span class='bc' id='L215' title='0|4|4 - Total: 4'>        ScriptRuntime.setBuiltinProtoAndParent(desc, scope, TopLevel.Builtins.Object);
+</span><span class='bc' id='L216' title='0|5|5 - Total: 5'>        desc.defineProperty("value", value, EMPTY);
+</span><span class='bc' id='L217' title='0|2|2 - Total: 2'>        desc.defineProperty("writable", (attributes & READONLY) == 0, EMPTY);
+</span><span class='bc' id='L218' title='0|2|2 - Total: 2'>        desc.defineProperty("enumerable", (attributes & DONTENUM) == 0, EMPTY);
+</span><span class='bc' id='L219' title='0|2|2 - Total: 2'>        desc.defineProperty("configurable", (attributes & PERMANENT) == 0, EMPTY);
+</span><span class='bc' id='L220' title='0|2|2 - Total: 2'>        return desc;
+</span>    }
+
+    /**
+     * A GetterSlot is a specialication of a Slot for properties that are assigned functions
+     * via Object.defineProperty() and its friends instead of regular values.
+     */
+    static final class GetterSlot extends Slot
+    {
+        static final long serialVersionUID = -4900574849788797588L;
+
+        Object getter;
+        Object setter;
+
+        GetterSlot(Object name, int indexOrHash, int attributes)
+        {
+            super(name, indexOrHash, attributes);
+        }
+
+        @Override
+        ScriptableObject getPropertyDescriptor(Context cx, Scriptable scope) {
+            int attr = getAttributes();
+            ScriptableObject desc = new NativeObject();
+            ScriptRuntime.setBuiltinProtoAndParent(desc, scope, TopLevel.Builtins.Object);
+            desc.defineProperty("enumerable", (attr & DONTENUM) == 0, EMPTY);
+            desc.defineProperty("configurable", (attr & PERMANENT) == 0, EMPTY);
+            if (getter == null && setter == null) {
+                desc.defineProperty("writable", (attr & READONLY) == 0, EMPTY);
+            }
+            if (getter != null) {
+                if( getter instanceof MemberBox ) {
+                    desc.defineProperty("get", new FunctionObject("f", ((MemberBox)getter).member(),scope), EMPTY);
+                } else if( getter instanceof Member ) {
+                    desc.defineProperty("get", new FunctionObject("f",(Member)getter,scope), EMPTY);
+                } else {
+                    desc.defineProperty("get", getter, EMPTY);
+                }
+            }
+            if (setter != null) {
+                if( setter instanceof MemberBox ) {
+                    desc.defineProperty("set", new FunctionObject("f", ((MemberBox)setter).member(),scope), EMPTY);
+                } else if( setter instanceof Member ) {
+                    desc.defineProperty("set", new FunctionObject("f",(Member)setter,scope), EMPTY);
+                } else {
+                    desc.defineProperty("set", setter, EMPTY);
+                }
+            }
+            return desc;
+        }
+
+        @Override
+        boolean setValue(Object value, Scriptable owner, Scriptable start) {
+            if (setter == null) {
+                if (getter != null) {
+                    Context cx = Context.getContext();
+                    if (cx.isStrictMode() ||
+                        // Based on TC39 ES3.1 Draft of 9-Feb-2009, 8.12.4, step 2,
+                        // we should throw a TypeError in this case.
+                        cx.hasFeature(Context.FEATURE_STRICT_MODE)) {
+                        throw ScriptRuntime.typeError1("msg.set.prop.no.setter", name);
+                    }
+                    // Assignment to a property with only a getter defined. The
+                    // assignment is ignored. See bug 478047.
+                    return true;
+                }
+            } else {
+                Context cx = Context.getContext();
+                if (setter instanceof MemberBox) {
+                    MemberBox nativeSetter = (MemberBox)setter;
+                    Class<?> pTypes[] = nativeSetter.argTypes;
+                    // XXX: cache tag since it is already calculated in
+                    // defineProperty ?
+                    Class<?> valueType = pTypes[pTypes.length - 1];
+                    int tag = FunctionObject.getTypeTag(valueType);
+                    Object actualArg = FunctionObject.convertArg(cx, start,
+                                                                 value, tag);
+                    Object setterThis;
+                    Object[] args;
+                    if (nativeSetter.delegateTo == null) {
+                        setterThis = start;
+                        args = new Object[] { actualArg };
+                    } else {
+                        setterThis = nativeSetter.delegateTo;
+                        args = new Object[] { start, actualArg };
+                    }
+                    nativeSetter.invoke(setterThis, args);
+                } else if (setter instanceof Function) {
+                    Function f = (Function)setter;
+                    f.call(cx, f.getParentScope(), start,
+                           new Object[] { value });
+                }
+                return true;
+            }
+            return super.setValue(value, owner, start);
+        }
+
+        @Override
+        Object getValue(Scriptable start) {
+            if (getter != null) {
+                if (getter instanceof MemberBox) {
+                    MemberBox nativeGetter = (MemberBox)getter;
+                    Object getterThis;
+                    Object[] args;
+                    if (nativeGetter.delegateTo == null) {
+                        getterThis = start;
+                        args = ScriptRuntime.emptyArgs;
+                    } else {
+                        getterThis = nativeGetter.delegateTo;
+                        args = new Object[] { start };
+                    }
+                    return nativeGetter.invoke(getterThis, args);
+                } else if (getter instanceof Function) {
+                    Function f = (Function)getter;
+                    Context cx = Context.getContext();
+                    return f.call(cx, f.getParentScope(), start,
+                                  ScriptRuntime.emptyArgs);
+                }
+            }
+            Object val = this.value;
+            if (val instanceof LazilyLoadedCtor) {
+                LazilyLoadedCtor initializer = (LazilyLoadedCtor)val;
+                try {
+                    initializer.init();
+                } finally {
+                    this.value = val = initializer.getValue();
+                }
+            }
+            return val;
+        }
+    }
+
+    static void checkValidAttributes(int attributes)
+    {
+<span class='bc' id='L353' title='0|2|2 - Total: 2'>        final int mask = READONLY | DONTENUM | PERMANENT | UNINITIALIZED_CONST;
+</span><span class='bpc' id='L354' title='0|1|1 - Total: 2'>        if ((attributes & ~mask) != 0) {
+</span><span class='nc' id='L355' title='0|0|0 - Total: 6'>            throw new IllegalArgumentException(String.valueOf(attributes));
+</span>        }
+<span class='bc' id='L357' title='0|1|1 - Total: 1'>    }
+</span>
+    private SlotMapContainer createSlotMap(int initialSize)
+    {
+<span class='bc' id='L361' title='0|2|2 - Total: 2'>        Context cx = Context.getCurrentContext();
+</span><span class='bc' id='L362' title='0|4|4 - Total: 4'>        if ((cx != null) && cx.hasFeature(Context.FEATURE_THREAD_SAFE_OBJECTS)) {
+</span><span class='bc' id='L363' title='0|5|5 - Total: 5'>            return new ThreadSafeSlotMapContainer(initialSize);
+</span>        }
+<span class='bc' id='L365' title='0|5|5 - Total: 5'>        return new SlotMapContainer(initialSize);
+</span>    }
+
+    public ScriptableObject()
+<span class='bc' id='L369' title='0|2|2 - Total: 2'>    {
+</span><span class='bc' id='L370' title='0|5|5 - Total: 5'>        slotMap = createSlotMap(0);
+</span><span class='bc' id='L371' title='0|1|1 - Total: 1'>    }
+</span>
+    public ScriptableObject(Scriptable scope, Scriptable prototype)
+<span class='bc' id='L374' title='0|2|2 - Total: 2'>    {
+</span><span class='bpc' id='L375' title='0|1|1 - Total: 2'>        if (scope == null)
+</span><span class='nc' id='L376' title='0|0|0 - Total: 4'>            throw new IllegalArgumentException();
+</span>
+<span class='bc' id='L378' title='0|3|3 - Total: 3'>        parentScopeObject = scope;
+</span><span class='bc' id='L379' title='0|3|3 - Total: 3'>        prototypeObject = prototype;
+</span><span class='bc' id='L380' title='0|5|5 - Total: 5'>        slotMap = createSlotMap(0);
+</span><span class='bc' id='L381' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Gets the value that will be returned by calling the typeof operator on this object.
+     * @return default is "object" unless {@link #avoidObjectDetection()} is <code>true</code> in which
+     * case it returns "undefined"
+     */
+    public String getTypeOf() {
+<span class='bpc' id='L389' title='0|1|1 - Total: 2'>        return avoidObjectDetection() ? "undefined" : "object";
+</span>    }
+
+    /**
+     * Return the name of the class.
+     *
+     * This is typically the same name as the constructor.
+     * Classes extending ScriptableObject must implement this abstract
+     * method.
+     */
+    public abstract String getClassName();
+
+    /**
+     * Returns true if the named property is defined.
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the property was found in the object
+     */
+    public boolean has(String name, Scriptable start)
+    {
+<span class='bc' id='L410' title='0|2|2 - Total: 2'>        return null != slotMap.query(name, 0);
+</span>    }
+
+    /**
+     * Returns true if the property index is defined.
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the property was found in the object
+     */
+    public boolean has(int index, Scriptable start)
+    {
+<span class='bc' id='L422' title='0|2|2 - Total: 2'>        if (externalData != null) {
+</span><span class='bc' id='L423' title='0|2|2 - Total: 2'>            return (index < externalData.getArrayLength());
+</span>        }
+<span class='bc' id='L425' title='0|2|2 - Total: 2'>        return null != slotMap.query(null, index);
+</span>    }
+
+    /**
+     * A version of "has" that supports symbols.
+     */
+    public boolean has(Symbol key, Scriptable start)
+    {
+<span class='bc' id='L433' title='0|2|2 - Total: 2'>        return null != slotMap.query(key, 0);
+</span>    }
+
+    /**
+     * Returns the value of the named property or NOT_FOUND.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate getter method is called.
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     */
+    public Object get(String name, Scriptable start)
+    {
+<span class='bc' id='L448' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(name, 0);
+</span><span class='bc' id='L449' title='0|2|2 - Total: 2'>        if (slot == null) {
+</span><span class='bc' id='L450' title='0|2|2 - Total: 2'>            return Scriptable.NOT_FOUND;
+</span>        }
+<span class='bc' id='L452' title='0|4|4 - Total: 4'>        return slot.getValue(start);
+</span>    }
+
+    /**
+     * Returns the value of the indexed property or NOT_FOUND.
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     */
+    public Object get(int index, Scriptable start)
+    {
+<span class='bc' id='L464' title='0|2|2 - Total: 2'>        if (externalData != null) {
+</span><span class='bc' id='L465' title='0|2|2 - Total: 2'>            if (index < externalData.getArrayLength()) {
+</span><span class='bc' id='L466' title='0|5|5 - Total: 5'>                return externalData.getArrayElement(index);
+</span>            }
+<span class='bc' id='L468' title='0|2|2 - Total: 2'>            return Scriptable.NOT_FOUND;
+</span>        }
+
+<span class='bc' id='L471' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(null, index);
+</span><span class='bc' id='L472' title='0|2|2 - Total: 2'>        if (slot == null) {
+</span><span class='bc' id='L473' title='0|2|2 - Total: 2'>            return Scriptable.NOT_FOUND;
+</span>        }
+<span class='bc' id='L475' title='0|4|4 - Total: 4'>        return slot.getValue(start);
+</span>    }
+
+    /**
+     * Another version of Get that supports Symbol keyed properties.
+     */
+    public Object get(Symbol key, Scriptable start)
+    {
+<span class='bc' id='L483' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(key, 0);
+</span><span class='bc' id='L484' title='0|2|2 - Total: 2'>        if (slot == null) {
+</span><span class='bc' id='L485' title='0|2|2 - Total: 2'>            return Scriptable.NOT_FOUND;
+</span>        }
+<span class='bc' id='L487' title='0|4|4 - Total: 4'>        return slot.getValue(start);
+</span>    }
+
+    /**
+     * Sets the value of the named property, creating it if need be.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate setter method is called. <p>
+     *
+     * If the property's attributes include READONLY, no action is
+     * taken.
+     * This method will actually set the property in the start
+     * object.
+     *
+     * @param name the name of the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class='bc' id='L507' title='0|2|2 - Total: 2'>        if (putImpl(name, 0, start, value))
+</span><span class='bc' id='L508' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='bpc' id='L510' title='0|1|1 - Total: 2'>        if (start == this) throw Kit.codeBug();
+</span><span class='bc' id='L511' title='0|5|5 - Total: 5'>        start.put(name, start, value);
+</span><span class='bc' id='L512' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets the value of the indexed property, creating it if need be.
+     *
+     * @param index the numeric index for the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class='bc' id='L523' title='0|2|2 - Total: 2'>        if (externalData != null) {
+</span><span class='bc' id='L524' title='0|2|2 - Total: 2'>            if (index < externalData.getArrayLength()) {
+</span><span class='bc' id='L525' title='0|6|6 - Total: 6'>                externalData.setArrayElement(index, value);
+</span>            } else {
+<span class='bc' id='L527' title='0|2|2 - Total: 2'>                throw new JavaScriptException(
+</span><span class='bc' id='L528' title='0|14|14 - Total: 14'>                    ScriptRuntime.newNativeError(Context.getCurrentContext(), this,
+</span>                                                 TopLevel.NativeErrors.RangeError,
+                                                 new Object[] { "External array index out of bounds " }),
+                    null, 0);
+            }
+<span class='bc' id='L533' title='0|1|1 - Total: 1'>            return;
+</span>        }
+
+<span class='bc' id='L536' title='0|2|2 - Total: 2'>        if (putImpl(null, index, start, value))
+</span><span class='bc' id='L537' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='bpc' id='L539' title='0|1|1 - Total: 2'>        if (start == this) throw Kit.codeBug();
+</span><span class='bc' id='L540' title='0|5|5 - Total: 5'>        start.put(index, start, value);
+</span><span class='bc' id='L541' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Implementation of put required by SymbolScriptable objects.
+     */
+    public void put(Symbol key, Scriptable start, Object value)
+    {
+<span class='bpc' id='L548' title='0|1|1 - Total: 2'>        if (putImpl(key, 0, start, value))
+</span><span class='bc' id='L549' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='nc' id='L551' title='0|0|0 - Total: 2'>        if (start == this) throw Kit.codeBug();
+</span><span class='nc' id='L552' title='0|0|0 - Total: 6'>        ensureSymbolScriptable(start).put(key, start, value);
+</span><span class='nc' id='L553' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Removes a named property from the object.
+     *
+     * If the property is not found, or it has the PERMANENT attribute,
+     * no action is taken.
+     *
+     * @param name the name of the property
+     */
+    public void delete(String name)
+    {
+<span class='bc' id='L565' title='0|4|4 - Total: 4'>        checkNotSealed(name, 0);
+</span><span class='bc' id='L566' title='0|5|5 - Total: 5'>        slotMap.remove(name, 0);
+</span><span class='bc' id='L567' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Removes the indexed property from the object.
+     *
+     * If the property is not found, or it has the PERMANENT attribute,
+     * no action is taken.
+     *
+     * @param index the numeric index for the property
+     */
+    public void delete(int index)
+    {
+<span class='bc' id='L579' title='0|4|4 - Total: 4'>        checkNotSealed(null, index);
+</span><span class='bc' id='L580' title='0|5|5 - Total: 5'>        slotMap.remove(null, index);
+</span><span class='bc' id='L581' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Removes an object like the others, but using a Symbol as the key.
+     */
+    public void delete(Symbol key)
+    {
+<span class='bc' id='L588' title='0|4|4 - Total: 4'>        checkNotSealed(key, 0);
+</span><span class='bc' id='L589' title='0|5|5 - Total: 5'>        slotMap.remove(key, 0);
+</span><span class='bc' id='L590' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Sets the value of the named const property, creating it if need be.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate setter method is called. <p>
+     *
+     * If the property's attributes include READONLY, no action is
+     * taken.
+     * This method will actually set the property in the start
+     * object.
+     *
+     * @param name the name of the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void putConst(String name, Scriptable start, Object value)
+    {
+<span class='bpc' id='L609' title='0|1|1 - Total: 2'>        if (putConstImpl(name, 0, start, value, READONLY))
+</span><span class='bc' id='L610' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='nc' id='L612' title='0|0|0 - Total: 2'>        if (start == this) throw Kit.codeBug();
+</span><span class='nc' id='L613' title='0|0|0 - Total: 2'>        if (start instanceof ConstProperties)
+</span><span class='nc' id='L614' title='0|0|0 - Total: 7'>            ((ConstProperties)start).putConst(name, start, value);
+</span>        else
+<span class='nc' id='L616' title='0|0|0 - Total: 5'>            start.put(name, start, value);
+</span><span class='nc' id='L617' title='0|0|0 - Total: 1'>    }
+</span>
+    public void defineConst(String name, Scriptable start)
+    {
+<span class='bpc' id='L621' title='0|1|1 - Total: 2'>        if (putConstImpl(name, 0, start, Undefined.instance, UNINITIALIZED_CONST))
+</span><span class='bc' id='L622' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='nc' id='L624' title='0|0|0 - Total: 2'>        if (start == this) throw Kit.codeBug();
+</span><span class='nc' id='L625' title='0|0|0 - Total: 2'>        if (start instanceof ConstProperties)
+</span><span class='nc' id='L626' title='0|0|0 - Total: 5'>            ((ConstProperties)start).defineConst(name, start);
+</span><span class='nc' id='L627' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Returns true if the named property is defined as a const on this object.
+     * @param name
+     * @return true if the named property is defined as a const, false
+     * otherwise.
+     */
+    public boolean isConst(String name)
+    {
+<span class='bc' id='L637' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(name, 0);
+</span><span class='bc' id='L638' title='0|2|2 - Total: 2'>        if (slot == null) {
+</span><span class='bc' id='L639' title='0|2|2 - Total: 2'>            return false;
+</span>        }
+<span class='bc' id='L641' title='0|2|2 - Total: 2'>        return (slot.getAttributes() & (PERMANENT|READONLY)) ==
+</span>                                       (PERMANENT|READONLY);
+
+    }
+
+    /**
+     * @deprecated Use {@link #getAttributes(String name)}. The engine always
+     * ignored the start argument.
+     */
+    @Deprecated
+    public final int getAttributes(String name, Scriptable start)
+    {
+<span class='nc' id='L653' title='0|0|0 - Total: 4'>        return getAttributes(name);
+</span>    }
+
+    /**
+     * @deprecated Use {@link #getAttributes(int index)}. The engine always
+     * ignored the start argument.
+     */
+    @Deprecated
+    public final int getAttributes(int index, Scriptable start)
+    {
+<span class='nc' id='L663' title='0|0|0 - Total: 4'>        return getAttributes(index);
+</span>    }
+
+    /**
+     * @deprecated Use {@link #setAttributes(String name, int attributes)}.
+     * The engine always ignored the start argument.
+     */
+    @Deprecated
+    public final void setAttributes(String name, Scriptable start,
+                                    int attributes)
+    {
+<span class='nc' id='L674' title='0|0|0 - Total: 4'>        setAttributes(name, attributes);
+</span><span class='nc' id='L675' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * @deprecated Use {@link #setAttributes(int index, int attributes)}.
+     * The engine always ignored the start argument.
+     */
+    @Deprecated
+    public void setAttributes(int index, Scriptable start,
+                              int attributes)
+    {
+<span class='nc' id='L685' title='0|0|0 - Total: 4'>        setAttributes(index, attributes);
+</span><span class='nc' id='L686' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Get the attributes of a named property.
+     *
+     * The property is specified by <code>name</code>
+     * as defined for <code>has</code>.<p>
+     *
+     * @param name the identifier for the property
+     * @return the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.ScriptableObject#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public int getAttributes(String name)
+    {
+<span class='bc' id='L705' title='0|7|7 - Total: 7'>        return findAttributeSlot(name, 0, SlotAccess.QUERY).getAttributes();
+</span>    }
+
+    /**
+     * Get the attributes of an indexed property.
+     *
+     * @param index the numeric index for the property
+     * @exception EvaluatorException if the named property is not found
+     *            is not found
+     * @return the bitset of attributes
+     * @see org.mozilla.javascript.ScriptableObject#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public int getAttributes(int index)
+    {
+<span class='nc' id='L723' title='0|0|0 - Total: 7'>        return findAttributeSlot(null, index, SlotAccess.QUERY).getAttributes();
+</span>    }
+
+    public int getAttributes(Symbol sym)
+    {
+<span class='bc' id='L728' title='0|6|6 - Total: 6'>        return findAttributeSlot(sym, SlotAccess.QUERY).getAttributes();
+</span>    }
+
+
+    /**
+     * Set the attributes of a named property.
+     *
+     * The property is specified by <code>name</code>
+     * as defined for <code>has</code>.<p>
+     *
+     * The possible attributes are READONLY, DONTENUM,
+     * and PERMANENT. Combinations of attributes
+     * are expressed by the bitwise OR of attributes.
+     * EMPTY is the state of no attributes set. Any unused
+     * bits are reserved for future use.
+     *
+     * @param name the name of the property
+     * @param attributes the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public void setAttributes(String name, int attributes)
+    {
+<span class='bc' id='L755' title='0|4|4 - Total: 4'>        checkNotSealed(name, 0);
+</span><span class='bc' id='L756' title='0|7|7 - Total: 7'>        findAttributeSlot(name, 0, SlotAccess.MODIFY).setAttributes(attributes);
+</span><span class='bc' id='L757' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Set the attributes of an indexed property.
+     *
+     * @param index the numeric index for the property
+     * @param attributes the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public void setAttributes(int index, int attributes)
+    {
+<span class='nc' id='L773' title='0|0|0 - Total: 4'>        checkNotSealed(null, index);
+</span><span class='nc' id='L774' title='0|0|0 - Total: 7'>        findAttributeSlot(null, index, SlotAccess.MODIFY).setAttributes(attributes);
+</span><span class='nc' id='L775' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Set attributes of a Symbol-keyed property.
+     */
+    public void setAttributes(Symbol key, int attributes)
+    {
+<span class='bc' id='L782' title='0|4|4 - Total: 4'>        checkNotSealed(key, 0);
+</span><span class='bc' id='L783' title='0|6|6 - Total: 6'>        findAttributeSlot(key, SlotAccess.MODIFY).setAttributes(attributes);
+</span><span class='bc' id='L784' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * XXX: write docs.
+     */
+    public void setGetterOrSetter(String name, int index,
+                                  Callable getterOrSetter, boolean isSetter)
+    {
+<span class='bc' id='L792' title='0|7|7 - Total: 7'>        setGetterOrSetter(name, index, getterOrSetter, isSetter, false);
+</span><span class='bc' id='L793' title='0|1|1 - Total: 1'>    }
+</span>
+    private void setGetterOrSetter(String name, int index, Callable getterOrSetter,
+                                   boolean isSetter, boolean force)
+    {
+<span class='bpc' id='L798' title='0|3|3 - Total: 4'>        if (name != null && index != 0)
+</span><span class='nc' id='L799' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException(name);
+</span>
+<span class='bpc' id='L801' title='0|1|1 - Total: 2'>        if (!force) {
+</span><span class='bc' id='L802' title='0|4|4 - Total: 4'>            checkNotSealed(name, index);
+</span>        }
+
+        final GetterSlot gslot;
+<span class='bc' id='L806' title='0|2|2 - Total: 2'>        if (isExtensible()) {
+</span><span class='bc' id='L807' title='0|9|9 - Total: 9'>            gslot = (GetterSlot)slotMap.get(name, index, SlotAccess.MODIFY_GETTER_SETTER);
+</span>        } else {
+<span class='bc' id='L809' title='0|6|6 - Total: 6'>            Slot slot = slotMap.query(name, index);
+</span><span class='bpc' id='L810' title='0|1|1 - Total: 2'>            if (!(slot instanceof GetterSlot))
+</span><span class='bc' id='L811' title='0|1|1 - Total: 1'>                return;
+</span><span class='nc' id='L812' title='0|0|0 - Total: 3'>            gslot = (GetterSlot) slot;
+</span>        }
+
+<span class='bpc' id='L815' title='0|1|1 - Total: 2'>        if (!force) {
+</span><span class='bc' id='L816' title='0|3|3 - Total: 3'>            int attributes = gslot.getAttributes();
+</span><span class='bpc' id='L817' title='0|1|1 - Total: 2'>            if ((attributes & READONLY) != 0) {
+</span><span class='nc' id='L818' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1("msg.modify.readonly", name);
+</span>            }
+        }
+<span class='bc' id='L821' title='0|2|2 - Total: 2'>        if (isSetter) {
+</span><span class='bc' id='L822' title='0|4|4 - Total: 4'>            gslot.setter = getterOrSetter;
+</span>        } else {
+<span class='bc' id='L824' title='0|3|3 - Total: 3'>            gslot.getter = getterOrSetter;
+</span>        }
+<span class='bc' id='L826' title='0|3|3 - Total: 3'>        gslot.value = Undefined.instance;
+</span><span class='bc' id='L827' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Get the getter or setter for a given property. Used by __lookupGetter__
+     * and __lookupSetter__.
+     *
+     * @param name Name of the object. If nonnull, index must be 0.
+     * @param index Index of the object. If nonzero, name must be null.
+     * @param isSetter If true, return the setter, otherwise return the getter.
+     * @exception IllegalArgumentException if both name and index are nonnull
+     *            and nonzero respectively.
+     * @return Null if the property does not exist. Otherwise returns either
+     *         the getter or the setter for the property, depending on
+     *         the value of isSetter (may be undefined if unset).
+     */
+    public Object getGetterOrSetter(String name, int index, boolean isSetter)
+    {
+<span class='bpc' id='L844' title='0|2|2 - Total: 4'>        if (name != null && index != 0)
+</span><span class='nc' id='L845' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException(name);
+</span><span class='bc' id='L846' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(name, index);
+</span><span class='bc' id='L847' title='0|2|2 - Total: 2'>        if (slot == null)
+</span><span class='bc' id='L848' title='0|2|2 - Total: 2'>            return null;
+</span><span class='bc' id='L849' title='0|2|2 - Total: 2'>        if (slot instanceof GetterSlot) {
+</span><span class='bc' id='L850' title='0|3|3 - Total: 3'>            GetterSlot gslot = (GetterSlot)slot;
+</span><span class='bc' id='L851' title='0|2|2 - Total: 2'>            Object result = isSetter ? gslot.setter : gslot.getter;
+</span><span class='bpc' id='L852' title='0|1|1 - Total: 2'>            return result != null ? result : Undefined.instance;
+</span>        } else
+<span class='bc' id='L854' title='0|2|2 - Total: 2'>            return Undefined.instance;
+</span>    }
+
+    /**
+     * Returns whether a property is a getter or a setter
+     * @param name property name
+     * @param index property index
+     * @param setter true to check for a setter, false for a getter
+     * @return whether the property is a getter or a setter
+     */
+    protected boolean isGetterOrSetter(String name, int index, boolean setter) {
+<span class='bc' id='L865' title='0|6|6 - Total: 6'>        Slot slot = slotMap.query(name, index);
+</span><span class='bc' id='L866' title='0|2|2 - Total: 2'>        if (slot instanceof GetterSlot) {
+</span><span class='bpc' id='L867' title='0|3|3 - Total: 4'>            if (setter && ((GetterSlot)slot).setter != null) return true;
+</span><span class='bpc' id='L868' title='0|2|2 - Total: 4'>            if (!setter && ((GetterSlot)slot).getter != null) return true;
+</span>        }
+<span class='bc' id='L870' title='0|2|2 - Total: 2'>        return false;
+</span>    }
+
+    void addLazilyInitializedValue(String name, int index,
+                                   LazilyLoadedCtor init, int attributes)
+    {
+<span class='bpc' id='L876' title='0|2|2 - Total: 4'>        if (name != null && index != 0)
+</span><span class='nc' id='L877' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException(name);
+</span><span class='bc' id='L878' title='0|4|4 - Total: 4'>        checkNotSealed(name, index);
+</span><span class='bc' id='L879' title='0|8|8 - Total: 8'>        GetterSlot gslot = (GetterSlot)slotMap.get(name, index,
+</span>            SlotAccess.MODIFY_GETTER_SETTER);
+<span class='bc' id='L881' title='0|3|3 - Total: 3'>        gslot.setAttributes(attributes);
+</span><span class='bc' id='L882' title='0|3|3 - Total: 3'>        gslot.getter = null;
+</span><span class='bc' id='L883' title='0|3|3 - Total: 3'>        gslot.setter = null;
+</span><span class='bc' id='L884' title='0|3|3 - Total: 3'>        gslot.value = init;
+</span><span class='bc' id='L885' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Attach the specified object to this object, and delegate all indexed property lookups to it. In other words,
+     * if the object has 3 elements, then an attempt to look up or modify "[0]", "[1]", or "[2]" will be delegated
+     * to this object. Additional indexed properties outside the range specified, and additional non-indexed
+     * properties, may still be added. The object specified must implement the ExternalArrayData interface.
+     *
+     * @param array the List to use for delegated property access. Set this to null to revert back to regular
+     *              property access.
+     * @since 1.7.6
+     */
+    public void setExternalArrayData(ExternalArrayData array)
+    {
+<span class='bc' id='L899' title='0|3|3 - Total: 3'>        externalData = array;
+</span>
+<span class='bc' id='L901' title='0|2|2 - Total: 2'>        if (array == null) {
+</span><span class='bc' id='L902' title='0|4|4 - Total: 4'>            delete("length");
+</span>        } else {
+            // Define "length" to return whatever length the List gives us.
+<span class='bc' id='L905' title='0|7|7 - Total: 7'>            defineProperty("length", null,
+</span>                           GET_ARRAY_LENGTH, null, READONLY | DONTENUM);
+        }
+<span class='bc' id='L908' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Return the array that was previously set by the call to "setExternalArrayData".
+     *
+     * @return the array, or null if it was never set
+     * @since 1.7.6
+     */
+    public ExternalArrayData getExternalArrayData()
+    {
+<span class='nc' id='L918' title='0|0|0 - Total: 3'>        return externalData;
+</span>    }
+
+    /**
+     * This is a function used by setExternalArrayData to dynamically get the "length" property value.
+     */
+    public Object getExternalArrayLength()
+    {
+<span class='bpc' id='L926' title='0|1|1 - Total: 2'>        return (externalData == null ? 0 : externalData.getArrayLength());
+</span>    }
+
+    /**
+     * Returns the prototype of the object.
+     */
+    public Scriptable getPrototype()
+    {
+<span class='bc' id='L934' title='0|3|3 - Total: 3'>        return prototypeObject;
+</span>    }
+
+    /**
+     * Sets the prototype of the object.
+     */
+    public void setPrototype(Scriptable m)
+    {
+<span class='bc' id='L942' title='0|3|3 - Total: 3'>        prototypeObject = m;
+</span><span class='bc' id='L943' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns the parent (enclosing) scope of the object.
+     */
+    public Scriptable getParentScope()
+    {
+<span class='bc' id='L950' title='0|3|3 - Total: 3'>        return parentScopeObject;
+</span>    }
+
+    /**
+     * Sets the parent (enclosing) scope of the object.
+     */
+    public void setParentScope(Scriptable m)
+    {
+<span class='bc' id='L958' title='0|3|3 - Total: 3'>        parentScopeObject = m;
+</span><span class='bc' id='L959' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns an array of ids for the properties of the object.
+     *
+     * <p>Any properties with the attribute DONTENUM are not listed. <p>
+     *
+     * @return an array of java.lang.Objects with an entry for every
+     * listed property. Properties accessed via an integer index will
+     * have a corresponding
+     * Integer entry in the returned array. Properties accessed by
+     * a String will have a String entry in the returned array.
+     */
+    public Object[] getIds() {
+<span class='bc' id='L973' title='0|5|5 - Total: 5'>        return getIds(false, false);
+</span>    }
+
+    /**
+     * Returns an array of ids for the properties of the object.
+     *
+     * <p>All properties, even those with attribute DONTENUM, are listed. <p>
+     *
+     * @return an array of java.lang.Objects with an entry for every
+     * listed property. Properties accessed via an integer index will
+     * have a corresponding
+     * Integer entry in the returned array. Properties accessed by
+     * a String will have a String entry in the returned array.
+     */
+    public Object[] getAllIds() {
+<span class='bc' id='L988' title='0|5|5 - Total: 5'>        return getIds(true, false);
+</span>    }
+
+    /**
+     * Implements the [[DefaultValue]] internal method.
+     *
+     * <p>Note that the toPrimitive conversion is a no-op for
+     * every type other than Object, for which [[DefaultValue]]
+     * is called. See ECMA 9.1.<p>
+     *
+     * A <code>hint</code> of null means "no hint".
+     *
+     * @param typeHint the type hint
+     * @return the default value for the object
+     *
+     * See ECMA 8.6.2.6.
+     */
+    public Object getDefaultValue(Class<?> typeHint)
+    {
+<span class='bc' id='L1007' title='0|4|4 - Total: 4'>        return getDefaultValue(this, typeHint);
+</span>    }
+
+    public static Object getDefaultValue(Scriptable object, Class<?> typeHint)
+    {
+<span class='bc' id='L1012' title='0|2|2 - Total: 2'>        Context cx = null;
+</span><span class='bc' id='L1013' title='0|2|2 - Total: 2'>        for (int i=0; i < 2; i++) {
+</span>            boolean tryToString;
+<span class='bc' id='L1015' title='0|2|2 - Total: 2'>            if (typeHint == ScriptRuntime.StringClass) {
+</span><span class='bc' id='L1016' title='0|2|2 - Total: 2'>                tryToString = (i == 0);
+</span>            } else {
+<span class='bc' id='L1018' title='0|2|2 - Total: 2'>                tryToString = (i == 1);
+</span>            }
+
+            String methodName;
+            Object[] args;
+<span class='bc' id='L1023' title='0|2|2 - Total: 2'>            if (tryToString) {
+</span><span class='bc' id='L1024' title='0|2|2 - Total: 2'>                methodName = "toString";
+</span><span class='bc' id='L1025' title='0|3|3 - Total: 3'>                args = ScriptRuntime.emptyArgs;
+</span>            } else {
+<span class='bc' id='L1027' title='0|2|2 - Total: 2'>                methodName = "valueOf";
+</span><span class='bc' id='L1028' title='0|3|3 - Total: 3'>                args = new Object[1];
+</span>                String hint;
+<span class='bc' id='L1030' title='0|2|2 - Total: 2'>                if (typeHint == null) {
+</span><span class='bc' id='L1031' title='0|3|3 - Total: 3'>                    hint = "undefined";
+</span><span class='bc' id='L1032' title='0|2|2 - Total: 2'>                } else if (typeHint == ScriptRuntime.StringClass) {
+</span><span class='bc' id='L1033' title='0|3|3 - Total: 3'>                    hint = "string";
+</span><span class='bpc' id='L1034' title='0|1|1 - Total: 2'>                } else if (typeHint == ScriptRuntime.ScriptableClass) {
+</span><span class='nc' id='L1035' title='0|0|0 - Total: 3'>                    hint = "object";
+</span><span class='bc' id='L1036' title='0|2|2 - Total: 2'>                } else if (typeHint == ScriptRuntime.FunctionClass) {
+</span><span class='bc' id='L1037' title='0|3|3 - Total: 3'>                    hint = "function";
+</span><span class='bpc' id='L1038' title='0|3|3 - Total: 4'>                } else if (typeHint == ScriptRuntime.BooleanClass
+</span>                           || typeHint == Boolean.TYPE)
+                {
+<span class='bc' id='L1041' title='0|3|3 - Total: 3'>                    hint = "boolean";
+</span><span class='bpc' id='L1042' title='0|1|1 - Total: 22'>                } else if (typeHint == ScriptRuntime.NumberClass ||
+</span>                         typeHint == ScriptRuntime.ByteClass ||
+                         typeHint == Byte.TYPE ||
+                         typeHint == ScriptRuntime.ShortClass ||
+                         typeHint == Short.TYPE ||
+                         typeHint == ScriptRuntime.IntegerClass ||
+                         typeHint == Integer.TYPE ||
+                         typeHint == ScriptRuntime.FloatClass ||
+                         typeHint == Float.TYPE ||
+                         typeHint == ScriptRuntime.DoubleClass ||
+                         typeHint == Double.TYPE)
+                {
+<span class='bc' id='L1054' title='0|3|3 - Total: 3'>                    hint = "number";
+</span>                } else {
+<span class='nc' id='L1056' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError1(
+</span><span class='nc' id='L1057' title='0|0|0 - Total: 1'>                        "msg.invalid.type", typeHint.toString());
+</span>                }
+<span class='bc' id='L1059' title='0|4|4 - Total: 4'>                args[0] = hint;
+</span>            }
+<span class='bc' id='L1061' title='0|4|4 - Total: 4'>            Object v = getProperty(object, methodName);
+</span><span class='bc' id='L1062' title='0|2|2 - Total: 2'>            if (!(v instanceof Function))
+</span><span class='bc' id='L1063' title='0|1|1 - Total: 1'>                continue;
+</span><span class='bc' id='L1064' title='0|3|3 - Total: 3'>            Function fun = (Function) v;
+</span><span class='bc' id='L1065' title='0|2|2 - Total: 2'>            if (cx == null)
+</span><span class='bc' id='L1066' title='0|2|2 - Total: 2'>                cx = Context.getContext();
+</span><span class='bc' id='L1067' title='0|8|8 - Total: 8'>            v = fun.call(cx, fun.getParentScope(), object, args);
+</span><span class='bpc' id='L1068' title='0|1|1 - Total: 2'>            if (v != null) {
+</span><span class='bc' id='L1069' title='0|2|2 - Total: 2'>                if (!(v instanceof Scriptable)) {
+</span><span class='bc' id='L1070' title='0|2|2 - Total: 2'>                    return v;
+</span>                }
+<span class='bpc' id='L1072' title='0|3|3 - Total: 4'>                if (typeHint == ScriptRuntime.ScriptableClass
+</span>                    || typeHint == ScriptRuntime.FunctionClass)
+                {
+<span class='bc' id='L1075' title='0|2|2 - Total: 2'>                    return v;
+</span>                }
+<span class='bpc' id='L1077' title='0|3|3 - Total: 4'>                if (tryToString && v instanceof Wrapper) {
+</span>                    // Let a wrapped java.lang.String pass for a primitive
+                    // string.
+<span class='nc' id='L1080' title='0|0|0 - Total: 4'>                    Object u = ((Wrapper)v).unwrap();
+</span><span class='nc' id='L1081' title='0|0|0 - Total: 2'>                    if (u instanceof String)
+</span><span class='nc' id='L1082' title='0|0|0 - Total: 2'>                        return u;
+</span>                }
+            }
+        }
+        // fall through to error
+<span class='bc' id='L1087' title='0|2|2 - Total: 2'>        String arg = (typeHint == null) ? "undefined" : typeHint.getName();
+</span><span class='bc' id='L1088' title='0|4|4 - Total: 4'>        throw ScriptRuntime.typeError1("msg.default.value", arg);
+</span>    }
+
+    /**
+     * Implements the instanceof operator.
+     *
+     * <p>This operator has been proposed to ECMA.
+     *
+     * @param instance The value that appeared on the LHS of the instanceof
+     *              operator
+     * @return true if "this" appears in value's prototype chain
+     *
+     */
+    public boolean hasInstance(Scriptable instance) {
+        // Default for JS objects (other than Function) is to do prototype
+        // chasing.  This will be overridden in NativeFunction and non-JS
+        // objects.
+
+<span class='nc' id='L1106' title='0|0|0 - Total: 4'>        return ScriptRuntime.jsDelegatesTo(instance, this);
+</span>    }
+
+    /**
+     * Emulate the SpiderMonkey (and Firefox) feature of allowing
+     * custom objects to avoid detection by normal "object detection"
+     * code patterns. This is used to implement document.all.
+     * See https://bugzilla.mozilla.org/show_bug.cgi?id=412247.
+     * This is an analog to JOF_DETECTING from SpiderMonkey; see
+     * https://bugzilla.mozilla.org/show_bug.cgi?id=248549.
+     * Other than this special case, embeddings should return false.
+     * @return true if this object should avoid object detection
+     * @since 1.7R1
+     */
+    public boolean avoidObjectDetection() {
+<span class='bc' id='L1121' title='0|2|2 - Total: 2'>        return false;
+</span>    }
+
+    /**
+     * Custom <tt>==</tt> operator.
+     * Must return {@link Scriptable#NOT_FOUND} if this object does not
+     * have custom equality operator for the given value,
+     * <tt>Boolean.TRUE</tt> if this object is equivalent to <tt>value</tt>,
+     * <tt>Boolean.FALSE</tt> if this object is not equivalent to
+     * <tt>value</tt>.
+     * <p>
+     * The default implementation returns Boolean.TRUE
+     * if <tt>this == value</tt> or {@link Scriptable#NOT_FOUND} otherwise.
+     * It indicates that by default custom equality is available only if
+     * <tt>value</tt> is <tt>this</tt> in which case true is returned.
+     */
+    protected Object equivalentValues(Object value)
+    {
+<span class='bpc' id='L1139' title='0|1|1 - Total: 2'>        return (this == value) ? Boolean.TRUE : Scriptable.NOT_FOUND;
+</span>    }
+
+    /**
+     * Defines JavaScript objects from a Java class that implements Scriptable.
+     *
+     * If the given class has a method
+     * <pre>
+     * static void init(Context cx, Scriptable scope, boolean sealed);</pre>
+     *
+     * or its compatibility form
+     * <pre>
+     * static void init(Scriptable scope);</pre>
+     *
+     * then it is invoked and no further initialization is done.<p>
+     *
+     * However, if no such a method is found, then the class's constructors and
+     * methods are used to initialize a class in the following manner.<p>
+     *
+     * First, the zero-parameter constructor of the class is called to
+     * create the prototype. If no such constructor exists,
+     * a {@link EvaluatorException} is thrown. <p>
+     *
+     * Next, all methods are scanned for special prefixes that indicate that they
+     * have special meaning for defining JavaScript objects.
+     * These special prefixes are
+     * <ul>
+     * <li><code>jsFunction_</code> for a JavaScript function
+     * <li><code>jsStaticFunction_</code> for a JavaScript function that
+     *           is a property of the constructor
+     * <li><code>jsGet_</code> for a getter of a JavaScript property
+     * <li><code>jsSet_</code> for a setter of a JavaScript property
+     * <li><code>jsConstructor</code> for a JavaScript function that
+     *           is the constructor
+     * </ul><p>
+     *
+     * If the method's name begins with "jsFunction_", a JavaScript function
+     * is created with a name formed from the rest of the Java method name
+     * following "jsFunction_". So a Java method named "jsFunction_foo" will
+     * define a JavaScript method "foo". Calling this JavaScript function
+     * will cause the Java method to be called. The parameters of the method
+     * must be of number and types as defined by the FunctionObject class.
+     * The JavaScript function is then added as a property
+     * of the prototype. <p>
+     *
+     * If the method's name begins with "jsStaticFunction_", it is handled
+     * similarly except that the resulting JavaScript function is added as a
+     * property of the constructor object. The Java method must be static.
+     *
+     * If the method's name begins with "jsGet_" or "jsSet_", the method is
+     * considered to define a property. Accesses to the defined property
+     * will result in calls to these getter and setter methods. If no
+     * setter is defined, the property is defined as READONLY.<p>
+     *
+     * If the method's name is "jsConstructor", the method is
+     * considered to define the body of the constructor. Only one
+     * method of this name may be defined. You may use the varargs forms
+     * for constructors documented in {@link FunctionObject#FunctionObject(String, Member, Scriptable)}
+     *
+     * If no method is found that can serve as constructor, a Java
+     * constructor will be selected to serve as the JavaScript
+     * constructor in the following manner. If the class has only one
+     * Java constructor, that constructor is used to define
+     * the JavaScript constructor. If the the class has two constructors,
+     * one must be the zero-argument constructor (otherwise an
+     * {@link EvaluatorException} would have already been thrown
+     * when the prototype was to be created). In this case
+     * the Java constructor with one or more parameters will be used
+     * to define the JavaScript constructor. If the class has three
+     * or more constructors, an {@link EvaluatorException}
+     * will be thrown.<p>
+     *
+     * Finally, if there is a method
+     * <pre>
+     * static void finishInit(Scriptable scope, FunctionObject constructor,
+     *                        Scriptable prototype)</pre>
+     *
+     * it will be called to finish any initialization. The <code>scope</code>
+     * argument will be passed, along with the newly created constructor and
+     * the newly created prototype.<p>
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties.
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @see org.mozilla.javascript.Function
+     * @see org.mozilla.javascript.FunctionObject
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject
+     *      #defineProperty(String, Class, int)
+     */
+    public static <T extends Scriptable> void defineClass(
+            Scriptable scope, Class<T> clazz)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class='bc' id='L1240' title='0|6|6 - Total: 6'>        defineClass(scope, clazz, false, false);
+</span><span class='bc' id='L1241' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Defines JavaScript objects from a Java class, optionally
+     * allowing sealing.
+     *
+     * Similar to <code>defineClass(Scriptable scope, Class clazz)</code>
+     * except that sealing is allowed. An object that is sealed cannot have
+     * properties added or removed. Note that sealing is not allowed in
+     * the current ECMA/ISO language specification, but is likely for
+     * the next version.
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties. The class must implement Scriptable.
+     * @param sealed Whether or not to create sealed standard objects that
+     *               cannot be modified.
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @since 1.4R3
+     */
+    public static <T extends Scriptable> void defineClass(
+            Scriptable scope, Class<T> clazz, boolean sealed)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class='nc' id='L1271' title='0|0|0 - Total: 6'>        defineClass(scope, clazz, sealed, false);
+</span><span class='nc' id='L1272' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Defines JavaScript objects from a Java class, optionally
+     * allowing sealing and mapping of Java inheritance to JavaScript
+     * prototype-based inheritance.
+     *
+     * Similar to <code>defineClass(Scriptable scope, Class clazz)</code>
+     * except that sealing and inheritance mapping are allowed. An object
+     * that is sealed cannot have properties added or removed. Note that
+     * sealing is not allowed in the current ECMA/ISO language specification,
+     * but is likely for the next version.
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties. The class must implement Scriptable.
+     * @param sealed Whether or not to create sealed standard objects that
+     *               cannot be modified.
+     * @param mapInheritance Whether or not to map Java inheritance to
+     *                       JavaScript prototype-based inheritance.
+     * @return the class name for the prototype of the specified class
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @since 1.6R2
+     */
+    public static <T extends Scriptable> String defineClass(
+            Scriptable scope, Class<T> clazz, boolean sealed,
+            boolean mapInheritance)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class='bc' id='L1307' title='0|6|6 - Total: 6'>        BaseFunction ctor = buildClassCtor(scope, clazz, sealed,
+</span>                                           mapInheritance);
+<span class='bpc' id='L1309' title='0|1|1 - Total: 2'>        if (ctor == null)
+</span><span class='nc' id='L1310' title='0|0|0 - Total: 2'>            return null;
+</span><span class='bc' id='L1311' title='0|4|4 - Total: 4'>        String name = ctor.getClassPrototype().getClassName();
+</span><span class='bc' id='L1312' title='0|5|5 - Total: 5'>        defineProperty(scope, name, ctor, ScriptableObject.DONTENUM);
+</span><span class='bc' id='L1313' title='0|2|2 - Total: 2'>        return name;
+</span>    }
+
+    static <T extends Scriptable> BaseFunction buildClassCtor(
+            Scriptable scope, Class<T> clazz,
+            boolean sealed,
+            boolean mapInheritance)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class='bc' id='L1323' title='0|3|3 - Total: 3'>        Method[] methods = FunctionObject.getMethodList(clazz);
+</span><span class='bc' id='L1324' title='0|2|2 - Total: 2'>        for (int i=0; i < methods.length; i++) {
+</span><span class='bc' id='L1325' title='0|4|4 - Total: 4'>            Method method = methods[i];
+</span><span class='bc' id='L1326' title='0|2|2 - Total: 2'>            if (!method.getName().equals("init"))
+</span><span class='bc' id='L1327' title='0|1|1 - Total: 1'>                continue;
+</span><span class='bc' id='L1328' title='0|3|3 - Total: 3'>            Class<?>[] parmTypes = method.getParameterTypes();
+</span><span class='bpc' id='L1329' title='0|4|4 - Total: 8'>            if (parmTypes.length == 3 &&
+</span>                parmTypes[0] == ScriptRuntime.ContextClass &&
+                parmTypes[1] == ScriptRuntime.ScriptableClass &&
+                parmTypes[2] == Boolean.TYPE &&
+<span class='bpc' id='L1333' title='0|1|1 - Total: 2'>                Modifier.isStatic(method.getModifiers()))
+</span>            {
+<span class='bc' id='L1335' title='0|2|2 - Total: 2'>                Object args[] = { Context.getContext(), scope,
+</span>                                  sealed ? Boolean.TRUE : Boolean.FALSE };
+<span class='bc' id='L1337' title='0|5|5 - Total: 5'>                method.invoke(null, args);
+</span><span class='bc' id='L1338' title='0|2|2 - Total: 2'>                return null;
+</span>            }
+<span class='nc' id='L1340' title='0|0|0 - Total: 4'>            if (parmTypes.length == 1 &&
+</span>                parmTypes[0] == ScriptRuntime.ScriptableClass &&
+<span class='nc' id='L1342' title='0|0|0 - Total: 2'>                Modifier.isStatic(method.getModifiers()))
+</span>            {
+<span class='nc' id='L1344' title='0|0|0 - Total: 7'>                Object args[] = { scope };
+</span><span class='nc' id='L1345' title='0|0|0 - Total: 5'>                method.invoke(null, args);
+</span><span class='nc' id='L1346' title='0|0|0 - Total: 2'>                return null;
+</span>            }
+
+        }
+
+        // If we got here, there isn't an "init" method with the right
+        // parameter types.
+
+<span class='bc' id='L1354' title='0|3|3 - Total: 3'>        Constructor<?>[] ctors = clazz.getConstructors();
+</span><span class='bc' id='L1355' title='0|2|2 - Total: 2'>        Constructor<?> protoCtor = null;
+</span><span class='bpc' id='L1356' title='0|1|1 - Total: 2'>        for (int i=0; i < ctors.length; i++) {
+</span><span class='bc' id='L1357' title='0|2|2 - Total: 2'>            if (ctors[i].getParameterTypes().length == 0) {
+</span><span class='bc' id='L1358' title='0|4|4 - Total: 4'>                protoCtor = ctors[i];
+</span><span class='bc' id='L1359' title='0|1|1 - Total: 1'>                break;
+</span>            }
+        }
+<span class='bpc' id='L1362' title='0|1|1 - Total: 2'>        if (protoCtor == null) {
+</span><span class='nc' id='L1363' title='0|0|0 - Total: 4'>            throw Context.reportRuntimeError1(
+</span><span class='nc' id='L1364' title='0|0|0 - Total: 1'>                      "msg.zero.arg.ctor", clazz.getName());
+</span>        }
+
+<span class='bc' id='L1367' title='0|5|5 - Total: 5'>        Scriptable proto = (Scriptable) protoCtor.newInstance(ScriptRuntime.emptyArgs);
+</span><span class='bc' id='L1368' title='0|3|3 - Total: 3'>        String className = proto.getClassName();
+</span>
+        // check for possible redefinition
+<span class='bc' id='L1371' title='0|5|5 - Total: 5'>        Object existing = getProperty(getTopLevelScope(scope), className);
+</span><span class='bc' id='L1372' title='0|2|2 - Total: 2'>        if (existing instanceof BaseFunction) {
+</span><span class='bc' id='L1373' title='0|4|4 - Total: 4'>            Object existingProto = ((BaseFunction)existing).getPrototypeProperty();
+</span><span class='bpc' id='L1374' title='0|2|2 - Total: 4'>            if (existingProto != null && clazz.equals(existingProto.getClass())) {
+</span><span class='bc' id='L1375' title='0|3|3 - Total: 3'>                return (BaseFunction)existing;
+</span>            }
+        }
+
+        // Set the prototype's prototype, trying to map Java inheritance to JS
+        // prototype-based inheritance if requested to do so.
+<span class='bc' id='L1381' title='0|2|2 - Total: 2'>        Scriptable superProto = null;
+</span><span class='bc' id='L1382' title='0|2|2 - Total: 2'>        if (mapInheritance) {
+</span><span class='bc' id='L1383' title='0|3|3 - Total: 3'>            Class<? super T> superClass = clazz.getSuperclass();
+</span><span class='bpc' id='L1384' title='0|1|1 - Total: 2'>            if (ScriptRuntime.ScriptableClass.isAssignableFrom(superClass) &&
+</span><span class='bc' id='L1385' title='0|2|2 - Total: 2'>                !Modifier.isAbstract(superClass.getModifiers()))
+</span>            {
+<span class='bc' id='L1387' title='0|1|1 - Total: 1'>                Class<? extends Scriptable> superScriptable =
+</span><span class='bc' id='L1388' title='0|2|2 - Total: 2'>                    extendsScriptable(superClass);
+</span><span class='bc' id='L1389' title='0|6|6 - Total: 6'>                String name = ScriptableObject.defineClass(scope,
+</span>                        superScriptable, sealed, mapInheritance);
+<span class='bpc' id='L1391' title='0|1|1 - Total: 2'>                if (name != null) {
+</span><span class='bc' id='L1392' title='0|4|4 - Total: 4'>                    superProto = ScriptableObject.getClassPrototype(scope, name);
+</span>                }
+            }
+        }
+<span class='bc' id='L1396' title='0|2|2 - Total: 2'>        if (superProto == null) {
+</span><span class='bc' id='L1397' title='0|3|3 - Total: 3'>            superProto = ScriptableObject.getObjectPrototype(scope);
+</span>        }
+<span class='bc' id='L1399' title='0|3|3 - Total: 3'>        proto.setPrototype(superProto);
+</span>
+        // Find out whether there are any methods that begin with
+        // "js". If so, then only methods that begin with special
+        // prefixes will be defined as JavaScript entities.
+<span class='bc' id='L1404' title='0|2|2 - Total: 2'>        final String functionPrefix = "jsFunction_";
+</span><span class='bc' id='L1405' title='0|2|2 - Total: 2'>        final String staticFunctionPrefix = "jsStaticFunction_";
+</span><span class='bc' id='L1406' title='0|2|2 - Total: 2'>        final String getterPrefix = "jsGet_";
+</span><span class='bc' id='L1407' title='0|2|2 - Total: 2'>        final String setterPrefix = "jsSet_";
+</span><span class='bc' id='L1408' title='0|2|2 - Total: 2'>        final String ctorName = "jsConstructor";
+</span>
+<span class='bc' id='L1410' title='0|4|4 - Total: 4'>        Member ctorMember = findAnnotatedMember(methods, JSConstructor.class);
+</span><span class='bc' id='L1411' title='0|2|2 - Total: 2'>        if (ctorMember == null) {
+</span><span class='bc' id='L1412' title='0|4|4 - Total: 4'>            ctorMember = findAnnotatedMember(ctors, JSConstructor.class);
+</span>        }
+<span class='bc' id='L1414' title='0|2|2 - Total: 2'>        if (ctorMember == null) {
+</span><span class='bc' id='L1415' title='0|4|4 - Total: 4'>            ctorMember = FunctionObject.findSingleMethod(methods, ctorName);
+</span>        }
+<span class='bc' id='L1417' title='0|2|2 - Total: 2'>        if (ctorMember == null) {
+</span><span class='bc' id='L1418' title='0|2|2 - Total: 2'>            if (ctors.length == 1) {
+</span><span class='bc' id='L1419' title='0|5|5 - Total: 5'>                ctorMember = ctors[0];
+</span><span class='bpc' id='L1420' title='0|1|1 - Total: 2'>            } else if (ctors.length == 2) {
+</span><span class='bc' id='L1421' title='0|2|2 - Total: 2'>                if (ctors[0].getParameterTypes().length == 0)
+</span><span class='bc' id='L1422' title='0|5|5 - Total: 5'>                    ctorMember = ctors[1];
+</span><span class='bpc' id='L1423' title='0|1|1 - Total: 2'>                else if (ctors[1].getParameterTypes().length == 0)
+</span><span class='bc' id='L1424' title='0|4|4 - Total: 4'>                    ctorMember = ctors[0];
+</span>            }
+<span class='bpc' id='L1426' title='0|1|1 - Total: 2'>            if (ctorMember == null) {
+</span><span class='nc' id='L1427' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span><span class='nc' id='L1428' title='0|0|0 - Total: 1'>                          "msg.ctor.multiple.parms", clazz.getName());
+</span>            }
+        }
+
+<span class='bc' id='L1432' title='0|7|7 - Total: 7'>        FunctionObject ctor = new FunctionObject(className, ctorMember, scope);
+</span><span class='bpc' id='L1433' title='0|1|1 - Total: 2'>        if (ctor.isVarArgsMethod()) {
+</span><span class='nc' id='L1434' title='0|0|0 - Total: 2'>            throw Context.reportRuntimeError1
+</span><span class='nc' id='L1435' title='0|0|0 - Total: 3'>                ("msg.varargs.ctor", ctorMember.getName());
+</span>        }
+<span class='bc' id='L1437' title='0|4|4 - Total: 4'>        ctor.initAsConstructor(scope, proto);
+</span>
+<span class='bc' id='L1439' title='0|2|2 - Total: 2'>        Method finishInit = null;
+</span><span class='bc' id='L1440' title='0|4|4 - Total: 4'>        HashSet<String> staticNames = new HashSet<String>(),
+</span><span class='bc' id='L1441' title='0|4|4 - Total: 4'>                        instanceNames = new HashSet<String>();
+</span><span class='bc' id='L1442' title='0|2|2 - Total: 2'>        for (Method method : methods) {
+</span><span class='bc' id='L1443' title='0|2|2 - Total: 2'>            if (method == ctorMember) {
+</span><span class='bc' id='L1444' title='0|1|1 - Total: 1'>                continue;
+</span>            }
+<span class='bc' id='L1446' title='0|3|3 - Total: 3'>            String name = method.getName();
+</span><span class='bpc' id='L1447' title='0|1|1 - Total: 2'>            if (name.equals("finishInit")) {
+</span><span class='nc' id='L1448' title='0|0|0 - Total: 3'>                Class<?>[] parmTypes = method.getParameterTypes();
+</span><span class='nc' id='L1449' title='0|0|0 - Total: 8'>                if (parmTypes.length == 3 &&
+</span>                    parmTypes[0] == ScriptRuntime.ScriptableClass &&
+                    parmTypes[1] == FunctionObject.class &&
+                    parmTypes[2] == ScriptRuntime.ScriptableClass &&
+<span class='nc' id='L1453' title='0|0|0 - Total: 2'>                    Modifier.isStatic(method.getModifiers()))
+</span>                {
+<span class='nc' id='L1455' title='0|0|0 - Total: 2'>                    finishInit = method;
+</span><span class='nc' id='L1456' title='0|0|0 - Total: 1'>                    continue;
+</span>                }
+            }
+            // ignore any compiler generated methods.
+<span class='bpc' id='L1460' title='0|1|1 - Total: 2'>            if (name.indexOf('$') != -1)
+</span><span class='nc' id='L1461' title='0|0|0 - Total: 1'>                continue;
+</span><span class='bpc' id='L1462' title='0|1|1 - Total: 2'>            if (name.equals(ctorName))
+</span><span class='nc' id='L1463' title='0|0|0 - Total: 1'>                continue;
+</span>
+<span class='bc' id='L1465' title='0|2|2 - Total: 2'>            Annotation annotation = null;
+</span><span class='bc' id='L1466' title='0|2|2 - Total: 2'>            String prefix = null;
+</span><span class='bc' id='L1467' title='0|2|2 - Total: 2'>            if (method.isAnnotationPresent(JSFunction.class)) {
+</span><span class='bc' id='L1468' title='0|5|5 - Total: 5'>                annotation = method.getAnnotation(JSFunction.class);
+</span><span class='bc' id='L1469' title='0|2|2 - Total: 2'>            } else if (method.isAnnotationPresent(JSStaticFunction.class)) {
+</span><span class='bc' id='L1470' title='0|5|5 - Total: 5'>                annotation = method.getAnnotation(JSStaticFunction.class);
+</span><span class='bc' id='L1471' title='0|2|2 - Total: 2'>            } else if (method.isAnnotationPresent(JSGetter.class)) {
+</span><span class='bc' id='L1472' title='0|5|5 - Total: 5'>                annotation = method.getAnnotation(JSGetter.class);
+</span><span class='bc' id='L1473' title='0|2|2 - Total: 2'>            } else if (method.isAnnotationPresent(JSSetter.class)) {
+</span><span class='bc' id='L1474' title='0|1|1 - Total: 1'>                continue;
+</span>            }
+
+<span class='bc' id='L1477' title='0|2|2 - Total: 2'>            if (annotation == null) {
+</span><span class='bc' id='L1478' title='0|2|2 - Total: 2'>                if (name.startsWith(functionPrefix)) {
+</span><span class='bc' id='L1479' title='0|3|3 - Total: 3'>                    prefix = functionPrefix;
+</span><span class='bc' id='L1480' title='0|2|2 - Total: 2'>                } else if (name.startsWith(staticFunctionPrefix)) {
+</span><span class='bc' id='L1481' title='0|3|3 - Total: 3'>                    prefix = staticFunctionPrefix;
+</span><span class='bc' id='L1482' title='0|2|2 - Total: 2'>                } else if (name.startsWith(getterPrefix)) {
+</span><span class='bc' id='L1483' title='0|3|3 - Total: 3'>                    prefix = getterPrefix;
+</span><span class='bpc' id='L1484' title='0|1|1 - Total: 2'>                } else if (annotation == null) {
+</span>                    // note that setterPrefix is among the unhandled names here -
+                    // we deal with that when we see the getter
+<span class='bc' id='L1487' title='0|1|1 - Total: 1'>                    continue;
+</span>                }
+            }
+
+<span class='bc' id='L1491' title='0|4|4 - Total: 4'>            boolean isStatic = annotation instanceof JSStaticFunction
+</span>                    || prefix == staticFunctionPrefix;
+<span class='bc' id='L1493' title='0|2|2 - Total: 2'>            HashSet<String> names = isStatic ? staticNames : instanceNames;
+</span><span class='bc' id='L1494' title='0|5|5 - Total: 5'>            String propName = getPropertyName(name, prefix, annotation);
+</span><span class='bpc' id='L1495' title='0|1|1 - Total: 2'>            if (names.contains(propName)) {
+</span><span class='nc' id='L1496' title='0|0|0 - Total: 5'>                throw Context.reportRuntimeError2("duplicate.defineClass.name",
+</span>                        name, propName);
+            }
+<span class='bc' id='L1499' title='0|4|4 - Total: 4'>            names.add(propName);
+</span><span class='bc' id='L1500' title='0|2|2 - Total: 2'>            name = propName;
+</span>
+<span class='bc' id='L1502' title='0|4|4 - Total: 4'>            if (annotation instanceof JSGetter || prefix == getterPrefix) {
+</span><span class='bpc' id='L1503' title='0|1|1 - Total: 2'>                if (!(proto instanceof ScriptableObject)) {
+</span><span class='nc' id='L1504' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError2(
+</span>                        "msg.extend.scriptable",
+<span class='nc' id='L1506' title='0|0|0 - Total: 3'>                        proto.getClass().toString(), name);
+</span>                }
+<span class='bc' id='L1508' title='0|5|5 - Total: 5'>                Method setter = findSetterMethod(methods, name, setterPrefix);
+</span><span class='bc' id='L1509' title='0|2|2 - Total: 2'>                int attr = ScriptableObject.PERMANENT |
+</span>                           ScriptableObject.DONTENUM  |
+                           (setter != null ? 0
+                                           : ScriptableObject.READONLY);
+<span class='bc' id='L1513' title='0|8|8 - Total: 8'>                ((ScriptableObject) proto).defineProperty(name, null,
+</span>                                                          method, setter,
+                                                          attr);
+<span class='bc' id='L1516' title='0|1|1 - Total: 1'>                continue;
+</span>            }
+
+<span class='bpc' id='L1519' title='0|3|3 - Total: 4'>            if (isStatic && !Modifier.isStatic(method.getModifiers())) {
+</span><span class='nc' id='L1520' title='0|0|0 - Total: 3'>                throw Context.reportRuntimeError(
+</span>                        "jsStaticFunction must be used with static method.");
+            }
+
+<span class='bc' id='L1524' title='0|7|7 - Total: 7'>            FunctionObject f = new FunctionObject(name, method, proto);
+</span><span class='bpc' id='L1525' title='0|1|1 - Total: 2'>            if (f.isVarArgsConstructor()) {
+</span><span class='nc' id='L1526' title='0|0|0 - Total: 2'>                throw Context.reportRuntimeError1
+</span><span class='nc' id='L1527' title='0|0|0 - Total: 3'>                    ("msg.varargs.fun", ctorMember.getName());
+</span>            }
+<span class='bc' id='L1529' title='0|2|2 - Total: 2'>            defineProperty(isStatic ? ctor : proto, name, f, DONTENUM);
+</span><span class='bpc' id='L1530' title='0|1|1 - Total: 2'>            if (sealed) {
+</span><span class='nc' id='L1531' title='0|0|0 - Total: 2'>                f.sealObject();
+</span>            }
+        }
+
+        // Call user code to complete initialization if necessary.
+<span class='bpc' id='L1536' title='0|1|1 - Total: 2'>        if (finishInit != null) {
+</span><span class='nc' id='L1537' title='0|0|0 - Total: 15'>            Object[] finishArgs = { scope, ctor, proto };
+</span><span class='nc' id='L1538' title='0|0|0 - Total: 5'>            finishInit.invoke(null, finishArgs);
+</span>        }
+
+        // Seal the object if necessary.
+<span class='bpc' id='L1542' title='0|1|1 - Total: 2'>        if (sealed) {
+</span><span class='nc' id='L1543' title='0|0|0 - Total: 2'>            ctor.sealObject();
+</span><span class='nc' id='L1544' title='0|0|0 - Total: 2'>            if (proto instanceof ScriptableObject) {
+</span><span class='nc' id='L1545' title='0|0|0 - Total: 3'>                ((ScriptableObject) proto).sealObject();
+</span>            }
+        }
+
+<span class='bc' id='L1549' title='0|2|2 - Total: 2'>        return ctor;
+</span>    }
+
+    private static Member findAnnotatedMember(AccessibleObject[] members,
+                                              Class<? extends Annotation> annotation) {
+<span class='bc' id='L1554' title='0|2|2 - Total: 2'>        for (AccessibleObject member : members) {
+</span><span class='bc' id='L1555' title='0|2|2 - Total: 2'>            if (member.isAnnotationPresent(annotation)) {
+</span><span class='bc' id='L1556' title='0|3|3 - Total: 3'>                return (Member) member;
+</span>            }
+        }
+<span class='bc' id='L1559' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private static Method findSetterMethod(Method[] methods,
+                                           String name,
+                                           String prefix) {
+<span class='bc' id='L1565' title='0|7|7 - Total: 7'>        String newStyleName = "set"
+</span><span class='bc' id='L1566' title='0|5|5 - Total: 5'>                + Character.toUpperCase(name.charAt(0))
+</span><span class='bc' id='L1567' title='0|4|4 - Total: 4'>                + name.substring(1);
+</span><span class='bc' id='L1568' title='0|2|2 - Total: 2'>        for (Method method : methods) {
+</span><span class='bc' id='L1569' title='0|5|5 - Total: 5'>            JSSetter annotation = method.getAnnotation(JSSetter.class);
+</span><span class='bc' id='L1570' title='0|2|2 - Total: 2'>            if (annotation != null) {
+</span><span class='bpc' id='L1571' title='0|1|1 - Total: 2'>                if (name.equals(annotation.value()) ||
+</span><span class='bpc' id='L1572' title='0|3|3 - Total: 4'>                        ("".equals(annotation.value()) && newStyleName.equals(method.getName()))) {
+</span><span class='bc' id='L1573' title='0|2|2 - Total: 2'>                    return method;
+</span>                }
+            }
+        }
+<span class='bc' id='L1577' title='0|9|9 - Total: 9'>        String oldStyleName = prefix + name;
+</span><span class='bc' id='L1578' title='0|2|2 - Total: 2'>        for (Method method : methods) {
+</span><span class='bc' id='L1579' title='0|2|2 - Total: 2'>            if (oldStyleName.equals(method.getName())) {
+</span><span class='bc' id='L1580' title='0|2|2 - Total: 2'>                return method;
+</span>            }
+        }
+<span class='bc' id='L1583' title='0|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private static String getPropertyName(String methodName,
+                                          String prefix,
+                                          Annotation annotation) {
+<span class='bc' id='L1589' title='0|2|2 - Total: 2'>        if (prefix != null) {
+</span><span class='bc' id='L1590' title='0|5|5 - Total: 5'>            return methodName.substring(prefix.length());
+</span>        }
+<span class='bc' id='L1592' title='0|2|2 - Total: 2'>        String propName = null;
+</span><span class='bc' id='L1593' title='0|2|2 - Total: 2'>        if (annotation instanceof JSGetter) {
+</span><span class='bc' id='L1594' title='0|4|4 - Total: 4'>            propName = ((JSGetter) annotation).value();
+</span><span class='bpc' id='L1595' title='0|3|3 - Total: 4'>            if (propName == null || propName.length() == 0) {
+</span><span class='bpc' id='L1596' title='0|2|2 - Total: 4'>                if (methodName.length() > 3 && methodName.startsWith("get")) {
+</span><span class='bc' id='L1597' title='0|4|4 - Total: 4'>                    propName = methodName.substring(3);
+</span><span class='bpc' id='L1598' title='0|1|1 - Total: 2'>                    if (Character.isUpperCase(propName.charAt(0))) {
+</span><span class='bpc' id='L1599' title='0|1|1 - Total: 2'>                        if (propName.length() == 1) {
+</span><span class='nc' id='L1600' title='0|0|0 - Total: 4'>                            propName = propName.toLowerCase();
+</span><span class='bpc' id='L1601' title='0|1|1 - Total: 2'>                        } else if (!Character.isUpperCase(propName.charAt(1))){
+</span><span class='bc' id='L1602' title='0|10|10 - Total: 10'>                            propName = Character.toLowerCase(propName.charAt(0))
+</span><span class='bc' id='L1603' title='0|5|5 - Total: 5'>                                    + propName.substring(1);
+</span>                        }
+                    }
+                }
+            }
+<span class='bc' id='L1608' title='0|2|2 - Total: 2'>        } else if (annotation instanceof JSFunction) {
+</span><span class='bc' id='L1609' title='0|5|5 - Total: 5'>            propName = ((JSFunction) annotation).value();
+</span><span class='bpc' id='L1610' title='0|1|1 - Total: 2'>        } else if (annotation instanceof JSStaticFunction) {
+</span><span class='bc' id='L1611' title='0|4|4 - Total: 4'>            propName = ((JSStaticFunction) annotation).value();
+</span>        }
+<span class='bpc' id='L1613' title='0|3|3 - Total: 4'>        if (propName == null || propName.length() == 0) {
+</span><span class='bc' id='L1614' title='0|2|2 - Total: 2'>            propName = methodName;
+</span>        }
+<span class='bc' id='L1616' title='0|2|2 - Total: 2'>        return propName;
+</span>    }
+
+    @SuppressWarnings({"unchecked"})
+    private static <T extends Scriptable> Class<T> extendsScriptable(Class<?> c)
+    {
+<span class='bpc' id='L1622' title='0|1|1 - Total: 2'>        if (ScriptRuntime.ScriptableClass.isAssignableFrom(c))
+</span><span class='bc' id='L1623' title='0|2|2 - Total: 2'>            return (Class<T>) c;
+</span><span class='nc' id='L1624' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Define a JavaScript property.
+     *
+     * Creates the property with an initial value and sets its attributes.
+     *
+     * @param propertyName the name of the property to define.
+     * @param value the initial value of the property
+     * @param attributes the attributes of the JavaScript property
+     * @see org.mozilla.javascript.Scriptable#put(String, Scriptable, Object)
+     */
+    public void defineProperty(String propertyName, Object value,
+                               int attributes)
+    {
+<span class='bc' id='L1640' title='0|4|4 - Total: 4'>        checkNotSealed(propertyName, 0);
+</span><span class='bc' id='L1641' title='0|5|5 - Total: 5'>        put(propertyName, this, value);
+</span><span class='bc' id='L1642' title='0|4|4 - Total: 4'>        setAttributes(propertyName, attributes);
+</span><span class='bc' id='L1643' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * A version of defineProperty that uses a Symbol key.
+     */
+    public void defineProperty(Symbol key, Object value,
+                               int attributes)
+    {
+<span class='bc' id='L1651' title='0|4|4 - Total: 4'>        checkNotSealed(key, 0);
+</span><span class='bc' id='L1652' title='0|5|5 - Total: 5'>        put(key, this, value);
+</span><span class='bc' id='L1653' title='0|4|4 - Total: 4'>        setAttributes(key, attributes);
+</span><span class='bc' id='L1654' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Utility method to add properties to arbitrary Scriptable object.
+     * If destination is instance of ScriptableObject, calls
+     * defineProperty there, otherwise calls put in destination
+     * ignoring attributes
+     */
+    public static void defineProperty(Scriptable destination,
+                                      String propertyName, Object value,
+                                      int attributes)
+    {
+<span class='bc' id='L1666' title='0|2|2 - Total: 2'>        if (!(destination instanceof ScriptableObject)) {
+</span><span class='bc' id='L1667' title='0|5|5 - Total: 5'>            destination.put(propertyName, destination, value);
+</span><span class='bc' id='L1668' title='0|1|1 - Total: 1'>            return;
+</span>        }
+<span class='bc' id='L1670' title='0|3|3 - Total: 3'>        ScriptableObject so = (ScriptableObject)destination;
+</span><span class='bc' id='L1671' title='0|5|5 - Total: 5'>        so.defineProperty(propertyName, value, attributes);
+</span><span class='bc' id='L1672' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Utility method to add properties to arbitrary Scriptable object.
+     * If destination is instance of ScriptableObject, calls
+     * defineProperty there, otherwise calls put in destination
+     * ignoring attributes
+     */
+    public static void defineConstProperty(Scriptable destination,
+                                           String propertyName)
+    {
+<span class='bpc' id='L1683' title='0|1|1 - Total: 2'>        if (destination instanceof ConstProperties) {
+</span><span class='bc' id='L1684' title='0|3|3 - Total: 3'>            ConstProperties cp = (ConstProperties)destination;
+</span><span class='bc' id='L1685' title='0|4|4 - Total: 4'>            cp.defineConst(propertyName, destination);
+</span><span class='bc' id='L1686' title='0|1|1 - Total: 1'>        } else
+</span><span class='nc' id='L1687' title='0|0|0 - Total: 5'>            defineProperty(destination, propertyName, Undefined.instance, CONST);
+</span><span class='bc' id='L1688' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Define a JavaScript property with getter and setter side effects.
+     *
+     * If the setter is not found, the attribute READONLY is added to
+     * the given attributes. <p>
+     *
+     * The getter must be a method with zero parameters, and the setter, if
+     * found, must be a method with one parameter.<p>
+     *
+     * @param propertyName the name of the property to define. This name
+     *                    also affects the name of the setter and getter
+     *                    to search for. If the propertyId is "foo", then
+     *                    <code>clazz</code> will be searched for "getFoo"
+     *                    and "setFoo" methods.
+     * @param clazz the Java class to search for the getter and setter
+     * @param attributes the attributes of the JavaScript property
+     * @see org.mozilla.javascript.Scriptable#put(String, Scriptable, Object)
+     */
+    public void defineProperty(String propertyName, Class<?> clazz,
+                               int attributes)
+    {
+<span class='nc' id='L1711' title='0|0|0 - Total: 3'>        int length = propertyName.length();
+</span><span class='nc' id='L1712' title='0|0|0 - Total: 2'>        if (length == 0) throw new IllegalArgumentException();
+</span><span class='nc' id='L1713' title='0|0|0 - Total: 5'>        char[] buf = new char[3 + length];
+</span><span class='nc' id='L1714' title='0|0|0 - Total: 6'>        propertyName.getChars(0, length, buf, 3);
+</span><span class='nc' id='L1715' title='0|0|0 - Total: 7'>        buf[3] = Character.toUpperCase(buf[3]);
+</span><span class='nc' id='L1716' title='0|0|0 - Total: 4'>        buf[0] = 'g';
+</span><span class='nc' id='L1717' title='0|0|0 - Total: 4'>        buf[1] = 'e';
+</span><span class='nc' id='L1718' title='0|0|0 - Total: 4'>        buf[2] = 't';
+</span><span class='nc' id='L1719' title='0|0|0 - Total: 5'>        String getterName = new String(buf);
+</span><span class='nc' id='L1720' title='0|0|0 - Total: 4'>        buf[0] = 's';
+</span><span class='nc' id='L1721' title='0|0|0 - Total: 5'>        String setterName = new String(buf);
+</span>
+<span class='nc' id='L1723' title='0|0|0 - Total: 3'>        Method[] methods = FunctionObject.getMethodList(clazz);
+</span><span class='nc' id='L1724' title='0|0|0 - Total: 4'>        Method getter = FunctionObject.findSingleMethod(methods, getterName);
+</span><span class='nc' id='L1725' title='0|0|0 - Total: 4'>        Method setter = FunctionObject.findSingleMethod(methods, setterName);
+</span><span class='nc' id='L1726' title='0|0|0 - Total: 2'>        if (setter == null)
+</span><span class='nc' id='L1727' title='0|0|0 - Total: 4'>            attributes |= ScriptableObject.READONLY;
+</span><span class='nc' id='L1728' title='0|0|0 - Total: 2'>        defineProperty(propertyName, null, getter,
+</span>                       setter == null ? null : setter, attributes);
+<span class='nc' id='L1730' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Define a JavaScript property.
+     *
+     * Use this method only if you wish to define getters and setters for
+     * a given property in a ScriptableObject. To create a property without
+     * special getter or setter side effects, use
+     * <code>defineProperty(String,int)</code>.
+     *
+     * If <code>setter</code> is null, the attribute READONLY is added to
+     * the given attributes.<p>
+     *
+     * Several forms of getters or setters are allowed. In all cases the
+     * type of the value parameter can be any one of the following types:
+     * Object, String, boolean, Scriptable, byte, short, int, long, float,
+     * or double. The runtime will perform appropriate conversions based
+     * upon the type of the parameter (see description in FunctionObject).
+     * The first forms are nonstatic methods of the class referred to
+     * by 'this':
+     * <pre>
+     * Object getFoo();
+     * void setFoo(SomeType value);</pre>
+     * Next are static methods that may be of any class; the object whose
+     * property is being accessed is passed in as an extra argument:
+     * <pre>
+     * static Object getFoo(Scriptable obj);
+     * static void setFoo(Scriptable obj, SomeType value);</pre>
+     * Finally, it is possible to delegate to another object entirely using
+     * the <code>delegateTo</code> parameter. In this case the methods are
+     * nonstatic methods of the class delegated to, and the object whose
+     * property is being accessed is passed in as an extra argument:
+     * <pre>
+     * Object getFoo(Scriptable obj);
+     * void setFoo(Scriptable obj, SomeType value);</pre>
+     *
+     * @param propertyName the name of the property to define.
+     * @param delegateTo an object to call the getter and setter methods on,
+     *                   or null, depending on the form used above.
+     * @param getter the method to invoke to get the value of the property
+     * @param setter the method to invoke to set the value of the property
+     * @param attributes the attributes of the JavaScript property
+     */
+    public void defineProperty(String propertyName, Object delegateTo,
+                               Method getter, Method setter, int attributes)
+    {
+<span class='bc' id='L1776' title='0|2|2 - Total: 2'>        MemberBox getterBox = null;
+</span><span class='bc' id='L1777' title='0|2|2 - Total: 2'>        if (getter != null) {
+</span><span class='bc' id='L1778' title='0|5|5 - Total: 5'>            getterBox = new MemberBox(getter);
+</span>
+            boolean delegatedForm;
+<span class='bpc' id='L1781' title='0|1|1 - Total: 2'>            if (!Modifier.isStatic(getter.getModifiers())) {
+</span><span class='bc' id='L1782' title='0|2|2 - Total: 2'>                delegatedForm = (delegateTo != null);
+</span><span class='bc' id='L1783' title='0|4|4 - Total: 4'>                getterBox.delegateTo = delegateTo;
+</span>            } else {
+<span class='nc' id='L1785' title='0|0|0 - Total: 2'>                delegatedForm = true;
+</span>                // Ignore delegateTo for static getter but store
+                // non-null delegateTo indicator.
+<span class='nc' id='L1788' title='0|0|0 - Total: 3'>                getterBox.delegateTo = Void.TYPE;
+</span>            }
+
+<span class='bc' id='L1791' title='0|2|2 - Total: 2'>            String errorId = null;
+</span><span class='bc' id='L1792' title='0|3|3 - Total: 3'>            Class<?>[] parmTypes = getter.getParameterTypes();
+</span><span class='bc' id='L1793' title='0|2|2 - Total: 2'>            if (parmTypes.length == 0) {
+</span><span class='bpc' id='L1794' title='0|1|1 - Total: 2'>                if (delegatedForm) {
+</span><span class='nc' id='L1795' title='0|0|0 - Total: 3'>                    errorId = "msg.obj.getter.parms";
+</span>                }
+<span class='bpc' id='L1797' title='0|1|1 - Total: 2'>            } else if (parmTypes.length == 1) {
+</span><span class='bc' id='L1798' title='0|4|4 - Total: 4'>                Object argType = parmTypes[0];
+</span>                // Allow ScriptableObject for compatibility
+<span class='bpc' id='L1800' title='0|1|1 - Total: 4'>                if (!(argType == ScriptRuntime.ScriptableClass ||
+</span>                      argType == ScriptRuntime.ScriptableObjectClass))
+                {
+<span class='nc' id='L1803' title='0|0|0 - Total: 3'>                    errorId = "msg.bad.getter.parms";
+</span><span class='bpc' id='L1804' title='0|1|1 - Total: 2'>                } else if (!delegatedForm) {
+</span><span class='nc' id='L1805' title='0|0|0 - Total: 2'>                    errorId = "msg.bad.getter.parms";
+</span>                }
+<span class='bc' id='L1807' title='0|1|1 - Total: 1'>            } else {
+</span><span class='nc' id='L1808' title='0|0|0 - Total: 2'>                errorId = "msg.bad.getter.parms";
+</span>            }
+<span class='bpc' id='L1810' title='0|1|1 - Total: 2'>            if (errorId != null) {
+</span><span class='nc' id='L1811' title='0|0|0 - Total: 5'>                throw Context.reportRuntimeError1(errorId, getter.toString());
+</span>            }
+        }
+
+<span class='bc' id='L1815' title='0|2|2 - Total: 2'>        MemberBox setterBox = null;
+</span><span class='bc' id='L1816' title='0|2|2 - Total: 2'>        if (setter != null) {
+</span><span class='bpc' id='L1817' title='0|1|1 - Total: 2'>            if (setter.getReturnType() != Void.TYPE)
+</span><span class='nc' id='L1818' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1("msg.setter.return",
+</span><span class='nc' id='L1819' title='0|0|0 - Total: 1'>                                                  setter.toString());
+</span>
+<span class='bc' id='L1821' title='0|5|5 - Total: 5'>            setterBox = new MemberBox(setter);
+</span>
+            boolean delegatedForm;
+<span class='bpc' id='L1824' title='0|1|1 - Total: 2'>            if (!Modifier.isStatic(setter.getModifiers())) {
+</span><span class='bc' id='L1825' title='0|2|2 - Total: 2'>                delegatedForm = (delegateTo != null);
+</span><span class='bc' id='L1826' title='0|4|4 - Total: 4'>                setterBox.delegateTo = delegateTo;
+</span>            } else {
+<span class='nc' id='L1828' title='0|0|0 - Total: 2'>                delegatedForm = true;
+</span>                // Ignore delegateTo for static setter but store
+                // non-null delegateTo indicator.
+<span class='nc' id='L1831' title='0|0|0 - Total: 3'>                setterBox.delegateTo = Void.TYPE;
+</span>            }
+
+<span class='bc' id='L1834' title='0|2|2 - Total: 2'>            String errorId = null;
+</span><span class='bc' id='L1835' title='0|3|3 - Total: 3'>            Class<?>[] parmTypes = setter.getParameterTypes();
+</span><span class='bc' id='L1836' title='0|2|2 - Total: 2'>            if (parmTypes.length == 1) {
+</span><span class='bpc' id='L1837' title='0|1|1 - Total: 2'>                if (delegatedForm) {
+</span><span class='nc' id='L1838' title='0|0|0 - Total: 3'>                    errorId = "msg.setter2.expected";
+</span>                }
+<span class='bpc' id='L1840' title='0|1|1 - Total: 2'>            } else if (parmTypes.length == 2) {
+</span><span class='bc' id='L1841' title='0|4|4 - Total: 4'>                Object argType = parmTypes[0];
+</span>                // Allow ScriptableObject for compatibility
+<span class='bpc' id='L1843' title='0|1|1 - Total: 4'>                if (!(argType == ScriptRuntime.ScriptableClass ||
+</span>                      argType == ScriptRuntime.ScriptableObjectClass))
+                {
+<span class='nc' id='L1846' title='0|0|0 - Total: 3'>                    errorId = "msg.setter2.parms";
+</span><span class='bpc' id='L1847' title='0|1|1 - Total: 2'>                } else if (!delegatedForm) {
+</span><span class='nc' id='L1848' title='0|0|0 - Total: 2'>                    errorId = "msg.setter1.parms";
+</span>                }
+<span class='bc' id='L1850' title='0|1|1 - Total: 1'>            } else {
+</span><span class='nc' id='L1851' title='0|0|0 - Total: 2'>                errorId = "msg.setter.parms";
+</span>            }
+<span class='bpc' id='L1853' title='0|1|1 - Total: 2'>            if (errorId != null) {
+</span><span class='nc' id='L1854' title='0|0|0 - Total: 5'>                throw Context.reportRuntimeError1(errorId, setter.toString());
+</span>            }
+        }
+
+<span class='bc' id='L1858' title='0|8|8 - Total: 8'>        GetterSlot gslot = (GetterSlot)slotMap.get(propertyName, 0,
+</span>            SlotAccess.MODIFY_GETTER_SETTER);
+<span class='bc' id='L1860' title='0|3|3 - Total: 3'>        gslot.setAttributes(attributes);
+</span><span class='bc' id='L1861' title='0|3|3 - Total: 3'>        gslot.getter = getterBox;
+</span><span class='bc' id='L1862' title='0|3|3 - Total: 3'>        gslot.setter = setterBox;
+</span><span class='bc' id='L1863' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Defines one or more properties on this object.
+     *
+     * @param cx the current Context
+     * @param props a map of property ids to property descriptors
+     */
+    public void defineOwnProperties(Context cx, ScriptableObject props) {
+<span class='bc' id='L1872' title='0|5|5 - Total: 5'>        Object[] ids = props.getIds(false, true);
+</span><span class='bc' id='L1873' title='0|4|4 - Total: 4'>        ScriptableObject[] descs = new ScriptableObject[ids.length];
+</span><span class='bc' id='L1874' title='0|2|2 - Total: 2'>        for (int i = 0, len = ids.length; i < len; ++i) {
+</span><span class='bc' id='L1875' title='0|7|7 - Total: 7'>            Object descObj = ScriptRuntime.getObjectElem(props, ids[i], cx);
+</span><span class='bc' id='L1876' title='0|3|3 - Total: 3'>            ScriptableObject desc = ensureScriptableObject(descObj);
+</span><span class='bc' id='L1877' title='0|3|3 - Total: 3'>            checkPropertyDefinition(desc);
+</span><span class='bc' id='L1878' title='0|4|4 - Total: 4'>            descs[i] = desc;
+</span>        }
+<span class='bc' id='L1880' title='0|2|2 - Total: 2'>        for (int i = 0, len = ids.length; i < len; ++i) {
+</span><span class='bc' id='L1881' title='0|9|9 - Total: 9'>            defineOwnProperty(cx, ids[i], descs[i]);
+</span>        }
+<span class='bc' id='L1883' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Defines a property on an object.
+     *
+     * @param cx the current Context
+     * @param id the name/index of the property
+     * @param desc the new property descriptor, as described in 8.6.1
+     */
+    public void defineOwnProperty(Context cx, Object id, ScriptableObject desc) {
+<span class='bc' id='L1893' title='0|3|3 - Total: 3'>        checkPropertyDefinition(desc);
+</span><span class='bc' id='L1894' title='0|6|6 - Total: 6'>        defineOwnProperty(cx, id, desc, true);
+</span><span class='bc' id='L1895' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Defines a property on an object.
+     *
+     * Based on [[DefineOwnProperty]] from 8.12.10 of the spec.
+     *
+     * @param cx the current Context
+     * @param id the name/index of the property
+     * @param desc the new property descriptor, as described in 8.6.1
+     * @param checkValid whether to perform validity checks
+     */
+    protected void defineOwnProperty(Context cx, Object id, ScriptableObject desc,
+                                     boolean checkValid) {
+
+<span class='bc' id='L1910' title='0|6|6 - Total: 6'>        Slot slot = getSlot(cx, id, SlotAccess.QUERY);
+</span><span class='bc' id='L1911' title='0|2|2 - Total: 2'>        boolean isNew = slot == null;
+</span>
+<span class='bc' id='L1913' title='0|2|2 - Total: 2'>        if (checkValid) {
+</span><span class='bc' id='L1914' title='0|2|2 - Total: 2'>            ScriptableObject current = slot == null ?
+</span><span class='bc' id='L1915' title='0|2|2 - Total: 2'>                    null : slot.getPropertyDescriptor(cx, this);
+</span><span class='bc' id='L1916' title='0|5|5 - Total: 5'>            checkPropertyChange(id, current, desc);
+</span>        }
+
+<span class='bc' id='L1919' title='0|4|4 - Total: 4'>        boolean isAccessor = isAccessorDescriptor(desc);
+</span>        final int attributes;
+
+<span class='bc' id='L1922' title='0|2|2 - Total: 2'>        if (slot == null) { // new slot
+</span><span class='bc' id='L1923' title='0|2|2 - Total: 2'>            slot = getSlot(cx, id, isAccessor ? SlotAccess.MODIFY_GETTER_SETTER : SlotAccess.MODIFY);
+</span><span class='bc' id='L1924' title='0|6|6 - Total: 6'>            attributes = applyDescriptorToAttributeBitset(DONTENUM|READONLY|PERMANENT, desc);
+</span>        } else {
+<span class='bc' id='L1926' title='0|6|6 - Total: 6'>            attributes = applyDescriptorToAttributeBitset(slot.getAttributes(), desc);
+</span>        }
+
+<span class='bc' id='L1929' title='0|2|2 - Total: 2'>        if (isAccessor) {
+</span><span class='bc' id='L1930' title='0|2|2 - Total: 2'>            if ( !(slot instanceof GetterSlot) ) {
+</span><span class='bc' id='L1931' title='0|6|6 - Total: 6'>                slot = getSlot(cx, id, SlotAccess.MODIFY_GETTER_SETTER);
+</span>            }
+
+<span class='bc' id='L1934' title='0|3|3 - Total: 3'>            GetterSlot gslot = (GetterSlot) slot;
+</span>
+<span class='bc' id='L1936' title='0|4|4 - Total: 4'>            Object getter = getProperty(desc, "get");
+</span><span class='bc' id='L1937' title='0|2|2 - Total: 2'>            if (getter != NOT_FOUND) {
+</span><span class='bc' id='L1938' title='0|3|3 - Total: 3'>                gslot.getter = getter;
+</span>            }
+<span class='bc' id='L1940' title='0|4|4 - Total: 4'>            Object setter = getProperty(desc, "set");
+</span><span class='bc' id='L1941' title='0|2|2 - Total: 2'>            if (setter != NOT_FOUND) {
+</span><span class='bc' id='L1942' title='0|3|3 - Total: 3'>                gslot.setter = setter;
+</span>            }
+
+<span class='bc' id='L1945' title='0|3|3 - Total: 3'>            gslot.value = Undefined.instance;
+</span><span class='bc' id='L1946' title='0|3|3 - Total: 3'>            gslot.setAttributes(attributes);
+</span><span class='bc' id='L1947' title='0|1|1 - Total: 1'>        } else {
+</span><span class='bpc' id='L1948' title='0|3|3 - Total: 4'>            if (slot instanceof GetterSlot && isDataDescriptor(desc)) {
+</span><span class='bc' id='L1949' title='0|6|6 - Total: 6'>                slot = getSlot(cx, id, SlotAccess.CONVERT_ACCESSOR_TO_DATA);
+</span>            }
+
+<span class='bc' id='L1952' title='0|4|4 - Total: 4'>            Object value = getProperty(desc, "value");
+</span><span class='bc' id='L1953' title='0|2|2 - Total: 2'>            if (value != NOT_FOUND) {
+</span><span class='bc' id='L1954' title='0|4|4 - Total: 4'>                slot.value = value;
+</span><span class='bc' id='L1955' title='0|2|2 - Total: 2'>            } else if (isNew) {
+</span><span class='bc' id='L1956' title='0|3|3 - Total: 3'>                slot.value = Undefined.instance;
+</span>            }
+<span class='bc' id='L1958' title='0|3|3 - Total: 3'>            slot.setAttributes(attributes);
+</span>        }
+<span class='bc' id='L1960' title='0|1|1 - Total: 1'>    }
+</span>
+    protected void checkPropertyDefinition(ScriptableObject desc) {
+<span class='bc' id='L1963' title='0|4|4 - Total: 4'>        Object getter = getProperty(desc, "get");
+</span><span class='bpc' id='L1964' title='0|5|5 - Total: 6'>        if (getter != NOT_FOUND && getter != Undefined.instance
+</span>                && !(getter instanceof Callable)) {
+<span class='bc' id='L1966' title='0|3|3 - Total: 3'>            throw ScriptRuntime.notFunctionError(getter);
+</span>        }
+<span class='bc' id='L1968' title='0|4|4 - Total: 4'>        Object setter = getProperty(desc, "set");
+</span><span class='bc' id='L1969' title='0|6|6 - Total: 6'>        if (setter != NOT_FOUND && setter != Undefined.instance
+</span>                && !(setter instanceof Callable)) {
+<span class='bc' id='L1971' title='0|3|3 - Total: 3'>            throw ScriptRuntime.notFunctionError(setter);
+</span>        }
+<span class='bpc' id='L1973' title='0|3|3 - Total: 4'>        if (isDataDescriptor(desc) && isAccessorDescriptor(desc)) {
+</span><span class='nc' id='L1974' title='0|0|0 - Total: 3'>            throw ScriptRuntime.typeError0("msg.both.data.and.accessor.desc");
+</span>        }
+<span class='bc' id='L1976' title='0|1|1 - Total: 1'>    }
+</span>
+    protected void checkPropertyChange(Object id, ScriptableObject current,
+                                       ScriptableObject desc) {
+<span class='bc' id='L1980' title='0|2|2 - Total: 2'>        if (current == null) { // new property
+</span><span class='bc' id='L1981' title='0|2|2 - Total: 2'>            if (!isExtensible()) throw ScriptRuntime.typeError0("msg.not.extensible");
+</span>        } else {
+<span class='bc' id='L1983' title='0|2|2 - Total: 2'>            if (isFalse(current.get("configurable", current))) {
+</span><span class='bc' id='L1984' title='0|2|2 - Total: 2'>                if (isTrue(getProperty(desc, "configurable")))
+</span><span class='bc' id='L1985' title='0|4|4 - Total: 4'>                    throw ScriptRuntime.typeError1(
+</span>                        "msg.change.configurable.false.to.true", id);
+<span class='bc' id='L1987' title='0|2|2 - Total: 2'>                if (isTrue(current.get("enumerable", current)) != isTrue(getProperty(desc, "enumerable")))
+</span><span class='bc' id='L1988' title='0|4|4 - Total: 4'>                    throw ScriptRuntime.typeError1(
+</span>                        "msg.change.enumerable.with.configurable.false", id);
+<span class='bc' id='L1990' title='0|4|4 - Total: 4'>                boolean isData = isDataDescriptor(desc);
+</span><span class='bc' id='L1991' title='0|4|4 - Total: 4'>                boolean isAccessor = isAccessorDescriptor(desc);
+</span><span class='bc' id='L1992' title='0|4|4 - Total: 4'>                if (!isData && !isAccessor) {
+</span>                    // no further validation required for generic descriptor
+<span class='bc' id='L1994' title='0|4|4 - Total: 4'>                } else if (isData && isDataDescriptor(current)) {
+</span><span class='bc' id='L1995' title='0|2|2 - Total: 2'>                    if (isFalse(current.get("writable", current))) {
+</span><span class='bc' id='L1996' title='0|2|2 - Total: 2'>                        if (isTrue(getProperty(desc, "writable")))
+</span><span class='bc' id='L1997' title='0|4|4 - Total: 4'>                            throw ScriptRuntime.typeError1(
+</span>                                "msg.change.writable.false.to.true.with.configurable.false", id);
+
+<span class='bpc' id='L2000' title='0|1|1 - Total: 2'>                        if (!sameValue(getProperty(desc, "value"), current.get("value", current)))
+</span><span class='bc' id='L2001' title='0|4|4 - Total: 4'>                            throw ScriptRuntime.typeError1(
+</span>                                "msg.change.value.with.writable.false", id);
+                    }
+<span class='bc' id='L2004' title='0|4|4 - Total: 4'>                } else if (isAccessor && isAccessorDescriptor(current)) {
+</span><span class='bc' id='L2005' title='0|2|2 - Total: 2'>                    if (!sameValue(getProperty(desc, "set"), current.get("set", current)))
+</span><span class='bc' id='L2006' title='0|4|4 - Total: 4'>                        throw ScriptRuntime.typeError1(
+</span>                            "msg.change.setter.with.configurable.false", id);
+
+<span class='bc' id='L2009' title='0|2|2 - Total: 2'>                    if (!sameValue(getProperty(desc, "get"), current.get("get", current)))
+</span><span class='bc' id='L2010' title='0|4|4 - Total: 4'>                        throw ScriptRuntime.typeError1(
+</span>                            "msg.change.getter.with.configurable.false", id);
+                } else {
+<span class='bc' id='L2013' title='0|2|2 - Total: 2'>                    if (isDataDescriptor(current))
+</span><span class='bc' id='L2014' title='0|4|4 - Total: 4'>                        throw ScriptRuntime.typeError1(
+</span>                            "msg.change.property.data.to.accessor.with.configurable.false", id);
+                    else
+<span class='bc' id='L2017' title='0|4|4 - Total: 4'>                        throw ScriptRuntime.typeError1(
+</span>                            "msg.change.property.accessor.to.data.with.configurable.false", id);
+                }
+            }
+        }
+<span class='bc' id='L2022' title='0|1|1 - Total: 1'>    }
+</span>
+    protected static boolean isTrue(Object value) {
+<span class='bc' id='L2025' title='0|4|4 - Total: 4'>        return (value != NOT_FOUND) && ScriptRuntime.toBoolean(value);
+</span>    }
+
+    protected static boolean isFalse(Object value) {
+<span class='bc' id='L2029' title='0|2|2 - Total: 2'>        return !isTrue(value);
+</span>    }
+
+    /**
+     * Implements SameValue as described in ES5 9.12, additionally checking
+     * if new value is defined.
+     * @param newValue the new value
+     * @param currentValue the current value
+     * @return true if values are the same as defined by ES5 9.12
+     */
+    protected boolean sameValue(Object newValue, Object currentValue) {
+<span class='bc' id='L2040' title='0|2|2 - Total: 2'>        if (newValue == NOT_FOUND) {
+</span><span class='bc' id='L2041' title='0|2|2 - Total: 2'>            return true;
+</span>        }
+<span class='bc' id='L2043' title='0|2|2 - Total: 2'>        if (currentValue == NOT_FOUND) {
+</span><span class='bc' id='L2044' title='0|2|2 - Total: 2'>            currentValue = Undefined.instance;
+</span>        }
+        // Special rules for numbers: NaN is considered the same value,
+        // while zeroes with different signs are considered different.
+<span class='bpc' id='L2048' title='0|3|3 - Total: 4'>        if (currentValue instanceof Number && newValue instanceof Number) {
+</span><span class='bc' id='L2049' title='0|4|4 - Total: 4'>            double d1 = ((Number)currentValue).doubleValue();
+</span><span class='bc' id='L2050' title='0|4|4 - Total: 4'>            double d2 = ((Number)newValue).doubleValue();
+</span><span class='bpc' id='L2051' title='0|1|1 - Total: 4'>            if (Double.isNaN(d1) && Double.isNaN(d2)) {
+</span><span class='nc' id='L2052' title='0|0|0 - Total: 2'>                return true;
+</span>            }
+<span class='bpc' id='L2054' title='0|1|1 - Total: 4'>            if (d1 == 0.0 && Double.doubleToLongBits(d1) != Double.doubleToLongBits(d2)) {
+</span><span class='nc' id='L2055' title='0|0|0 - Total: 2'>                return false;
+</span>            }
+        }
+<span class='bc' id='L2058' title='0|4|4 - Total: 4'>        return ScriptRuntime.shallowEq(currentValue, newValue);
+</span>    }
+
+    protected int applyDescriptorToAttributeBitset(int attributes,
+                                                   ScriptableObject desc)
+    {
+<span class='bc' id='L2064' title='0|4|4 - Total: 4'>        Object enumerable = getProperty(desc, "enumerable");
+</span><span class='bc' id='L2065' title='0|2|2 - Total: 2'>        if (enumerable != NOT_FOUND) {
+</span><span class='bc' id='L2066' title='0|2|2 - Total: 2'>            attributes = ScriptRuntime.toBoolean(enumerable)
+</span>                    ? attributes & ~DONTENUM : attributes | DONTENUM;
+        }
+
+<span class='bc' id='L2070' title='0|4|4 - Total: 4'>        Object writable = getProperty(desc, "writable");
+</span><span class='bc' id='L2071' title='0|2|2 - Total: 2'>        if (writable != NOT_FOUND) {
+</span><span class='bc' id='L2072' title='0|2|2 - Total: 2'>            attributes = ScriptRuntime.toBoolean(writable)
+</span>                    ? attributes & ~READONLY : attributes | READONLY;
+        }
+
+<span class='bc' id='L2076' title='0|4|4 - Total: 4'>        Object configurable = getProperty(desc, "configurable");
+</span><span class='bc' id='L2077' title='0|2|2 - Total: 2'>        if (configurable != NOT_FOUND) {
+</span><span class='bc' id='L2078' title='0|2|2 - Total: 2'>            attributes = ScriptRuntime.toBoolean(configurable)
+</span>                    ? attributes & ~PERMANENT : attributes | PERMANENT;
+        }
+
+<span class='bc' id='L2082' title='0|2|2 - Total: 2'>        return attributes;
+</span>    }
+
+    /**
+     * Implements IsDataDescriptor as described in ES5 8.10.2
+     * @param desc a property descriptor
+     * @return true if this is a data descriptor.
+     */
+    protected boolean isDataDescriptor(ScriptableObject desc) {
+<span class='bc' id='L2091' title='0|4|4 - Total: 4'>        return hasProperty(desc, "value") || hasProperty(desc, "writable");
+</span>    }
+
+    /**
+     * Implements IsAccessorDescriptor as described in ES5 8.10.1
+     * @param desc a property descriptor
+     * @return true if this is an accessor descriptor.
+     */
+    protected boolean isAccessorDescriptor(ScriptableObject desc) {
+<span class='bc' id='L2100' title='0|4|4 - Total: 4'>        return hasProperty(desc, "get") || hasProperty(desc, "set");
+</span>    }
+
+    /**
+     * Implements IsGenericDescriptor as described in ES5 8.10.3
+     * @param desc a property descriptor
+     * @return true if this is a generic descriptor.
+     */
+    protected boolean isGenericDescriptor(ScriptableObject desc) {
+<span class='nc' id='L2109' title='0|0|0 - Total: 4'>        return !isDataDescriptor(desc) && !isAccessorDescriptor(desc);
+</span>    }
+
+    protected static Scriptable ensureScriptable(Object arg) {
+<span class='bc' id='L2113' title='0|2|2 - Total: 2'>        if ( !(arg instanceof Scriptable) )
+</span><span class='bc' id='L2114' title='0|5|5 - Total: 5'>            throw ScriptRuntime.typeError1("msg.arg.not.object", ScriptRuntime.typeof(arg));
+</span><span class='bc' id='L2115' title='0|3|3 - Total: 3'>        return (Scriptable) arg;
+</span>    }
+
+    protected static SymbolScriptable ensureSymbolScriptable(Object arg) {
+<span class='bpc' id='L2119' title='0|1|1 - Total: 2'>        if ( !(arg instanceof SymbolScriptable) )
+</span><span class='nc' id='L2120' title='0|0|0 - Total: 5'>            throw ScriptRuntime.typeError1("msg.object.not.symbolscriptable", ScriptRuntime.typeof(arg));
+</span><span class='bc' id='L2121' title='0|3|3 - Total: 3'>        return (SymbolScriptable) arg;
+</span>    }
+
+    protected static ScriptableObject ensureScriptableObject(Object arg) {
+<span class='bc' id='L2125' title='0|2|2 - Total: 2'>        if ( !(arg instanceof ScriptableObject) )
+</span><span class='bc' id='L2126' title='0|5|5 - Total: 5'>            throw ScriptRuntime.typeError1("msg.arg.not.object", ScriptRuntime.typeof(arg));
+</span><span class='bc' id='L2127' title='0|3|3 - Total: 3'>        return (ScriptableObject) arg;
+</span>    }
+
+    /**
+     * Search for names in a class, adding the resulting methods
+     * as properties.
+     *
+     * <p> Uses reflection to find the methods of the given names. Then
+     * FunctionObjects are constructed from the methods found, and
+     * are added to this object as properties with the given names.
+     *
+     * @param names the names of the Methods to add as function properties
+     * @param clazz the class to search for the Methods
+     * @param attributes the attributes of the new properties
+     * @see org.mozilla.javascript.FunctionObject
+     */
+    public void defineFunctionProperties(String[] names, Class<?> clazz,
+                                         int attributes)
+    {
+<span class='bc' id='L2146' title='0|3|3 - Total: 3'>        Method[] methods = FunctionObject.getMethodList(clazz);
+</span><span class='bc' id='L2147' title='0|2|2 - Total: 2'>        for (int i=0; i < names.length; i++) {
+</span><span class='bc' id='L2148' title='0|4|4 - Total: 4'>            String name = names[i];
+</span><span class='bc' id='L2149' title='0|4|4 - Total: 4'>            Method m = FunctionObject.findSingleMethod(methods, name);
+</span><span class='bpc' id='L2150' title='0|1|1 - Total: 2'>            if (m == null) {
+</span><span class='nc' id='L2151' title='0|0|0 - Total: 5'>                throw Context.reportRuntimeError2(
+</span><span class='nc' id='L2152' title='0|0|0 - Total: 1'>                    "msg.method.not.found", name, clazz.getName());
+</span>            }
+<span class='bc' id='L2154' title='0|7|7 - Total: 7'>            FunctionObject f = new FunctionObject(name, m, this);
+</span><span class='bc' id='L2155' title='0|5|5 - Total: 5'>            defineProperty(name, f, attributes);
+</span>        }
+<span class='bc' id='L2157' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Get the Object.prototype property.
+     * See ECMA 15.2.4.
+     */
+    public static Scriptable getObjectPrototype(Scriptable scope) {
+<span class='bc' id='L2164' title='0|5|5 - Total: 5'>        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),
+</span>                TopLevel.Builtins.Object);
+    }
+
+    /**
+     * Get the Function.prototype property.
+     * See ECMA 15.3.4.
+     */
+    public static Scriptable getFunctionPrototype(Scriptable scope) {
+<span class='bc' id='L2173' title='0|5|5 - Total: 5'>        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),
+</span>                TopLevel.Builtins.Function);
+    }
+
+    public static Scriptable getArrayPrototype(Scriptable scope) {
+<span class='bc' id='L2178' title='0|5|5 - Total: 5'>        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),
+</span>                TopLevel.Builtins.Array);
+    }
+
+    /**
+     * Get the prototype for the named class.
+     *
+     * For example, <code>getClassPrototype(s, "Date")</code> will first
+     * walk up the parent chain to find the outermost scope, then will
+     * search that scope for the Date constructor, and then will
+     * return Date.prototype. If any of the lookups fail, or
+     * the prototype is not a JavaScript object, then null will
+     * be returned.
+     *
+     * @param scope an object in the scope chain
+     * @param className the name of the constructor
+     * @return the prototype for the named class, or null if it
+     *         cannot be found.
+     */
+    public static Scriptable getClassPrototype(Scriptable scope,
+                                               String className)
+    {
+<span class='bc' id='L2200' title='0|3|3 - Total: 3'>        scope = getTopLevelScope(scope);
+</span><span class='bc' id='L2201' title='0|4|4 - Total: 4'>        Object ctor = getProperty(scope, className);
+</span>        Object proto;
+<span class='bc' id='L2203' title='0|2|2 - Total: 2'>        if (ctor instanceof BaseFunction) {
+</span><span class='bc' id='L2204' title='0|5|5 - Total: 5'>            proto = ((BaseFunction)ctor).getPrototypeProperty();
+</span><span class='bpc' id='L2205' title='0|1|1 - Total: 2'>        } else if (ctor instanceof Scriptable) {
+</span><span class='nc' id='L2206' title='0|0|0 - Total: 3'>            Scriptable ctorObj = (Scriptable)ctor;
+</span><span class='nc' id='L2207' title='0|0|0 - Total: 5'>            proto = ctorObj.get("prototype", ctorObj);
+</span><span class='nc' id='L2208' title='0|0|0 - Total: 1'>        } else {
+</span><span class='bc' id='L2209' title='0|2|2 - Total: 2'>            return null;
+</span>        }
+<span class='bpc' id='L2211' title='0|1|1 - Total: 2'>        if (proto instanceof Scriptable) {
+</span><span class='bc' id='L2212' title='0|3|3 - Total: 3'>            return (Scriptable)proto;
+</span>        }
+<span class='nc' id='L2214' title='0|0|0 - Total: 2'>        return null;
+</span>    }
+
+    /**
+     * Get the global scope.
+     *
+     * <p>Walks the parent scope chain to find an object with a null
+     * parent scope (the global object).
+     *
+     * @param obj a JavaScript object
+     * @return the corresponding global scope
+     */
+    public static Scriptable getTopLevelScope(Scriptable obj)
+    {
+        for (;;) {
+<span class='bc' id='L2229' title='0|3|3 - Total: 3'>            Scriptable parent = obj.getParentScope();
+</span><span class='bc' id='L2230' title='0|2|2 - Total: 2'>            if (parent == null) {
+</span><span class='bc' id='L2231' title='0|2|2 - Total: 2'>                return obj;
+</span>            }
+<span class='bc' id='L2233' title='0|2|2 - Total: 2'>            obj = parent;
+</span><span class='bc' id='L2234' title='0|1|1 - Total: 1'>        }
+</span>    }
+
+    public boolean isExtensible() {
+<span class='bc' id='L2238' title='0|3|3 - Total: 3'>      return isExtensible;
+</span>    }
+
+    public void preventExtensions() {
+<span class='bc' id='L2242' title='0|3|3 - Total: 3'>      isExtensible = false;
+</span><span class='bc' id='L2243' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Seal this object.
+     *
+     * It is an error to add properties to or delete properties from
+     * a sealed object. It is possible to change the value of an
+     * existing property. Once an object is sealed it may not be unsealed.
+     *
+     * @since 1.4R3
+     */
+    public void sealObject() {
+<span class='bpc' id='L2255' title='0|1|1 - Total: 2'>        if (!isSealed) {
+</span><span class='bc' id='L2256' title='0|4|4 - Total: 4'>            final long stamp = slotMap.readLock();
+</span>            try {
+<span class='bc' id='L2258' title='0|2|2 - Total: 2'>                for (Slot slot : slotMap) {
+</span><span class='bc' id='L2259' title='0|3|3 - Total: 3'>                    Object value = slot.value;
+</span><span class='bpc' id='L2260' title='0|1|1 - Total: 2'>                    if (value instanceof LazilyLoadedCtor) {
+</span><span class='nc' id='L2261' title='0|0|0 - Total: 3'>                        LazilyLoadedCtor initializer = (LazilyLoadedCtor) value;
+</span>                        try {
+<span class='nc' id='L2263' title='0|0|0 - Total: 2'>                            initializer.init();
+</span>                        } finally {
+<span class='nc' id='L2265' title='0|0|0 - Total: 9'>                            slot.value = initializer.getValue();
+</span><span class='nc' id='L2266' title='0|0|0 - Total: 3'>                        }
+</span>                    }
+<span class='bc' id='L2268' title='0|1|1 - Total: 1'>                }
+</span><span class='bc' id='L2269' title='0|3|3 - Total: 3'>                isSealed = true;
+</span>            } finally {
+<span class='bpc' id='L2271' title='0|4|4 - Total: 9'>                slotMap.unlockRead(stamp);
+</span><span class='bpc' id='L2272' title='0|1|1 - Total: 3'>            }
+</span>        }
+<span class='bc' id='L2274' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Return true if this object is sealed.
+     *
+     * @return true if sealed, false otherwise.
+     * @since 1.4R3
+     * @see #sealObject()
+     */
+    public final boolean isSealed() {
+<span class='bc' id='L2284' title='0|3|3 - Total: 3'>        return isSealed;
+</span>    }
+
+    private void checkNotSealed(Object key, int index)
+    {
+<span class='bpc' id='L2289' title='0|1|1 - Total: 2'>        if (!isSealed())
+</span><span class='bc' id='L2290' title='0|1|1 - Total: 1'>            return;
+</span>
+<span class='nc' id='L2292' title='0|0|0 - Total: 2'>        String str = (key != null) ? key.toString() : Integer.toString(index);
+</span><span class='nc' id='L2293' title='0|0|0 - Total: 4'>        throw Context.reportRuntimeError1("msg.modify.sealed", str);
+</span>    }
+
+    /**
+     * Gets a named property from an object or any object in its prototype chain.
+     * <p>
+     * Searches the prototype chain for a property named <code>name</code>.
+     * <p>
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return the value of a property with name <code>name</code> found in
+     *         <code>obj</code> or any object in its prototype chain, or
+     *         <code>Scriptable.NOT_FOUND</code> if not found
+     * @since 1.5R2
+     */
+    public static Object getProperty(Scriptable obj, String name)
+    {
+<span class='bc' id='L2310' title='0|2|2 - Total: 2'>        Scriptable start = obj;
+</span>        Object result;
+        do {
+<span class='bc' id='L2313' title='0|5|5 - Total: 5'>            result = obj.get(name, start);
+</span><span class='bc' id='L2314' title='0|2|2 - Total: 2'>            if (result != Scriptable.NOT_FOUND)
+</span><span class='bc' id='L2315' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2316' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2317' title='0|2|2 - Total: 2'>        } while (obj != null);
+</span><span class='bc' id='L2318' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * This is a version of getProperty that works with Symbols.
+     */
+    public static Object getProperty(Scriptable obj, Symbol key)
+    {
+<span class='bc' id='L2326' title='0|2|2 - Total: 2'>        Scriptable start = obj;
+</span>        Object result;
+        do {
+<span class='bc' id='L2329' title='0|6|6 - Total: 6'>            result = ensureSymbolScriptable(obj).get(key, start);
+</span><span class='bc' id='L2330' title='0|2|2 - Total: 2'>            if (result != Scriptable.NOT_FOUND)
+</span><span class='bc' id='L2331' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2332' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bpc' id='L2333' title='0|1|1 - Total: 2'>        } while (obj != null);
+</span><span class='bc' id='L2334' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Gets an indexed property from an object or any object in its prototype
+     * chain and coerces it to the requested Java type.
+     * <p>
+     * Searches the prototype chain for a property with integral index
+     * <code>index</code>. Note that if you wish to look for properties with numerical
+     * but non-integral indicies, you should use getProperty(Scriptable,String) with
+     * the string value of the index.
+     * <p>
+     * @param s a JavaScript object
+     * @param index an integral index
+     * @param type the required Java type of the result
+     * @return the value of a property with name <code>name</code> found in
+     *         <code>obj</code> or any object in its prototype chain, or
+     *         null if not found. Note that it does not return
+     *         {@link Scriptable#NOT_FOUND} as it can ordinarily not be
+     *         converted to most of the types.
+     * @since 1.7R3
+     */
+    public static <T> T getTypedProperty(Scriptable s, int index, Class<T> type) {
+<span class='nc' id='L2357' title='0|0|0 - Total: 4'>        Object val = getProperty(s, index);
+</span><span class='nc' id='L2358' title='0|0|0 - Total: 2'>        if(val == Scriptable.NOT_FOUND) {
+</span><span class='nc' id='L2359' title='0|0|0 - Total: 2'>            val = null;
+</span>        }
+<span class='nc' id='L2361' title='0|0|0 - Total: 6'>        return type.cast(Context.jsToJava(val, type));
+</span>    }
+
+    /**
+     * Gets an indexed property from an object or any object in its prototype chain.
+     * <p>
+     * Searches the prototype chain for a property with integral index
+     * <code>index</code>. Note that if you wish to look for properties with numerical
+     * but non-integral indicies, you should use getProperty(Scriptable,String) with
+     * the string value of the index.
+     * <p>
+     * @param obj a JavaScript object
+     * @param index an integral index
+     * @return the value of a property with index <code>index</code> found in
+     *         <code>obj</code> or any object in its prototype chain, or
+     *         <code>Scriptable.NOT_FOUND</code> if not found
+     * @since 1.5R2
+     */
+    public static Object getProperty(Scriptable obj, int index)
+    {
+<span class='bc' id='L2381' title='0|2|2 - Total: 2'>        Scriptable start = obj;
+</span>        Object result;
+        do {
+<span class='bc' id='L2384' title='0|5|5 - Total: 5'>            result = obj.get(index, start);
+</span><span class='bc' id='L2385' title='0|2|2 - Total: 2'>            if (result != Scriptable.NOT_FOUND)
+</span><span class='bc' id='L2386' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2387' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2388' title='0|2|2 - Total: 2'>        } while (obj != null);
+</span><span class='bc' id='L2389' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Gets a named property from an object or any object in its prototype chain
+     * and coerces it to the requested Java type.
+     * <p>
+     * Searches the prototype chain for a property named <code>name</code>.
+     * <p>
+     * @param s a JavaScript object
+     * @param name a property name
+     * @param type the required Java type of the result
+     * @return the value of a property with name <code>name</code> found in
+     *         <code>obj</code> or any object in its prototype chain, or
+     *         null if not found. Note that it does not return
+     *         {@link Scriptable#NOT_FOUND} as it can ordinarily not be
+     *         converted to most of the types.
+     * @since 1.7R3
+     */
+    public static <T> T getTypedProperty(Scriptable s, String name, Class<T> type) {
+<span class='nc' id='L2409' title='0|0|0 - Total: 4'>        Object val = getProperty(s, name);
+</span><span class='nc' id='L2410' title='0|0|0 - Total: 2'>        if(val == Scriptable.NOT_FOUND) {
+</span><span class='nc' id='L2411' title='0|0|0 - Total: 2'>            val = null;
+</span>        }
+<span class='nc' id='L2413' title='0|0|0 - Total: 6'>        return type.cast(Context.jsToJava(val, type));
+</span>    }
+
+    /**
+     * Returns whether a named property is defined in an object or any object
+     * in its prototype chain.
+     * <p>
+     * Searches the prototype chain for a property named <code>name</code>.
+     * <p>
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return the true if property was found
+     * @since 1.5R2
+     */
+    public static boolean hasProperty(Scriptable obj, String name)
+    {
+<span class='bc' id='L2429' title='0|2|2 - Total: 2'>        return null != getBase(obj, name);
+</span>    }
+
+    /**
+     * If hasProperty(obj, name) would return true, then if the property that
+     * was found is compatible with the new property, this method just returns.
+     * If the property is not compatible, then an exception is thrown.
+     *
+     * A property redefinition is incompatible if the first definition was a
+     * const declaration or if this one is.  They are compatible only if neither
+     * was const.
+     */
+    public static void redefineProperty(Scriptable obj, String name,
+                                        boolean isConst)
+    {
+<span class='bc' id='L2444' title='0|4|4 - Total: 4'>        Scriptable base = getBase(obj, name);
+</span><span class='bpc' id='L2445' title='0|1|1 - Total: 2'>        if (base == null)
+</span><span class='nc' id='L2446' title='0|0|0 - Total: 1'>            return;
+</span><span class='bpc' id='L2447' title='0|1|1 - Total: 2'>        if (base instanceof ConstProperties) {
+</span><span class='bc' id='L2448' title='0|3|3 - Total: 3'>            ConstProperties cp = (ConstProperties)base;
+</span>
+<span class='bc' id='L2450' title='0|2|2 - Total: 2'>            if (cp.isConst(name))
+</span><span class='bc' id='L2451' title='0|4|4 - Total: 4'>                throw ScriptRuntime.typeError1("msg.const.redecl", name);
+</span>        }
+<span class='bc' id='L2453' title='0|2|2 - Total: 2'>        if (isConst)
+</span><span class='bc' id='L2454' title='0|4|4 - Total: 4'>            throw ScriptRuntime.typeError1("msg.var.redecl", name);
+</span><span class='bc' id='L2455' title='0|1|1 - Total: 1'>    }
+</span>    /**
+     * Returns whether an indexed property is defined in an object or any object
+     * in its prototype chain.
+     * <p>
+     * Searches the prototype chain for a property with index <code>index</code>.
+     * <p>
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @return the true if property was found
+     * @since 1.5R2
+     */
+    public static boolean hasProperty(Scriptable obj, int index)
+    {
+<span class='bc' id='L2469' title='0|2|2 - Total: 2'>        return null != getBase(obj, index);
+</span>    }
+
+    /**
+     * A version of hasProperty for properties with Symbol keys.
+     */
+    public static boolean hasProperty(Scriptable obj, Symbol key)
+    {
+<span class='bc' id='L2477' title='0|2|2 - Total: 2'>        return null != getBase(obj, key);
+</span>    }
+
+    /**
+     * Puts a named property in an object or in an object in its prototype chain.
+     * <p>
+     * Searches for the named property in the prototype chain. If it is found,
+     * the value of the property in <code>obj</code> is changed through a call
+     * to {@link Scriptable#put(String, Scriptable, Object)} on the
+     * prototype passing <code>obj</code> as the <code>start</code> argument.
+     * This allows the prototype to veto the property setting in case the
+     * prototype defines the property with [[ReadOnly]] attribute. If the
+     * property is not found, it is added in <code>obj</code>.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putProperty(Scriptable obj, String name, Object value)
+    {
+<span class='bc' id='L2497' title='0|4|4 - Total: 4'>        Scriptable base = getBase(obj, name);
+</span><span class='bc' id='L2498' title='0|2|2 - Total: 2'>        if (base == null)
+</span><span class='bc' id='L2499' title='0|2|2 - Total: 2'>            base = obj;
+</span><span class='bc' id='L2500' title='0|5|5 - Total: 5'>        base.put(name, obj, value);
+</span><span class='bc' id='L2501' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * This is a version of putProperty for Symbol keys.
+     */
+    public static void putProperty(Scriptable obj, Symbol key, Object value)
+    {
+<span class='bc' id='L2508' title='0|4|4 - Total: 4'>        Scriptable base = getBase(obj, key);
+</span><span class='bc' id='L2509' title='0|2|2 - Total: 2'>        if (base == null)
+</span><span class='bc' id='L2510' title='0|2|2 - Total: 2'>            base = obj;
+</span><span class='bc' id='L2511' title='0|6|6 - Total: 6'>        ensureSymbolScriptable(base).put(key, obj, value);
+</span><span class='bc' id='L2512' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Puts a named property in an object or in an object in its prototype chain.
+     * <p>
+     * Searches for the named property in the prototype chain. If it is found,
+     * the value of the property in <code>obj</code> is changed through a call
+     * to {@link Scriptable#put(String, Scriptable, Object)} on the
+     * prototype passing <code>obj</code> as the <code>start</code> argument.
+     * This allows the prototype to veto the property setting in case the
+     * prototype defines the property with [[ReadOnly]] attribute. If the
+     * property is not found, it is added in <code>obj</code>.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putConstProperty(Scriptable obj, String name, Object value)
+    {
+<span class='bc' id='L2531' title='0|4|4 - Total: 4'>        Scriptable base = getBase(obj, name);
+</span><span class='bpc' id='L2532' title='0|1|1 - Total: 2'>        if (base == null)
+</span><span class='nc' id='L2533' title='0|0|0 - Total: 2'>            base = obj;
+</span><span class='bpc' id='L2534' title='0|1|1 - Total: 2'>        if (base instanceof ConstProperties)
+</span><span class='bc' id='L2535' title='0|6|6 - Total: 6'>            ((ConstProperties)base).putConst(name, obj, value);
+</span><span class='bc' id='L2536' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Puts an indexed property in an object or in an object in its prototype chain.
+     * <p>
+     * Searches for the indexed property in the prototype chain. If it is found,
+     * the value of the property in <code>obj</code> is changed through a call
+     * to {@link Scriptable#put(int, Scriptable, Object)} on the prototype
+     * passing <code>obj</code> as the <code>start</code> argument. This allows
+     * the prototype to veto the property setting in case the prototype defines
+     * the property with [[ReadOnly]] attribute. If the property is not found,
+     * it is added in <code>obj</code>.
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putProperty(Scriptable obj, int index, Object value)
+    {
+<span class='bc' id='L2555' title='0|4|4 - Total: 4'>        Scriptable base = getBase(obj, index);
+</span><span class='bc' id='L2556' title='0|2|2 - Total: 2'>        if (base == null)
+</span><span class='bc' id='L2557' title='0|2|2 - Total: 2'>            base = obj;
+</span><span class='bc' id='L2558' title='0|5|5 - Total: 5'>        base.put(index, obj, value);
+</span><span class='bc' id='L2559' title='0|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Removes the property from an object or its prototype chain.
+     * <p>
+     * Searches for a property with <code>name</code> in obj or
+     * its prototype chain. If it is found, the object's delete
+     * method is called.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return true if the property doesn't exist or was successfully removed
+     * @since 1.5R2
+     */
+    public static boolean deleteProperty(Scriptable obj, String name)
+    {
+<span class='nc' id='L2574' title='0|0|0 - Total: 4'>        Scriptable base = getBase(obj, name);
+</span><span class='nc' id='L2575' title='0|0|0 - Total: 2'>        if (base == null)
+</span><span class='nc' id='L2576' title='0|0|0 - Total: 2'>            return true;
+</span><span class='nc' id='L2577' title='0|0|0 - Total: 3'>        base.delete(name);
+</span><span class='nc' id='L2578' title='0|0|0 - Total: 2'>        return !base.has(name, obj);
+</span>    }
+
+    /**
+     * Removes the property from an object or its prototype chain.
+     * <p>
+     * Searches for a property with <code>index</code> in obj or
+     * its prototype chain. If it is found, the object's delete
+     * method is called.
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @return true if the property doesn't exist or was successfully removed
+     * @since 1.5R2
+     */
+    public static boolean deleteProperty(Scriptable obj, int index)
+    {
+<span class='nc' id='L2594' title='0|0|0 - Total: 4'>        Scriptable base = getBase(obj, index);
+</span><span class='nc' id='L2595' title='0|0|0 - Total: 2'>        if (base == null)
+</span><span class='nc' id='L2596' title='0|0|0 - Total: 2'>            return true;
+</span><span class='nc' id='L2597' title='0|0|0 - Total: 3'>        base.delete(index);
+</span><span class='nc' id='L2598' title='0|0|0 - Total: 2'>        return !base.has(index, obj);
+</span>    }
+
+    /**
+     * Returns an array of all ids from an object and its prototypes.
+     * <p>
+     * @param obj a JavaScript object
+     * @return an array of all ids from all object in the prototype chain.
+     *         If a given id occurs multiple times in the prototype chain,
+     *         it will occur only once in this list.
+     * @since 1.5R2
+     */
+    public static Object[] getPropertyIds(Scriptable obj)
+    {
+<span class='bpc' id='L2612' title='0|1|1 - Total: 2'>        if (obj == null) {
+</span><span class='nc' id='L2613' title='0|0|0 - Total: 2'>            return ScriptRuntime.emptyArgs;
+</span>        }
+<span class='bc' id='L2615' title='0|3|3 - Total: 3'>        Object[] result = obj.getIds();
+</span><span class='bc' id='L2616' title='0|2|2 - Total: 2'>        ObjToIntMap map = null;
+</span>        for (;;) {
+<span class='bc' id='L2618' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2619' title='0|2|2 - Total: 2'>            if (obj == null) {
+</span><span class='bc' id='L2620' title='0|1|1 - Total: 1'>                break;
+</span>            }
+<span class='bc' id='L2622' title='0|3|3 - Total: 3'>            Object[] ids = obj.getIds();
+</span><span class='bpc' id='L2623' title='0|1|1 - Total: 2'>            if (ids.length == 0) {
+</span><span class='bc' id='L2624' title='0|1|1 - Total: 1'>                continue;
+</span>            }
+<span class='nc' id='L2626' title='0|0|0 - Total: 2'>            if (map == null) {
+</span><span class='nc' id='L2627' title='0|0|0 - Total: 2'>                if (result.length == 0) {
+</span><span class='nc' id='L2628' title='0|0|0 - Total: 2'>                    result = ids;
+</span><span class='nc' id='L2629' title='0|0|0 - Total: 1'>                    continue;
+</span>                }
+<span class='nc' id='L2631' title='0|0|0 - Total: 9'>                map = new ObjToIntMap(result.length + ids.length);
+</span><span class='nc' id='L2632' title='0|0|0 - Total: 2'>                for (int i = 0; i != result.length; ++i) {
+</span><span class='nc' id='L2633' title='0|0|0 - Total: 6'>                    map.intern(result[i]);
+</span>                }
+<span class='nc' id='L2635' title='0|0|0 - Total: 2'>                result = null; // Allow to GC the result
+</span>            }
+<span class='nc' id='L2637' title='0|0|0 - Total: 2'>            for (int i = 0; i != ids.length; ++i) {
+</span><span class='nc' id='L2638' title='0|0|0 - Total: 6'>                map.intern(ids[i]);
+</span>            }
+<span class='nc' id='L2640' title='0|0|0 - Total: 1'>        }
+</span><span class='bpc' id='L2641' title='0|1|1 - Total: 2'>        if (map != null) {
+</span><span class='nc' id='L2642' title='0|0|0 - Total: 3'>            result = map.getKeys();
+</span>        }
+<span class='bc' id='L2644' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    /**
+     * Call a method of an object.
+     * @param obj the JavaScript object
+     * @param methodName the name of the function property
+     * @param args the arguments for the call
+     *
+     * @see Context#getCurrentContext()
+     */
+    public static Object callMethod(Scriptable obj, String methodName,
+                                    Object[] args)
+    {
+<span class='nc' id='L2658' title='0|0|0 - Total: 6'>        return callMethod(null, obj, methodName, args);
+</span>    }
+
+    /**
+     * Call a method of an object.
+     * @param cx the Context object associated with the current thread.
+     * @param obj the JavaScript object
+     * @param methodName the name of the function property
+     * @param args the arguments for the call
+     */
+    public static Object callMethod(Context cx, Scriptable obj,
+                                    String methodName,
+                                    Object[] args)
+    {
+<span class='nc' id='L2672' title='0|0|0 - Total: 4'>        Object funObj = getProperty(obj, methodName);
+</span><span class='nc' id='L2673' title='0|0|0 - Total: 2'>        if (!(funObj instanceof Function)) {
+</span><span class='nc' id='L2674' title='0|0|0 - Total: 4'>            throw ScriptRuntime.notFunctionError(obj, methodName);
+</span>        }
+<span class='nc' id='L2676' title='0|0|0 - Total: 3'>        Function fun = (Function)funObj;
+</span>        // XXX: What should be the scope when calling funObj?
+        // The following favor scope stored in the object on the assumption
+        // that is more useful especially under dynamic scope setup.
+        // An alternative is to check for dynamic scope flag
+        // and use ScriptableObject.getTopLevelScope(fun) if the flag is not
+        // set. But that require access to Context and messy code
+        // so for now it is not checked.
+<span class='nc' id='L2684' title='0|0|0 - Total: 3'>        Scriptable scope = ScriptableObject.getTopLevelScope(obj);
+</span><span class='nc' id='L2685' title='0|0|0 - Total: 2'>        if (cx != null) {
+</span><span class='nc' id='L2686' title='0|0|0 - Total: 7'>            return fun.call(cx, scope, obj, args);
+</span>        } else {
+<span class='nc' id='L2688' title='0|0|0 - Total: 7'>            return Context.call(null, fun, scope, obj, args);
+</span>        }
+    }
+
+    private static Scriptable getBase(Scriptable obj, String name)
+    {
+        do {
+<span class='bc' id='L2695' title='0|2|2 - Total: 2'>            if (obj.has(name, obj))
+</span><span class='bc' id='L2696' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2697' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2698' title='0|2|2 - Total: 2'>        } while(obj != null);
+</span><span class='bc' id='L2699' title='0|2|2 - Total: 2'>        return obj;
+</span>    }
+
+    private static Scriptable getBase(Scriptable obj, int index)
+    {
+        do {
+<span class='bc' id='L2705' title='0|2|2 - Total: 2'>            if (obj.has(index, obj))
+</span><span class='bc' id='L2706' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2707' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2708' title='0|2|2 - Total: 2'>        } while(obj != null);
+</span><span class='bc' id='L2709' title='0|2|2 - Total: 2'>        return obj;
+</span>    }
+
+    private static Scriptable getBase(Scriptable obj, Symbol key)
+    {
+        do {
+<span class='bc' id='L2715' title='0|2|2 - Total: 2'>            if (ensureSymbolScriptable(obj).has(key, obj))
+</span><span class='bc' id='L2716' title='0|1|1 - Total: 1'>                break;
+</span><span class='bc' id='L2717' title='0|3|3 - Total: 3'>            obj = obj.getPrototype();
+</span><span class='bc' id='L2718' title='0|2|2 - Total: 2'>        } while(obj != null);
+</span><span class='bc' id='L2719' title='0|2|2 - Total: 2'>        return obj;
+</span>    }
+
+    /**
+     * Get arbitrary application-specific value associated with this object.
+     * @param key key object to select particular value.
+     * @see #associateValue(Object key, Object value)
+     */
+    public final Object getAssociatedValue(Object key)
+    {
+<span class='bc' id='L2729' title='0|3|3 - Total: 3'>        Map<Object,Object> h = associatedValues;
+</span><span class='bc' id='L2730' title='0|2|2 - Total: 2'>        if (h == null)
+</span><span class='bc' id='L2731' title='0|2|2 - Total: 2'>            return null;
+</span><span class='bc' id='L2732' title='0|4|4 - Total: 4'>        return h.get(key);
+</span>    }
+
+    /**
+     * Get arbitrary application-specific value associated with the top scope
+     * of the given scope.
+     * The method first calls {@link #getTopLevelScope(Scriptable scope)}
+     * and then searches the prototype chain of the top scope for the first
+     * object containing the associated value with the given key.
+     *
+     * @param scope the starting scope.
+     * @param key key object to select particular value.
+     * @see #getAssociatedValue(Object key)
+     */
+    public static Object getTopScopeValue(Scriptable scope, Object key)
+    {
+<span class='bc' id='L2748' title='0|3|3 - Total: 3'>        scope = ScriptableObject.getTopLevelScope(scope);
+</span>        for (;;) {
+<span class='bpc' id='L2750' title='0|1|1 - Total: 2'>            if (scope instanceof ScriptableObject) {
+</span><span class='bc' id='L2751' title='0|3|3 - Total: 3'>                ScriptableObject so = (ScriptableObject)scope;
+</span><span class='bc' id='L2752' title='0|4|4 - Total: 4'>                Object value = so.getAssociatedValue(key);
+</span><span class='bc' id='L2753' title='0|2|2 - Total: 2'>                if (value != null) {
+</span><span class='bc' id='L2754' title='0|2|2 - Total: 2'>                    return value;
+</span>                }
+            }
+<span class='bc' id='L2757' title='0|3|3 - Total: 3'>            scope = scope.getPrototype();
+</span><span class='bpc' id='L2758' title='0|1|1 - Total: 2'>            if (scope == null) {
+</span><span class='nc' id='L2759' title='0|0|0 - Total: 2'>                return null;
+</span>            }
+        }
+    }
+
+    /**
+     * Associate arbitrary application-specific value with this object.
+     * Value can only be associated with the given object and key only once.
+     * The method ignores any subsequent attempts to change the already
+     * associated value.
+     * <p> The associated values are not serialized.
+     * @param key key object to select particular value.
+     * @param value the value to associate
+     * @return the passed value if the method is called first time for the
+     * given key or old value for any subsequent calls.
+     * @see #getAssociatedValue(Object key)
+     */
+    public synchronized final Object associateValue(Object key, Object value)
+    {
+<span class='bpc' id='L2778' title='0|1|1 - Total: 2'>        if (value == null) throw new IllegalArgumentException();
+</span><span class='bc' id='L2779' title='0|3|3 - Total: 3'>        Map<Object,Object> h = associatedValues;
+</span><span class='bc' id='L2780' title='0|2|2 - Total: 2'>        if (h == null) {
+</span><span class='bc' id='L2781' title='0|4|4 - Total: 4'>            h = new HashMap<Object,Object>();
+</span><span class='bc' id='L2782' title='0|3|3 - Total: 3'>            associatedValues = h;
+</span>        }
+<span class='bc' id='L2784' title='0|5|5 - Total: 5'>        return Kit.initHash(h, key, value);
+</span>    }
+
+    /**
+     *
+     * @param key
+     * @param index
+     * @param start
+     * @param value
+     * @return false if this != start and no slot was found.  true if this == start
+     * or this != start and a READONLY slot was found.
+     */
+    private boolean putImpl(Object key, int index, Scriptable start,
+                            Object value)
+    {
+        // This method is very hot (basically called on each assignment)
+        // so we inline the extensible/sealed checks below.
+<span class='bc' id='L2801' title='0|2|2 - Total: 2'>        if (!isExtensible) {
+</span><span class='bc' id='L2802' title='0|2|2 - Total: 2'>            Context cx = Context.getContext();
+</span><span class='bpc' id='L2803' title='0|1|1 - Total: 2'>            if (cx.isStrictMode()) {
+</span><span class='nc' id='L2804' title='0|0|0 - Total: 3'>                throw ScriptRuntime.typeError0("msg.not.extensible");
+</span>            }
+        }
+        Slot slot;
+<span class='bc' id='L2808' title='0|2|2 - Total: 2'>        if (this != start) {
+</span><span class='bc' id='L2809' title='0|6|6 - Total: 6'>            slot = slotMap.query(key, index);
+</span><span class='bc' id='L2810' title='0|2|2 - Total: 2'>            if (slot == null) {
+</span><span class='bc' id='L2811' title='0|2|2 - Total: 2'>                return false;
+</span>            }
+<span class='bc' id='L2813' title='0|2|2 - Total: 2'>        } else if (!isExtensible) {
+</span><span class='bc' id='L2814' title='0|6|6 - Total: 6'>            slot = slotMap.query(key, index);
+</span><span class='bc' id='L2815' title='0|2|2 - Total: 2'>            if (slot == null) {
+</span><span class='bc' id='L2816' title='0|2|2 - Total: 2'>                return true;
+</span>            }
+        } else {
+<span class='bpc' id='L2819' title='0|1|1 - Total: 2'>            if (isSealed) checkNotSealed(key, index);
+</span><span class='bc' id='L2820' title='0|7|7 - Total: 7'>            slot = slotMap.get(key, index, SlotAccess.MODIFY);
+</span>        }
+<span class='bc' id='L2822' title='0|6|6 - Total: 6'>        return slot.setValue(value, this, start);
+</span>    }
+
+
+    /**
+     *
+     * @param name
+     * @param index
+     * @param start
+     * @param value
+     * @param constFlag EMPTY means normal put.  UNINITIALIZED_CONST means
+     * defineConstProperty.  READONLY means const initialization expression.
+     * @return false if this != start and no slot was found.  true if this == start
+     * or this != start and a READONLY slot was found.
+     */
+    private boolean putConstImpl(String name, int index, Scriptable start,
+                                 Object value, int constFlag)
+    {
+<span class='bpc' id='L2840' title='0|2|2 - Total: 4'>        assert (constFlag != EMPTY);
+</span><span class='bpc' id='L2841' title='0|1|1 - Total: 2'>        if (!isExtensible) {
+</span><span class='nc' id='L2842' title='0|0|0 - Total: 2'>            Context cx = Context.getContext();
+</span><span class='nc' id='L2843' title='0|0|0 - Total: 2'>            if (cx.isStrictMode()) {
+</span><span class='nc' id='L2844' title='0|0|0 - Total: 3'>                throw ScriptRuntime.typeError0("msg.not.extensible");
+</span>            }
+        }
+        Slot slot;
+<span class='bpc' id='L2848' title='0|1|1 - Total: 2'>        if (this != start) {
+</span><span class='nc' id='L2849' title='0|0|0 - Total: 6'>            slot = slotMap.query(name, index);
+</span><span class='nc' id='L2850' title='0|0|0 - Total: 2'>            if (slot == null) {
+</span><span class='nc' id='L2851' title='0|0|0 - Total: 2'>                return false;
+</span>            }
+<span class='bpc' id='L2853' title='0|1|1 - Total: 2'>        } else if (!isExtensible()) {
+</span><span class='nc' id='L2854' title='0|0|0 - Total: 6'>            slot = slotMap.query(name, index);
+</span><span class='nc' id='L2855' title='0|0|0 - Total: 2'>            if (slot == null) {
+</span><span class='nc' id='L2856' title='0|0|0 - Total: 2'>                return true;
+</span>            }
+        } else {
+<span class='bc' id='L2859' title='0|4|4 - Total: 4'>            checkNotSealed(name, index);
+</span>            // either const hoisted declaration or initialization
+<span class='bc' id='L2861' title='0|7|7 - Total: 7'>            slot = slotMap.get(name, index, SlotAccess.MODIFY_CONST);
+</span><span class='bc' id='L2862' title='0|3|3 - Total: 3'>            int attr = slot.getAttributes();
+</span><span class='bpc' id='L2863' title='0|1|1 - Total: 2'>            if ((attr & READONLY) == 0)
+</span><span class='nc' id='L2864' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1("msg.var.redecl", name);
+</span><span class='bpc' id='L2865' title='0|1|1 - Total: 2'>            if ((attr & UNINITIALIZED_CONST) != 0) {
+</span><span class='bc' id='L2866' title='0|3|3 - Total: 3'>                slot.value = value;
+</span>                // clear the bit on const initialization
+<span class='bc' id='L2868' title='0|2|2 - Total: 2'>                if (constFlag != UNINITIALIZED_CONST)
+</span><span class='bc' id='L2869' title='0|5|5 - Total: 5'>                    slot.setAttributes(attr & ~UNINITIALIZED_CONST);
+</span>            }
+<span class='bc' id='L2871' title='0|2|2 - Total: 2'>            return true;
+</span>        }
+<span class='nc' id='L2873' title='0|0|0 - Total: 6'>        return slot.setValue(value, this, start);
+</span>    }
+
+    private Slot findAttributeSlot(String name, int index, SlotAccess accessType)
+    {
+<span class='bc' id='L2878' title='0|7|7 - Total: 7'>        Slot slot = slotMap.get(name, index, accessType);
+</span><span class='bpc' id='L2879' title='0|1|1 - Total: 2'>        if (slot == null) {
+</span><span class='nc' id='L2880' title='0|0|0 - Total: 2'>            String str = (name != null ? name : Integer.toString(index));
+</span><span class='nc' id='L2881' title='0|0|0 - Total: 4'>            throw Context.reportRuntimeError1("msg.prop.not.found", str);
+</span>        }
+<span class='bc' id='L2883' title='0|2|2 - Total: 2'>        return slot;
+</span>    }
+
+    private Slot findAttributeSlot(Symbol key, SlotAccess accessType)
+    {
+<span class='bc' id='L2888' title='0|7|7 - Total: 7'>        Slot slot = slotMap.get(key, 0, accessType);
+</span><span class='bpc' id='L2889' title='0|1|1 - Total: 2'>        if (slot == null) {
+</span><span class='nc' id='L2890' title='0|0|0 - Total: 4'>            throw Context.reportRuntimeError1("msg.prop.not.found", key);
+</span>        }
+<span class='bc' id='L2892' title='0|2|2 - Total: 2'>        return slot;
+</span>    }
+
+    Object[] getIds(boolean getNonEnumerable, boolean getSymbols) {
+        Object[] a;
+<span class='bc' id='L2897' title='0|2|2 - Total: 2'>        int externalLen = (externalData == null ? 0 : externalData.getArrayLength());
+</span>
+<span class='bc' id='L2899' title='0|2|2 - Total: 2'>        if (externalLen == 0) {
+</span><span class='bc' id='L2900' title='0|3|3 - Total: 3'>            a = ScriptRuntime.emptyArgs;
+</span>        } else {
+<span class='bc' id='L2902' title='0|3|3 - Total: 3'>            a = new Object[externalLen];
+</span><span class='bc' id='L2903' title='0|2|2 - Total: 2'>            for (int i = 0; i < externalLen; i++) {
+</span><span class='bc' id='L2904' title='0|5|5 - Total: 5'>                a[i] = Integer.valueOf(i);
+</span>            }
+        }
+<span class='bc' id='L2907' title='0|2|2 - Total: 2'>        if (slotMap.isEmpty()) {
+</span><span class='bc' id='L2908' title='0|2|2 - Total: 2'>            return a;
+</span>        }
+
+<span class='bc' id='L2911' title='0|2|2 - Total: 2'>        int c = externalLen;
+</span><span class='bc' id='L2912' title='0|4|4 - Total: 4'>        final long stamp = slotMap.readLock();
+</span>        try {
+<span class='bc' id='L2914' title='0|2|2 - Total: 2'>            for (Slot slot : slotMap) {
+</span><span class='bc' id='L2915' title='0|8|8 - Total: 8'>                if ((getNonEnumerable || (slot.getAttributes() & DONTENUM) == 0) &&
+</span>                    (getSymbols || !(slot.name instanceof Symbol))) {
+<span class='bc' id='L2917' title='0|2|2 - Total: 2'>                    if (c == externalLen) {
+</span>                        // Special handling to combine external array with additional properties
+<span class='bc' id='L2919' title='0|2|2 - Total: 2'>                        Object[] oldA = a;
+</span><span class='bc' id='L2920' title='0|7|7 - Total: 7'>                        a = new Object[slotMap.dirtySize() + externalLen];
+</span><span class='bpc' id='L2921' title='0|1|1 - Total: 2'>                        if (oldA != null) {
+</span><span class='bc' id='L2922' title='0|6|6 - Total: 6'>                            System.arraycopy(oldA, 0, a, 0, externalLen);
+</span>                        }
+                    }
+<span class='bc' id='L2925' title='0|2|2 - Total: 2'>                    a[c++] = slot.name != null
+</span>                        ? slot.name
+<span class='bc' id='L2927' title='0|2|2 - Total: 2'>                        : Integer.valueOf(slot.indexOrHash);
+</span>                }
+<span class='bc' id='L2929' title='0|1|1 - Total: 1'>            }
+</span>        } finally {
+<span class='bpc' id='L2931' title='0|4|4 - Total: 9'>            slotMap.unlockRead(stamp);
+</span><span class='bpc' id='L2932' title='0|1|1 - Total: 3'>        }
+</span>
+        Object[] result;
+<span class='bc' id='L2935' title='0|2|2 - Total: 2'>        if (c == (a.length + externalLen)) {
+</span><span class='bc' id='L2936' title='0|3|3 - Total: 3'>            result = a;
+</span>        } else {
+<span class='bc' id='L2938' title='0|3|3 - Total: 3'>            result = new Object[c];
+</span><span class='bc' id='L2939' title='0|6|6 - Total: 6'>            System.arraycopy(a, 0, result, 0, c);
+</span>        }
+
+<span class='bc' id='L2942' title='0|2|2 - Total: 2'>        Context cx = Context.getCurrentContext();
+</span><span class='bc' id='L2943' title='0|4|4 - Total: 4'>        if ((cx != null) && cx.hasFeature(Context.FEATURE_ENUMERATE_IDS_FIRST)) {
+</span>            // Move all the numeric IDs to the front in numeric order
+<span class='bc' id='L2945' title='0|3|3 - Total: 3'>            Arrays.sort(result, KEY_COMPARATOR);
+</span>        }
+
+<span class='bc' id='L2948' title='0|2|2 - Total: 2'>        return result;
+</span>    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class='bc' id='L2954' title='0|2|2 - Total: 2'>        out.defaultWriteObject();
+</span><span class='bc' id='L2955' title='0|4|4 - Total: 4'>        final long stamp = slotMap.readLock();
+</span>        try {
+<span class='bc' id='L2957' title='0|4|4 - Total: 4'>            int objectsCount = slotMap.dirtySize();
+</span><span class='bc' id='L2958' title='0|2|2 - Total: 2'>            if (objectsCount == 0) {
+</span><span class='bc' id='L2959' title='0|4|4 - Total: 4'>                out.writeInt(0);
+</span>            } else {
+<span class='bc' id='L2961' title='0|3|3 - Total: 3'>                out.writeInt(objectsCount);
+</span><span class='bc' id='L2962' title='0|2|2 - Total: 2'>                for (Slot slot : slotMap) {
+</span><span class='bc' id='L2963' title='0|3|3 - Total: 3'>                    out.writeObject(slot);
+</span><span class='bc' id='L2964' title='0|1|1 - Total: 1'>                }
+</span>            }
+        } finally {
+<span class='bpc' id='L2967' title='0|4|4 - Total: 9'>            slotMap.unlockRead(stamp);
+</span><span class='bpc' id='L2968' title='0|1|1 - Total: 3'>        }
+</span><span class='bc' id='L2969' title='0|1|1 - Total: 1'>    }
+</span>
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='bc' id='L2974' title='0|2|2 - Total: 2'>        in.defaultReadObject();
+</span>
+<span class='bc' id='L2976' title='0|3|3 - Total: 3'>        int tableSize = in.readInt();
+</span><span class='bc' id='L2977' title='0|5|5 - Total: 5'>        slotMap = createSlotMap(tableSize);
+</span><span class='bc' id='L2978' title='0|2|2 - Total: 2'>        for (int i = 0; i < tableSize; i++) {
+</span><span class='bc' id='L2979' title='0|4|4 - Total: 4'>            Slot slot = (Slot)in.readObject();
+</span><span class='bc' id='L2980' title='0|4|4 - Total: 4'>            slotMap.addSlot(slot);
+</span>        }
+<span class='bc' id='L2982' title='0|1|1 - Total: 1'>    }
+</span>
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class='bc' id='L2985' title='0|6|6 - Total: 6'>        Slot slot = getSlot(cx, id, SlotAccess.QUERY);
+</span><span class='bc' id='L2986' title='0|2|2 - Total: 2'>        if (slot == null) return null;
+</span><span class='bc' id='L2987' title='0|3|3 - Total: 3'>        Scriptable scope = getParentScope();
+</span><span class='bpc' id='L2988' title='0|1|1 - Total: 2'>        return slot.getPropertyDescriptor(cx, (scope == null ? this : scope));
+</span>    }
+
+    protected Slot getSlot(Context cx, Object id, SlotAccess accessType) {
+<span class='bc' id='L2992' title='0|2|2 - Total: 2'>        if (id instanceof Symbol) {
+</span><span class='bc' id='L2993' title='0|7|7 - Total: 7'>            return slotMap.get(id, 0, accessType);
+</span>        }
+<span class='bc' id='L2995' title='0|4|4 - Total: 4'>        String name = ScriptRuntime.toStringIdOrIndex(cx, id);
+</span><span class='bc' id='L2996' title='0|2|2 - Total: 2'>        if (name == null) {
+</span><span class='bc' id='L2997' title='0|8|8 - Total: 8'>            return slotMap.get(null, ScriptRuntime.lastIndexResult(cx), accessType);
+</span>        } else {
+<span class='bc' id='L2999' title='0|7|7 - Total: 7'>            return slotMap.get(name, 0, accessType);
+</span>        }
+    }
+
+    // Partial implementation of java.util.Map. See NativeObject for
+    // a subclass that implements java.util.Map.
+
+    public int size() {
+<span class='bc' id='L3007' title='0|4|4 - Total: 4'>        return slotMap.size();
+</span>    }
+
+    public boolean isEmpty() {
+<span class='bc' id='L3011' title='0|4|4 - Total: 4'>        return slotMap.isEmpty();
+</span>    }
+
+
+    public Object get(Object key) {
+<span class='bc' id='L3016' title='0|2|2 - Total: 2'>        Object value = null;
+</span><span class='bc' id='L3017' title='0|2|2 - Total: 2'>        if (key instanceof String) {
+</span><span class='bc' id='L3018' title='0|7|7 - Total: 7'>            value = get((String) key, this);
+</span><span class='bpc' id='L3019' title='0|1|1 - Total: 2'>        } else if (key instanceof Symbol) {
+</span><span class='nc' id='L3020' title='0|0|0 - Total: 7'>            value = get((Symbol) key, this);
+</span><span class='bpc' id='L3021' title='0|1|1 - Total: 2'>        } else if (key instanceof Number) {
+</span><span class='bc' id='L3022' title='0|7|7 - Total: 7'>            value = get(((Number) key).intValue(), this);
+</span>        }
+<span class='bpc' id='L3024' title='0|3|3 - Total: 4'>        if (value == Scriptable.NOT_FOUND || value == Undefined.instance) {
+</span><span class='bc' id='L3025' title='0|2|2 - Total: 2'>            return null;
+</span><span class='bc' id='L3026' title='0|2|2 - Total: 2'>        } else if (value instanceof Wrapper) {
+</span><span class='bc' id='L3027' title='0|4|4 - Total: 4'>            return ((Wrapper) value).unwrap();
+</span>        } else {
+<span class='bc' id='L3029' title='0|2|2 - Total: 2'>            return value;
+</span>        }
+    }
+
+<span class='bc' id='L3033' title='0|5|5 - Total: 5'>    private static final Comparator<Object> KEY_COMPARATOR = new KeyComparator();
+</span>
+    /**
+     * This comparator sorts property fields in spec-compliant order. Numeric ids first, in numeric
+     * order, followed by string ids, in insertion order. Since this class already keeps string keys
+     * in insertion-time order, we treat all as equal. The "Arrays.sort" method will then not
+     * change their order, but simply move all the numeric properties to the front, since this
+     * method is defined to be stable.
+     */
+    public static final class KeyComparator
+        implements Comparator<Object>
+    {
+        @Override
+        public int compare(Object o1, Object o2)
+        {
+            if (o1 instanceof Integer) {
+                if (o2 instanceof Integer) {
+                    int i1 = (Integer) o1;
+                    int i2 = (Integer) o2;
+                    if (i1 < i2) {
+                        return -1;
+                    }
+                    if (i1 > i2) {
+                        return 1;
+                    }
+                    return 0;
+                }
+                return -1;
+            }
+            if (o2 instanceof Integer) {
+                return 1;
+            }
+            return 0;
+        }
+    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

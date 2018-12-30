@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ast.XmlRef.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ast.XmlRef.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+/**
+ * Base class for E4X XML attribute-access or property-get expressions.
+ * Such expressions can take a variety of forms. The general syntax has
+ * three parts:<p>
+ *
+ * <ol>
+ *  <li>optional: an {@code @}</li>  (specifying an attribute access)</li>
+ *  <li>optional: a namespace (a {@code Name}) and double-colon</li>
+ *  <li>required:  either a {@code Name} or a bracketed [expression]</li>
+ * </ol>
+ *
+ * The property-name expressions (examples:  {@code ns::name}, {@code @name})
+ * are represented as {@link XmlPropRef} nodes.  The bracketed-expression
+ * versions (examples:  {@code ns::[name]}, {@code @[name]}) become
+ * {@link XmlElemRef} nodes.<p>
+ *
+ * This node type (or more specifically, its subclasses) will
+ * sometimes be the right-hand child of a {@link PropertyGet} node or
+ * an {@link XmlMemberGet} node.  The {@code XmlRef} node may also
+ * be a standalone primary expression with no explicit target, which
+ * is valid in certain expression contexts such as
+ * {@code company..employee.(@id &lt; 100)} - in this case, the {@code @id}
+ * is an {@code XmlRef} that is part of an infix '&lt;' expression
+ * whose parent is an {@code XmlDotQuery} node.<p>
+ */
+public abstract class XmlRef extends AstNode {
+
+    protected Name namespace;
+<span class='upc' id='L37' title='3|3|3 - Total: 9'>    protected int atPos = -1;
+</span><span class='upc' id='L38' title='3|3|3 - Total: 9'>    protected int colonPos = -1;
+</span>
+<span class='nc' id='L40' title='0|0|0 - Total: 2'>    public XmlRef() {
+</span><span class='nc' id='L41' title='0|0|0 - Total: 1'>    }
+</span>
+    public XmlRef(int pos) {
+<span class='nc' id='L44' title='0|0|0 - Total: 3'>        super(pos);
+</span><span class='nc' id='L45' title='0|0|0 - Total: 1'>    }
+</span>
+    public XmlRef(int pos, int len) {
+<span class='uc' id='L48' title='4|4|4 - Total: 4'>        super(pos, len);
+</span><span class='uc' id='L49' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Return the namespace.  May be {@code @null}.
+     */
+    public Name getNamespace() {
+<span class='uc' id='L55' title='3|3|3 - Total: 3'>        return namespace;
+</span>    }
+
+    /**
+     * Sets namespace, and sets its parent to this node.
+     * Can be {@code null}.
+     */
+    public void setNamespace(Name namespace) {
+<span class='uc' id='L63' title='3|3|3 - Total: 3'>        this.namespace = namespace;
+</span><span class='uc' id='L64' title='2|2|2 - Total: 2'>        if (namespace != null)
+</span><span class='uc' id='L65' title='3|3|3 - Total: 3'>            namespace.setParent(this);
+</span><span class='uc' id='L66' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns {@code true} if this expression began with an {@code @}-token.
+     */
+    public boolean isAttributeAccess() {
+<span class='uc' id='L72' title='2|2|2 - Total: 2'>        return atPos >= 0;
+</span>    }
+
+    /**
+     * Returns position of {@code @}-token, or -1 if this is not
+     * an attribute-access expression.
+     */
+    public int getAtPos() {
+<span class='nc' id='L80' title='0|0|0 - Total: 3'>        return atPos;
+</span>    }
+
+    /**
+     * Sets position of {@code @}-token, or -1
+     */
+    public void setAtPos(int atPos) {
+<span class='uc' id='L87' title='3|3|3 - Total: 3'>        this.atPos = atPos;
+</span><span class='uc' id='L88' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns position of {@code ::} token, or -1 if not present.
+     * It will only be present if the namespace node is non-{@code null}.
+     */
+    public int getColonPos() {
+<span class='nc' id='L95' title='0|0|0 - Total: 3'>        return colonPos;
+</span>    }
+
+    /**
+     * Sets position of {@code ::} token, or -1 if not present
+     */
+    public void setColonPos(int colonPos) {
+<span class='uc' id='L102' title='3|3|3 - Total: 3'>        this.colonPos = colonPos;
+</span><span class='uc' id='L103' title='1|1|1 - Total: 1'>    }
+</span>}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

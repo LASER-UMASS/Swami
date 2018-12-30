@@ -1,0 +1,338 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.MemberBox.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.MemberBox.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.io.*;
+
+/**
+ * Wrappper class for Method and Constructor instances to cache
+ * getParameterTypes() results, recover from IllegalAccessException
+ * in some cases and provide serialization support.
+ *
+ * @author Igor Bukanov
+ */
+
+final class MemberBox implements Serializable
+{
+    static final long serialVersionUID = 6358550398665688245L;
+
+    private transient Member memberObject;
+    transient Class<?>[] argTypes;
+    transient Object delegateTo;
+    transient boolean vararg;
+
+
+    MemberBox(Method method)
+<span class='uc' id='L31' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L32' title='3|3|3 - Total: 3'>        init(method);
+</span><span class='uc' id='L33' title='1|1|1 - Total: 1'>    }
+</span>
+    MemberBox(Constructor<?> constructor)
+<span class='uc' id='L36' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L37' title='3|3|3 - Total: 3'>        init(constructor);
+</span><span class='uc' id='L38' title='1|1|1 - Total: 1'>    }
+</span>
+    private void init(Method method)
+    {
+<span class='uc' id='L42' title='3|3|3 - Total: 3'>        this.memberObject = method;
+</span><span class='uc' id='L43' title='4|4|4 - Total: 4'>        this.argTypes = method.getParameterTypes();
+</span><span class='uc' id='L44' title='4|4|4 - Total: 4'>        this.vararg = method.isVarArgs();
+</span><span class='uc' id='L45' title='1|1|1 - Total: 1'>    }
+</span>
+    private void init(Constructor<?> constructor)
+    {
+<span class='uc' id='L49' title='3|3|3 - Total: 3'>        this.memberObject = constructor;
+</span><span class='uc' id='L50' title='4|4|4 - Total: 4'>        this.argTypes = constructor.getParameterTypes();
+</span><span class='uc' id='L51' title='4|4|4 - Total: 4'>        this.vararg = constructor.isVarArgs();
+</span><span class='uc' id='L52' title='1|1|1 - Total: 1'>    }
+</span>
+    Method method()
+    {
+<span class='uc' id='L56' title='4|4|4 - Total: 4'>        return (Method)memberObject;
+</span>    }
+
+    Constructor<?> ctor()
+    {
+<span class='uc' id='L61' title='4|4|4 - Total: 4'>        return (Constructor<?>)memberObject;
+</span>    }
+
+    Member member()
+    {
+<span class='uc' id='L66' title='3|3|3 - Total: 3'>        return memberObject;
+</span>    }
+
+    boolean isMethod()
+    {
+<span class='uc' id='L71' title='4|4|4 - Total: 4'>        return memberObject instanceof Method;
+</span>    }
+
+    boolean isCtor()
+    {
+<span class='uc' id='L76' title='4|4|4 - Total: 4'>        return memberObject instanceof Constructor;
+</span>    }
+
+    boolean isStatic()
+    {
+<span class='uc' id='L81' title='5|5|5 - Total: 5'>        return Modifier.isStatic(memberObject.getModifiers());
+</span>    }
+
+    String getName()
+    {
+<span class='uc' id='L86' title='4|4|4 - Total: 4'>        return memberObject.getName();
+</span>    }
+
+    Class<?> getDeclaringClass()
+    {
+<span class='uc' id='L91' title='4|4|4 - Total: 4'>        return memberObject.getDeclaringClass();
+</span>    }
+
+    String toJavaDeclaration()
+    {
+<span class='uc' id='L96' title='4|4|4 - Total: 4'>        StringBuilder sb = new StringBuilder();
+</span><span class='upc' id='L97' title='1|1|1 - Total: 2'>        if (isMethod()) {
+</span><span class='uc' id='L98' title='3|3|3 - Total: 3'>            Method method = method();
+</span><span class='uc' id='L99' title='5|5|5 - Total: 5'>            sb.append(method.getReturnType());
+</span><span class='uc' id='L100' title='4|4|4 - Total: 4'>            sb.append(' ');
+</span><span class='uc' id='L101' title='5|5|5 - Total: 5'>            sb.append(method.getName());
+</span><span class='uc' id='L102' title='1|1|1 - Total: 1'>        } else {
+</span><span class='nc' id='L103' title='0|0|0 - Total: 3'>            Constructor<?> ctor = ctor();
+</span><span class='nc' id='L104' title='0|0|0 - Total: 4'>            String name = ctor.getDeclaringClass().getName();
+</span><span class='nc' id='L105' title='0|0|0 - Total: 4'>            int lastDot = name.lastIndexOf('.');
+</span><span class='nc' id='L106' title='0|0|0 - Total: 2'>            if (lastDot >= 0) {
+</span><span class='nc' id='L107' title='0|0|0 - Total: 6'>                name = name.substring(lastDot + 1);
+</span>            }
+<span class='nc' id='L109' title='0|0|0 - Total: 4'>            sb.append(name);
+</span>        }
+<span class='uc' id='L111' title='6|6|6 - Total: 6'>        sb.append(JavaMembers.liveConnectSignature(argTypes));
+</span><span class='uc' id='L112' title='3|3|3 - Total: 3'>        return sb.toString();
+</span>    }
+
+    @Override
+    public String toString()
+    {
+<span class='nc' id='L118' title='0|0|0 - Total: 4'>        return memberObject.toString();
+</span>    }
+
+    Object invoke(Object target, Object[] args)
+    {
+<span class='uc' id='L123' title='3|3|3 - Total: 3'>        Method method = method();
+</span>        try {
+            try {
+<span class='uc' id='L126' title='5|5|5 - Total: 5'>                return method.invoke(target, args);
+</span><span class='uc' id='L127' title='1|1|1 - Total: 1'>            } catch (IllegalAccessException ex) {
+</span><span class='uc' id='L128' title='5|5|5 - Total: 5'>                Method accessible = searchAccessibleMethod(method, argTypes);
+</span><span class='upc' id='L129' title='1|1|1 - Total: 2'>                if (accessible != null) {
+</span><span class='nc' id='L130' title='0|0|0 - Total: 3'>                    memberObject = accessible;
+</span><span class='nc' id='L131' title='0|0|0 - Total: 3'>                    method = accessible;
+</span>                } else {
+<span class='upc' id='L133' title='1|1|1 - Total: 2'>                    if (!VMBridge.instance.tryToMakeAccessible(method)) {
+</span><span class='nc' id='L134' title='0|0|0 - Total: 3'>                        throw Context.throwAsScriptRuntimeEx(ex);
+</span>                    }
+                }
+                // Retry after recovery
+<span class='uc' id='L138' title='5|5|5 - Total: 5'>                return method.invoke(target, args);
+</span>            }
+<span class='uc' id='L140' title='1|1|1 - Total: 1'>        } catch (InvocationTargetException ite) {
+</span>            // Must allow ContinuationPending exceptions to propagate unhindered
+<span class='uc' id='L142' title='2|2|2 - Total: 2'>            Throwable e = ite;
+</span>            do {
+<span class='uc' id='L144' title='4|4|4 - Total: 4'>                e = ((InvocationTargetException) e).getTargetException();
+</span><span class='upc' id='L145' title='1|1|1 - Total: 2'>            } while ((e instanceof InvocationTargetException));
+</span><span class='upc' id='L146' title='1|1|1 - Total: 2'>            if (e instanceof ContinuationPending)
+</span><span class='uc' id='L147' title='3|3|3 - Total: 3'>                throw (ContinuationPending) e;
+</span><span class='nc' id='L148' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(e);
+</span><span class='nc' id='L149' title='0|0|0 - Total: 1'>        } catch (Exception ex) {
+</span><span class='nc' id='L150' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(ex);
+</span>        }
+    }
+
+    Object newInstance(Object[] args)
+    {
+<span class='uc' id='L156' title='3|3|3 - Total: 3'>        Constructor<?> ctor = ctor();
+</span>        try {
+            try {
+<span class='uc' id='L159' title='4|4|4 - Total: 4'>                return ctor.newInstance(args);
+</span><span class='nc' id='L160' title='0|0|0 - Total: 1'>            } catch (IllegalAccessException ex) {
+</span><span class='nc' id='L161' title='0|0|0 - Total: 2'>                if (!VMBridge.instance.tryToMakeAccessible(ctor)) {
+</span><span class='nc' id='L162' title='0|0|0 - Total: 3'>                    throw Context.throwAsScriptRuntimeEx(ex);
+</span>                }
+            }
+<span class='nc' id='L165' title='0|0|0 - Total: 4'>            return ctor.newInstance(args);
+</span><span class='nc' id='L166' title='0|0|0 - Total: 1'>        } catch (Exception ex) {
+</span><span class='nc' id='L167' title='0|0|0 - Total: 3'>            throw Context.throwAsScriptRuntimeEx(ex);
+</span>        }
+    }
+
+    private static Method searchAccessibleMethod(Method method, Class<?>[] params)
+    {
+<span class='uc' id='L173' title='3|3|3 - Total: 3'>        int modifiers = method.getModifiers();
+</span><span class='upc' id='L174' title='3|3|3 - Total: 4'>        if (Modifier.isPublic(modifiers) && !Modifier.isStatic(modifiers)) {
+</span><span class='uc' id='L175' title='3|3|3 - Total: 3'>            Class<?> c = method.getDeclaringClass();
+</span><span class='upc' id='L176' title='1|1|1 - Total: 2'>            if (!Modifier.isPublic(c.getModifiers())) {
+</span><span class='uc' id='L177' title='3|3|3 - Total: 3'>                String name = method.getName();
+</span><span class='uc' id='L178' title='3|3|3 - Total: 3'>                Class<?>[] intfs = c.getInterfaces();
+</span><span class='upc' id='L179' title='1|1|1 - Total: 2'>                for (int i = 0, N = intfs.length; i != N; ++i) {
+</span><span class='nc' id='L180' title='0|0|0 - Total: 4'>                    Class<?> intf = intfs[i];
+</span><span class='nc' id='L181' title='0|0|0 - Total: 2'>                    if (Modifier.isPublic(intf.getModifiers())) {
+</span>                        try {
+<span class='nc' id='L183' title='0|0|0 - Total: 5'>                            return intf.getMethod(name, params);
+</span><span class='nc' id='L184' title='0|0|0 - Total: 1'>                        } catch (NoSuchMethodException ex) {
+</span><span class='nc' id='L185' title='0|0|0 - Total: 2'>                        } catch (SecurityException ex) {  }
+</span>                    }
+                }
+                for (;;) {
+<span class='uc' id='L189' title='3|3|3 - Total: 3'>                    c = c.getSuperclass();
+</span><span class='uc' id='L190' title='2|2|2 - Total: 2'>                    if (c == null) { break; }
+</span><span class='upc' id='L191' title='1|1|1 - Total: 2'>                    if (Modifier.isPublic(c.getModifiers())) {
+</span>                        try {
+<span class='nc' id='L193' title='0|0|0 - Total: 5'>                            Method m = c.getMethod(name, params);
+</span><span class='nc' id='L194' title='0|0|0 - Total: 3'>                            int mModifiers = m.getModifiers();
+</span><span class='nc' id='L195' title='0|0|0 - Total: 2'>                            if (Modifier.isPublic(mModifiers)
+</span><span class='nc' id='L196' title='0|0|0 - Total: 2'>                                && !Modifier.isStatic(mModifiers))
+</span>                            {
+<span class='nc' id='L198' title='0|0|0 - Total: 2'>                                return m;
+</span>                            }
+<span class='uc' id='L200' title='1|1|1 - Total: 1'>                        } catch (NoSuchMethodException ex) {
+</span><span class='upc' id='L201' title='1|1|1 - Total: 4'>                        } catch (SecurityException ex) {  }
+</span>                    }
+                }
+            }
+        }
+<span class='uc' id='L206' title='2|2|2 - Total: 2'>        return null;
+</span>    }
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='uc' id='L212' title='2|2|2 - Total: 2'>        in.defaultReadObject();
+</span><span class='uc' id='L213' title='3|3|3 - Total: 3'>        Member member = readMember(in);
+</span><span class='upc' id='L214' title='1|1|1 - Total: 2'>        if (member instanceof Method) {
+</span><span class='uc' id='L215' title='5|5|5 - Total: 5'>            init((Method)member);
+</span>        } else {
+<span class='nc' id='L217' title='0|0|0 - Total: 4'>            init((Constructor<?>)member);
+</span>        }
+<span class='uc' id='L219' title='1|1|1 - Total: 1'>    }
+</span>
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class='uc' id='L224' title='2|2|2 - Total: 2'>        out.defaultWriteObject();
+</span><span class='uc' id='L225' title='4|4|4 - Total: 4'>        writeMember(out, memberObject);
+</span><span class='uc' id='L226' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Writes a Constructor or Method object.
+     *
+     * Methods and Constructors are not serializable, so we must serialize
+     * information about the class, the name, and the parameters and
+     * recreate upon deserialization.
+     */
+    private static void writeMember(ObjectOutputStream out, Member member)
+        throws IOException
+    {
+<span class='upc' id='L238' title='1|1|1 - Total: 2'>        if (member == null) {
+</span><span class='nc' id='L239' title='0|0|0 - Total: 3'>            out.writeBoolean(false);
+</span><span class='nc' id='L240' title='0|0|0 - Total: 1'>            return;
+</span>        }
+<span class='uc' id='L242' title='3|3|3 - Total: 3'>        out.writeBoolean(true);
+</span><span class='upc' id='L243' title='1|1|1 - Total: 4'>        if (!(member instanceof Method || member instanceof Constructor))
+</span><span class='nc' id='L244' title='0|0|0 - Total: 5'>            throw new IllegalArgumentException("not Method or Constructor");
+</span><span class='uc' id='L245' title='4|4|4 - Total: 4'>        out.writeBoolean(member instanceof Method);
+</span><span class='uc' id='L246' title='4|4|4 - Total: 4'>        out.writeObject(member.getName());
+</span><span class='uc' id='L247' title='4|4|4 - Total: 4'>        out.writeObject(member.getDeclaringClass());
+</span><span class='upc' id='L248' title='1|1|1 - Total: 2'>        if (member instanceof Method) {
+</span><span class='uc' id='L249' title='6|6|6 - Total: 6'>            writeParameters(out, ((Method) member).getParameterTypes());
+</span>        } else {
+<span class='nc' id='L251' title='0|0|0 - Total: 5'>            writeParameters(out, ((Constructor<?>) member).getParameterTypes());
+</span>        }
+<span class='uc' id='L253' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Reads a Method or a Constructor from the stream.
+     */
+    private static Member readMember(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='upc' id='L261' title='1|1|1 - Total: 2'>        if (!in.readBoolean())
+</span><span class='nc' id='L262' title='0|0|0 - Total: 2'>            return null;
+</span><span class='uc' id='L263' title='3|3|3 - Total: 3'>        boolean isMethod = in.readBoolean();
+</span><span class='uc' id='L264' title='4|4|4 - Total: 4'>        String name = (String) in.readObject();
+</span><span class='uc' id='L265' title='4|4|4 - Total: 4'>        Class<?> declaring = (Class<?>) in.readObject();
+</span><span class='uc' id='L266' title='3|3|3 - Total: 3'>        Class<?>[] parms = readParameters(in);
+</span>        try {
+<span class='upc' id='L268' title='1|1|1 - Total: 2'>            if (isMethod) {
+</span><span class='uc' id='L269' title='5|5|5 - Total: 5'>                return declaring.getMethod(name, parms);
+</span>            } else {
+<span class='nc' id='L271' title='0|0|0 - Total: 4'>                return declaring.getConstructor(parms);
+</span>            }
+<span class='nc' id='L273' title='0|0|0 - Total: 1'>        } catch (NoSuchMethodException e) {
+</span><span class='nc' id='L274' title='0|0|0 - Total: 12'>            throw new IOException("Cannot find member: " + e);
+</span>        }
+    }
+
+<span class='uc' id='L278' title='40|40|40 - Total: 40'>    private static final Class<?>[] primitives = {
+</span>        Boolean.TYPE,
+        Byte.TYPE,
+        Character.TYPE,
+        Double.TYPE,
+        Float.TYPE,
+        Integer.TYPE,
+        Long.TYPE,
+        Short.TYPE,
+        Void.TYPE
+    };
+
+    /**
+     * Writes an array of parameter types to the stream.
+     *
+     * Requires special handling because primitive types cannot be
+     * found upon deserialization by the default Java implementation.
+     */
+    private static void writeParameters(ObjectOutputStream out, Class<?>[] parms)
+        throws IOException
+    {
+<span class='uc' id='L299' title='4|4|4 - Total: 4'>        out.writeShort(parms.length);
+</span>    outer:
+<span class='uc' id='L301' title='2|2|2 - Total: 2'>        for (int i=0; i < parms.length; i++) {
+</span><span class='uc' id='L302' title='4|4|4 - Total: 4'>            Class<?> parm = parms[i];
+</span><span class='uc' id='L303' title='3|3|3 - Total: 3'>            boolean primitive = parm.isPrimitive();
+</span><span class='uc' id='L304' title='3|3|3 - Total: 3'>            out.writeBoolean(primitive);
+</span><span class='upc' id='L305' title='1|1|1 - Total: 2'>            if (!primitive) {
+</span><span class='uc' id='L306' title='3|3|3 - Total: 3'>                out.writeObject(parm);
+</span><span class='uc' id='L307' title='1|1|1 - Total: 1'>                continue;
+</span>            }
+<span class='nc' id='L309' title='0|0|0 - Total: 2'>            for (int j=0; j < primitives.length; j++) {
+</span><span class='nc' id='L310' title='0|0|0 - Total: 2'>                if (parm.equals(primitives[j])) {
+</span><span class='nc' id='L311' title='0|0|0 - Total: 3'>                    out.writeByte(j);
+</span><span class='nc' id='L312' title='0|0|0 - Total: 1'>                    continue outer;
+</span>                }
+            }
+<span class='nc' id='L315' title='0|0|0 - Total: 14'>            throw new IllegalArgumentException("Primitive " + parm +
+</span>                                               " not found");
+        }
+<span class='uc' id='L318' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Reads an array of parameter types from the stream.
+     */
+    private static Class<?>[] readParameters(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class='uc' id='L326' title='4|4|4 - Total: 4'>        Class<?>[] result = new Class[in.readShort()];
+</span><span class='uc' id='L327' title='2|2|2 - Total: 2'>        for (int i=0; i < result.length; i++) {
+</span><span class='upc' id='L328' title='1|1|1 - Total: 2'>            if (!in.readBoolean()) {
+</span><span class='uc' id='L329' title='6|6|6 - Total: 6'>                result[i] = (Class<?>) in.readObject();
+</span><span class='uc' id='L330' title='1|1|1 - Total: 1'>                continue;
+</span>            }
+<span class='nc' id='L332' title='0|0|0 - Total: 7'>            result[i] = primitives[in.readByte()];
+</span>        }
+<span class='uc' id='L334' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+}
+
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

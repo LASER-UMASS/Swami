@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.serialize.ScriptableOutputStream.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.serialize.ScriptableOutputStream.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.serialize;
+
+import java.util.Map;
+import java.util.HashMap;
+import java.util.StringTokenizer;
+import java.io.*;
+
+import org.mozilla.javascript.*;
+
+/**
+ * Class ScriptableOutputStream is an ObjectOutputStream used
+ * to serialize JavaScript objects and functions. Note that
+ * compiled functions currently cannot be serialized, only
+ * interpreted functions. The top-level scope containing the
+ * object is not written out, but is instead replaced with
+ * another top-level object when the ScriptableInputStream
+ * reads in this object. Also, object corresponding to names
+ * added to the exclude list are not written out but instead
+ * are looked up during deserialization. This approach avoids
+ * the creation of duplicate copies of standard objects
+ * during deserialization.
+ *
+ * @author Norris Boyd
+ */
+
+// API class
+
+public class ScriptableOutputStream extends ObjectOutputStream {
+
+    /**
+     * ScriptableOutputStream constructor.
+     * Creates a ScriptableOutputStream for use in serializing
+     * JavaScript objects. Calls excludeStandardObjectNames.
+     *
+     * @param out the OutputStream to write to.
+     * @param scope the scope containing the object.
+     */
+    public ScriptableOutputStream(OutputStream out, Scriptable scope)
+        throws IOException
+    {
+<span class='uc' id='L47' title='3|3|3 - Total: 3'>        super(out);
+</span><span class='uc' id='L48' title='3|3|3 - Total: 3'>        this.scope = scope;
+</span><span class='uc' id='L49' title='5|5|5 - Total: 5'>        table = new HashMap<Object,String>();
+</span><span class='uc' id='L50' title='6|6|6 - Total: 6'>        table.put(scope, "");
+</span><span class='uc' id='L51' title='4|4|4 - Total: 4'>        enableReplaceObject(true);
+</span><span class='uc' id='L52' title='2|2|2 - Total: 2'>        excludeStandardObjectNames(); // XXX
+</span><span class='uc' id='L53' title='1|1|1 - Total: 1'>    }
+</span>
+    public void excludeAllIds(Object[] ids) {
+<span class='nc' id='L56' title='0|0|0 - Total: 2'>        for (Object id: ids) {
+</span><span class='nc' id='L57' title='0|0|0 - Total: 2'>            if (id instanceof String &&
+</span><span class='nc' id='L58' title='0|0|0 - Total: 2'>                (scope.get((String) id, scope) instanceof Scriptable))
+</span>            {
+<span class='nc' id='L60' title='0|0|0 - Total: 4'>                this.addExcludedName((String)id);
+</span>            }
+        }
+<span class='nc' id='L63' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Adds a qualified name to the list of object to be excluded from
+     * serialization. Names excluded from serialization are looked up
+     * in the new scope and replaced upon deserialization.
+     * @param name a fully qualified name (of the form "a.b.c", where
+     *             "a" must be a property of the top-level object). The object
+     *             need not exist, in which case the name is ignored.
+     * @throws IllegalArgumentException if the object is not a
+     *         {@link Scriptable}.
+     */
+    public void addOptionalExcludedName(String name) {
+<span class='uc' id='L76' title='5|5|5 - Total: 5'>        Object obj = lookupQualifiedName(scope, name);
+</span><span class='upc' id='L77' title='2|2|2 - Total: 4'>        if(obj != null && obj != UniqueTag.NOT_FOUND) {
+</span><span class='upc' id='L78' title='1|1|1 - Total: 2'>            if (!(obj instanceof Scriptable)) {
+</span><span class='nc' id='L79' title='0|0|0 - Total: 12'>                throw new IllegalArgumentException(
+</span>                        "Object for excluded name " + name +
+                        " is not a Scriptable, it is " +
+<span class='nc' id='L82' title='0|0|0 - Total: 6'>                        obj.getClass().getName());
+</span>            }
+<span class='uc' id='L84' title='6|6|6 - Total: 6'>            table.put(obj, name);
+</span>        }
+<span class='uc' id='L86' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Adds a qualified name to the list of objects to be excluded from
+     * serialization. Names excluded from serialization are looked up
+     * in the new scope and replaced upon deserialization.
+     * @param name a fully qualified name (of the form "a.b.c", where
+     *             "a" must be a property of the top-level object)
+     * @throws IllegalArgumentException if the object is not found or is not
+     *         a {@link Scriptable}.
+     */
+    public void addExcludedName(String name) {
+<span class='uc' id='L98' title='5|5|5 - Total: 5'>        Object obj = lookupQualifiedName(scope, name);
+</span><span class='upc' id='L99' title='1|1|1 - Total: 2'>        if (!(obj instanceof Scriptable)) {
+</span><span class='nc' id='L100' title='0|0|0 - Total: 14'>            throw new IllegalArgumentException("Object for excluded name " +
+</span>                                               name + " not found.");
+        }
+<span class='uc' id='L103' title='6|6|6 - Total: 6'>        table.put(obj, name);
+</span><span class='uc' id='L104' title='1|1|1 - Total: 1'>    }
+</span>
+    /**
+     * Returns true if the name is excluded from serialization.
+     */
+    public boolean hasExcludedName(String name) {
+<span class='nc' id='L110' title='0|0|0 - Total: 2'>        return table.get(name) != null;
+</span>    }
+
+    /**
+     * Removes a name from the list of names to exclude.
+     */
+    public void removeExcludedName(String name) {
+<span class='nc' id='L117' title='0|0|0 - Total: 5'>        table.remove(name);
+</span><span class='nc' id='L118' title='0|0|0 - Total: 1'>    }
+</span>
+    /**
+     * Adds the names of the standard objects and their
+     * prototypes to the list of excluded names.
+     */
+    public void excludeStandardObjectNames() {
+<span class='uc' id='L125' title='87|87|87 - Total: 87'>        String[] names = { "Object", "Object.prototype",
+</span>                           "Function", "Function.prototype",
+                           "String", "String.prototype",
+                           "Math",  // no Math.prototype
+                           "Array", "Array.prototype",
+                           "Error", "Error.prototype",
+                           "Number", "Number.prototype",
+                           "Date", "Date.prototype",
+                           "RegExp", "RegExp.prototype",
+                           "Script", "Script.prototype",
+                           "Continuation", "Continuation.prototype",
+                         };
+<span class='uc' id='L137' title='2|2|2 - Total: 2'>        for (int i=0; i < names.length; i++) {
+</span><span class='uc' id='L138' title='5|5|5 - Total: 5'>            addExcludedName(names[i]);
+</span>        }
+
+<span class='uc' id='L141' title='19|19|19 - Total: 19'>        String[] optionalNames = {
+</span>                "XML", "XML.prototype",
+                "XMLList", "XMLList.prototype",
+        };
+<span class='uc' id='L145' title='2|2|2 - Total: 2'>        for (int i=0; i < optionalNames.length; i++) {
+</span><span class='uc' id='L146' title='5|5|5 - Total: 5'>            addOptionalExcludedName(optionalNames[i]);
+</span>        }
+<span class='uc' id='L148' title='1|1|1 - Total: 1'>    }
+</span>
+    static Object lookupQualifiedName(Scriptable scope,
+                                      String qualifiedName)
+    {
+<span class='uc' id='L153' title='6|6|6 - Total: 6'>        StringTokenizer st = new StringTokenizer(qualifiedName, ".");
+</span><span class='uc' id='L154' title='2|2|2 - Total: 2'>        Object result = scope;
+</span><span class='uc' id='L155' title='2|2|2 - Total: 2'>        while (st.hasMoreTokens()) {
+</span><span class='uc' id='L156' title='3|3|3 - Total: 3'>            String s = st.nextToken();
+</span><span class='uc' id='L157' title='5|5|5 - Total: 5'>            result = ScriptableObject.getProperty((Scriptable)result, s);
+</span><span class='upc' id='L158' title='2|2|2 - Total: 4'>            if (result == null || !(result instanceof Scriptable))
+</span><span class='nc' id='L159' title='0|0|0 - Total: 1'>                break;
+</span><span class='uc' id='L160' title='1|1|1 - Total: 1'>        }
+</span><span class='uc' id='L161' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+
+    static class PendingLookup implements Serializable
+    {
+        static final long serialVersionUID = -2692990309789917727L;
+
+        PendingLookup(String name) { this.name = name; }
+
+        String getName() { return name; }
+
+        private String name;
+    }
+
+    @Override
+    protected Object replaceObject(Object obj) throws IOException
+    {
+        if (false) throw new IOException(); // suppress warning
+<span class='uc' id='L179' title='6|6|6 - Total: 6'>        String name = table.get(obj);
+</span><span class='uc' id='L180' title='2|2|2 - Total: 2'>        if (name == null)
+</span><span class='uc' id='L181' title='2|2|2 - Total: 2'>            return obj;
+</span><span class='uc' id='L182' title='5|5|5 - Total: 5'>        return new PendingLookup(name);
+</span>    }
+
+    private Scriptable scope;
+    private Map<Object,String> table;
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

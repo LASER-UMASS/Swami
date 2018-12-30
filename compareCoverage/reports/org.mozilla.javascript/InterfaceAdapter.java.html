@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.InterfaceAdapter.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.InterfaceAdapter.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.Method;
+
+/**
+ * Adapter to use JS function as implementation of Java interfaces with
+ * single method or multiple methods with the same signature.
+ */
+public class InterfaceAdapter
+{
+    private final Object proxyHelper;
+
+    /**
+     * Make glue object implementing interface cl that will
+     * call the supplied JS function when called.
+     * Only interfaces were all methods have the same signature is supported.
+     *
+     * @return The glue object or null if <tt>cl</tt> is not interface or
+     *         has methods with different signatures.
+     */
+    static Object create(Context cx, Class<?> cl, ScriptableObject object)
+    {
+<span class='upc' id='L29' title='1|1|1 - Total: 2'>        if (!cl.isInterface()) throw new IllegalArgumentException();
+</span>
+<span class='uc' id='L31' title='3|3|3 - Total: 3'>        Scriptable topScope = ScriptRuntime.getTopCallScope(cx);
+</span><span class='uc' id='L32' title='3|3|3 - Total: 3'>        ClassCache cache = ClassCache.get(topScope);
+</span>        InterfaceAdapter adapter;
+<span class='uc' id='L34' title='5|5|5 - Total: 5'>        adapter = (InterfaceAdapter)cache.getInterfaceAdapter(cl);
+</span><span class='uc' id='L35' title='3|3|3 - Total: 3'>        ContextFactory cf = cx.getFactory();
+</span><span class='upc' id='L36' title='1|1|1 - Total: 2'>        if (adapter == null) {
+</span><span class='uc' id='L37' title='3|3|3 - Total: 3'>            Method[] methods = cl.getMethods();
+</span><span class='upc' id='L38' title='1|1|1 - Total: 2'>            if ( object instanceof Callable) {
+</span>                // Check if interface can be implemented by a single function.
+                // We allow this if the interface has only one method or multiple 
+                // methods with the same name (in which case they'd result in 
+                // the same function to be invoked anyway).
+<span class='uc' id='L43' title='3|3|3 - Total: 3'>                int length = methods.length;
+</span><span class='upc' id='L44' title='1|1|1 - Total: 2'>                if (length == 0) {
+</span><span class='nc' id='L45' title='0|0|0 - Total: 4'>                    throw Context.reportRuntimeError1(
+</span><span class='nc' id='L46' title='0|0|0 - Total: 1'>                        "msg.no.empty.interface.conversion", cl.getName());
+</span>                }
+<span class='upc' id='L48' title='1|1|1 - Total: 2'>                if (length > 1) {
+</span><span class='nc' id='L49' title='0|0|0 - Total: 5'>                    String methodName = methods[0].getName();
+</span><span class='nc' id='L50' title='0|0|0 - Total: 2'>                    for (int i = 1; i < length; i++) {
+</span><span class='nc' id='L51' title='0|0|0 - Total: 2'>                        if (!methodName.equals(methods[i].getName())) {
+</span><span class='nc' id='L52' title='0|0|0 - Total: 4'>                            throw Context.reportRuntimeError1(
+</span>                                    "msg.no.function.interface.conversion",
+<span class='nc' id='L54' title='0|0|0 - Total: 1'>                                    cl.getName());
+</span>                        }
+                    }
+                }
+            }
+<span class='uc' id='L59' title='6|6|6 - Total: 6'>            adapter = new InterfaceAdapter(cf, cl);
+</span><span class='uc' id='L60' title='4|4|4 - Total: 4'>            cache.cacheInterfaceAdapter(cl, adapter);
+</span>        }
+<span class='uc' id='L62' title='9|9|9 - Total: 9'>        return VMBridge.instance.newInterfaceProxy(
+</span>            adapter.proxyHelper, cf, adapter, object, topScope);
+    }
+
+    private InterfaceAdapter(ContextFactory cf, Class<?> cl)
+<span class='uc' id='L67' title='2|2|2 - Total: 2'>    {
+</span><span class='uc' id='L68' title='9|9|9 - Total: 9'>        this.proxyHelper
+</span><span class='uc' id='L69' title='2|2|2 - Total: 2'>            = VMBridge.instance.getInterfaceProxyHelper(
+</span>                cf, new Class[] { cl });
+<span class='uc' id='L71' title='1|1|1 - Total: 1'>    }
+</span>
+    public Object invoke(ContextFactory cf,
+                         final Object target,
+                         final Scriptable topScope,
+                         final Object thisObject,
+                         final Method method,
+                         final Object[] args)
+    {
+<span class='uc' id='L80' title='10|10|10 - Total: 10'>        ContextAction action = new ContextAction() {
+</span>                public Object run(Context cx)
+                {
+                    return invokeImpl(cx, target, topScope, thisObject, method, args);
+                }
+            };
+<span class='uc' id='L86' title='4|4|4 - Total: 4'>        return cf.call(action);
+</span>    }
+
+    Object invokeImpl(Context cx,
+                      Object target,
+                      Scriptable topScope,
+                      Object thisObject,
+                      Method method,
+                      Object[] args)
+    {
+        Callable function;
+<span class='upc' id='L97' title='1|1|1 - Total: 2'>        if (target instanceof Callable) {
+</span><span class='uc' id='L98' title='4|4|4 - Total: 4'>            function = (Callable)target;
+</span>        } else {
+<span class='nc' id='L100' title='0|0|0 - Total: 3'>            Scriptable s = (Scriptable)target;
+</span><span class='nc' id='L101' title='0|0|0 - Total: 3'>            String methodName = method.getName();
+</span><span class='nc' id='L102' title='0|0|0 - Total: 4'>            Object value = ScriptableObject.getProperty(s, methodName);
+</span><span class='nc' id='L103' title='0|0|0 - Total: 2'>            if (value == ScriptableObject.NOT_FOUND) {
+</span>                // We really should throw an error here, but for the sake of
+                // compatibility with JavaAdapter we silently ignore undefined
+                // methods.
+<span class='nc' id='L107' title='0|0|0 - Total: 4'>                Context.reportWarning(ScriptRuntime.getMessage1(
+</span>                        "msg.undefined.function.interface", methodName));
+<span class='nc' id='L109' title='0|0|0 - Total: 3'>                Class<?> resultType = method.getReturnType();
+</span><span class='nc' id='L110' title='0|0|0 - Total: 2'>                if (resultType == Void.TYPE) {
+</span><span class='nc' id='L111' title='0|0|0 - Total: 2'>                    return null;
+</span>                } else {
+<span class='nc' id='L113' title='0|0|0 - Total: 4'>                    return Context.jsToJava(null, resultType);
+</span>                }
+            }
+<span class='nc' id='L116' title='0|0|0 - Total: 2'>            if (!(value instanceof Callable)) {
+</span><span class='nc' id='L117' title='0|0|0 - Total: 4'>                throw Context.reportRuntimeError1(
+</span>                        "msg.not.function.interface",methodName);
+            }
+<span class='nc' id='L120' title='0|0|0 - Total: 3'>            function = (Callable)value;
+</span>        }
+<span class='uc' id='L122' title='3|3|3 - Total: 3'>        WrapFactory wf = cx.getWrapFactory();
+</span><span class='upc' id='L123' title='1|1|1 - Total: 2'>        if (args == null) {
+</span><span class='uc' id='L124' title='3|3|3 - Total: 3'>            args = ScriptRuntime.emptyArgs;
+</span>        } else {
+<span class='nc' id='L126' title='0|0|0 - Total: 2'>            for (int i = 0, N = args.length; i != N; ++i) {
+</span><span class='nc' id='L127' title='0|0|0 - Total: 4'>                Object arg = args[i];
+</span>                // neutralize wrap factory java primitive wrap feature
+<span class='nc' id='L129' title='0|0|0 - Total: 6'>                if (!(arg instanceof String || arg instanceof Number
+</span>                        || arg instanceof Boolean)) {
+<span class='nc' id='L131' title='0|0|0 - Total: 9'>                    args[i] = wf.wrap(cx, topScope, arg, null);
+</span>                }
+            }
+        }
+<span class='uc' id='L135' title='7|7|7 - Total: 7'>        Scriptable thisObj = wf.wrapAsJavaObject(cx, topScope, thisObject, null);
+</span>
+<span class='uc' id='L137' title='7|7|7 - Total: 7'>        Object result = function.call(cx, topScope, thisObj, args);
+</span><span class='uc' id='L138' title='3|3|3 - Total: 3'>        Class<?> javaResultType = method.getReturnType();
+</span><span class='upc' id='L139' title='1|1|1 - Total: 2'>        if (javaResultType == Void.TYPE) {
+</span><span class='uc' id='L140' title='3|3|3 - Total: 3'>            result = null;
+</span>        } else {
+<span class='nc' id='L142' title='0|0|0 - Total: 4'>            result = Context.jsToJava(result, javaResultType);
+</span>        }
+<span class='uc' id='L144' title='2|2|2 - Total: 2'>        return result;
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>

@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'><html xmlns='http://www.w3.org/1999/xhtml' lang='en'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/><title>org.mozilla.javascript.ConsString.java</title><link rel='stylesheet' href='../.resources/report.css' type='text/css'/><link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/><link rel='stylesheet' href='../.resources/custom.css' type='text/css'/><script type='text/javascript' src='../.resources/prettify.js'></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><h1>org.mozilla.javascript.ConsString.java</h1><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table><pre class='source lang-java linenums'>/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.util.ArrayDeque;
+
+/**
+ * <p>This class represents a string composed of two components, each of which
+ * may be a <code>java.lang.String</code> or another ConsString.</p>
+ *
+ * <p>This string representation is optimized for concatenation using the "+"
+ * operator. Instead of immediately copying both components to a new character
+ * array, ConsString keeps references to the original components and only
+ * converts them to a String if either toString() is called or a certain depth
+ * level is reached.</p>
+ *
+ * <p>Note that instances of this class are only immutable if both parts are
+ * immutable, i.e. either Strings or ConsStrings that are ultimately composed
+ * of Strings.</p>
+ *
+ * <p>Both the name and the concept are borrowed from V8.</p>
+ */
+public class ConsString implements CharSequence, Serializable {
+
+    private static final long serialVersionUID = -8432806714471372570L;
+
+    private CharSequence left, right;
+    private final int length;
+    private boolean isFlat;
+
+<span class='uc' id='L36' title='2|2|2 - Total: 2'>    public ConsString(CharSequence str1, CharSequence str2) {
+</span><span class='uc' id='L37' title='3|3|3 - Total: 3'>        left = str1;
+</span><span class='uc' id='L38' title='3|3|3 - Total: 3'>        right = str2;
+</span><span class='uc' id='L39' title='9|9|9 - Total: 9'>        length = left.length() + right.length();
+</span><span class='uc' id='L40' title='3|3|3 - Total: 3'>        isFlat = false;
+</span><span class='uc' id='L41' title='1|1|1 - Total: 1'>    }
+</span>
+    // Replace with string representation when serializing
+    private Object writeReplace() {
+<span class='uc' id='L45' title='3|3|3 - Total: 3'>        return this.toString();
+</span>    }
+    
+    @Override
+    public String toString() {
+<span class='uc' id='L50' title='2|2|2 - Total: 2'>        return isFlat ? (String)left : flatten();
+</span>    }
+
+    private synchronized String flatten() {
+<span class='upc' id='L54' title='1|1|1 - Total: 2'>        if (!isFlat) {
+</span><span class='uc' id='L55' title='4|4|4 - Total: 4'>            final char[] chars = new char[length];
+</span><span class='uc' id='L56' title='3|3|3 - Total: 3'>            int charPos = length;
+</span>
+<span class='uc' id='L58' title='4|4|4 - Total: 4'>            ArrayDeque<CharSequence> stack = new ArrayDeque<CharSequence>();
+</span><span class='uc' id='L59' title='4|4|4 - Total: 4'>            stack.addFirst(left);
+</span>
+<span class='uc' id='L61' title='3|3|3 - Total: 3'>            CharSequence next = right;
+</span>            do {
+<span class='uc' id='L63' title='2|2|2 - Total: 2'>                if (next instanceof ConsString) {
+</span><span class='uc' id='L64' title='3|3|3 - Total: 3'>                    ConsString casted = (ConsString) next;
+</span><span class='uc' id='L65' title='2|2|2 - Total: 2'>                    if (casted.isFlat) {
+</span><span class='uc' id='L66' title='4|4|4 - Total: 4'>                        next = casted.left;
+</span>                    } else {
+<span class='uc' id='L68' title='4|4|4 - Total: 4'>                        stack.addFirst(casted.left);
+</span><span class='uc' id='L69' title='3|3|3 - Total: 3'>                        next = casted.right;
+</span><span class='uc' id='L70' title='1|1|1 - Total: 1'>                        continue;
+</span>                    }
+                }
+
+<span class='uc' id='L74' title='3|3|3 - Total: 3'>                final String str = (String) next;
+</span><span class='uc' id='L75' title='5|5|5 - Total: 5'>                charPos -= str.length();
+</span><span class='uc' id='L76' title='7|7|7 - Total: 7'>                str.getChars(0, str.length(), chars, charPos);
+</span><span class='uc' id='L77' title='2|2|2 - Total: 2'>                next = stack.isEmpty() ? null : stack.removeFirst();
+</span><span class='uc' id='L78' title='2|2|2 - Total: 2'>            } while (next != null);
+</span>
+<span class='uc' id='L80' title='6|6|6 - Total: 6'>            left = new String(chars);
+</span><span class='uc' id='L81' title='3|3|3 - Total: 3'>            right = "";
+</span><span class='uc' id='L82' title='3|3|3 - Total: 3'>            isFlat = true;
+</span>        }
+<span class='uc' id='L84' title='4|4|4 - Total: 4'>        return (String)left;
+</span>    }
+
+    public int length() {
+<span class='uc' id='L88' title='3|3|3 - Total: 3'>        return length;
+</span>    }
+
+    public char charAt(int index) {
+<span class='uc' id='L92' title='2|2|2 - Total: 2'>        String str = isFlat ? (String)left : flatten();
+</span><span class='uc' id='L93' title='4|4|4 - Total: 4'>        return str.charAt(index);
+</span>    }
+
+    public CharSequence subSequence(int start, int end) {
+<span class='uc' id='L97' title='2|2|2 - Total: 2'>        String str = isFlat ? (String)left : flatten();
+</span><span class='uc' id='L98' title='5|5|5 - Total: 5'>        return str.substring(start, end);
+</span>    }
+}
+</pre></body></html><table class='legend'><tr><td class='nc'>Not Covered</td><td class='ac'>Covered by test suite 1</td><td class='bc'>Covered by test suite 2</td><td class='uc'>Covered by the union test suite</td><td class='apc'>Partially Covered by test suite 1</td><td class='bpc'>Partially Covered by test suite 2</td><td class='upc'>Partially Covered by the union test suite</td></tr></table>
