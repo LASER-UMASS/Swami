@@ -483,7 +483,7 @@ class TestTemplate(object):
 				if self.compiler == "rhino":
 					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "new TestCase(\"" + testname + "\", \"" + testname + "\", true, eval(e instanceof "  + expectedoutput + "));\n\t\t\ttest();\n\t\t\treturn;\n\t\t}\n\t}" 
 				elif self.compiler == "node":
-					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\tconsole.log(\"Bad Test\");\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "assert.strictEqual(true, eval(e instanceof "  + expectedoutput + "));\n\t\t\tconsole.log(\"Good Test\");\n\t\t\treturn;\n\t\t}\n\t}" 
+					test = "if (" + expectedinput + "){\n\t\t try{\n\t\t\t" + vardecl + "\n\t\t\tconsole.log(\"Bad Test/Failed Test\");\n\t\t\t return;"  + "\n\t\t}catch(e){\n\t\t\t" + "assert.strictEqual(true, eval(e instanceof "  + expectedoutput + "));\n\t\t\tconsole.log(\"Good Test\");\n\t\t\treturn;\n\t\t}\n\t}" 
 				if test.count("(")!=test.count(")") or "performing" in test or "implementation" in test or "@@" in test or "«" in test or "[" in test or "either " in test or "finite " in test or  "atomics_wait" in test or "concatenation" in test or "filler" in test or "searchLength" in test or "-searchStr" in test or " not " in test or "unit value of" in test:
 					continue 
 				testfunction = testfunction + "\n\t" + test
