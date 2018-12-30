@@ -24,16 +24,14 @@
 import sys
 import re
 import os
+from stanfordcorenlp import StanfordCoreNLP
+from printprogress import printProgressBar
 argpattern = re.compile("\(([^()]*)\)")
 exceptionpattern = re.compile("throw a .* exception")
 returnpattern = re.compile("return .*")
 assignmentpattern = re.compile("Let .+\?*")
 relevantstmtpattern1 = re.compile("If .* return .*")
 relevantstmtpattern2 = re.compile("If .* the result is .*")
-
-from printprogress import printProgressBar
-
-
 
 class TestTemplate(object):
 	def __init__(self, relspecpath, compiler):
@@ -42,6 +40,7 @@ class TestTemplate(object):
 		self.variable_dataset = {}
 		self.relevant_spec_path = relspecpath
 		self.compiler = compiler
+		self.nlp = StanfordCoreNLP(r'lib/stanford-corenlp-full-2018-02-27')
 
 	# method to check if a statement is an assignment
 	# and if it is then store the variable and its value
@@ -274,6 +273,15 @@ class TestTemplate(object):
 			statement = statement.replace("\xa0", " ")
 			isassignment = re.search(assignmentpattern, statement.strip())
 			if isassignment:
+				postags = self.nlp.pos_tag(statement)
+				print(postags)
+				match = False
+				for i in range(len(postags)):
+					if "NN" in postags[i][1]:
+						match = True
+						break 
+				if not match:
+					continue
 				var, value = self.getAssignment(statement)
 				var = " " + var + " "
 				if "." in value and ".length" not in value:
@@ -285,7 +293,13 @@ class TestTemplate(object):
 
 			isexception = re.search(exceptionpattern, statement)
 			if isexception:
-				if "exception." in statement:
+				postags = self.nlp.pos_tag(statement)
+				match = False
+				for i in range(len(postags)):
+					if "NN" in postags[i][1]:
+						match = True
+						break 
+				if match and "exception." in statement:
 					errstmt = self.substituteVars(statement.split("exception.")[0], sectionid)
 					tmpvars = numvars
 					while(errstmt != self.substituteVars(errstmt, sectionid) and tmpvars>0):
@@ -300,6 +314,14 @@ class TestTemplate(object):
 			isinputoutput1 = re.search(relevantstmtpattern1, statement)
 			isinputoutput2 = re.search(relevantstmtpattern2, statement)
 			if isinputoutput1 or isinputoutput2:		
+				postags = self.nlp.pos_tag(statement)
+				match = False
+				for i in range(len(postags)):
+					if "NN" in postags[i][1]:
+						match = True
+						break 
+				if not match:
+					continue
 				updatedstatement = self.substituteVars(statement, sectionid)
 				tmpvars = numvars
 				while(updatedstatement != self.substituteVars(updatedstatement, sectionid) and tmpvars > 0):
