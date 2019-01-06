@@ -274,7 +274,6 @@ class TestTemplate(object):
 			isassignment = re.search(assignmentpattern, statement.strip())
 			if isassignment:
 				postags = self.nlp.pos_tag(statement)
-				print(postags)
 				match = False
 				for i in range(len(postags)):
 					if "NN" in postags[i][1]:
