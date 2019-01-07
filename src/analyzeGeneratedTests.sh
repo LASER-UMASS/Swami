@@ -1,36 +1,42 @@
 #!/bin/bash
-for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; ~/node-10.7.0/node $i; done &> out;
 
-echo "Total Tests:"
-grep " Test" out | wc -l
-echo "Good Tests:"
-grep "Good Test" out | wc -l
-echo "Bad/Failed Tests:"
-grep "Bad Test" out | wc -l
-echo "OK Tests:"
-grep "OK Test" out | wc -l
+if [ -f rq1_output.txt ]; then
+    rm rq1_output.txt
+fi
+
+for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; node $i; done &>> rq1_output.txt;
+
+echo
+echo "Total #tests generated: $(grep " Test" rq1_output.txt | wc -l)"
+echo "#Good tests: $(grep "Good Test" rq1_output.txt | wc -l)"
+echo "#Bad/Failing tests: $(grep "Bad Test" rq1_output.txt | wc -l)"
+echo "#OK tests: $(grep "OK Test" rq1_output.txt | wc -l)"
+echo
 
 #echo "Good Tests per test file"
-#for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; ~/node-10.7.0/node $i | grep "Good Test" | wc -l; done;
+#for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; ~/Desktop/node-10.7.0/node $i | grep "Good Test" | wc -l; done;
 
 #echo "Bad Tests per test file"
-#for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; ~/node-10.7.0/node $i | grep "Bad Test" | wc -l; done;
+#for i in ../results/Node_ECMA262_Tests/*.js;do echo $i; ~/Desktop/node-10.7.0/node $i | grep "Bad Test" | wc -l; done;
 
-echo "Manual analysis of Bad tests reveals that the Bad tests of test_get_arraybuffer_prototype_bytelength file
-are actually failed tests while remanining ones are false alarms"
-
+echo
+echo "Manual analysis of 998 Bad/Failing tests of test-get-arraybuffer-prototype-bytelength.js test file reveal that these are actually failing tests (hence Good tests) while remaining ones are false alarms. Thus, the revised number of Good, Bad, Innocuous, and Non-innocuous tests is:"
+echo
 good=$(( 31381 + 998 ))
 bad=$(( 1533 - 998 ))
 noninnocuous=$(( 31381 + 1533 ))
 innocuous=$(( 83000 - $noninnocuous ))
-echo $good, $bad, $noninnocuous, $innocuous
-
-echo "Good Fraction (out of non-innocous):"
-bc <<< "scale=4; 32379/32914"
-echo "Bad Fraction (out of non-innocous):"
-bc <<< "scale=4; 535/32914"
-
-echo "Good Fraction (out of total):"
-bc <<< "scale=4; 32379/83000"
-echo "Bad Fraction (out of total):"
-bc <<< "scale=4; 535/83000"
+echo
+echo "######### REPLICATING RESULTS REPORTED FOR RQ1 ###############"
+echo
+echo "#Good tests: $good"
+echo "#Bad tests: $bad"
+echo "#Non-innocuous tests: $noninnocuous"
+echo "#Innocuous tests: $innocuous"
+echo "Percent of Good tests (out of non-innocous): $(bc <<< "scale=2; 3237900/32914")%"
+echo "Percent of Bad tests (out of non-innocous): $(bc <<< "scale=2; 53500/32914")%"
+echo "Percent of Good tests (out of total): $(bc <<< "scale=2; 3237900/83000")%"
+echo "Fraction of Bad tests (out of total): $(bc <<< "scale=2; 53500/83000")%"
+echo
+echo "####################################################################"
+echo
