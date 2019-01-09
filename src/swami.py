@@ -128,7 +128,7 @@ class Swami(object):
 			tmp_template_file = open(tmp_file_name, "w")	
 			tmp_template_file.write(template)
 			tmp_template_file.close()
-			cmd = "node "  +  tmp_file_name + " 2> /dev/null"
+			cmd = "~/node-10.7.0/node "  +  tmp_file_name + " 2> /dev/null"
 			try:
 				if subprocess.check_call(cmd, shell=True) == 0:
 					template_file.write("\n\n")
