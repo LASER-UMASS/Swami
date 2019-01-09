@@ -61,5 +61,6 @@ cp -r ~/swami/compareCoverage/ .
 cp buildDeveloper/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testdev.exec
 cp buildCombine/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testcombine.exec
 cd ./compareCoverage/Jacoco-Comparison-Tool-master
+rm -rf ./compareCoverage/reports/*
 ./report.sh
  	
