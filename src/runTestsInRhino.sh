@@ -10,8 +10,8 @@ if [ -d buildSwami ]; then
    rm -rf buildSwami
 fi
 
-if [ -d buildCombined ]; then
-   rm -rf buildCombined
+if [ -d buildDeveloperPlusSwami ]; then
+   rm -rf buildDeveloperPlusSwami
 fi
 
 echo "RHINO: EXECUTING DEVELOPER-WRITTEN TEST SUITE ................................................................................."
@@ -59,8 +59,7 @@ echo "RHINO: COMPARING COVERAGE OF DEVELOPER-WRITTEN TEST SUITE WITH COMBINED TE
 cd ~/rhino-Rhino1_7_9_Release/
 cp -r ~/swami/compareCoverage/ .
 cp buildDeveloper/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testdev.exec
-cp buildCombine/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testcombine.exec
-cd ./compareCoverage/Jacoco-Comparison-Tool-master
+cp buildDeveloperPlusSwami/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testcombine.exec
 rm -rf ./compareCoverage/reports/*
+cd ./compareCoverage/Jacoco-Comparison-Tool-master
 ./report.sh
- 	
