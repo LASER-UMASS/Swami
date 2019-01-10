@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.ContinuationPending;
 import org.mozilla.javascript.NativeContinuation;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ContinuationPending_ESTest extends ContinuationPending_ESTest_scaffolding {
 
   @Test(timeout = 4000)

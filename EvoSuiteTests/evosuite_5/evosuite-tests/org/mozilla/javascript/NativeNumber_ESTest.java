@@ -18,7 +18,7 @@ import org.mozilla.javascript.IdFunctionObject;
 import org.mozilla.javascript.IdFunctionObjectES6;
 import org.mozilla.javascript.NativeNumber;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeNumber_ESTest extends NativeNumber_ESTest_scaffolding {
 
   @Test(timeout = 4000)

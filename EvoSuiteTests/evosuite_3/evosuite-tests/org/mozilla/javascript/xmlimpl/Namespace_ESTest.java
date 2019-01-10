@@ -28,7 +28,7 @@ import org.mozilla.javascript.xmlimpl.QName;
 import org.mozilla.javascript.xmlimpl.XMLLibImpl;
 import org.mozilla.javascript.xmlimpl.XmlNode;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Namespace_ESTest extends Namespace_ESTest_scaffolding {
 
   @Test(timeout = 4000)

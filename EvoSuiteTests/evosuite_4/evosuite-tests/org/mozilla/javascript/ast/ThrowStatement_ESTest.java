@@ -18,7 +18,7 @@ import org.mozilla.javascript.ast.ExpressionStatement;
 import org.mozilla.javascript.ast.ObjectLiteral;
 import org.mozilla.javascript.ast.ThrowStatement;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ThrowStatement_ESTest extends ThrowStatement_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -15,7 +15,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.NativeSymbol;
 import org.mozilla.javascript.SymbolKey;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class SymbolKey_ESTest extends SymbolKey_ESTest_scaffolding {
 
   @Test(timeout = 4000)

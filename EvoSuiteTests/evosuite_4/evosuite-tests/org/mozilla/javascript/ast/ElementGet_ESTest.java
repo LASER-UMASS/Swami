@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.ElementGet;
 import org.mozilla.javascript.ast.LabeledStatement;
 import org.mozilla.javascript.ast.VariableDeclaration;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ElementGet_ESTest extends ElementGet_ESTest_scaffolding {
 
   @Test(timeout = 4000)

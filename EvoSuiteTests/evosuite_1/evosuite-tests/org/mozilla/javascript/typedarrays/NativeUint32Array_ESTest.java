@@ -18,7 +18,7 @@ import org.mozilla.javascript.typedarrays.NativeInt32Array;
 import org.mozilla.javascript.typedarrays.NativeTypedArrayView;
 import org.mozilla.javascript.typedarrays.NativeUint32Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeUint32Array_ESTest extends NativeUint32Array_ESTest_scaffolding {
 
   @Test(timeout = 4000)

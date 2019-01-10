@@ -16,7 +16,7 @@ import org.mozilla.javascript.ast.Block;
 import org.mozilla.javascript.ast.ReturnStatement;
 import org.mozilla.javascript.ast.VariableInitializer;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Block_ESTest extends Block_ESTest_scaffolding {
 
   @Test(timeout = 4000)

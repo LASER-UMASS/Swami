@@ -25,7 +25,7 @@ import org.mozilla.javascript.commonjs.module.provider.UrlConnectionExpiryCalcul
 import org.mozilla.javascript.commonjs.module.provider.UrlConnectionSecurityDomainProvider;
 import org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class StrongCachingModuleScriptProvider_ESTest extends StrongCachingModuleScriptProvider_ESTest_scaffolding {
 
   @Test(timeout = 4000)

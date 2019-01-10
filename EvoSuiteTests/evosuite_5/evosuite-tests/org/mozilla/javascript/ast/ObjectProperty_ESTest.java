@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.ObjectProperty;
 import org.mozilla.javascript.ast.SwitchCase;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ObjectProperty_ESTest extends ObjectProperty_ESTest_scaffolding {
 
   @Test(timeout = 4000)

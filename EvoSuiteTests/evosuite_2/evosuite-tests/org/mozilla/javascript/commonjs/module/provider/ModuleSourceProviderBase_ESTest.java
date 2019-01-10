@@ -25,7 +25,7 @@ import org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider;
 import org.mozilla.javascript.typedarrays.NativeFloat32Array;
 import org.mozilla.javascript.typedarrays.NativeInt32Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ModuleSourceProviderBase_ESTest extends ModuleSourceProviderBase_ESTest_scaffolding {
 
   @Test(timeout = 4000)

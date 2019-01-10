@@ -16,7 +16,7 @@ import org.mozilla.javascript.ast.Name;
 import org.mozilla.javascript.ast.NumberLiteral;
 import org.mozilla.javascript.ast.XmlElemRef;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class XmlElemRef_ESTest extends XmlElemRef_ESTest_scaffolding {
 
   @Test(timeout = 4000)

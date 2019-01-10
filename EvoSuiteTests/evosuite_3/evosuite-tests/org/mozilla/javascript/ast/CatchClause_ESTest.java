@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.Block;
 import org.mozilla.javascript.ast.CatchClause;
 import org.mozilla.javascript.ast.Name;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class CatchClause_ESTest extends CatchClause_ESTest_scaffolding {
 
   @Test(timeout = 4000)

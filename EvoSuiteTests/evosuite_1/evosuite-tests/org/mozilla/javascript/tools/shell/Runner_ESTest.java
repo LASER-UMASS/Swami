@@ -19,7 +19,7 @@ import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.Synchronizer;
 import org.mozilla.javascript.tools.shell.Runner;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Runner_ESTest extends Runner_ESTest_scaffolding {
 
   @Test(timeout = 4000)

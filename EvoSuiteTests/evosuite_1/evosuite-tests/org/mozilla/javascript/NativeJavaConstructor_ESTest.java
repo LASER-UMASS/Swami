@@ -16,7 +16,7 @@ import org.mozilla.javascript.MemberBox;
 import org.mozilla.javascript.NativeJavaConstructor;
 import org.mozilla.javascript.typedarrays.NativeFloat32Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeJavaConstructor_ESTest extends NativeJavaConstructor_ESTest_scaffolding {
 
   @Test(timeout = 4000)

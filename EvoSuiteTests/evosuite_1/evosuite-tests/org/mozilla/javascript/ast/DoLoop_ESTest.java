@@ -14,7 +14,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.DoLoop;
 import org.mozilla.javascript.ast.Scope;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class DoLoop_ESTest extends DoLoop_ESTest_scaffolding {
 
   @Test(timeout = 4000)

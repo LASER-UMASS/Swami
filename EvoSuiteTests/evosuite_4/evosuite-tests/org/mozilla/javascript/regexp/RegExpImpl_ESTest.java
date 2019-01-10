@@ -19,7 +19,7 @@ import org.mozilla.javascript.TopLevel;
 import org.mozilla.javascript.regexp.RegExpImpl;
 import org.mozilla.javascript.regexp.SubString;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class RegExpImpl_ESTest extends RegExpImpl_ESTest_scaffolding {
 
   @Test(timeout = 4000)

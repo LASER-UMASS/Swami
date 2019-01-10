@@ -30,7 +30,7 @@ import org.mozilla.javascript.ast.FunctionNode;
 import org.mozilla.javascript.ast.ObjectLiteral;
 import org.mozilla.javascript.ast.Scope;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Parser_ESTest extends Parser_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -14,7 +14,7 @@ import org.evosuite.runtime.EvoRunnerParameters;
 import org.junit.runner.RunWith;
 import org.mozilla.javascript.tools.debugger.MessageDialogWrapper;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class MessageDialogWrapper_ESTest extends MessageDialogWrapper_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.Decompiler;
 import org.mozilla.javascript.UintMap;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Decompiler_ESTest extends Decompiler_ESTest_scaffolding {
 
   @Test(timeout = 4000)

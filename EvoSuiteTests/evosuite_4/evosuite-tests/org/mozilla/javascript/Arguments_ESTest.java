@@ -15,7 +15,7 @@ import org.mozilla.javascript.Context;
 import org.mozilla.javascript.InterpretedFunction;
 import org.mozilla.javascript.InterpreterData;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Arguments_ESTest extends Arguments_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -14,7 +14,7 @@ import org.mozilla.javascript.NativeMath;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.typedarrays.NativeUint8ClampedArray;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeMath_ESTest extends NativeMath_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.CodeGenerator;
 import org.mozilla.javascript.Icode;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Icode_ESTest extends Icode_ESTest_scaffolding {
 
   @Test(timeout = 4000)

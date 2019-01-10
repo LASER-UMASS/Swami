@@ -17,7 +17,7 @@ import org.mozilla.javascript.ast.AstRoot;
 import org.mozilla.javascript.ast.ForInLoop;
 import org.mozilla.javascript.ast.RegExpLiteral;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ForInLoop_ESTest extends ForInLoop_ESTest_scaffolding {
 
   @Test(timeout = 4000)

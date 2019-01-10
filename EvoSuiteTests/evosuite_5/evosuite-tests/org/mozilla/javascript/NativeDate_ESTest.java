@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.NativeDate;
 import org.mozilla.javascript.Scriptable;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeDate_ESTest extends NativeDate_ESTest_scaffolding {
 
   @Test(timeout = 4000)

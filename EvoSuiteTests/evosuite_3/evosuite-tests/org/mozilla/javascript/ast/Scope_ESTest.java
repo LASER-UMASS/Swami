@@ -25,7 +25,7 @@ import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.ast.Symbol;
 import org.mozilla.javascript.ast.WhileLoop;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class Scope_ESTest extends Scope_ESTest_scaffolding {
 
   @Test(timeout = 4000)

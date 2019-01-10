@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.InterpreterData;
 import org.mozilla.javascript.debug.DebuggableScript;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class InterpreterData_ESTest extends InterpreterData_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -19,7 +19,7 @@ import org.mozilla.javascript.ast.Block;
 import org.mozilla.javascript.ast.StringLiteral;
 import org.mozilla.javascript.ast.XmlMemberGet;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ArrayComprehension_ESTest extends ArrayComprehension_ESTest_scaffolding {
 
   @Test(timeout = 4000)

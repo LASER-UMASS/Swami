@@ -25,7 +25,7 @@ import org.mozilla.javascript.xmlimpl.XMLWithScope;
 import org.mozilla.javascript.xmlimpl.XmlNode;
 import org.mozilla.javascript.xmlimpl.XmlProcessor;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class XMLWithScope_ESTest extends XMLWithScope_ESTest_scaffolding {
 
   @Test(timeout = 4000)

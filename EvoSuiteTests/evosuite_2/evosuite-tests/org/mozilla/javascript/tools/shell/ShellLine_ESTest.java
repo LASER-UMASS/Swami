@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.NativeContinuation;
 import org.mozilla.javascript.tools.shell.ShellLine;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ShellLine_ESTest extends ShellLine_ESTest_scaffolding {
 
   @Test(timeout = 4000)

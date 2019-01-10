@@ -19,7 +19,7 @@ import org.mozilla.javascript.typedarrays.NativeUint32Array;
 import org.mozilla.javascript.xml.XMLLib;
 import org.mozilla.javascript.xmlimpl.XMLLibImpl;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class XMLLib_ESTest extends XMLLib_ESTest_scaffolding {
 
   @Test(timeout = 4000)

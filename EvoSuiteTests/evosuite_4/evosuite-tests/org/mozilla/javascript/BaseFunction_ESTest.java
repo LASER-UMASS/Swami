@@ -28,7 +28,7 @@ import org.mozilla.javascript.Undefined;
 import org.mozilla.javascript.UniqueTag;
 import org.mozilla.javascript.typedarrays.NativeInt32Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class BaseFunction_ESTest extends BaseFunction_ESTest_scaffolding {
 
   @Test(timeout = 4000)

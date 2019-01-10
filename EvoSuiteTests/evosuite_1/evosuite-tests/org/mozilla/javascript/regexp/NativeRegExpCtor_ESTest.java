@@ -17,7 +17,7 @@ import org.mozilla.javascript.UniqueTag;
 import org.mozilla.javascript.regexp.NativeRegExpCtor;
 import org.mozilla.javascript.regexp.RegExpImpl;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class NativeRegExpCtor_ESTest extends NativeRegExpCtor_ESTest_scaffolding {
 
   @Test(timeout = 4000)

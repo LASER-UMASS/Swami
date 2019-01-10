@@ -19,7 +19,7 @@ import org.mozilla.javascript.NativeBoolean;
 import org.mozilla.javascript.SymbolKey;
 import org.mozilla.javascript.typedarrays.NativeUint8ClampedArray;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ES6Iterator_ESTest extends ES6Iterator_ESTest_scaffolding {
 
   @Test(timeout = 4000)

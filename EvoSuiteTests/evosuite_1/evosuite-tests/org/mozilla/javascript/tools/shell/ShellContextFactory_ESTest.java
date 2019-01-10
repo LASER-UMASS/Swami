@@ -14,7 +14,7 @@ import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ast.ErrorCollector;
 import org.mozilla.javascript.tools.shell.ShellContextFactory;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
 public class ShellContextFactory_ESTest extends ShellContextFactory_ESTest_scaffolding {
 
   @Test(timeout = 4000)
