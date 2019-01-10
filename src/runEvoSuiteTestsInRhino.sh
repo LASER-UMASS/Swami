@@ -32,6 +32,8 @@ cp build.gradle_es1 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
+echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#1 ................................................................"
+./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite1
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#2 ................................................................................."
@@ -40,6 +42,8 @@ cp build.gradle_es2 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
+echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#2 ................................................................"
+./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite2
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#3 ................................................................................."
@@ -48,6 +52,8 @@ cp build.gradle_es3 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
+echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#3 ................................................................"
+./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite3
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#4 ................................................................................."
@@ -56,6 +62,8 @@ cp build.gradle_es4 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
+echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#4 ................................................................"
+./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite4
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#1 ................................................................................."
@@ -64,4 +72,6 @@ cp build.gradle_es5 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
+echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#5 ................................................................"
+./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite5
