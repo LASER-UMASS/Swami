@@ -106,9 +106,7 @@ class ExecutableTest(object):
 			nargsadded = 0
 			while nargsadded!=numargs:
 				argtype = random.randint(1, 6)
-#				print(argtype, self.argtypes.keys())	
 				randomindex = random.randint(0, len(self.argtypes[argtype])-1)	
-				#print(argtypes[argtype][randomindex])
 				if nargsadded==0 and "array_prototype" in funcname and (argtype == 5 or argtype==2 or argtype == 3 or (argtype==1 and ((int(str(self.argtypes[argtype][randomindex]),0)) < 0 or int(str(self.argtypes[argtype][randomindex]),0) > math.pow(2,32)))):
 					continue
 				if nargsadded==0 and "string_prototype" in funcname and argtype != 4:			
