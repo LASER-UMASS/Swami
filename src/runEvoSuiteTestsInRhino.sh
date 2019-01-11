@@ -1,3 +1,5 @@
+# This script can be used to execute the five EvoSuite-generated test suites in Rhino
+
 #!/bin/bash
 
 cd ~/rhino-Rhino1_7_9_Release/
@@ -22,10 +24,6 @@ if [ -d buildEvoSuite5 ]; then
    rm -rf buildEvoSuite5
 fi
 
-if [ -d buildEvoSuitePlusSwami ]; then
-   rm -rf buildEvoSuitePlusSwami
-fi
-
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#1 ................................................................................."
 cd ~/rhino-Rhino1_7_9_Release/
 cp build.gradle_es1 build.gradle
@@ -42,8 +40,6 @@ cp build.gradle_es2 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
-echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#2 ................................................................"
-./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite2
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#3 ................................................................................."
@@ -52,8 +48,6 @@ cp build.gradle_es3 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
-echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#3 ................................................................"
-./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite3
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#4 ................................................................................."
@@ -62,8 +56,6 @@ cp build.gradle_es4 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
-echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#4 ................................................................"
-./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite4
 
 echo "RHINO: EXECUTING EVOSUITE TEST SUITE#1 ................................................................................."
@@ -72,6 +64,4 @@ cp build.gradle_es5 build.gradle
 ./gradlew clean
 ./gradlew jar
 ./gradlew test
-echo "RHINO: MEASURING CODE COVERAGE OF EVOSUITE TEST SUITE#5 ................................................................"
-./gradlew jacocoTestReport
 mv buildGradle buildEvoSuite5
