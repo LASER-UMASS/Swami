@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeMath.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeMath.java</span></div><h1>NativeMath.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.typedarrays.Conversions;
+
+/**
+ * This class implements the Math native object.
+ * See ECMA 15.8.
+ * @author Norris Boyd
+ */
+
+final class NativeMath extends IdScriptableObject
+{
+    static final long serialVersionUID = -8838847185801131569L;
+
+<span class="fc" id="L21">    private static final Object MATH_TAG = &quot;Math&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L25">        NativeMath obj = new NativeMath();</span>
+<span class="fc" id="L26">        obj.activatePrototypeMap(MAX_ID);</span>
+<span class="fc" id="L27">        obj.setPrototype(getObjectPrototype(scope));</span>
+<span class="fc" id="L28">        obj.setParentScope(scope);</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">        if (sealed) { obj.sealObject(); }</span>
+<span class="fc" id="L30">        ScriptableObject.defineProperty(scope, &quot;Math&quot;, obj,</span>
+                                        ScriptableObject.DONTENUM);
+<span class="fc" id="L32">    }</span>
+
+    private NativeMath()
+<span class="fc" id="L35">    {</span>
+<span class="fc" id="L36">    }</span>
+
+    @Override
+<span class="fc" id="L39">    public String getClassName() { return &quot;Math&quot;; }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">        if (id &lt;= LAST_METHOD_ID) {</span>
+            String name;
+            int arity;
+<span class="pc bpc" id="L47" title="6 of 30 branches missed.">            switch (id) {</span>
+<span class="nc" id="L48">              case Id_toSource: arity = 0; name = &quot;toSource&quot;; break;</span>
+<span class="fc" id="L49">              case Id_abs:      arity = 1; name = &quot;abs&quot;;      break;</span>
+<span class="fc" id="L50">              case Id_acos:     arity = 1; name = &quot;acos&quot;;     break;</span>
+<span class="fc" id="L51">              case Id_asin:     arity = 1; name = &quot;asin&quot;;     break;</span>
+<span class="fc" id="L52">              case Id_atan:     arity = 1; name = &quot;atan&quot;;     break;</span>
+<span class="fc" id="L53">              case Id_atan2:    arity = 2; name = &quot;atan2&quot;;    break;</span>
+<span class="fc" id="L54">              case Id_cbrt:     arity = 1; name = &quot;cbrt&quot;;     break;</span>
+<span class="fc" id="L55">              case Id_ceil:     arity = 1; name = &quot;ceil&quot;;     break;</span>
+<span class="fc" id="L56">              case Id_cos:      arity = 1; name = &quot;cos&quot;;      break;</span>
+<span class="fc" id="L57">              case Id_cosh:     arity = 1; name = &quot;cosh&quot;;     break;</span>
+<span class="fc" id="L58">              case Id_exp:      arity = 1; name = &quot;exp&quot;;      break;</span>
+<span class="fc" id="L59">              case Id_expm1:    arity = 1; name = &quot;expm1&quot;;    break;</span>
+<span class="fc" id="L60">              case Id_floor:    arity = 1; name = &quot;floor&quot;;    break;</span>
+<span class="nc" id="L61">              case Id_hypot:    arity = 2; name = &quot;hypot&quot;;    break;</span>
+<span class="nc" id="L62">              case Id_imul:     arity = 2; name = &quot;imul&quot;;     break;</span>
+<span class="fc" id="L63">              case Id_log:      arity = 1; name = &quot;log&quot;;      break;</span>
+<span class="fc" id="L64">              case Id_log1p:    arity = 1; name = &quot;log1p&quot;;    break;</span>
+<span class="fc" id="L65">              case Id_log10:    arity = 1; name = &quot;log10&quot;;    break;</span>
+<span class="nc" id="L66">              case Id_max:      arity = 2; name = &quot;max&quot;;      break;</span>
+<span class="fc" id="L67">              case Id_min:      arity = 2; name = &quot;min&quot;;      break;</span>
+<span class="fc" id="L68">              case Id_pow:      arity = 2; name = &quot;pow&quot;;      break;</span>
+<span class="nc" id="L69">              case Id_random:   arity = 0; name = &quot;random&quot;;   break;</span>
+<span class="fc" id="L70">              case Id_round:    arity = 1; name = &quot;round&quot;;    break;</span>
+<span class="fc" id="L71">              case Id_sin:      arity = 1; name = &quot;sin&quot;;      break;</span>
+<span class="fc" id="L72">              case Id_sinh:     arity = 1; name = &quot;sinh&quot;;     break;</span>
+<span class="fc" id="L73">              case Id_sqrt:     arity = 1; name = &quot;sqrt&quot;;     break;</span>
+<span class="fc" id="L74">              case Id_tan:      arity = 1; name = &quot;tan&quot;;      break;</span>
+<span class="fc" id="L75">              case Id_tanh:     arity = 1; name = &quot;tanh&quot;;     break;</span>
+<span class="fc" id="L76">              case Id_trunc:    arity = 1; name = &quot;trunc&quot;;    break;</span>
+<span class="nc" id="L77">              default: throw new IllegalStateException(String.valueOf(id));</span>
+            }
+<span class="fc" id="L79">            initPrototypeMethod(MATH_TAG, id, name, arity);</span>
+<span class="fc" id="L80">        } else {</span>
+            String name;
+            double x;
+<span class="nc bnc" id="L83" title="All 9 branches missed.">            switch (id) {</span>
+<span class="nc" id="L84">              case Id_E:       x = Math.E;             name = &quot;E&quot;;       break;</span>
+<span class="nc" id="L85">              case Id_PI:      x = Math.PI;            name = &quot;PI&quot;;      break;</span>
+<span class="nc" id="L86">              case Id_LN10:    x = 2.302585092994046;  name = &quot;LN10&quot;;    break;</span>
+<span class="nc" id="L87">              case Id_LN2:     x = 0.6931471805599453; name = &quot;LN2&quot;;     break;</span>
+<span class="nc" id="L88">              case Id_LOG2E:   x = 1.4426950408889634; name = &quot;LOG2E&quot;;   break;</span>
+<span class="nc" id="L89">              case Id_LOG10E:  x = 0.4342944819032518; name = &quot;LOG10E&quot;;  break;</span>
+<span class="nc" id="L90">              case Id_SQRT1_2: x = 0.7071067811865476; name = &quot;SQRT1_2&quot;; break;</span>
+<span class="nc" id="L91">              case Id_SQRT2:   x = 1.4142135623730951; name = &quot;SQRT2&quot;;   break;</span>
+<span class="nc" id="L92">              default: throw new IllegalStateException(String.valueOf(id));</span>
+            }
+<span class="nc" id="L94">            initPrototypeValue(id, name, ScriptRuntime.wrapNumber(x),</span>
+                               DONTENUM | READONLY | PERMANENT);
+        }
+<span class="fc" id="L97">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (!f.hasTag(MATH_TAG)) {</span>
+<span class="nc" id="L104">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+        double x;
+<span class="fc" id="L107">        int methodId = f.methodId();</span>
+<span class="pc bpc" id="L108" title="5 of 28 branches missed.">        switch (methodId) {</span>
+            case Id_toSource:
+<span class="nc" id="L110">                return &quot;Math&quot;;</span>
+
+            case Id_abs:
+<span class="fc" id="L113">                x = ScriptRuntime.toNumber(args, 0);</span>
+                // abs(-0.0) should be 0.0, but -0.0 &lt; 0.0 == false
+<span class="fc bfc" id="L115" title="All 4 branches covered.">                x = (x == 0.0) ? 0.0 : (x &lt; 0.0) ? -x : x;</span>
+<span class="fc" id="L116">                break;</span>
+
+            case Id_acos:
+            case Id_asin:
+<span class="fc" id="L120">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc bfc" id="L121" title="All 6 branches covered.">                if (x == x &amp;&amp; -1.0 &lt;= x &amp;&amp; x &lt;= 1.0) {</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">                    x = (methodId == Id_acos) ? Math.acos(x) : Math.asin(x);</span>
+                } else {
+<span class="fc" id="L124">                    x = Double.NaN;</span>
+                }
+<span class="fc" id="L126">                break;</span>
+
+            case Id_atan:
+<span class="fc" id="L129">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L130">                x = Math.atan(x);</span>
+<span class="fc" id="L131">                break;</span>
+
+            case Id_atan2:
+<span class="fc" id="L134">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L135">                x = Math.atan2(x, ScriptRuntime.toNumber(args, 1));</span>
+<span class="fc" id="L136">                break;</span>
+
+            case Id_cbrt:
+<span class="fc" id="L139">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L140">                x = Math.cbrt(x);</span>
+<span class="fc" id="L141">                break;</span>
+
+            case Id_ceil:
+<span class="fc" id="L144">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L145">                x = Math.ceil(x);</span>
+<span class="fc" id="L146">                break;</span>
+
+            case Id_cos:
+<span class="fc" id="L149">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="pc bpc" id="L150" title="1 of 4 branches missed.">                x = (x == Double.POSITIVE_INFINITY</span>
+                     || x == Double.NEGATIVE_INFINITY)
+<span class="fc" id="L152">                    ? Double.NaN : Math.cos(x);</span>
+<span class="fc" id="L153">                break;</span>
+
+            case Id_cosh:
+<span class="fc" id="L156">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L157">                x = Math.cosh(x);</span>
+<span class="fc" id="L158">                break;</span>
+
+            case Id_hypot:
+<span class="nc" id="L161">                x = js_hypot(args);</span>
+<span class="nc" id="L162">                break;</span>
+
+            case Id_exp:
+<span class="fc" id="L165">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="pc bpc" id="L166" title="1 of 4 branches missed.">                x = (x == Double.POSITIVE_INFINITY) ? x</span>
+                    : (x == Double.NEGATIVE_INFINITY) ? 0.0
+<span class="fc" id="L168">                    : Math.exp(x);</span>
+<span class="fc" id="L169">                break;</span>
+
+            case Id_expm1:
+<span class="fc" id="L172">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L173">                x = Math.expm1(x);</span>
+<span class="fc" id="L174">                break;</span>
+
+            case Id_floor:
+<span class="fc" id="L177">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L178">                x = Math.floor(x);</span>
+<span class="fc" id="L179">                break;</span>
+
+            case Id_imul:
+<span class="nc" id="L182">                return js_imul(args);</span>
+
+            case Id_log:
+<span class="fc" id="L185">                x = ScriptRuntime.toNumber(args, 0);</span>
+                // Java's log(&lt;0) = -Infinity; we need NaN
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                x = (x &lt; 0) ? Double.NaN : Math.log(x);</span>
+<span class="fc" id="L188">                break;</span>
+
+            case Id_log1p:
+<span class="fc" id="L191">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L192">                x = Math.log1p(x);</span>
+<span class="fc" id="L193">                break;</span>
+
+            case Id_log10:
+<span class="fc" id="L196">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L197">                x = Math.log10(x);</span>
+<span class="fc" id="L198">                break;</span>
+
+            case Id_max:
+            case Id_min:
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">                x = (methodId == Id_max)</span>
+                    ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+<span class="fc bfc" id="L204" title="All 2 branches covered.">                for (int i = 0; i != args.length; ++i) {</span>
+<span class="fc" id="L205">                    double d = ScriptRuntime.toNumber(args[i]);</span>
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">                    if (d != d) {</span>
+<span class="nc" id="L207">                        x = d; // NaN</span>
+<span class="nc" id="L208">                        break;</span>
+                    }
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                    if (methodId == Id_max) {</span>
+                        // if (x &lt; d) x = d; does not work due to -0.0 &gt;= +0.0
+<span class="nc" id="L212">                        x = Math.max(x, d);</span>
+                    } else {
+<span class="fc" id="L214">                        x = Math.min(x, d);</span>
+                    }
+                }
+<span class="fc" id="L217">                break;</span>
+
+            case Id_pow:
+<span class="fc" id="L220">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L221">                x = js_pow(x, ScriptRuntime.toNumber(args, 1));</span>
+<span class="fc" id="L222">                break;</span>
+
+            case Id_random:
+<span class="nc" id="L225">                x = Math.random();</span>
+<span class="nc" id="L226">                break;</span>
+
+            case Id_round:
+<span class="fc" id="L229">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="pc bpc" id="L230" title="1 of 6 branches missed.">                if (x == x &amp;&amp; x != Double.POSITIVE_INFINITY</span>
+                    &amp;&amp; x != Double.NEGATIVE_INFINITY)
+                {
+                    // Round only finite x
+<span class="fc" id="L234">                    long l = Math.round(x);</span>
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">                    if (l != 0) {</span>
+<span class="nc" id="L236">                        x = l;</span>
+                    } else {
+                        // We must propagate the sign of d into the result
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">                        if (x &lt; 0.0) {</span>
+<span class="nc" id="L240">                            x = ScriptRuntime.negativeZero;</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">                        } else if (x != 0.0) {</span>
+<span class="fc" id="L242">                            x = 0.0;</span>
+                        }
+                    }
+<span class="fc" id="L245">                }</span>
+                break;
+
+            case Id_sin:
+<span class="fc" id="L249">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="pc bpc" id="L250" title="1 of 4 branches missed.">                x = (x == Double.POSITIVE_INFINITY</span>
+                     || x == Double.NEGATIVE_INFINITY)
+<span class="fc" id="L252">                    ? Double.NaN : Math.sin(x);</span>
+<span class="fc" id="L253">                break;</span>
+
+            case Id_sinh:
+<span class="fc" id="L256">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L257">                x = Math.sinh(x);</span>
+<span class="fc" id="L258">                break;</span>
+
+            case Id_sqrt:
+<span class="fc" id="L261">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L262">                x = Math.sqrt(x);</span>
+<span class="fc" id="L263">                break;</span>
+
+            case Id_tan:
+<span class="fc" id="L266">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L267">                x = Math.tan(x);</span>
+<span class="fc" id="L268">                break;</span>
+
+            case Id_tanh:
+<span class="fc" id="L271">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L272">                x = Math.tanh(x);</span>
+<span class="fc" id="L273">                break;</span>
+
+            case Id_trunc:
+<span class="fc" id="L276">                x = ScriptRuntime.toNumber(args, 0);</span>
+<span class="fc" id="L277">                x = js_trunc(x);</span>
+<span class="fc" id="L278">                break;</span>
+
+<span class="nc" id="L280">            default: throw new IllegalStateException(String.valueOf(methodId));</span>
+        }
+<span class="fc" id="L282">        return ScriptRuntime.wrapNumber(x);</span>
+    }
+
+    // See Ecma 15.8.2.13
+    private double js_pow(double x, double y) {
+        double result;
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">        if (y != y) {</span>
+            // y is NaN, result is always NaN
+<span class="nc" id="L290">            result = y;</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">        } else if (y == 0) {</span>
+            // Java's pow(NaN, 0) = NaN; we need 1
+<span class="nc" id="L293">            result = 1.0;</span>
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">        } else if (x == 0) {</span>
+            // Many differences from Java's Math.pow
+<span class="nc bnc" id="L296" title="All 2 branches missed.">            if (1 / x &gt; 0) {</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">                result = (y &gt; 0) ? 0 : Double.POSITIVE_INFINITY;</span>
+            } else {
+                // x is -0, need to check if y is an odd integer
+<span class="nc" id="L300">                long y_long = (long)y;</span>
+<span class="nc bnc" id="L301" title="All 4 branches missed.">                if (y_long == y &amp;&amp; (y_long &amp; 0x1) != 0) {</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                    result = (y &gt; 0) ? -0.0 : Double.NEGATIVE_INFINITY;</span>
+                } else {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                    result = (y &gt; 0) ? 0.0 : Double.POSITIVE_INFINITY;</span>
+                }
+<span class="nc" id="L306">            }</span>
+        } else {
+<span class="fc" id="L308">            result = Math.pow(x, y);</span>
+<span class="pc bpc" id="L309" title="1 of 2 branches missed.">            if (result != result) {</span>
+                // Check for broken Java implementations that gives NaN
+                // when they should return something else
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                if (y == Double.POSITIVE_INFINITY) {</span>
+<span class="nc bnc" id="L313" title="All 4 branches missed.">                    if (x &lt; -1.0 || 1.0 &lt; x) {</span>
+<span class="nc" id="L314">                        result = Double.POSITIVE_INFINITY;</span>
+<span class="nc bnc" id="L315" title="All 4 branches missed.">                    } else if (-1.0 &lt; x &amp;&amp; x &lt; 1.0) {</span>
+<span class="nc" id="L316">                        result = 0;</span>
+                    }
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                } else if (y == Double.NEGATIVE_INFINITY) {</span>
+<span class="nc bnc" id="L319" title="All 4 branches missed.">                    if (x &lt; -1.0 || 1.0 &lt; x) {</span>
+<span class="nc" id="L320">                        result = 0;</span>
+<span class="nc bnc" id="L321" title="All 4 branches missed.">                    } else if (-1.0 &lt; x &amp;&amp; x &lt; 1.0) {</span>
+<span class="nc" id="L322">                        result = Double.POSITIVE_INFINITY;</span>
+                    }
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                } else if (x == Double.POSITIVE_INFINITY) {</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">                    result = (y &gt; 0) ? Double.POSITIVE_INFINITY : 0.0;</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">                } else if (x == Double.NEGATIVE_INFINITY) {</span>
+<span class="nc" id="L327">                    long y_long = (long)y;</span>
+<span class="nc bnc" id="L328" title="All 4 branches missed.">                    if (y_long == y &amp;&amp; (y_long &amp; 0x1) != 0) {</span>
+                        // y is odd integer
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                        result = (y &gt; 0) ? Double.NEGATIVE_INFINITY : -0.0;</span>
+                    } else {
+<span class="nc bnc" id="L332" title="All 2 branches missed.">                        result = (y &gt; 0) ? Double.POSITIVE_INFINITY : 0.0;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L337">        return result;</span>
+    }
+
+    // Based on code from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/hypot
+    private double js_hypot(Object[] args)
+    {
+<span class="nc bnc" id="L343" title="All 2 branches missed.">        if (args == null) {</span>
+<span class="nc" id="L344">            return 0.0;</span>
+        }
+<span class="nc" id="L346">        double y = 0.0;</span>
+
+<span class="nc bnc" id="L348" title="All 2 branches missed.">        for (Object o : args) {</span>
+<span class="nc" id="L349">            double d = ScriptRuntime.toNumber(o);</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">            if (d == ScriptRuntime.NaN) {</span>
+<span class="nc" id="L351">                return d;</span>
+            }
+<span class="nc bnc" id="L353" title="All 4 branches missed.">            if ((d == Double.POSITIVE_INFINITY) || (d == Double.NEGATIVE_INFINITY)) {</span>
+<span class="nc" id="L354">                return Double.POSITIVE_INFINITY;</span>
+            }
+<span class="nc" id="L356">            y += d * d;</span>
+        }
+<span class="nc" id="L358">        return Math.sqrt(y);</span>
+    }
+
+    private double js_trunc(double d)
+    {
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        return ((d &lt; 0.0) ? Math.ceil(d) : Math.floor(d));</span>
+    }
+
+    // From EcmaScript 6 section 20.2.2.19
+    private Object js_imul(Object[] args)
+    {
+<span class="nc bnc" id="L369" title="All 4 branches missed.">        if ((args == null) || (args.length &lt; 2)) {</span>
+<span class="nc" id="L370">            return ScriptRuntime.wrapNumber(ScriptRuntime.NaN);</span>
+        }
+
+<span class="nc" id="L373">        long x = Conversions.toUint32(args[0]);</span>
+<span class="nc" id="L374">        long y = Conversions.toUint32(args[1]);</span>
+<span class="nc" id="L375">        long product = (x * y) % Conversions.THIRTYTWO_BIT;</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        long result = (product &gt;= (1L &lt;&lt; 31L)) ? (product - Conversions.THIRTYTWO_BIT) : product;</span>
+<span class="nc" id="L377">        return ScriptRuntime.toNumber(result);</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2015-06-16 09:41:02 PDT
+<span class="fc" id="L387">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L388" title="3 of 9 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">            case 1: if (s.charAt(0)=='E') {id=Id_E; break L0;} break L;</span>
+<span class="nc bnc" id="L390" title="All 4 branches missed.">            case 2: if (s.charAt(0)=='P' &amp;&amp; s.charAt(1)=='I') {id=Id_PI; break L0;} break L;</span>
+<span class="pc bpc" id="L391" title="2 of 10 branches missed.">            case 3: switch (s.charAt(0)) {</span>
+<span class="nc bnc" id="L392" title="All 4 branches missed.">                case 'L': if (s.charAt(2)=='2' &amp;&amp; s.charAt(1)=='N') {id=Id_LN2; break L0;} break L;</span>
+<span class="pc bpc" id="L393" title="2 of 4 branches missed.">                case 'a': if (s.charAt(2)=='s' &amp;&amp; s.charAt(1)=='b') {id=Id_abs; break L0;} break L;</span>
+<span class="pc bpc" id="L394" title="2 of 4 branches missed.">                case 'c': if (s.charAt(2)=='s' &amp;&amp; s.charAt(1)=='o') {id=Id_cos; break L0;} break L;</span>
+<span class="pc bpc" id="L395" title="2 of 4 branches missed.">                case 'e': if (s.charAt(2)=='p' &amp;&amp; s.charAt(1)=='x') {id=Id_exp; break L0;} break L;</span>
+<span class="pc bpc" id="L396" title="2 of 4 branches missed.">                case 'l': if (s.charAt(2)=='g' &amp;&amp; s.charAt(1)=='o') {id=Id_log; break L0;} break L;</span>
+<span class="fc" id="L397">                case 'm': c=s.charAt(2);</span>
+<span class="pc bpc" id="L398" title="2 of 4 branches missed.">                    if (c=='n') { if (s.charAt(1)=='i') {id=Id_min; break L0;} }</span>
+<span class="nc bnc" id="L399" title="All 4 branches missed.">                    else if (c=='x') { if (s.charAt(1)=='a') {id=Id_max; break L0;} }</span>
+                    break L;
+<span class="pc bpc" id="L401" title="2 of 4 branches missed.">                case 'p': if (s.charAt(2)=='w' &amp;&amp; s.charAt(1)=='o') {id=Id_pow; break L0;} break L;</span>
+<span class="pc bpc" id="L402" title="2 of 4 branches missed.">                case 's': if (s.charAt(2)=='n' &amp;&amp; s.charAt(1)=='i') {id=Id_sin; break L0;} break L;</span>
+<span class="pc bpc" id="L403" title="2 of 4 branches missed.">                case 't': if (s.charAt(2)=='n' &amp;&amp; s.charAt(1)=='a') {id=Id_tan; break L0;} break L;</span>
+<span class="nc" id="L404">                } break L;</span>
+<span class="pc bpc" id="L405" title="3 of 12 branches missed.">            case 4: switch (s.charAt(1)) {</span>
+<span class="nc" id="L406">                case 'N': X=&quot;LN10&quot;;id=Id_LN10; break L;</span>
+<span class="fc" id="L407">                case 'a': X=&quot;tanh&quot;;id=Id_tanh; break L;</span>
+<span class="fc" id="L408">                case 'b': X=&quot;cbrt&quot;;id=Id_cbrt; break L;</span>
+<span class="fc" id="L409">                case 'c': X=&quot;acos&quot;;id=Id_acos; break L;</span>
+<span class="fc" id="L410">                case 'e': X=&quot;ceil&quot;;id=Id_ceil; break L;</span>
+<span class="fc" id="L411">                case 'i': X=&quot;sinh&quot;;id=Id_sinh; break L;</span>
+<span class="nc" id="L412">                case 'm': X=&quot;imul&quot;;id=Id_imul; break L;</span>
+<span class="fc" id="L413">                case 'o': X=&quot;cosh&quot;;id=Id_cosh; break L;</span>
+<span class="fc" id="L414">                case 'q': X=&quot;sqrt&quot;;id=Id_sqrt; break L;</span>
+<span class="fc" id="L415">                case 's': X=&quot;asin&quot;;id=Id_asin; break L;</span>
+<span class="fc" id="L416">                case 't': X=&quot;atan&quot;;id=Id_atan; break L;</span>
+<span class="nc" id="L417">                } break L;</span>
+<span class="pc bpc" id="L418" title="4 of 10 branches missed.">            case 5: switch (s.charAt(0)) {</span>
+<span class="nc" id="L419">                case 'L': X=&quot;LOG2E&quot;;id=Id_LOG2E; break L;</span>
+<span class="nc" id="L420">                case 'S': X=&quot;SQRT2&quot;;id=Id_SQRT2; break L;</span>
+<span class="fc" id="L421">                case 'a': X=&quot;atan2&quot;;id=Id_atan2; break L;</span>
+<span class="fc" id="L422">                case 'e': X=&quot;expm1&quot;;id=Id_expm1; break L;</span>
+<span class="fc" id="L423">                case 'f': X=&quot;floor&quot;;id=Id_floor; break L;</span>
+<span class="nc" id="L424">                case 'h': X=&quot;hypot&quot;;id=Id_hypot; break L;</span>
+<span class="fc" id="L425">                case 'l': c=s.charAt(4);</span>
+<span class="fc bfc" id="L426" title="All 2 branches covered.">                    if (c=='0') { X=&quot;log10&quot;;id=Id_log10; }</span>
+<span class="pc bpc" id="L427" title="1 of 2 branches missed.">                    else if (c=='p') { X=&quot;log1p&quot;;id=Id_log1p; }</span>
+                    break L;
+<span class="fc" id="L429">                case 'r': X=&quot;round&quot;;id=Id_round; break L;</span>
+<span class="fc" id="L430">                case 't': X=&quot;trunc&quot;;id=Id_trunc; break L;</span>
+<span class="nc" id="L431">                } break L;</span>
+<span class="fc" id="L432">            case 6: c=s.charAt(0);</span>
+<span class="pc bpc" id="L433" title="1 of 2 branches missed.">                if (c=='L') { X=&quot;LOG10E&quot;;id=Id_LOG10E; }</span>
+<span class="pc bpc" id="L434" title="1 of 2 branches missed.">                else if (c=='r') { X=&quot;random&quot;;id=Id_random; }</span>
+                break L;
+<span class="nc" id="L436">            case 7: X=&quot;SQRT1_2&quot;;id=Id_SQRT1_2; break L;</span>
+<span class="fc" id="L437">            case 8: X=&quot;toSource&quot;;id=Id_toSource; break L;</span>
+            }
+<span class="fc bfc" id="L439" title="All 6 branches covered.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L443">        return id;</span>
+    }
+
+    private static final int
+        Id_toSource     =  1,
+        Id_abs          =  2,
+        Id_acos         =  3,
+        Id_asin         =  4,
+        Id_atan         =  5,
+        Id_atan2        =  6,
+        Id_ceil         =  7,
+        Id_cos          =  8,
+        Id_exp          =  9,
+        Id_floor        = 10,
+        Id_log          = 11,
+        Id_max          = 12,
+        Id_min          = 13,
+        Id_pow          = 14,
+        Id_random       = 15,
+        Id_round        = 16,
+        Id_sin          = 17,
+        Id_sqrt         = 18,
+        Id_tan          = 19,
+        Id_cbrt         = 20,
+        Id_cosh         = 21,
+        Id_expm1        = 22,
+        Id_hypot        = 23,
+        Id_log1p        = 24,
+        Id_log10        = 25,
+        Id_sinh         = 26,
+        Id_tanh         = 27,
+        Id_imul         = 28,
+        Id_trunc        = 29,
+
+        LAST_METHOD_ID  = Id_trunc;
+
+/* Missing from ES6:
+    acosh
+    asinh
+    atanh
+    clz32
+    fround
+    log2
+ */
+
+    private static final int
+        Id_E            = LAST_METHOD_ID + 1,
+        Id_PI           = LAST_METHOD_ID + 2,
+        Id_LN10         = LAST_METHOD_ID + 3,
+        Id_LN2          = LAST_METHOD_ID + 4,
+        Id_LOG2E        = LAST_METHOD_ID + 5,
+        Id_LOG10E       = LAST_METHOD_ID + 6,
+        Id_SQRT1_2      = LAST_METHOD_ID + 7,
+        Id_SQRT2        = LAST_METHOD_ID + 8,
+
+        MAX_ID = LAST_METHOD_ID + 8;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

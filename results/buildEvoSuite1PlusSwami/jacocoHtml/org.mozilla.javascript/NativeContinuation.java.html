@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeContinuation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeContinuation.java</span></div><h1>NativeContinuation.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+<span class="fc" id="L9">public final class NativeContinuation extends IdScriptableObject</span>
+    implements Function
+{
+    static final long serialVersionUID = 1794167133757605367L;
+
+<span class="fc" id="L14">    private static final Object FTAG = &quot;Continuation&quot;;</span>
+
+    private Object implementation;
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L20">        NativeContinuation obj = new NativeContinuation();</span>
+<span class="nc" id="L21">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L22">    }</span>
+
+    public Object getImplementation()
+    {
+<span class="fc" id="L26">        return implementation;</span>
+    }
+
+    public void initImplementation(Object implementation)
+    {
+<span class="fc" id="L31">        this.implementation = implementation;</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L37">        return &quot;Continuation&quot;;</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="fc" id="L42">        throw Context.reportRuntimeError(&quot;Direct call is not supported&quot;);</span>
+    }
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="fc" id="L48">        return Interpreter.restartContinuation(this, cx, scope, args);</span>
+    }
+
+    public static boolean isContinuationConstructor(IdFunctionObject f)
+    {
+<span class="pc bpc" id="L53" title="3 of 4 branches missed.">        if (f.hasTag(FTAG) &amp;&amp; f.methodId() == Id_constructor) {</span>
+<span class="nc" id="L54">            return true;</span>
+        }
+<span class="fc" id="L56">        return false;</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        switch (id) {</span>
+<span class="nc" id="L65">          case Id_constructor: arity=0; s=&quot;constructor&quot;; break;</span>
+<span class="fc" id="L66">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L68">        initPrototypeMethod(FTAG, id, s, arity);</span>
+<span class="nc" id="L69">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (!f.hasTag(FTAG)) {</span>
+<span class="nc" id="L76">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L78">        int id = f.methodId();</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="nc" id="L81">            throw Context.reportRuntimeError(&quot;Direct call is not supported&quot;);</span>
+        }
+<span class="fc" id="L83">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:16:40 EDT
+<span class="nc" id="L93">        L0: { id = 0; String X = null;</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if (s.length()==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="nc bnc" id="L95" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L99">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor          = 1,
+        MAX_PROTOTYPE_ID        = 1;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

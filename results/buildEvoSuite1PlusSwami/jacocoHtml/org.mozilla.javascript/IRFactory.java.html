@@ -1,0 +1,2463 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IRFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">IRFactory.java</span></div><h1>IRFactory.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.ArrayComprehension;
+import org.mozilla.javascript.ast.ArrayComprehensionLoop;
+import org.mozilla.javascript.ast.ArrayLiteral;
+import org.mozilla.javascript.ast.Assignment;
+import org.mozilla.javascript.ast.AstNode;
+import org.mozilla.javascript.ast.AstRoot;
+import org.mozilla.javascript.ast.Block;
+import org.mozilla.javascript.ast.BreakStatement;
+import org.mozilla.javascript.ast.CatchClause;
+import org.mozilla.javascript.ast.ConditionalExpression;
+import org.mozilla.javascript.ast.ContinueStatement;
+import org.mozilla.javascript.ast.DestructuringForm;
+import org.mozilla.javascript.ast.DoLoop;
+import org.mozilla.javascript.ast.ElementGet;
+import org.mozilla.javascript.ast.EmptyExpression;
+import org.mozilla.javascript.ast.ExpressionStatement;
+import org.mozilla.javascript.ast.ForInLoop;
+import org.mozilla.javascript.ast.ForLoop;
+import org.mozilla.javascript.ast.FunctionCall;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.GeneratorExpression;
+import org.mozilla.javascript.ast.GeneratorExpressionLoop;
+import org.mozilla.javascript.ast.IfStatement;
+import org.mozilla.javascript.ast.InfixExpression;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.Label;
+import org.mozilla.javascript.ast.LabeledStatement;
+import org.mozilla.javascript.ast.LetNode;
+import org.mozilla.javascript.ast.Loop;
+import org.mozilla.javascript.ast.Name;
+import org.mozilla.javascript.ast.NewExpression;
+import org.mozilla.javascript.ast.NumberLiteral;
+import org.mozilla.javascript.ast.ObjectLiteral;
+import org.mozilla.javascript.ast.ObjectProperty;
+import org.mozilla.javascript.ast.ParenthesizedExpression;
+import org.mozilla.javascript.ast.PropertyGet;
+import org.mozilla.javascript.ast.RegExpLiteral;
+import org.mozilla.javascript.ast.ReturnStatement;
+import org.mozilla.javascript.ast.Scope;
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ast.StringLiteral;
+import org.mozilla.javascript.ast.SwitchCase;
+import org.mozilla.javascript.ast.SwitchStatement;
+import org.mozilla.javascript.ast.Symbol;
+import org.mozilla.javascript.ast.ThrowStatement;
+import org.mozilla.javascript.ast.TryStatement;
+import org.mozilla.javascript.ast.UnaryExpression;
+import org.mozilla.javascript.ast.VariableDeclaration;
+import org.mozilla.javascript.ast.VariableInitializer;
+import org.mozilla.javascript.ast.WhileLoop;
+import org.mozilla.javascript.ast.WithStatement;
+import org.mozilla.javascript.ast.XmlDotQuery;
+import org.mozilla.javascript.ast.XmlElemRef;
+import org.mozilla.javascript.ast.XmlExpression;
+import org.mozilla.javascript.ast.XmlFragment;
+import org.mozilla.javascript.ast.XmlLiteral;
+import org.mozilla.javascript.ast.XmlMemberGet;
+import org.mozilla.javascript.ast.XmlPropRef;
+import org.mozilla.javascript.ast.XmlRef;
+import org.mozilla.javascript.ast.XmlString;
+import org.mozilla.javascript.ast.Yield;
+
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * This class rewrites the parse tree into an IR suitable for codegen.
+ *
+ * @see Node
+ * @author Mike McCabe
+ * @author Norris Boyd
+ */
+public final class IRFactory extends Parser
+{
+    private static final int LOOP_DO_WHILE = 0;
+    private static final int LOOP_WHILE    = 1;
+    private static final int LOOP_FOR      = 2;
+
+    private static final int ALWAYS_TRUE_BOOLEAN = 1;
+    private static final int ALWAYS_FALSE_BOOLEAN = -1;
+
+<span class="fc" id="L90">    private Decompiler decompiler = new Decompiler();</span>
+
+    public IRFactory() {
+<span class="fc" id="L93">        super();</span>
+<span class="fc" id="L94">    }</span>
+
+    public IRFactory(CompilerEnvirons env) {
+<span class="fc" id="L97">        this(env, env.getErrorReporter());</span>
+<span class="fc" id="L98">    }</span>
+
+    public IRFactory(CompilerEnvirons env, ErrorReporter errorReporter) {
+<span class="fc" id="L101">        super(env, errorReporter);</span>
+<span class="fc" id="L102">    }</span>
+
+    /**
+     * Transforms the tree into a lower-level IR suitable for codegen.
+     * Optionally generates the encoded source.
+     */
+    public ScriptNode transformTree(AstRoot root) {
+<span class="fc" id="L109">        currentScriptOrFn = root;</span>
+<span class="fc" id="L110">        this.inUseStrictDirective = root.isInStrictMode();</span>
+<span class="fc" id="L111">        int sourceStartOffset = decompiler.getCurrentOffset();</span>
+
+        if (Token.printTrees) {
+            System.out.println(&quot;IRFactory.transformTree&quot;);
+            System.out.println(root.debugPrint());
+        }
+<span class="fc" id="L117">        ScriptNode script = (ScriptNode)transform(root);</span>
+
+<span class="fc" id="L119">        int sourceEndOffset = decompiler.getCurrentOffset();</span>
+<span class="fc" id="L120">        script.setEncodedSourceBounds(sourceStartOffset,</span>
+                                      sourceEndOffset);
+
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        if (compilerEnv.isGeneratingSource()) {</span>
+<span class="fc" id="L124">            script.setEncodedSource(decompiler.getEncodedSource());</span>
+        }
+
+<span class="fc" id="L127">        decompiler = null;</span>
+<span class="fc" id="L128">        return script;</span>
+    }
+
+    // Might want to convert this to polymorphism - move transform*
+    // functions into the AstNode subclasses.  OTOH that would make
+    // IR transformation part of the public AST API - desirable?
+    // Another possibility:  create AstTransformer interface and adapter.
+    public Node transform(AstNode node) {
+<span class="pc bpc" id="L136" title="6 of 31 branches missed.">        switch (node.getType()) {</span>
+          case Token.ARRAYCOMP:
+<span class="nc" id="L138">              return transformArrayComp((ArrayComprehension)node);</span>
+          case Token.ARRAYLIT:
+<span class="fc" id="L140">              return transformArrayLiteral((ArrayLiteral)node);</span>
+          case Token.BLOCK:
+<span class="fc" id="L142">              return transformBlock(node);</span>
+          case Token.BREAK:
+<span class="fc" id="L144">              return transformBreak((BreakStatement)node);</span>
+          case Token.CALL:
+<span class="fc" id="L146">              return transformFunctionCall((FunctionCall)node);</span>
+          case Token.CONTINUE:
+<span class="fc" id="L148">              return transformContinue((ContinueStatement)node);</span>
+          case Token.DO:
+<span class="nc" id="L150">              return transformDoLoop((DoLoop)node);</span>
+          case Token.EMPTY:
+<span class="fc" id="L152">              return node;</span>
+          case Token.FOR:
+<span class="fc bfc" id="L154" title="All 2 branches covered.">              if (node instanceof ForInLoop) {</span>
+<span class="fc" id="L155">                  return transformForInLoop((ForInLoop)node);</span>
+              } else {
+<span class="fc" id="L157">                  return transformForLoop((ForLoop)node);</span>
+              }
+          case Token.FUNCTION:
+<span class="fc" id="L160">              return transformFunction((FunctionNode)node);</span>
+          case Token.GENEXPR:
+<span class="nc" id="L162">              return transformGenExpr((GeneratorExpression)node);</span>
+          case Token.GETELEM:
+<span class="fc" id="L164">              return transformElementGet((ElementGet)node);</span>
+          case Token.GETPROP:
+<span class="fc" id="L166">              return transformPropertyGet((PropertyGet)node);</span>
+          case Token.HOOK:
+<span class="fc" id="L168">              return transformCondExpr((ConditionalExpression)node);</span>
+          case Token.IF:
+<span class="fc" id="L170">              return transformIf((IfStatement)node);</span>
+
+          case Token.TRUE:
+          case Token.FALSE:
+          case Token.THIS:
+          case Token.NULL:
+          case Token.DEBUGGER:
+<span class="fc" id="L177">              return transformLiteral(node);</span>
+
+          case Token.NAME:
+<span class="fc" id="L180">              return transformName((Name)node);</span>
+          case Token.NUMBER:
+<span class="fc" id="L182">              return transformNumber((NumberLiteral)node);</span>
+          case Token.NEW:
+<span class="fc" id="L184">              return transformNewExpr((NewExpression)node);</span>
+          case Token.OBJECTLIT:
+<span class="fc" id="L186">              return transformObjectLiteral((ObjectLiteral)node);</span>
+          case Token.REGEXP:
+<span class="fc" id="L188">              return transformRegExp((RegExpLiteral)node);</span>
+          case Token.RETURN:
+<span class="fc" id="L190">              return transformReturn((ReturnStatement)node);</span>
+          case Token.SCRIPT:
+<span class="fc" id="L192">              return transformScript((ScriptNode)node);</span>
+          case Token.STRING:
+<span class="fc" id="L194">              return transformString((StringLiteral)node);</span>
+          case Token.SWITCH:
+<span class="nc" id="L196">              return transformSwitch((SwitchStatement)node);</span>
+          case Token.THROW:
+<span class="fc" id="L198">              return transformThrow((ThrowStatement)node);</span>
+          case Token.TRY:
+<span class="fc" id="L200">              return transformTry((TryStatement)node);</span>
+          case Token.WHILE:
+<span class="fc" id="L202">              return transformWhileLoop((WhileLoop)node);</span>
+          case Token.WITH:
+<span class="nc" id="L204">              return transformWith((WithStatement)node);</span>
+          case Token.YIELD:
+<span class="nc" id="L206">              return transformYield((Yield)node);</span>
+          default:
+<span class="fc bfc" id="L208" title="All 2 branches covered.">              if (node instanceof ExpressionStatement) {</span>
+<span class="fc" id="L209">                  return transformExprStmt((ExpressionStatement)node);</span>
+              }
+<span class="fc bfc" id="L211" title="All 2 branches covered.">              if (node instanceof Assignment) {</span>
+<span class="fc" id="L212">                  return transformAssignment((Assignment)node);</span>
+              }
+<span class="fc bfc" id="L214" title="All 2 branches covered.">              if (node instanceof UnaryExpression) {</span>
+<span class="fc" id="L215">                  return transformUnary((UnaryExpression)node);</span>
+              }
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">              if (node instanceof XmlMemberGet) {</span>
+<span class="nc" id="L218">                  return transformXmlMemberGet((XmlMemberGet)node);</span>
+              }
+<span class="fc bfc" id="L220" title="All 2 branches covered.">              if (node instanceof InfixExpression) {</span>
+<span class="fc" id="L221">                  return transformInfix((InfixExpression)node);</span>
+              }
+<span class="fc bfc" id="L223" title="All 2 branches covered.">              if (node instanceof VariableDeclaration) {</span>
+<span class="fc" id="L224">                  return transformVariables((VariableDeclaration)node);</span>
+              }
+<span class="fc bfc" id="L226" title="All 2 branches covered.">              if (node instanceof ParenthesizedExpression) {</span>
+<span class="fc" id="L227">                  return transformParenExpr((ParenthesizedExpression)node);</span>
+              }
+<span class="fc bfc" id="L229" title="All 2 branches covered.">              if (node instanceof LabeledStatement) {</span>
+<span class="nc" id="L230">                  return transformLabeledStatement((LabeledStatement)node);</span>
+              }
+<span class="fc bfc" id="L232" title="All 2 branches covered.">              if (node instanceof LetNode) {</span>
+<span class="nc" id="L233">                  return transformLetNode((LetNode)node);</span>
+              }
+<span class="fc bfc" id="L235" title="All 2 branches covered.">              if (node instanceof XmlRef) {</span>
+<span class="nc" id="L236">                  return transformXmlRef((XmlRef)node);</span>
+              }
+<span class="fc bfc" id="L238" title="All 2 branches covered.">              if (node instanceof XmlLiteral) {</span>
+<span class="nc" id="L239">                  return transformXmlLiteral((XmlLiteral)node);</span>
+              }
+<span class="fc" id="L241">              throw new IllegalArgumentException(&quot;Can't transform: &quot; + node);</span>
+        }
+    }
+
+    private Node transformArrayComp(ArrayComprehension node) {
+        // An array comprehension expression such as
+        //
+        //   [expr for (x in foo) for each ([y, z] in bar) if (cond)]
+        //
+        // is rewritten approximately as
+        //
+        // new Scope(ARRAYCOMP) {
+        //   new Node(BLOCK) {
+        //     let tmp1 = new Array;
+        //     for (let x in foo) {
+        //       for each (let tmp2 in bar) {
+        //         if (cond) {
+        //           tmp1.push([y, z] = tmp2, expr);
+        //         }
+        //       }
+        //     }
+        //   }
+        //   createName(tmp1)
+        // }
+
+<span class="fc" id="L266">        int lineno = node.getLineno();</span>
+<span class="fc" id="L267">        Scope scopeNode = createScopeNode(Token.ARRAYCOMP, lineno);</span>
+<span class="nc" id="L268">        String arrayName = currentScriptOrFn.getNextTempName();</span>
+<span class="nc" id="L269">        pushScope(scopeNode);</span>
+        try {
+<span class="nc" id="L271">            defineSymbol(Token.LET, arrayName, false);</span>
+<span class="nc" id="L272">            Node block = new Node(Token.BLOCK, lineno);</span>
+<span class="nc" id="L273">            Node newArray = createCallOrNew(Token.NEW, createName(&quot;Array&quot;));</span>
+<span class="nc" id="L274">            Node init = new Node(Token.EXPR_VOID,</span>
+<span class="nc" id="L275">                                 createAssignment(Token.ASSIGN,</span>
+<span class="nc" id="L276">                                                  createName(arrayName),</span>
+                                                  newArray),
+                                 lineno);
+<span class="nc" id="L279">            block.addChildToBack(init);</span>
+<span class="nc" id="L280">            block.addChildToBack(arrayCompTransformHelper(node, arrayName));</span>
+<span class="nc" id="L281">            scopeNode.addChildToBack(block);</span>
+<span class="nc" id="L282">            scopeNode.addChildToBack(createName(arrayName));</span>
+<span class="nc" id="L283">            return scopeNode;</span>
+        } finally {
+<span class="nc" id="L285">            popScope();</span>
+<span class="nc" id="L286">        }</span>
+    }
+
+    private Node arrayCompTransformHelper(ArrayComprehension node,
+                                          String arrayName) {
+<span class="nc" id="L291">        decompiler.addToken(Token.LB);</span>
+<span class="nc" id="L292">        int lineno = node.getLineno();</span>
+<span class="nc" id="L293">        Node expr = transform(node.getResult());</span>
+
+<span class="nc" id="L295">        List&lt;ArrayComprehensionLoop&gt; loops = node.getLoops();</span>
+<span class="nc" id="L296">        int numLoops = loops.size();</span>
+
+        // Walk through loops, collecting and defining their iterator symbols.
+<span class="nc" id="L299">        Node[] iterators = new Node[numLoops];</span>
+<span class="nc" id="L300">        Node[] iteratedObjs = new Node[numLoops];</span>
+
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        for (int i = 0; i &lt; numLoops; i++) {</span>
+<span class="nc" id="L303">            ArrayComprehensionLoop acl = loops.get(i);</span>
+<span class="nc" id="L304">            decompiler.addName(&quot; &quot;);</span>
+<span class="nc" id="L305">            decompiler.addToken(Token.FOR);</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">            if (acl.isForEach()) {</span>
+<span class="nc" id="L307">                decompiler.addName(&quot;each &quot;);</span>
+            }
+<span class="nc" id="L309">            decompiler.addToken(Token.LP);</span>
+
+<span class="nc" id="L311">            AstNode iter = acl.getIterator();</span>
+<span class="nc" id="L312">            String name = null;</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">            if (iter.getType() == Token.NAME) {</span>
+<span class="nc" id="L314">                name = iter.getString();</span>
+<span class="nc" id="L315">                decompiler.addName(name);</span>
+            } else {
+                // destructuring assignment
+<span class="nc" id="L318">                decompile(iter);</span>
+<span class="nc" id="L319">                name = currentScriptOrFn.getNextTempName();</span>
+<span class="nc" id="L320">                defineSymbol(Token.LP, name, false);</span>
+<span class="nc" id="L321">                expr = createBinary(Token.COMMA,</span>
+<span class="nc" id="L322">                                    createAssignment(Token.ASSIGN,</span>
+                                                     iter,
+<span class="nc" id="L324">                                                     createName(name)),</span>
+                                    expr);
+            }
+<span class="nc" id="L327">            Node init = createName(name);</span>
+            // Define as a let since we want the scope of the variable to
+            // be restricted to the array comprehension
+<span class="nc" id="L330">            defineSymbol(Token.LET, name, false);</span>
+<span class="nc" id="L331">            iterators[i] = init;</span>
+
+<span class="nc bnc" id="L333" title="All 2 branches missed.">            if (acl.isForOf()) {</span>
+<span class="nc" id="L334">                decompiler.addName(&quot;of &quot;);</span>
+            } else {
+<span class="nc" id="L336">                decompiler.addToken(Token.IN);</span>
+            }
+<span class="nc" id="L338">            iteratedObjs[i] = transform(acl.getIteratedObject());</span>
+<span class="nc" id="L339">            decompiler.addToken(Token.RP);</span>
+        }
+
+        // generate code for tmpArray.push(body)
+<span class="nc" id="L343">        Node call = createCallOrNew(Token.CALL,</span>
+<span class="nc" id="L344">                                    createPropertyGet(createName(arrayName),</span>
+                                                      null,
+                                                      &quot;push&quot;, 0));
+
+<span class="nc" id="L348">        Node body = new Node(Token.EXPR_VOID, call, lineno);</span>
+
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        if (node.getFilter() != null) {</span>
+<span class="nc" id="L351">            decompiler.addName(&quot; &quot;);</span>
+<span class="nc" id="L352">            decompiler.addToken(Token.IF);</span>
+<span class="nc" id="L353">            decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L354">            body = createIf(transform(node.getFilter()), body, null, lineno);</span>
+<span class="nc" id="L355">            decompiler.addToken(Token.RP);</span>
+        }
+
+        // Now walk loops in reverse to build up the body statement.
+<span class="nc" id="L359">        int pushed = 0;</span>
+        try {
+<span class="nc bnc" id="L361" title="All 2 branches missed.">            for (int i = numLoops-1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L362">                ArrayComprehensionLoop acl = loops.get(i);</span>
+<span class="nc" id="L363">                Scope loop = createLoopNode(null,  // no label</span>
+<span class="nc" id="L364">                                            acl.getLineno());</span>
+<span class="nc" id="L365">                pushScope(loop);</span>
+<span class="nc" id="L366">                pushed++;</span>
+<span class="nc" id="L367">                body = createForIn(Token.LET,</span>
+                                   loop,
+                                   iterators[i],
+                                   iteratedObjs[i],
+                                   body,
+<span class="nc" id="L372">                                   acl.isForEach(),</span>
+<span class="nc" id="L373">                                   acl.isForOf());</span>
+            }
+        } finally {
+<span class="nc bnc" id="L376" title="All 4 branches missed.">            for (int i = 0; i &lt; pushed; i++) {</span>
+<span class="nc" id="L377">                popScope();</span>
+            }
+<span class="nc" id="L379">        }</span>
+
+<span class="nc" id="L381">        decompiler.addToken(Token.RB);</span>
+
+        // Now that we've accumulated any destructuring forms,
+        // add expr to the call node; it's pushed on each iteration.
+<span class="nc" id="L385">        call.addChildToBack(expr);</span>
+<span class="nc" id="L386">        return body;</span>
+    }
+
+    private Node transformArrayLiteral(ArrayLiteral node) {
+<span class="pc bpc" id="L390" title="1 of 2 branches missed.">        if (node.isDestructuring()) {</span>
+<span class="nc" id="L391">            return node;</span>
+        }
+<span class="fc" id="L393">        decompiler.addToken(Token.LB);</span>
+<span class="fc" id="L394">        List&lt;AstNode&gt; elems = node.getElements();</span>
+<span class="fc" id="L395">        Node array = new Node(Token.ARRAYLIT);</span>
+<span class="fc" id="L396">        List&lt;Integer&gt; skipIndexes = null;</span>
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        for (int i = 0; i &lt; elems.size(); ++i) {</span>
+<span class="fc" id="L398">            AstNode elem = elems.get(i);</span>
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">            if (elem.getType() != Token.EMPTY) {</span>
+<span class="fc" id="L400">                array.addChildToBack(transform(elem));</span>
+            } else {
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                if (skipIndexes == null) {</span>
+<span class="nc" id="L403">                    skipIndexes = new ArrayList&lt;Integer&gt;();</span>
+                }
+<span class="nc" id="L405">                skipIndexes.add(i);</span>
+            }
+<span class="fc bfc" id="L407" title="All 2 branches covered.">            if (i &lt; elems.size() - 1)</span>
+<span class="fc" id="L408">                decompiler.addToken(Token.COMMA);</span>
+        }
+<span class="fc" id="L410">        decompiler.addToken(Token.RB);</span>
+<span class="fc" id="L411">        array.putIntProp(Node.DESTRUCTURING_ARRAY_LENGTH,</span>
+<span class="fc" id="L412">                         node.getDestructuringLength());</span>
+<span class="pc bpc" id="L413" title="1 of 2 branches missed.">        if (skipIndexes != null) {</span>
+<span class="nc" id="L414">            int[] skips = new int[skipIndexes.size()];</span>
+<span class="nc bnc" id="L415" title="All 2 branches missed.">            for (int i = 0; i &lt; skipIndexes.size(); i++)</span>
+<span class="nc" id="L416">                skips[i] = skipIndexes.get(i);</span>
+<span class="nc" id="L417">            array.putProp(Node.SKIP_INDEXES_PROP, skips);</span>
+        }
+<span class="fc" id="L419">        return array;</span>
+    }
+
+    private Node transformAssignment(Assignment node) {
+<span class="fc" id="L423">        AstNode left = removeParens(node.getLeft());</span>
+<span class="fc" id="L424">        Node target = null;</span>
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">        if (isDestructuring(left)) {</span>
+<span class="nc" id="L426">            decompile(left);</span>
+<span class="nc" id="L427">            target = left;</span>
+        } else {
+<span class="fc" id="L429">            target = transform(left);</span>
+        }
+<span class="fc" id="L431">        decompiler.addToken(node.getType());</span>
+<span class="fc" id="L432">        return createAssignment(node.getType(),</span>
+                                target,
+<span class="fc" id="L434">                                transform(node.getRight()));</span>
+    }
+
+    private Node transformBlock(AstNode node) {
+<span class="fc bfc" id="L438" title="All 2 branches covered.">        if (node instanceof Scope) {</span>
+<span class="fc" id="L439">            pushScope((Scope)node);</span>
+        }
+        try {
+<span class="fc" id="L442">            List&lt;Node&gt; kids = new ArrayList&lt;Node&gt;();</span>
+<span class="fc bfc" id="L443" title="All 2 branches covered.">            for (Node kid : node) {</span>
+<span class="fc" id="L444">                kids.add(transform((AstNode)kid));</span>
+<span class="fc" id="L445">            }</span>
+<span class="fc" id="L446">            node.removeChildren();</span>
+<span class="fc bfc" id="L447" title="All 2 branches covered.">            for (Node kid : kids) {</span>
+<span class="fc" id="L448">                node.addChildToBack(kid);</span>
+<span class="fc" id="L449">            }</span>
+<span class="fc" id="L450">            return node;</span>
+        } finally {
+<span class="pc bpc" id="L452" title="2 of 4 branches missed.">            if (node instanceof Scope) {</span>
+<span class="pc" id="L453">                popScope();</span>
+            }
+<span class="nc" id="L455">        }</span>
+    }
+
+    private Node transformBreak(BreakStatement node) {
+<span class="fc" id="L459">        decompiler.addToken(Token.BREAK);</span>
+<span class="pc bpc" id="L460" title="1 of 2 branches missed.">        if (node.getBreakLabel() != null) {</span>
+<span class="nc" id="L461">            decompiler.addName(node.getBreakLabel().getIdentifier());</span>
+        }
+<span class="fc" id="L463">        decompiler.addEOL(Token.SEMI);</span>
+<span class="fc" id="L464">        return node;</span>
+    }
+
+    private Node transformCondExpr(ConditionalExpression node) {
+<span class="fc" id="L468">        Node test = transform(node.getTestExpression());</span>
+<span class="fc" id="L469">        decompiler.addToken(Token.HOOK);</span>
+<span class="fc" id="L470">        Node ifTrue = transform(node.getTrueExpression());</span>
+<span class="fc" id="L471">        decompiler.addToken(Token.COLON);</span>
+<span class="fc" id="L472">        Node ifFalse = transform(node.getFalseExpression());</span>
+<span class="fc" id="L473">        return createCondExpr(test, ifTrue, ifFalse);</span>
+    }
+
+    private Node transformContinue(ContinueStatement node) {
+<span class="fc" id="L477">        decompiler.addToken(Token.CONTINUE);</span>
+<span class="fc bfc" id="L478" title="All 2 branches covered.">        if (node.getLabel() != null) {</span>
+<span class="nc" id="L479">            decompiler.addName(node.getLabel().getIdentifier());</span>
+        }
+<span class="fc" id="L481">        decompiler.addEOL(Token.SEMI);</span>
+<span class="fc" id="L482">        return node;</span>
+    }
+
+    private Node transformDoLoop(DoLoop loop) {
+<span class="fc" id="L486">        loop.setType(Token.LOOP);</span>
+<span class="nc" id="L487">        pushScope(loop);</span>
+        try {
+<span class="nc" id="L489">            decompiler.addToken(Token.DO);</span>
+<span class="nc" id="L490">            decompiler.addEOL(Token.LC);</span>
+<span class="nc" id="L491">            Node body = transform(loop.getBody());</span>
+<span class="nc" id="L492">            decompiler.addToken(Token.RC);</span>
+<span class="nc" id="L493">            decompiler.addToken(Token.WHILE);</span>
+<span class="nc" id="L494">            decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L495">            Node cond = transform(loop.getCondition());</span>
+<span class="nc" id="L496">            decompiler.addToken(Token.RP);</span>
+<span class="nc" id="L497">            decompiler.addEOL(Token.SEMI);</span>
+<span class="nc" id="L498">            return createLoop(loop, LOOP_DO_WHILE,</span>
+                              body, cond, null, null);
+        } finally {
+<span class="nc" id="L501">            popScope();</span>
+<span class="nc" id="L502">        }</span>
+    }
+
+    private Node transformElementGet(ElementGet node) {
+        // OPT: could optimize to createPropertyGet
+        // iff elem is string that can not be number
+<span class="fc" id="L508">        Node target = transform(node.getTarget());</span>
+<span class="fc" id="L509">        decompiler.addToken(Token.LB);</span>
+<span class="fc" id="L510">        Node element = transform(node.getElement());</span>
+<span class="fc" id="L511">        decompiler.addToken(Token.RB);</span>
+<span class="fc" id="L512">        return new Node(Token.GETELEM, target, element);</span>
+    }
+
+    private Node transformExprStmt(ExpressionStatement node) {
+<span class="fc" id="L516">        Node expr = transform(node.getExpression());</span>
+<span class="fc" id="L517">        decompiler.addEOL(Token.SEMI);</span>
+<span class="fc" id="L518">        return new Node(node.getType(), expr, node.getLineno());</span>
+    }
+
+    private Node transformForInLoop(ForInLoop loop) {
+<span class="fc" id="L522">        decompiler.addToken(Token.FOR);</span>
+<span class="pc bpc" id="L523" title="1 of 2 branches missed.">        if (loop.isForEach())</span>
+<span class="nc" id="L524">            decompiler.addName(&quot;each &quot;);</span>
+<span class="fc" id="L525">        decompiler.addToken(Token.LP);</span>
+
+<span class="fc" id="L527">        loop.setType(Token.LOOP);</span>
+<span class="fc" id="L528">        pushScope(loop);</span>
+        try {
+<span class="fc" id="L530">            int declType = -1;</span>
+<span class="fc" id="L531">            AstNode iter = loop.getIterator();</span>
+<span class="pc bpc" id="L532" title="1 of 2 branches missed.">            if (iter instanceof VariableDeclaration) {</span>
+<span class="nc" id="L533">                declType = ((VariableDeclaration)iter).getType();</span>
+            }
+<span class="fc" id="L535">            Node lhs = transform(iter);</span>
+<span class="pc bpc" id="L536" title="1 of 2 branches missed.">            if (loop.isForOf()) {</span>
+<span class="nc" id="L537">                decompiler.addName(&quot;of &quot;);</span>
+            } else {
+<span class="fc" id="L539">                decompiler.addToken(Token.IN);</span>
+            }
+<span class="fc" id="L541">            Node obj = transform(loop.getIteratedObject());</span>
+<span class="fc" id="L542">            decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L543">            decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L544">            Node body = transform(loop.getBody());</span>
+<span class="fc" id="L545">            decompiler.addEOL(Token.RC);</span>
+<span class="fc" id="L546">            return createForIn(declType, loop, lhs, obj, body,</span>
+<span class="fc" id="L547">                               loop.isForEach(), loop.isForOf());</span>
+        } finally {
+<span class="pc" id="L549">            popScope();</span>
+<span class="nc" id="L550">        }</span>
+    }
+
+    private Node transformForLoop(ForLoop loop) {
+<span class="fc" id="L554">        decompiler.addToken(Token.FOR);</span>
+<span class="fc" id="L555">        decompiler.addToken(Token.LP);</span>
+<span class="fc" id="L556">        loop.setType(Token.LOOP);</span>
+        // XXX: Can't use pushScope/popScope here since 'createFor' may split
+        // the scope
+<span class="fc" id="L559">        Scope savedScope = currentScope;</span>
+<span class="fc" id="L560">        currentScope = loop;</span>
+        try {
+<span class="fc" id="L562">            Node init = transform(loop.getInitializer());</span>
+<span class="fc" id="L563">            decompiler.addToken(Token.SEMI);</span>
+<span class="fc" id="L564">            Node test = transform(loop.getCondition());</span>
+<span class="fc" id="L565">            decompiler.addToken(Token.SEMI);</span>
+<span class="fc" id="L566">            Node incr = transform(loop.getIncrement());</span>
+<span class="fc" id="L567">            decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L568">            decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L569">            Node body = transform(loop.getBody());</span>
+<span class="fc" id="L570">            decompiler.addEOL(Token.RC);</span>
+<span class="fc" id="L571">            return createFor(loop, init, test, incr, body);</span>
+        } finally {
+<span class="fc" id="L573">            currentScope = savedScope;</span>
+<span class="fc" id="L574">        }</span>
+    }
+
+    private Node transformFunction(FunctionNode fn) {
+<span class="fc" id="L578">        int functionType = fn.getFunctionType();</span>
+<span class="fc" id="L579">        int start = decompiler.markFunctionStart(functionType);</span>
+<span class="fc" id="L580">        Node mexpr = decompileFunctionHeader(fn);</span>
+<span class="fc" id="L581">        int index = currentScriptOrFn.addFunction(fn);</span>
+
+<span class="fc" id="L583">        PerFunctionVariables savedVars = new PerFunctionVariables(fn);</span>
+        try {
+            // If we start needing to record much more codegen metadata during
+            // function parsing, we should lump it all into a helper class.
+<span class="fc" id="L587">            Node destructuring = (Node)fn.getProp(Node.DESTRUCTURING_PARAMS);</span>
+<span class="fc" id="L588">            fn.removeProp(Node.DESTRUCTURING_PARAMS);</span>
+
+<span class="fc" id="L590">            int lineno = fn.getBody().getLineno();</span>
+<span class="fc" id="L591">            ++nestingOfFunction;  // only for body, not params</span>
+<span class="fc" id="L592">            Node body = transform(fn.getBody());</span>
+
+<span class="pc bpc" id="L594" title="1 of 2 branches missed.">            if (!fn.isExpressionClosure()) {</span>
+<span class="fc" id="L595">                decompiler.addToken(Token.RC);</span>
+            }
+<span class="fc" id="L597">            fn.setEncodedSourceBounds(start, decompiler.markFunctionEnd(start));</span>
+
+<span class="pc bpc" id="L599" title="1 of 4 branches missed.">            if (functionType != FunctionNode.FUNCTION_EXPRESSION &amp;&amp; !fn.isExpressionClosure()) {</span>
+                // Add EOL only if function is not part of expression
+                // since it gets SEMI + EOL from Statement in that case
+<span class="fc" id="L602">                decompiler.addToken(Token.EOL);</span>
+            }
+
+<span class="pc bpc" id="L605" title="1 of 2 branches missed.">            if (destructuring != null) {</span>
+<span class="nc" id="L606">                body.addChildToFront(new Node(Token.EXPR_VOID,</span>
+                                              destructuring, lineno));
+            }
+
+<span class="fc" id="L610">            int syntheticType = fn.getFunctionType();</span>
+<span class="fc" id="L611">            Node pn = initFunction(fn, index, body, syntheticType);</span>
+<span class="pc bpc" id="L612" title="1 of 2 branches missed.">            if (mexpr != null) {</span>
+<span class="nc" id="L613">                pn = createAssignment(Token.ASSIGN, mexpr, pn);</span>
+<span class="nc bnc" id="L614" title="All 2 branches missed.">                if (syntheticType != FunctionNode.FUNCTION_EXPRESSION) {</span>
+<span class="nc" id="L615">                    pn = createExprStatementNoReturn(pn, fn.getLineno());</span>
+                }
+            }
+<span class="fc" id="L618">            return pn;</span>
+
+        } finally {
+<span class="pc" id="L621">            --nestingOfFunction;</span>
+<span class="pc" id="L622">            savedVars.restore();</span>
+<span class="nc" id="L623">        }</span>
+    }
+
+    private Node transformFunctionCall(FunctionCall node) {
+<span class="fc" id="L627">        Node call = createCallOrNew(Token.CALL, transform(node.getTarget()));</span>
+<span class="fc" id="L628">        call.setLineno(node.getLineno());</span>
+<span class="fc" id="L629">        decompiler.addToken(Token.LP);</span>
+<span class="fc" id="L630">        List&lt;AstNode&gt; args = node.getArguments();</span>
+<span class="fc bfc" id="L631" title="All 2 branches covered.">        for (int i = 0; i &lt; args.size(); i++) {</span>
+<span class="fc" id="L632">            AstNode arg = args.get(i);</span>
+<span class="fc" id="L633">            call.addChildToBack(transform(arg));</span>
+<span class="fc bfc" id="L634" title="All 2 branches covered.">            if (i &lt; args.size() - 1) {</span>
+<span class="fc" id="L635">                decompiler.addToken(Token.COMMA);</span>
+            }
+        }
+<span class="fc" id="L638">        decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L639">        return call;</span>
+    }
+    
+    private Node transformGenExpr(GeneratorExpression node) {
+        Node pn;
+        
+<span class="nc" id="L645">        FunctionNode fn = new FunctionNode();</span>
+<span class="nc" id="L646">        fn.setSourceName(currentScriptOrFn.getNextTempName());</span>
+<span class="nc" id="L647">        fn.setIsGenerator();</span>
+<span class="nc" id="L648">        fn.setFunctionType(FunctionNode.FUNCTION_EXPRESSION);</span>
+<span class="nc" id="L649">        fn.setRequiresActivation();</span>
+      
+<span class="nc" id="L651">        int functionType = fn.getFunctionType();</span>
+<span class="nc" id="L652">        int start = decompiler.markFunctionStart(functionType);</span>
+<span class="nc" id="L653">        Node mexpr = decompileFunctionHeader(fn);</span>
+<span class="nc" id="L654">        int index = currentScriptOrFn.addFunction(fn);</span>
+
+<span class="nc" id="L656">        PerFunctionVariables savedVars = new PerFunctionVariables(fn);</span>
+        try {
+            // If we start needing to record much more codegen metadata during
+            // function parsing, we should lump it all into a helper class.
+<span class="nc" id="L660">            Node destructuring = (Node)fn.getProp(Node.DESTRUCTURING_PARAMS);</span>
+<span class="nc" id="L661">            fn.removeProp(Node.DESTRUCTURING_PARAMS);</span>
+
+<span class="nc" id="L663">            int lineno = node.lineno;</span>
+<span class="nc" id="L664">            ++nestingOfFunction;  // only for body, not params</span>
+<span class="nc" id="L665">            Node body = genExprTransformHelper(node);</span>
+
+<span class="nc bnc" id="L667" title="All 2 branches missed.">            if (!fn.isExpressionClosure()) {</span>
+<span class="nc" id="L668">                decompiler.addToken(Token.RC);</span>
+            }
+<span class="nc" id="L670">            fn.setEncodedSourceBounds(start, decompiler.markFunctionEnd(start));</span>
+
+<span class="nc bnc" id="L672" title="All 4 branches missed.">            if (functionType != FunctionNode.FUNCTION_EXPRESSION &amp;&amp; !fn.isExpressionClosure()) {</span>
+                // Add EOL only if function is not part of expression
+                // since it gets SEMI + EOL from Statement in that case
+<span class="nc" id="L675">                decompiler.addToken(Token.EOL);</span>
+            }
+
+<span class="nc bnc" id="L678" title="All 2 branches missed.">            if (destructuring != null) {</span>
+<span class="nc" id="L679">                body.addChildToFront(new Node(Token.EXPR_VOID,</span>
+                                              destructuring, lineno));
+            }
+
+<span class="nc" id="L683">            int syntheticType = fn.getFunctionType();</span>
+<span class="nc" id="L684">            pn = initFunction(fn, index, body, syntheticType);</span>
+<span class="nc bnc" id="L685" title="All 2 branches missed.">            if (mexpr != null) {</span>
+<span class="nc" id="L686">                pn = createAssignment(Token.ASSIGN, mexpr, pn);</span>
+<span class="nc bnc" id="L687" title="All 2 branches missed.">                if (syntheticType != FunctionNode.FUNCTION_EXPRESSION) {</span>
+<span class="nc" id="L688">                    pn = createExprStatementNoReturn(pn, fn.getLineno());</span>
+                }
+            }
+        } finally {
+<span class="nc" id="L692">            --nestingOfFunction;</span>
+<span class="nc" id="L693">            savedVars.restore();</span>
+<span class="nc" id="L694">        }</span>
+       
+<span class="nc" id="L696">        Node call = createCallOrNew(Token.CALL, pn);</span>
+<span class="nc" id="L697">        call.setLineno(node.getLineno());</span>
+<span class="nc" id="L698">        decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L699">        decompiler.addToken(Token.RP);</span>
+<span class="nc" id="L700">        return call;</span>
+    }
+    
+    private Node genExprTransformHelper(GeneratorExpression node) {
+<span class="nc" id="L704">        decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L705">        int lineno = node.getLineno();</span>
+<span class="nc" id="L706">        Node expr = transform(node.getResult());</span>
+
+<span class="nc" id="L708">        List&lt;GeneratorExpressionLoop&gt; loops = node.getLoops();</span>
+<span class="nc" id="L709">        int numLoops = loops.size();</span>
+
+        // Walk through loops, collecting and defining their iterator symbols.
+<span class="nc" id="L712">        Node[] iterators = new Node[numLoops];</span>
+<span class="nc" id="L713">        Node[] iteratedObjs = new Node[numLoops];</span>
+
+<span class="nc bnc" id="L715" title="All 2 branches missed.">        for (int i = 0; i &lt; numLoops; i++) {</span>
+<span class="nc" id="L716">            GeneratorExpressionLoop acl = loops.get(i);</span>
+<span class="nc" id="L717">            decompiler.addName(&quot; &quot;);</span>
+<span class="nc" id="L718">            decompiler.addToken(Token.FOR);</span>
+<span class="nc" id="L719">            decompiler.addToken(Token.LP);</span>
+
+<span class="nc" id="L721">            AstNode iter = acl.getIterator();</span>
+<span class="nc" id="L722">            String name = null;</span>
+<span class="nc bnc" id="L723" title="All 2 branches missed.">            if (iter.getType() == Token.NAME) {</span>
+<span class="nc" id="L724">                name = iter.getString();</span>
+<span class="nc" id="L725">                decompiler.addName(name);</span>
+            } else {
+                // destructuring assignment
+<span class="nc" id="L728">                decompile(iter);</span>
+<span class="nc" id="L729">                name = currentScriptOrFn.getNextTempName();</span>
+<span class="nc" id="L730">                defineSymbol(Token.LP, name, false);</span>
+<span class="nc" id="L731">                expr = createBinary(Token.COMMA,</span>
+<span class="nc" id="L732">                                    createAssignment(Token.ASSIGN,</span>
+                                                     iter,
+<span class="nc" id="L734">                                                     createName(name)),</span>
+                                    expr);
+            }
+<span class="nc" id="L737">            Node init = createName(name);</span>
+            // Define as a let since we want the scope of the variable to
+            // be restricted to the array comprehension
+<span class="nc" id="L740">            defineSymbol(Token.LET, name, false);</span>
+<span class="nc" id="L741">            iterators[i] = init;</span>
+
+<span class="nc bnc" id="L743" title="All 2 branches missed.">            if (acl.isForOf()) {</span>
+<span class="nc" id="L744">                decompiler.addName(&quot;of &quot;);</span>
+            } else {
+<span class="nc" id="L746">                decompiler.addToken(Token.IN);</span>
+            }
+<span class="nc" id="L748">            iteratedObjs[i] = transform(acl.getIteratedObject());</span>
+<span class="nc" id="L749">            decompiler.addToken(Token.RP);</span>
+        }
+
+        // generate code for tmpArray.push(body)
+<span class="nc" id="L753">        Node yield = new Node(Token.YIELD, expr, node.getLineno());</span>
+
+<span class="nc" id="L755">        Node body = new Node(Token.EXPR_VOID, yield, lineno);</span>
+
+<span class="nc bnc" id="L757" title="All 2 branches missed.">        if (node.getFilter() != null) {</span>
+<span class="nc" id="L758">            decompiler.addName(&quot; &quot;);</span>
+<span class="nc" id="L759">            decompiler.addToken(Token.IF);</span>
+<span class="nc" id="L760">            decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L761">            body = createIf(transform(node.getFilter()), body, null, lineno);</span>
+<span class="nc" id="L762">            decompiler.addToken(Token.RP);</span>
+        }
+
+        // Now walk loops in reverse to build up the body statement.
+<span class="nc" id="L766">        int pushed = 0;</span>
+        try {
+<span class="nc bnc" id="L768" title="All 2 branches missed.">            for (int i = numLoops-1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L769">                GeneratorExpressionLoop acl = loops.get(i);</span>
+<span class="nc" id="L770">                Scope loop = createLoopNode(null,  // no label</span>
+<span class="nc" id="L771">                                            acl.getLineno());</span>
+<span class="nc" id="L772">                pushScope(loop);</span>
+<span class="nc" id="L773">                pushed++;</span>
+<span class="nc" id="L774">                body = createForIn(Token.LET,</span>
+                                   loop,
+                                   iterators[i],
+                                   iteratedObjs[i],
+                                   body,
+<span class="nc" id="L779">                                   acl.isForEach(),</span>
+<span class="nc" id="L780">                                   acl.isForOf());</span>
+            }
+        } finally {
+<span class="nc bnc" id="L783" title="All 4 branches missed.">            for (int i = 0; i &lt; pushed; i++) {</span>
+<span class="nc" id="L784">                popScope();</span>
+            }
+<span class="nc" id="L786">        }</span>
+
+<span class="nc" id="L788">        decompiler.addToken(Token.RP);</span>
+
+<span class="nc" id="L790">        return body;</span>
+    }
+
+    private Node transformIf(IfStatement n) {
+<span class="fc" id="L794">        decompiler.addToken(Token.IF);</span>
+<span class="fc" id="L795">        decompiler.addToken(Token.LP);</span>
+<span class="fc" id="L796">        Node cond = transform(n.getCondition());</span>
+<span class="fc" id="L797">        decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L798">        decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L799">        Node ifTrue = transform(n.getThenPart());</span>
+<span class="fc" id="L800">        Node ifFalse = null;</span>
+<span class="fc bfc" id="L801" title="All 2 branches covered.">        if (n.getElsePart() != null) {</span>
+<span class="fc" id="L802">            decompiler.addToken(Token.RC);</span>
+<span class="fc" id="L803">            decompiler.addToken(Token.ELSE);</span>
+<span class="fc" id="L804">            decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L805">            ifFalse = transform(n.getElsePart());</span>
+        }
+<span class="fc" id="L807">        decompiler.addEOL(Token.RC);</span>
+<span class="fc" id="L808">        return createIf(cond, ifTrue, ifFalse, n.getLineno());</span>
+    }
+
+    private Node transformInfix(InfixExpression node) {
+<span class="fc" id="L812">        Node left = transform(node.getLeft());</span>
+<span class="fc" id="L813">        decompiler.addToken(node.getType());</span>
+<span class="fc" id="L814">        Node right = transform(node.getRight());</span>
+<span class="pc bpc" id="L815" title="1 of 2 branches missed.">        if (node instanceof XmlDotQuery) {</span>
+<span class="nc" id="L816">            decompiler.addToken(Token.RP);</span>
+        }
+<span class="fc" id="L818">        return createBinary(node.getType(), left, right);</span>
+    }
+
+    private Node transformLabeledStatement(LabeledStatement ls) {
+<span class="nc" id="L822">        Label label = ls.getFirstLabel();</span>
+<span class="nc" id="L823">        List&lt;Label&gt; labels = ls.getLabels();</span>
+<span class="nc" id="L824">        decompiler.addName(label.getName());</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">        if (labels.size() &gt; 1) {</span>
+            // more than one label
+<span class="nc bnc" id="L827" title="All 2 branches missed.">            for (Label lb : labels.subList(1, labels.size())) {</span>
+<span class="nc" id="L828">                decompiler.addEOL(Token.COLON);</span>
+<span class="nc" id="L829">                decompiler.addName(lb.getName());</span>
+<span class="nc" id="L830">            }</span>
+        }
+<span class="nc bnc" id="L832" title="All 2 branches missed.">        if (ls.getStatement().getType() == Token.BLOCK) {</span>
+            // reuse OBJECTLIT for ':' workaround, cf. transformObjectLiteral()
+<span class="nc" id="L834">            decompiler.addToken(Token.OBJECTLIT);</span>
+<span class="nc" id="L835">            decompiler.addEOL(Token.LC);</span>
+        } else {
+<span class="nc" id="L837">            decompiler.addEOL(Token.COLON);</span>
+        }
+<span class="nc" id="L839">        Node statement = transform(ls.getStatement());</span>
+<span class="nc bnc" id="L840" title="All 2 branches missed.">        if (ls.getStatement().getType() == Token.BLOCK) {</span>
+<span class="nc" id="L841">            decompiler.addEOL(Token.RC);</span>
+        }
+
+        // Make a target and put it _after_ the statement node.  Add in the
+        // LABEL node, so breaks get the right target.
+<span class="nc" id="L846">        Node breakTarget = Node.newTarget();</span>
+<span class="nc" id="L847">        Node block = new Node(Token.BLOCK, label, statement, breakTarget);</span>
+<span class="nc" id="L848">        label.target = breakTarget;</span>
+
+<span class="nc" id="L850">        return block;</span>
+    }
+
+    private Node transformLetNode(LetNode node) {
+<span class="fc" id="L854">        pushScope(node);</span>
+        try {
+<span class="nc" id="L856">            decompiler.addToken(Token.LET);</span>
+<span class="nc" id="L857">            decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L858">            Node vars = transformVariableInitializers(node.getVariables());</span>
+<span class="nc" id="L859">            decompiler.addToken(Token.RP);</span>
+<span class="nc" id="L860">            node.addChildToBack(vars);</span>
+<span class="nc bnc" id="L861" title="All 2 branches missed.">            boolean letExpr = node.getType() == Token.LETEXPR;</span>
+<span class="nc bnc" id="L862" title="All 2 branches missed.">            if (node.getBody() != null) {</span>
+<span class="nc bnc" id="L863" title="All 2 branches missed.">                if (letExpr) {</span>
+<span class="nc" id="L864">                    decompiler.addName(&quot; &quot;);</span>
+                } else {
+<span class="nc" id="L866">                    decompiler.addEOL(Token.LC);</span>
+                }
+<span class="nc" id="L868">                node.addChildToBack(transform(node.getBody()));</span>
+<span class="nc bnc" id="L869" title="All 2 branches missed.">                if (!letExpr) {</span>
+<span class="nc" id="L870">                    decompiler.addEOL(Token.RC);</span>
+                }
+            }
+<span class="nc" id="L873">            return node;</span>
+        } finally {
+<span class="pc" id="L875">            popScope();</span>
+<span class="fc" id="L876">        }</span>
+    }
+
+    private Node transformLiteral(AstNode node) {
+<span class="fc" id="L880">        decompiler.addToken(node.getType());</span>
+<span class="fc" id="L881">        return node;</span>
+    }
+
+    private Node transformName(Name node) {
+<span class="fc" id="L885">        decompiler.addName(node.getIdentifier());</span>
+<span class="fc" id="L886">        return node;</span>
+    }
+
+    private Node transformNewExpr(NewExpression node) {
+<span class="fc" id="L890">        decompiler.addToken(Token.NEW);</span>
+<span class="fc" id="L891">        Node nx = createCallOrNew(Token.NEW, transform(node.getTarget()));</span>
+<span class="fc" id="L892">        nx.setLineno(node.getLineno());</span>
+<span class="fc" id="L893">        List&lt;AstNode&gt; args = node.getArguments();</span>
+<span class="fc" id="L894">        decompiler.addToken(Token.LP);</span>
+<span class="fc bfc" id="L895" title="All 2 branches covered.">        for (int i = 0; i &lt; args.size(); i++) {</span>
+<span class="fc" id="L896">            AstNode arg = args.get(i);</span>
+<span class="fc" id="L897">            nx.addChildToBack(transform(arg));</span>
+<span class="fc bfc" id="L898" title="All 2 branches covered.">            if (i &lt; args.size() - 1) {</span>
+<span class="fc" id="L899">                decompiler.addToken(Token.COMMA);</span>
+            }
+        }
+<span class="fc" id="L902">        decompiler.addToken(Token.RP);</span>
+<span class="pc bpc" id="L903" title="1 of 2 branches missed.">        if (node.getInitializer() != null) {</span>
+<span class="nc" id="L904">            nx.addChildToBack(transformObjectLiteral(node.getInitializer()));</span>
+        }
+<span class="fc" id="L906">        return nx;</span>
+    }
+
+    private Node transformNumber(NumberLiteral node) {
+<span class="fc" id="L910">        decompiler.addNumber(node.getNumber());</span>
+<span class="fc" id="L911">        return node;</span>
+    }
+
+    private Node transformObjectLiteral(ObjectLiteral node) {
+<span class="fc bfc" id="L915" title="All 2 branches covered.">        if (node.isDestructuring()) {</span>
+<span class="fc" id="L916">            return node;</span>
+        }
+        // createObjectLiteral rewrites its argument as object
+        // creation plus object property entries, so later compiler
+        // stages don't need to know about object literals.
+<span class="fc" id="L921">        decompiler.addToken(Token.LC);</span>
+<span class="fc" id="L922">        List&lt;ObjectProperty&gt; elems = node.getElements();</span>
+<span class="fc" id="L923">        Node object = new Node(Token.OBJECTLIT);</span>
+        Object[] properties;
+<span class="fc bfc" id="L925" title="All 2 branches covered.">        if (elems.isEmpty()) {</span>
+<span class="fc" id="L926">            properties = ScriptRuntime.emptyArgs;</span>
+        } else {
+<span class="fc" id="L928">            int size = elems.size(), i = 0;</span>
+<span class="fc" id="L929">            properties = new Object[size];</span>
+<span class="fc bfc" id="L930" title="All 2 branches covered.">            for (ObjectProperty prop : elems) {</span>
+<span class="pc bpc" id="L931" title="1 of 2 branches missed.">                if (prop.isGetterMethod()) {</span>
+<span class="nc" id="L932">                    decompiler.addToken(Token.GET);</span>
+<span class="pc bpc" id="L933" title="1 of 2 branches missed.">                } else if (prop.isSetterMethod()) {</span>
+<span class="nc" id="L934">                    decompiler.addToken(Token.SET);</span>
+<span class="pc bpc" id="L935" title="1 of 2 branches missed.">                } else if (prop.isNormalMethod()) {</span>
+<span class="nc" id="L936">                    decompiler.addToken(Token.METHOD);</span>
+                }
+
+<span class="fc" id="L939">                properties[i++] = getPropKey(prop.getLeft());</span>
+
+                // OBJECTLIT is used as ':' in object literal for
+                // decompilation to solve spacing ambiguity.
+<span class="pc bpc" id="L943" title="1 of 2 branches missed.">                if (!(prop.isMethod())) {</span>
+<span class="fc" id="L944">                    decompiler.addToken(Token.OBJECTLIT);</span>
+                }
+
+<span class="fc" id="L947">                Node right = transform(prop.getRight());</span>
+<span class="pc bpc" id="L948" title="1 of 2 branches missed.">                if (prop.isGetterMethod()) {</span>
+<span class="nc" id="L949">                    right = createUnary(Token.GET, right);</span>
+<span class="pc bpc" id="L950" title="1 of 2 branches missed.">                } else if (prop.isSetterMethod()) {</span>
+<span class="nc" id="L951">                    right = createUnary(Token.SET, right);</span>
+<span class="pc bpc" id="L952" title="1 of 2 branches missed.">                } else if (prop.isNormalMethod()) {</span>
+<span class="nc" id="L953">                    right = createUnary(Token.METHOD, right);</span>
+                }
+<span class="fc" id="L955">                object.addChildToBack(right);</span>
+
+<span class="fc bfc" id="L957" title="All 2 branches covered.">                if (i &lt; size) {</span>
+<span class="fc" id="L958">                    decompiler.addToken(Token.COMMA);</span>
+                }
+<span class="fc" id="L960">            }</span>
+        }
+<span class="fc" id="L962">        decompiler.addToken(Token.RC);</span>
+<span class="fc" id="L963">        object.putProp(Node.OBJECT_IDS_PROP, properties);</span>
+<span class="fc" id="L964">        return object;</span>
+    }
+
+    private Object getPropKey(Node id) {
+        Object key;
+<span class="pc bpc" id="L969" title="1 of 2 branches missed.">        if (id instanceof Name) {</span>
+<span class="fc" id="L970">            String s = ((Name)id).getIdentifier();</span>
+<span class="fc" id="L971">            decompiler.addName(s);</span>
+<span class="fc" id="L972">            key = ScriptRuntime.getIndexObject(s);</span>
+<span class="pc bnc" id="L973" title="All 2 branches missed.">        } else if (id instanceof StringLiteral) {</span>
+<span class="nc" id="L974">            String s = ((StringLiteral)id).getValue();</span>
+<span class="nc" id="L975">            decompiler.addString(s);</span>
+<span class="nc" id="L976">            key = ScriptRuntime.getIndexObject(s);</span>
+<span class="nc bnc" id="L977" title="All 2 branches missed.">        } else if (id instanceof NumberLiteral) {</span>
+<span class="nc" id="L978">            double n = ((NumberLiteral)id).getNumber();</span>
+<span class="nc" id="L979">            decompiler.addNumber(n);</span>
+<span class="nc" id="L980">            key = ScriptRuntime.getIndexObject(n);</span>
+<span class="nc" id="L981">        } else {</span>
+<span class="nc" id="L982">            throw Kit.codeBug();</span>
+        }
+<span class="fc" id="L984">        return key;</span>
+    }
+
+    private Node transformParenExpr(ParenthesizedExpression node) {
+<span class="fc" id="L988">        AstNode expr = node.getExpression();</span>
+<span class="fc" id="L989">        decompiler.addToken(Token.LP);</span>
+<span class="fc" id="L990">        int count = 1;</span>
+<span class="pc bpc" id="L991" title="1 of 2 branches missed.">        while (expr instanceof ParenthesizedExpression) {</span>
+<span class="nc" id="L992">            decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L993">            count++;</span>
+<span class="nc" id="L994">            expr = ((ParenthesizedExpression)expr).getExpression();</span>
+        }
+<span class="fc" id="L996">        Node result = transform(expr);</span>
+<span class="fc bfc" id="L997" title="All 2 branches covered.">        for (int i = 0; i &lt; count; i++) {</span>
+<span class="fc" id="L998">            decompiler.addToken(Token.RP);</span>
+        }
+<span class="fc" id="L1000">        result.putProp(Node.PARENTHESIZED_PROP, Boolean.TRUE);</span>
+<span class="fc" id="L1001">        return result;</span>
+    }
+
+    private Node transformPropertyGet(PropertyGet node) {
+<span class="fc" id="L1005">        Node target = transform(node.getTarget());</span>
+<span class="fc" id="L1006">        String name = node.getProperty().getIdentifier();</span>
+<span class="fc" id="L1007">        decompiler.addToken(Token.DOT);</span>
+<span class="fc" id="L1008">        decompiler.addName(name);</span>
+<span class="fc" id="L1009">        return createPropertyGet(target, null, name, 0);</span>
+    }
+
+    private Node transformRegExp(RegExpLiteral node) {
+<span class="fc" id="L1013">        decompiler.addRegexp(node.getValue(), node.getFlags());</span>
+<span class="fc" id="L1014">        currentScriptOrFn.addRegExp(node);</span>
+<span class="fc" id="L1015">        return node;</span>
+    }
+
+    private Node transformReturn(ReturnStatement node) {
+<span class="fc" id="L1019">        boolean expClosure = Boolean.TRUE.equals(node.getProp(Node.EXPRESSION_CLOSURE_PROP));</span>
+<span class="fc" id="L1020">        boolean isArrow = Boolean.TRUE.equals(node.getProp(Node.ARROW_FUNCTION_PROP));</span>
+<span class="pc bpc" id="L1021" title="1 of 2 branches missed.">        if (expClosure) {</span>
+<span class="nc bnc" id="L1022" title="All 2 branches missed.">            if (!isArrow) {</span>
+<span class="nc" id="L1023">                decompiler.addName(&quot; &quot;);</span>
+            }
+        } else {
+<span class="fc" id="L1026">            decompiler.addToken(Token.RETURN);</span>
+        }
+<span class="fc" id="L1028">        AstNode rv = node.getReturnValue();</span>
+<span class="fc bfc" id="L1029" title="All 2 branches covered.">        Node value = rv == null ? null : transform(rv);</span>
+<span class="pc bpc" id="L1030" title="1 of 2 branches missed.">        if (!expClosure) decompiler.addEOL(Token.SEMI);</span>
+<span class="fc bfc" id="L1031" title="All 2 branches covered.">        return rv == null</span>
+<span class="fc" id="L1032">            ? new Node(Token.RETURN, node.getLineno())</span>
+<span class="fc" id="L1033">            : new Node(Token.RETURN, value, node.getLineno());</span>
+    }
+
+    private Node transformScript(ScriptNode node) {
+<span class="fc" id="L1037">        decompiler.addToken(Token.SCRIPT);</span>
+<span class="pc bpc" id="L1038" title="1 of 2 branches missed.">        if (currentScope != null) Kit.codeBug();</span>
+<span class="fc" id="L1039">        currentScope = node;</span>
+<span class="fc" id="L1040">        Node body = new Node(Token.BLOCK);</span>
+<span class="fc bfc" id="L1041" title="All 2 branches covered.">        for (Node kid : node) {</span>
+<span class="fc" id="L1042">            body.addChildToBack(transform((AstNode)kid));</span>
+<span class="fc" id="L1043">        }</span>
+<span class="fc" id="L1044">        node.removeChildren();</span>
+<span class="fc" id="L1045">        Node children = body.getFirstChild();</span>
+<span class="fc bfc" id="L1046" title="All 2 branches covered.">        if (children != null) {</span>
+<span class="fc" id="L1047">            node.addChildrenToBack(children);</span>
+        }
+<span class="fc" id="L1049">        return node;</span>
+    }
+
+    private Node transformString(StringLiteral node) {
+<span class="fc" id="L1053">        decompiler.addString(node.getValue());</span>
+<span class="fc" id="L1054">        return Node.newString(node.getValue());</span>
+    }
+
+    private Node transformSwitch(SwitchStatement node) {
+        // The switch will be rewritten from:
+        //
+        // switch (expr) {
+        //   case test1: statements1;
+        //   ...
+        //   default: statementsDefault;
+        //   ...
+        //   case testN: statementsN;
+        // }
+        //
+        // to:
+        //
+        // {
+        //     switch (expr) {
+        //       case test1: goto label1;
+        //       ...
+        //       case testN: goto labelN;
+        //     }
+        //     goto labelDefault;
+        //   label1:
+        //     statements1;
+        //   ...
+        //   labelDefault:
+        //     statementsDefault;
+        //   ...
+        //   labelN:
+        //     statementsN;
+        //   breakLabel:
+        // }
+        //
+        // where inside switch each &quot;break;&quot; without label will be replaced
+        // by &quot;goto breakLabel&quot;.
+        //
+        // If the original switch does not have the default label, then
+        // after the switch he transformed code would contain this goto:
+        //     goto breakLabel;
+        // instead of:
+        //     goto labelDefault;
+
+<span class="nc" id="L1097">        decompiler.addToken(Token.SWITCH);</span>
+<span class="nc" id="L1098">        decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L1099">        Node switchExpr = transform(node.getExpression());</span>
+<span class="nc" id="L1100">        decompiler.addToken(Token.RP);</span>
+<span class="nc" id="L1101">        node.addChildToBack(switchExpr);</span>
+
+<span class="nc" id="L1103">        Node block = new Node(Token.BLOCK, node, node.getLineno());</span>
+<span class="nc" id="L1104">        decompiler.addEOL(Token.LC);</span>
+
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">        for (SwitchCase sc : node.getCases()) {</span>
+<span class="nc" id="L1107">            AstNode expr = sc.getExpression();</span>
+<span class="nc" id="L1108">            Node caseExpr = null;</span>
+
+<span class="nc bnc" id="L1110" title="All 2 branches missed.">            if (expr != null) {</span>
+<span class="nc" id="L1111">                decompiler.addToken(Token.CASE);</span>
+<span class="nc" id="L1112">                caseExpr = transform(expr);</span>
+            } else {
+<span class="nc" id="L1114">                decompiler.addToken(Token.DEFAULT);</span>
+            }
+<span class="nc" id="L1116">            decompiler.addEOL(Token.COLON);</span>
+
+<span class="nc" id="L1118">            List&lt;AstNode&gt; stmts = sc.getStatements();</span>
+<span class="nc" id="L1119">            Node body = new Block();</span>
+<span class="nc bnc" id="L1120" title="All 2 branches missed.">            if (stmts != null) {</span>
+<span class="nc bnc" id="L1121" title="All 2 branches missed.">                for (AstNode kid : stmts) {</span>
+<span class="nc" id="L1122">                    body.addChildToBack(transform(kid));</span>
+<span class="nc" id="L1123">                }</span>
+            }
+<span class="nc" id="L1125">            addSwitchCase(block, caseExpr, body);</span>
+<span class="nc" id="L1126">        }</span>
+<span class="nc" id="L1127">        decompiler.addEOL(Token.RC);</span>
+<span class="nc" id="L1128">        closeSwitch(block);</span>
+<span class="nc" id="L1129">        return block;</span>
+    }
+
+    private Node transformThrow(ThrowStatement node) {
+<span class="fc" id="L1133">        decompiler.addToken(Token.THROW);</span>
+<span class="fc" id="L1134">        Node value = transform(node.getExpression());</span>
+<span class="fc" id="L1135">        decompiler.addEOL(Token.SEMI);</span>
+<span class="fc" id="L1136">        return new Node(Token.THROW, value, node.getLineno());</span>
+    }
+
+    private Node transformTry(TryStatement node) {
+<span class="fc" id="L1140">        decompiler.addToken(Token.TRY);</span>
+<span class="fc" id="L1141">        decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L1142">        Node tryBlock = transform(node.getTryBlock());</span>
+<span class="fc" id="L1143">        decompiler.addEOL(Token.RC);</span>
+
+<span class="fc" id="L1145">        Node catchBlocks = new Block();</span>
+<span class="fc bfc" id="L1146" title="All 2 branches covered.">        for (CatchClause cc : node.getCatchClauses()) {</span>
+<span class="fc" id="L1147">            decompiler.addToken(Token.CATCH);</span>
+<span class="fc" id="L1148">            decompiler.addToken(Token.LP);</span>
+
+<span class="fc" id="L1150">            String varName = cc.getVarName().getIdentifier();</span>
+<span class="fc" id="L1151">            decompiler.addName(varName);</span>
+
+<span class="fc" id="L1153">            Node catchCond = null;</span>
+<span class="fc" id="L1154">            AstNode ccc = cc.getCatchCondition();</span>
+<span class="pc bpc" id="L1155" title="1 of 2 branches missed.">            if (ccc != null) {</span>
+<span class="nc" id="L1156">                decompiler.addName(&quot; &quot;);</span>
+<span class="nc" id="L1157">                decompiler.addToken(Token.IF);</span>
+<span class="nc" id="L1158">                catchCond = transform(ccc);</span>
+            } else {
+<span class="fc" id="L1160">                catchCond = new EmptyExpression();</span>
+            }
+<span class="fc" id="L1162">            decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L1163">            decompiler.addEOL(Token.LC);</span>
+
+<span class="fc" id="L1165">            Node body = transform(cc.getBody());</span>
+<span class="fc" id="L1166">            decompiler.addEOL(Token.RC);</span>
+
+<span class="fc" id="L1168">            catchBlocks.addChildToBack(createCatch(varName, catchCond,</span>
+<span class="fc" id="L1169">                                                   body, cc.getLineno()));</span>
+<span class="fc" id="L1170">        }</span>
+<span class="fc" id="L1171">        Node finallyBlock = null;</span>
+<span class="pc bpc" id="L1172" title="1 of 2 branches missed.">        if (node.getFinallyBlock() != null) {</span>
+<span class="nc" id="L1173">            decompiler.addToken(Token.FINALLY);</span>
+<span class="nc" id="L1174">            decompiler.addEOL(Token.LC);</span>
+<span class="nc" id="L1175">            finallyBlock = transform(node.getFinallyBlock());</span>
+<span class="nc" id="L1176">            decompiler.addEOL(Token.RC);</span>
+        }
+<span class="fc" id="L1178">        return createTryCatchFinally(tryBlock, catchBlocks,</span>
+<span class="fc" id="L1179">                                     finallyBlock, node.getLineno());</span>
+    }
+
+    private Node transformUnary(UnaryExpression node) {
+<span class="fc" id="L1183">        int type = node.getType();</span>
+<span class="pc bpc" id="L1184" title="1 of 2 branches missed.">        if (type == Token.DEFAULTNAMESPACE) {</span>
+<span class="nc" id="L1185">            return transformDefaultXmlNamepace(node);</span>
+        }
+<span class="fc bfc" id="L1187" title="All 2 branches covered.">        if (node.isPrefix()) {</span>
+<span class="fc" id="L1188">            decompiler.addToken(type);</span>
+        }
+<span class="fc" id="L1190">        Node child = transform(node.getOperand());</span>
+<span class="fc bfc" id="L1191" title="All 2 branches covered.">        if (node.isPostfix()) {</span>
+<span class="fc" id="L1192">            decompiler.addToken(type);</span>
+        }
+<span class="pc bpc" id="L1194" title="1 of 4 branches missed.">        if (type == Token.INC || type == Token.DEC) {</span>
+<span class="fc" id="L1195">            return createIncDec(type, node.isPostfix(), child);</span>
+        }
+<span class="fc" id="L1197">        return createUnary(type, child);</span>
+    }
+
+    private Node transformVariables(VariableDeclaration node) {
+<span class="fc" id="L1201">        decompiler.addToken(node.getType());</span>
+<span class="fc" id="L1202">        transformVariableInitializers(node);</span>
+
+        // Might be most robust to have parser record whether it was
+        // a variable declaration statement, possibly as a node property.
+<span class="fc" id="L1206">        AstNode parent = node.getParent();</span>
+<span class="pc bpc" id="L1207" title="1 of 4 branches missed.">        if (!(parent instanceof Loop)</span>
+            &amp;&amp; !(parent instanceof LetNode)) {
+<span class="fc" id="L1209">            decompiler.addEOL(Token.SEMI);</span>
+        }
+<span class="fc" id="L1211">        return node;</span>
+    }
+
+    private Node transformVariableInitializers(VariableDeclaration node) {
+<span class="fc" id="L1215">        List&lt;VariableInitializer&gt; vars = node.getVariables();</span>
+<span class="fc" id="L1216">        int size = vars.size(), i = 0;</span>
+<span class="fc bfc" id="L1217" title="All 2 branches covered.">        for (VariableInitializer var : vars) {</span>
+<span class="fc" id="L1218">            AstNode target = var.getTarget();</span>
+<span class="fc" id="L1219">            AstNode init = var.getInitializer();</span>
+
+<span class="fc" id="L1221">            Node left = null;</span>
+<span class="pc bpc" id="L1222" title="1 of 2 branches missed.">            if (var.isDestructuring()) {</span>
+<span class="nc" id="L1223">                decompile(target);  // decompile but don't transform</span>
+<span class="nc" id="L1224">                left = target;</span>
+            } else {
+<span class="fc" id="L1226">                left = transform(target);</span>
+            }
+
+<span class="fc" id="L1229">            Node right = null;</span>
+<span class="fc bfc" id="L1230" title="All 2 branches covered.">            if (init != null) {</span>
+<span class="fc" id="L1231">                decompiler.addToken(Token.ASSIGN);</span>
+<span class="fc" id="L1232">                right = transform(init);</span>
+            }
+
+<span class="pc bpc" id="L1235" title="1 of 2 branches missed.">            if (var.isDestructuring()) {</span>
+<span class="nc bnc" id="L1236" title="All 2 branches missed.">                if (right == null) {  // TODO:  should this ever happen?</span>
+<span class="nc" id="L1237">                    node.addChildToBack(left);</span>
+                } else {
+<span class="nc" id="L1239">                    Node d = createDestructuringAssignment(node.getType(),</span>
+                                                           left, right);
+<span class="nc" id="L1241">                    node.addChildToBack(d);</span>
+<span class="nc" id="L1242">                }</span>
+            } else {
+<span class="fc bfc" id="L1244" title="All 2 branches covered.">                if (right != null) {</span>
+<span class="fc" id="L1245">                    left.addChildToBack(right);</span>
+                }
+<span class="fc" id="L1247">                node.addChildToBack(left);</span>
+            }
+<span class="fc bfc" id="L1249" title="All 2 branches covered.">            if (i++ &lt; size-1) {</span>
+<span class="fc" id="L1250">                decompiler.addToken(Token.COMMA);</span>
+            }
+<span class="fc" id="L1252">        }</span>
+<span class="fc" id="L1253">        return node;</span>
+    }
+
+    private Node transformWhileLoop(WhileLoop loop) {
+<span class="fc" id="L1257">        decompiler.addToken(Token.WHILE);</span>
+<span class="fc" id="L1258">        loop.setType(Token.LOOP);</span>
+<span class="fc" id="L1259">        pushScope(loop);</span>
+        try {
+<span class="fc" id="L1261">            decompiler.addToken(Token.LP);</span>
+<span class="fc" id="L1262">            Node cond = transform(loop.getCondition());</span>
+<span class="fc" id="L1263">            decompiler.addToken(Token.RP);</span>
+<span class="fc" id="L1264">            decompiler.addEOL(Token.LC);</span>
+<span class="fc" id="L1265">            Node body = transform(loop.getBody());</span>
+<span class="fc" id="L1266">            decompiler.addEOL(Token.RC);</span>
+<span class="fc" id="L1267">            return createLoop(loop, LOOP_WHILE, body, cond, null, null);</span>
+        } finally {
+<span class="pc" id="L1269">            popScope();</span>
+<span class="nc" id="L1270">        }</span>
+    }
+
+    private Node transformWith(WithStatement node) {
+<span class="fc" id="L1274">        decompiler.addToken(Token.WITH);</span>
+<span class="fc" id="L1275">        decompiler.addToken(Token.LP);</span>
+<span class="nc" id="L1276">        Node expr = transform(node.getExpression());</span>
+<span class="nc" id="L1277">        decompiler.addToken(Token.RP);</span>
+<span class="nc" id="L1278">        decompiler.addEOL(Token.LC);</span>
+<span class="nc" id="L1279">        Node stmt = transform(node.getStatement());</span>
+<span class="nc" id="L1280">        decompiler.addEOL(Token.RC);</span>
+<span class="nc" id="L1281">        return createWith(expr, stmt, node.getLineno());</span>
+    }
+
+    private Node transformYield(Yield node) {
+<span class="nc" id="L1285">        decompiler.addToken(Token.YIELD);</span>
+<span class="nc bnc" id="L1286" title="All 2 branches missed.">        Node kid = node.getValue() == null ? null : transform(node.getValue());</span>
+<span class="nc bnc" id="L1287" title="All 2 branches missed.">        if (kid != null)</span>
+<span class="nc" id="L1288">            return new Node(Token.YIELD, kid, node.getLineno());</span>
+        else
+<span class="nc" id="L1290">            return new Node(Token.YIELD, node.getLineno());</span>
+    }
+
+    private Node transformXmlLiteral(XmlLiteral node) {
+        // a literal like &lt;foo&gt;{bar}&lt;/foo&gt; is rewritten as
+        //   new XML(&quot;&lt;foo&gt;&quot; + bar + &quot;&lt;/foo&gt;&quot;);
+
+<span class="fc" id="L1297">        Node pnXML = new Node(Token.NEW, node.getLineno());</span>
+<span class="fc" id="L1298">        List&lt;XmlFragment&gt; frags = node.getFragments();</span>
+
+<span class="nc" id="L1300">        XmlString first = (XmlString)frags.get(0);</span>
+<span class="nc" id="L1301">        boolean anon = first.getXml().trim().startsWith(&quot;&lt;&gt;&quot;);</span>
+<span class="nc bnc" id="L1302" title="All 2 branches missed.">        pnXML.addChildToBack(createName(anon ? &quot;XMLList&quot; : &quot;XML&quot;));</span>
+
+<span class="nc" id="L1304">        Node pn = null;</span>
+<span class="nc bnc" id="L1305" title="All 2 branches missed.">        for (XmlFragment frag : frags) {</span>
+<span class="nc bnc" id="L1306" title="All 2 branches missed.">            if (frag instanceof XmlString) {</span>
+<span class="nc" id="L1307">                String xml = ((XmlString)frag).getXml();</span>
+<span class="nc" id="L1308">                decompiler.addName(xml);</span>
+<span class="nc bnc" id="L1309" title="All 2 branches missed.">                if (pn == null) {</span>
+<span class="nc" id="L1310">                    pn = createString(xml);</span>
+                } else {
+<span class="nc" id="L1312">                    pn = createBinary(Token.ADD, pn, createString(xml));</span>
+                }
+<span class="nc" id="L1314">            } else {</span>
+<span class="nc" id="L1315">                XmlExpression xexpr = (XmlExpression)frag;</span>
+<span class="nc" id="L1316">                boolean isXmlAttr = xexpr.isXmlAttribute();</span>
+                Node expr;
+<span class="nc" id="L1318">                decompiler.addToken(Token.LC);</span>
+<span class="nc bnc" id="L1319" title="All 2 branches missed.">                if (xexpr.getExpression() instanceof EmptyExpression) {</span>
+<span class="nc" id="L1320">                    expr = createString(&quot;&quot;);</span>
+                } else {
+<span class="nc" id="L1322">                    expr = transform(xexpr.getExpression());</span>
+                }
+<span class="nc" id="L1324">                decompiler.addToken(Token.RC);</span>
+<span class="nc bnc" id="L1325" title="All 2 branches missed.">                if (isXmlAttr) {</span>
+                    // Need to put the result in double quotes
+<span class="nc" id="L1327">                    expr = createUnary(Token.ESCXMLATTR, expr);</span>
+<span class="nc" id="L1328">                    Node prepend = createBinary(Token.ADD,</span>
+<span class="nc" id="L1329">                                                createString(&quot;\&quot;&quot;),</span>
+                                                expr);
+<span class="nc" id="L1331">                    expr = createBinary(Token.ADD,</span>
+                                        prepend,
+<span class="nc" id="L1333">                                        createString(&quot;\&quot;&quot;));</span>
+<span class="nc" id="L1334">                } else {</span>
+<span class="nc" id="L1335">                    expr = createUnary(Token.ESCXMLTEXT, expr);</span>
+                }
+<span class="nc" id="L1337">                pn = createBinary(Token.ADD, pn, expr);</span>
+            }
+<span class="nc" id="L1339">        }</span>
+
+<span class="nc" id="L1341">        pnXML.addChildToBack(pn);</span>
+<span class="nc" id="L1342">        return pnXML;</span>
+    }
+
+    private Node transformXmlMemberGet(XmlMemberGet node) {
+<span class="nc" id="L1346">        XmlRef ref = node.getMemberRef();</span>
+<span class="nc" id="L1347">        Node pn = transform(node.getLeft());</span>
+<span class="nc bnc" id="L1348" title="All 2 branches missed.">        int flags = ref.isAttributeAccess() ? Node.ATTRIBUTE_FLAG : 0;</span>
+<span class="nc bnc" id="L1349" title="All 2 branches missed.">        if (node.getType() == Token.DOTDOT) {</span>
+<span class="nc" id="L1350">            flags |= Node.DESCENDANTS_FLAG;</span>
+<span class="nc" id="L1351">            decompiler.addToken(Token.DOTDOT);</span>
+        } else {
+<span class="nc" id="L1353">            decompiler.addToken(Token.DOT);</span>
+        }
+<span class="nc" id="L1355">        return transformXmlRef(pn, ref, flags);</span>
+    }
+
+    // We get here if we weren't a child of a . or .. infix node
+    private Node transformXmlRef(XmlRef node) {
+<span class="pc bpc" id="L1360" title="1 of 2 branches missed.">        int memberTypeFlags = node.isAttributeAccess()</span>
+            ? Node.ATTRIBUTE_FLAG : 0;
+<span class="nc" id="L1362">        return transformXmlRef(null, node, memberTypeFlags);</span>
+    }
+
+    private Node transformXmlRef(Node pn, XmlRef node, int memberTypeFlags) {
+<span class="pc bpc" id="L1366" title="1 of 2 branches missed.">        if ((memberTypeFlags &amp; Node.ATTRIBUTE_FLAG) != 0)</span>
+<span class="fc" id="L1367">            decompiler.addToken(Token.XMLATTR);</span>
+<span class="fc" id="L1368">        Name namespace = node.getNamespace();</span>
+<span class="pc bpc" id="L1369" title="1 of 2 branches missed.">        String ns = namespace != null ? namespace.getIdentifier() : null;</span>
+<span class="pc bpc" id="L1370" title="1 of 2 branches missed.">        if (ns != null) {</span>
+<span class="nc" id="L1371">            decompiler.addName(ns);</span>
+<span class="nc" id="L1372">            decompiler.addToken(Token.COLONCOLON);</span>
+        }
+<span class="pc bpc" id="L1374" title="1 of 2 branches missed.">        if (node instanceof XmlPropRef) {</span>
+<span class="nc" id="L1375">            String name = ((XmlPropRef)node).getPropName().getIdentifier();</span>
+<span class="nc" id="L1376">            decompiler.addName(name);</span>
+<span class="nc" id="L1377">            return createPropertyGet(pn, ns, name, memberTypeFlags);</span>
+        } else {
+<span class="fc" id="L1379">            decompiler.addToken(Token.LB);</span>
+<span class="nc" id="L1380">            Node expr = transform(((XmlElemRef)node).getExpression());</span>
+<span class="nc" id="L1381">            decompiler.addToken(Token.RB);</span>
+<span class="nc" id="L1382">            return createElementGet(pn, ns, expr, memberTypeFlags);</span>
+        }
+    }
+
+    private Node transformDefaultXmlNamepace(UnaryExpression node) {
+<span class="nc" id="L1387">        decompiler.addToken(Token.DEFAULT);</span>
+<span class="nc" id="L1388">        decompiler.addName(&quot; xml&quot;);</span>
+<span class="nc" id="L1389">        decompiler.addName(&quot; namespace&quot;);</span>
+<span class="nc" id="L1390">        decompiler.addToken(Token.ASSIGN);</span>
+<span class="nc" id="L1391">        Node child = transform(node.getOperand());</span>
+<span class="nc" id="L1392">        return createUnary(Token.DEFAULTNAMESPACE, child);</span>
+    }
+
+    /**
+     * If caseExpression argument is null it indicates a default label.
+     */
+    private void addSwitchCase(Node switchBlock, Node caseExpression,
+                               Node statements)
+    {
+<span class="nc bnc" id="L1401" title="All 2 branches missed.">        if (switchBlock.getType() != Token.BLOCK) throw Kit.codeBug();</span>
+<span class="nc" id="L1402">        Jump switchNode = (Jump)switchBlock.getFirstChild();</span>
+<span class="nc bnc" id="L1403" title="All 2 branches missed.">        if (switchNode.getType() != Token.SWITCH) throw Kit.codeBug();</span>
+
+<span class="nc" id="L1405">        Node gotoTarget = Node.newTarget();</span>
+<span class="nc bnc" id="L1406" title="All 2 branches missed.">        if (caseExpression != null) {</span>
+<span class="nc" id="L1407">            Jump caseNode = new Jump(Token.CASE, caseExpression);</span>
+<span class="nc" id="L1408">            caseNode.target = gotoTarget;</span>
+<span class="nc" id="L1409">            switchNode.addChildToBack(caseNode);</span>
+<span class="nc" id="L1410">        } else {</span>
+<span class="nc" id="L1411">            switchNode.setDefault(gotoTarget);</span>
+        }
+<span class="nc" id="L1413">        switchBlock.addChildToBack(gotoTarget);</span>
+<span class="nc" id="L1414">        switchBlock.addChildToBack(statements);</span>
+<span class="nc" id="L1415">    }</span>
+
+    private void closeSwitch(Node switchBlock)
+    {
+<span class="nc bnc" id="L1419" title="All 2 branches missed.">        if (switchBlock.getType() != Token.BLOCK) throw Kit.codeBug();</span>
+<span class="nc" id="L1420">        Jump switchNode = (Jump)switchBlock.getFirstChild();</span>
+<span class="nc bnc" id="L1421" title="All 2 branches missed.">        if (switchNode.getType() != Token.SWITCH) throw Kit.codeBug();</span>
+
+<span class="nc" id="L1423">        Node switchBreakTarget = Node.newTarget();</span>
+        // switchNode.target is only used by NodeTransformer
+        // to detect switch end
+<span class="nc" id="L1426">        switchNode.target = switchBreakTarget;</span>
+
+<span class="nc" id="L1428">        Node defaultTarget = switchNode.getDefault();</span>
+<span class="nc bnc" id="L1429" title="All 2 branches missed.">        if (defaultTarget == null) {</span>
+<span class="nc" id="L1430">            defaultTarget = switchBreakTarget;</span>
+        }
+
+<span class="nc" id="L1433">        switchBlock.addChildAfter(makeJump(Token.GOTO, defaultTarget),</span>
+                                  switchNode);
+<span class="nc" id="L1435">        switchBlock.addChildToBack(switchBreakTarget);</span>
+<span class="nc" id="L1436">    }</span>
+
+    private Node createExprStatementNoReturn(Node expr, int lineno) {
+<span class="nc" id="L1439">        return new Node(Token.EXPR_VOID, expr, lineno);</span>
+    }
+
+    private Node createString(String string) {
+<span class="nc" id="L1443">        return Node.newString(string);</span>
+    }
+
+    /**
+     * Catch clause of try/catch/finally
+     * @param varName the name of the variable to bind to the exception
+     * @param catchCond the condition under which to catch the exception.
+     *                  May be null if no condition is given.
+     * @param stmts the statements in the catch clause
+     * @param lineno the starting line number of the catch clause
+     */
+    private Node createCatch(String varName, Node catchCond, Node stmts,
+                             int lineno) {
+<span class="pc bpc" id="L1456" title="1 of 2 branches missed.">        if (catchCond == null) {</span>
+<span class="nc" id="L1457">            catchCond = new Node(Token.EMPTY);</span>
+        }
+<span class="fc" id="L1459">        return new Node(Token.CATCH, createName(varName),</span>
+                        catchCond, stmts, lineno);
+    }
+
+    private Node initFunction(FunctionNode fnNode, int functionIndex,
+                              Node statements, int functionType) {
+<span class="fc" id="L1465">        fnNode.setFunctionType(functionType);</span>
+<span class="fc" id="L1466">        fnNode.addChildToBack(statements);</span>
+
+<span class="fc" id="L1468">        int functionCount = fnNode.getFunctionCount();</span>
+<span class="fc bfc" id="L1469" title="All 2 branches covered.">        if (functionCount != 0) {</span>
+            // Functions containing other functions require activation objects
+<span class="fc" id="L1471">            fnNode.setRequiresActivation();</span>
+        }
+
+<span class="fc bfc" id="L1474" title="All 2 branches covered.">        if (functionType == FunctionNode.FUNCTION_EXPRESSION) {</span>
+<span class="fc" id="L1475">            Name name = fnNode.getFunctionName();</span>
+<span class="pc bpc" id="L1476" title="3 of 4 branches missed.">            if (name != null &amp;&amp; name.length() != 0</span>
+<span class="nc bnc" id="L1477" title="All 2 branches missed.">                    &amp;&amp; fnNode.getSymbol(name.getIdentifier()) == null) {</span>
+                // A function expression needs to have its name as a
+                // variable (if it isn't already allocated as a variable).
+                // See ECMA Ch. 13.  We add code to the beginning of the
+                // function to initialize a local variable of the
+                // function's name to the function value, but only if the
+                // function doesn't already define a formal parameter, var,
+                // or nested function with the same name.
+<span class="nc" id="L1485">                fnNode.putSymbol(new Symbol(Token.FUNCTION, name.getIdentifier()));</span>
+<span class="nc" id="L1486">                Node setFn = new Node(Token.EXPR_VOID,</span>
+                                 new Node(Token.SETNAME,
+<span class="nc" id="L1488">                                          Node.newString(Token.BINDNAME,</span>
+<span class="nc" id="L1489">                                                         name.getIdentifier()),</span>
+                                     new Node(Token.THISFN)));
+<span class="nc" id="L1491">                statements.addChildrenToFront(setFn);</span>
+            }
+        }
+
+        // Add return to end if needed.
+<span class="fc" id="L1496">        Node lastStmt = statements.getLastChild();</span>
+<span class="fc bfc" id="L1497" title="All 4 branches covered.">        if (lastStmt == null || lastStmt.getType() != Token.RETURN) {</span>
+<span class="fc" id="L1498">            statements.addChildToBack(new Node(Token.RETURN));</span>
+        }
+
+<span class="fc" id="L1501">        Node result = Node.newString(Token.FUNCTION, fnNode.getName());</span>
+<span class="fc" id="L1502">        result.putIntProp(Node.FUNCTION_PROP, functionIndex);</span>
+<span class="fc" id="L1503">        return result;</span>
+    }
+
+    /**
+     * Create loop node. The code generator will later call
+     * createWhile|createDoWhile|createFor|createForIn
+     * to finish loop generation.
+     */
+    private Scope createLoopNode(Node loopLabel, int lineno) {
+<span class="nc" id="L1512">        Scope result = createScopeNode(Token.LOOP, lineno);</span>
+<span class="nc bnc" id="L1513" title="All 2 branches missed.">        if (loopLabel != null) {</span>
+<span class="nc" id="L1514">            ((Jump)loopLabel).setLoop(result);</span>
+        }
+<span class="nc" id="L1516">        return result;</span>
+    }
+
+    private Node createFor(Scope loop, Node init,
+                           Node test, Node incr, Node body) {
+<span class="pc bpc" id="L1521" title="1 of 2 branches missed.">        if (init.getType() == Token.LET) {</span>
+            // rewrite &quot;for (let i=s; i &lt; N; i++)...&quot; as
+            // &quot;let (i=s) { for (; i &lt; N; i++)...&quot; so that &quot;s&quot; is evaluated
+            // outside the scope of the for.
+<span class="nc" id="L1525">            Scope let = Scope.splitScope(loop);</span>
+<span class="nc" id="L1526">            let.setType(Token.LET);</span>
+<span class="nc" id="L1527">            let.addChildrenToBack(init);</span>
+<span class="nc" id="L1528">            let.addChildToBack(createLoop(loop, LOOP_FOR, body, test,</span>
+                new Node(Token.EMPTY), incr));
+<span class="nc" id="L1530">            return let;</span>
+        }
+<span class="fc" id="L1532">        return createLoop(loop, LOOP_FOR, body, test, init, incr);</span>
+    }
+
+    private Node createLoop(Jump loop, int loopType, Node body,
+                            Node cond, Node init, Node incr)
+    {
+<span class="fc" id="L1538">        Node bodyTarget = Node.newTarget();</span>
+<span class="fc" id="L1539">        Node condTarget = Node.newTarget();</span>
+<span class="pc bpc" id="L1540" title="1 of 4 branches missed.">        if (loopType == LOOP_FOR &amp;&amp; cond.getType() == Token.EMPTY) {</span>
+<span class="nc" id="L1541">            cond = new Node(Token.TRUE);</span>
+        }
+<span class="fc" id="L1543">        Jump IFEQ = new Jump(Token.IFEQ, cond);</span>
+<span class="fc" id="L1544">        IFEQ.target = bodyTarget;</span>
+<span class="fc" id="L1545">        Node breakTarget = Node.newTarget();</span>
+
+<span class="fc" id="L1547">        loop.addChildToBack(bodyTarget);</span>
+<span class="fc" id="L1548">        loop.addChildrenToBack(body);</span>
+<span class="pc bpc" id="L1549" title="1 of 4 branches missed.">        if (loopType == LOOP_WHILE || loopType == LOOP_FOR) {</span>
+            // propagate lineno to condition
+<span class="fc" id="L1551">            loop.addChildrenToBack(new Node(Token.EMPTY, loop.getLineno()));</span>
+        }
+<span class="fc" id="L1553">        loop.addChildToBack(condTarget);</span>
+<span class="fc" id="L1554">        loop.addChildToBack(IFEQ);</span>
+<span class="fc" id="L1555">        loop.addChildToBack(breakTarget);</span>
+
+<span class="fc" id="L1557">        loop.target = breakTarget;</span>
+<span class="fc" id="L1558">        Node continueTarget = condTarget;</span>
+
+<span class="pc bpc" id="L1560" title="1 of 4 branches missed.">        if (loopType == LOOP_WHILE || loopType == LOOP_FOR) {</span>
+            // Just add a GOTO to the condition in the do..while
+<span class="fc" id="L1562">            loop.addChildToFront(makeJump(Token.GOTO, condTarget));</span>
+
+<span class="fc bfc" id="L1564" title="All 2 branches covered.">            if (loopType == LOOP_FOR) {</span>
+<span class="fc" id="L1565">                int initType = init.getType();</span>
+<span class="pc bpc" id="L1566" title="1 of 2 branches missed.">                if (initType != Token.EMPTY) {</span>
+<span class="pc bpc" id="L1567" title="1 of 4 branches missed.">                    if (initType != Token.VAR &amp;&amp; initType != Token.LET) {</span>
+<span class="fc" id="L1568">                        init = new Node(Token.EXPR_VOID, init);</span>
+                    }
+<span class="fc" id="L1570">                    loop.addChildToFront(init);</span>
+                }
+<span class="fc" id="L1572">                Node incrTarget = Node.newTarget();</span>
+<span class="fc" id="L1573">                loop.addChildAfter(incrTarget, body);</span>
+<span class="pc bpc" id="L1574" title="1 of 2 branches missed.">                if (incr.getType() != Token.EMPTY) {</span>
+<span class="fc" id="L1575">                    incr = new Node(Token.EXPR_VOID, incr);</span>
+<span class="fc" id="L1576">                    loop.addChildAfter(incr, incrTarget);</span>
+                }
+<span class="fc" id="L1578">                continueTarget = incrTarget;</span>
+            }
+        }
+
+<span class="fc" id="L1582">        loop.setContinue(continueTarget);</span>
+<span class="fc" id="L1583">        return loop;</span>
+    }
+
+    /**
+     * Generate IR for a for..in loop.
+     */
+    private Node createForIn(int declType, Node loop, Node lhs,
+                             Node obj, Node body, boolean isForEach, boolean isForOf)
+    {
+<span class="fc" id="L1592">        int destructuring = -1;</span>
+<span class="fc" id="L1593">        int destructuringLen = 0;</span>
+        Node lvalue;
+<span class="fc" id="L1595">        int type = lhs.getType();</span>
+<span class="pc bpc" id="L1596" title="2 of 4 branches missed.">        if (type == Token.VAR || type == Token.LET) {</span>
+<span class="nc" id="L1597">            Node kid = lhs.getLastChild();</span>
+<span class="nc" id="L1598">            int kidType = kid.getType();</span>
+<span class="nc bnc" id="L1599" title="All 4 branches missed.">            if (kidType == Token.ARRAYLIT || kidType == Token.OBJECTLIT)</span>
+            {
+<span class="nc" id="L1601">                type = destructuring = kidType;</span>
+<span class="nc" id="L1602">                lvalue = kid;</span>
+<span class="nc" id="L1603">                destructuringLen = 0;</span>
+<span class="nc bnc" id="L1604" title="All 2 branches missed.">                if (kid instanceof ArrayLiteral)</span>
+<span class="nc" id="L1605">                    destructuringLen = ((ArrayLiteral) kid).getDestructuringLength();</span>
+<span class="nc bnc" id="L1606" title="All 2 branches missed.">            } else if (kidType == Token.NAME) {</span>
+<span class="nc" id="L1607">                lvalue = Node.newString(Token.NAME, kid.getString());</span>
+            } else {
+<span class="nc" id="L1609">                reportError(&quot;msg.bad.for.in.lhs&quot;);</span>
+<span class="nc" id="L1610">                return null;</span>
+            }
+<span class="pc bpc" id="L1612" title="2 of 4 branches missed.">        } else if (type == Token.ARRAYLIT || type == Token.OBJECTLIT) {</span>
+<span class="nc" id="L1613">            destructuring = type;</span>
+<span class="nc" id="L1614">            lvalue = lhs;</span>
+<span class="nc" id="L1615">            destructuringLen = 0;</span>
+<span class="nc bnc" id="L1616" title="All 2 branches missed.">            if (lhs instanceof ArrayLiteral)</span>
+<span class="nc" id="L1617">                destructuringLen = ((ArrayLiteral) lhs).getDestructuringLength();</span>
+        } else {
+<span class="fc" id="L1619">            lvalue = makeReference(lhs);</span>
+<span class="pc bpc" id="L1620" title="1 of 2 branches missed.">            if (lvalue == null) {</span>
+<span class="nc" id="L1621">                reportError(&quot;msg.bad.for.in.lhs&quot;);</span>
+<span class="nc" id="L1622">                return null;</span>
+            }
+        }
+
+<span class="fc" id="L1626">        Node localBlock = new Node(Token.LOCAL_BLOCK);</span>
+<span class="pc bpc" id="L1627" title="3 of 6 branches missed.">        int initType = isForEach ? Token.ENUM_INIT_VALUES</span>
+                       : isForOf ? Token.ENUM_INIT_VALUES_IN_ORDER
+                                 : (destructuring != -1
+                                    ? Token.ENUM_INIT_ARRAY
+                                    : Token.ENUM_INIT_KEYS);
+<span class="fc" id="L1632">        Node init = new Node(initType, obj);</span>
+<span class="fc" id="L1633">        init.putProp(Node.LOCAL_BLOCK_PROP, localBlock);</span>
+<span class="fc" id="L1634">        Node cond = new Node(Token.ENUM_NEXT);</span>
+<span class="fc" id="L1635">        cond.putProp(Node.LOCAL_BLOCK_PROP, localBlock);</span>
+<span class="fc" id="L1636">        Node id = new Node(Token.ENUM_ID);</span>
+<span class="fc" id="L1637">        id.putProp(Node.LOCAL_BLOCK_PROP, localBlock);</span>
+
+<span class="fc" id="L1639">        Node newBody = new Node(Token.BLOCK);</span>
+        Node assign;
+<span class="pc bpc" id="L1641" title="1 of 2 branches missed.">        if (destructuring != -1) {</span>
+<span class="nc" id="L1642">            assign = createDestructuringAssignment(declType, lvalue, id);</span>
+<span class="nc bnc" id="L1643" title="All 8 branches missed.">            if (!isForEach &amp;&amp; !isForOf &amp;&amp;</span>
+                (destructuring == Token.OBJECTLIT ||
+                 destructuringLen != 2))
+            {
+                // destructuring assignment is only allowed in for..each or
+                // with an array type of length 2 (to hold key and value)
+<span class="nc" id="L1649">                reportError(&quot;msg.bad.for.in.destruct&quot;);</span>
+            }
+        } else {
+<span class="fc" id="L1652">            assign = simpleAssignment(lvalue, id);</span>
+        }
+<span class="fc" id="L1654">        newBody.addChildToBack(new Node(Token.EXPR_VOID, assign));</span>
+<span class="fc" id="L1655">        newBody.addChildToBack(body);</span>
+
+<span class="fc" id="L1657">        loop = createLoop((Jump)loop, LOOP_WHILE, newBody, cond, null, null);</span>
+<span class="fc" id="L1658">        loop.addChildToFront(init);</span>
+<span class="pc bpc" id="L1659" title="2 of 4 branches missed.">        if (type == Token.VAR || type == Token.LET)</span>
+<span class="nc" id="L1660">            loop.addChildToFront(lhs);</span>
+<span class="fc" id="L1661">        localBlock.addChildToBack(loop);</span>
+
+<span class="fc" id="L1663">        return localBlock;</span>
+    }
+
+    /**
+     * Try/Catch/Finally
+     *
+     * The IRFactory tries to express as much as possible in the tree;
+     * the responsibilities remaining for Codegen are to add the Java
+     * handlers: (Either (but not both) of TARGET and FINALLY might not
+     * be defined)
+     *
+     * - a catch handler for javascript exceptions that unwraps the
+     * exception onto the stack and GOTOes to the catch target
+     *
+     * - a finally handler
+     *
+     * ... and a goto to GOTO around these handlers.
+     */
+    private Node createTryCatchFinally(Node tryBlock, Node catchBlocks,
+                                       Node finallyBlock, int lineno)
+    {
+<span class="pc bpc" id="L1684" title="1 of 2 branches missed.">        boolean hasFinally = (finallyBlock != null)</span>
+<span class="nc bnc" id="L1685" title="All 2 branches missed.">                             &amp;&amp; (finallyBlock.getType() != Token.BLOCK</span>
+<span class="pc bnc" id="L1686" title="All 2 branches missed.">                                 || finallyBlock.hasChildren());</span>
+
+        // short circuit
+<span class="pc bpc" id="L1689" title="4 of 6 branches missed.">        if (tryBlock.getType() == Token.BLOCK &amp;&amp; !tryBlock.hasChildren()</span>
+            &amp;&amp; !hasFinally)
+        {
+<span class="nc" id="L1692">            return tryBlock;</span>
+        }
+
+<span class="fc" id="L1695">        boolean hasCatch = catchBlocks.hasChildren();</span>
+
+        // short circuit
+<span class="pc bpc" id="L1698" title="2 of 4 branches missed.">        if (!hasFinally &amp;&amp; !hasCatch)  {</span>
+            // bc finally might be an empty block...
+<span class="nc" id="L1700">            return tryBlock;</span>
+        }
+
+<span class="fc" id="L1703">        Node handlerBlock  = new Node(Token.LOCAL_BLOCK);</span>
+<span class="fc" id="L1704">        Jump pn = new Jump(Token.TRY, tryBlock, lineno);</span>
+<span class="fc" id="L1705">        pn.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);</span>
+
+<span class="pc bpc" id="L1707" title="1 of 2 branches missed.">        if (hasCatch) {</span>
+            // jump around catch code
+<span class="fc" id="L1709">            Node endCatch = Node.newTarget();</span>
+<span class="fc" id="L1710">            pn.addChildToBack(makeJump(Token.GOTO, endCatch));</span>
+
+            // make a TARGET for the catch that the tcf node knows about
+<span class="fc" id="L1713">            Node catchTarget = Node.newTarget();</span>
+<span class="fc" id="L1714">            pn.target = catchTarget;</span>
+            // mark it
+<span class="fc" id="L1716">            pn.addChildToBack(catchTarget);</span>
+
+            //
+            //  Given
+            //
+            //   try {
+            //       tryBlock;
+            //   } catch (e if condition1) {
+            //       something1;
+            //   ...
+            //
+            //   } catch (e if conditionN) {
+            //       somethingN;
+            //   } catch (e) {
+            //       somethingDefault;
+            //   }
+            //
+            //  rewrite as
+            //
+            //   try {
+            //       tryBlock;
+            //       goto after_catch:
+            //   } catch (x) {
+            //       with (newCatchScope(e, x)) {
+            //           if (condition1) {
+            //               something1;
+            //               goto after_catch;
+            //           }
+            //       }
+            //   ...
+            //       with (newCatchScope(e, x)) {
+            //           if (conditionN) {
+            //               somethingN;
+            //               goto after_catch;
+            //           }
+            //       }
+            //       with (newCatchScope(e, x)) {
+            //           somethingDefault;
+            //           goto after_catch;
+            //       }
+            //   }
+            // after_catch:
+            //
+            // If there is no default catch, then the last with block
+            // arround  &quot;somethingDefault;&quot; is replaced by &quot;rethrow;&quot;
+
+            // It is assumed that catch handler generation will store
+            // exeception object in handlerBlock register
+
+            // Block with local for exception scope objects
+<span class="fc" id="L1766">            Node catchScopeBlock = new Node(Token.LOCAL_BLOCK);</span>
+
+            // expects catchblocks children to be (cond block) pairs.
+<span class="fc" id="L1769">            Node cb = catchBlocks.getFirstChild();</span>
+<span class="fc" id="L1770">            boolean hasDefault = false;</span>
+<span class="fc" id="L1771">            int scopeIndex = 0;</span>
+<span class="fc bfc" id="L1772" title="All 2 branches covered.">            while (cb != null) {</span>
+<span class="fc" id="L1773">                int catchLineNo = cb.getLineno();</span>
+
+<span class="fc" id="L1775">                Node name = cb.getFirstChild();</span>
+<span class="fc" id="L1776">                Node cond = name.getNext();</span>
+<span class="fc" id="L1777">                Node catchStatement = cond.getNext();</span>
+<span class="fc" id="L1778">                cb.removeChild(name);</span>
+<span class="fc" id="L1779">                cb.removeChild(cond);</span>
+<span class="fc" id="L1780">                cb.removeChild(catchStatement);</span>
+
+                // Add goto to the catch statement to jump out of catch
+                // but prefix it with LEAVEWITH since try..catch produces
+                // &quot;with&quot;code in order to limit the scope of the exception
+                // object.
+<span class="fc" id="L1786">                catchStatement.addChildToBack(new Node(Token.LEAVEWITH));</span>
+<span class="fc" id="L1787">                catchStatement.addChildToBack(makeJump(Token.GOTO, endCatch));</span>
+
+                // Create condition &quot;if&quot; when present
+                Node condStmt;
+<span class="pc bpc" id="L1791" title="1 of 2 branches missed.">                if (cond.getType() == Token.EMPTY) {</span>
+<span class="fc" id="L1792">                    condStmt = catchStatement;</span>
+<span class="fc" id="L1793">                    hasDefault = true;</span>
+                } else {
+<span class="nc" id="L1795">                    condStmt = createIf(cond, catchStatement, null,</span>
+                                        catchLineNo);
+                }
+
+                // Generate code to create the scope object and store
+                // it in catchScopeBlock register
+<span class="fc" id="L1801">                Node catchScope = new Node(Token.CATCH_SCOPE, name,</span>
+<span class="fc" id="L1802">                                           createUseLocal(handlerBlock));</span>
+<span class="fc" id="L1803">                catchScope.putProp(Node.LOCAL_BLOCK_PROP, catchScopeBlock);</span>
+<span class="fc" id="L1804">                catchScope.putIntProp(Node.CATCH_SCOPE_PROP, scopeIndex);</span>
+<span class="fc" id="L1805">                catchScopeBlock.addChildToBack(catchScope);</span>
+
+                // Add with statement based on catch scope object
+<span class="fc" id="L1808">                catchScopeBlock.addChildToBack(</span>
+<span class="fc" id="L1809">                    createWith(createUseLocal(catchScopeBlock), condStmt,</span>
+                               catchLineNo));
+
+                // move to next cb
+<span class="fc" id="L1813">                cb = cb.getNext();</span>
+<span class="fc" id="L1814">                ++scopeIndex;</span>
+<span class="fc" id="L1815">            }</span>
+<span class="fc" id="L1816">            pn.addChildToBack(catchScopeBlock);</span>
+<span class="pc bpc" id="L1817" title="1 of 2 branches missed.">            if (!hasDefault) {</span>
+                // Generate code to rethrow if no catch clause was executed
+<span class="nc" id="L1819">                Node rethrow = new Node(Token.RETHROW);</span>
+<span class="nc" id="L1820">                rethrow.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);</span>
+<span class="nc" id="L1821">                pn.addChildToBack(rethrow);</span>
+            }
+
+<span class="fc" id="L1824">            pn.addChildToBack(endCatch);</span>
+        }
+
+<span class="pc bpc" id="L1827" title="1 of 2 branches missed.">        if (hasFinally) {</span>
+<span class="nc" id="L1828">            Node finallyTarget = Node.newTarget();</span>
+<span class="nc" id="L1829">            pn.setFinally(finallyTarget);</span>
+
+            // add jsr finally to the try block
+<span class="nc" id="L1832">            pn.addChildToBack(makeJump(Token.JSR, finallyTarget));</span>
+
+            // jump around finally code
+<span class="nc" id="L1835">            Node finallyEnd = Node.newTarget();</span>
+<span class="nc" id="L1836">            pn.addChildToBack(makeJump(Token.GOTO, finallyEnd));</span>
+
+<span class="nc" id="L1838">            pn.addChildToBack(finallyTarget);</span>
+<span class="nc" id="L1839">            Node fBlock = new Node(Token.FINALLY, finallyBlock);</span>
+<span class="nc" id="L1840">            fBlock.putProp(Node.LOCAL_BLOCK_PROP, handlerBlock);</span>
+<span class="nc" id="L1841">            pn.addChildToBack(fBlock);</span>
+
+<span class="nc" id="L1843">            pn.addChildToBack(finallyEnd);</span>
+        }
+<span class="fc" id="L1845">        handlerBlock.addChildToBack(pn);</span>
+<span class="fc" id="L1846">        return handlerBlock;</span>
+    }
+
+    private Node createWith(Node obj, Node body, int lineno) {
+<span class="fc" id="L1850">        setRequiresActivation();</span>
+<span class="fc" id="L1851">        Node result = new Node(Token.BLOCK, lineno);</span>
+<span class="fc" id="L1852">        result.addChildToBack(new Node(Token.ENTERWITH, obj));</span>
+<span class="fc" id="L1853">        Node bodyNode = new Node(Token.WITH, body, lineno);</span>
+<span class="fc" id="L1854">        result.addChildrenToBack(bodyNode);</span>
+<span class="fc" id="L1855">        result.addChildToBack(new Node(Token.LEAVEWITH));</span>
+<span class="fc" id="L1856">        return result;</span>
+    }
+
+    private Node createIf(Node cond, Node ifTrue, Node ifFalse, int lineno)
+    {
+<span class="fc" id="L1861">        int condStatus = isAlwaysDefinedBoolean(cond);</span>
+<span class="pc bpc" id="L1862" title="1 of 2 branches missed.">        if (condStatus == ALWAYS_TRUE_BOOLEAN) {</span>
+<span class="nc" id="L1863">            return ifTrue;</span>
+<span class="pc bpc" id="L1864" title="1 of 2 branches missed.">        } else if (condStatus == ALWAYS_FALSE_BOOLEAN) {</span>
+<span class="nc bnc" id="L1865" title="All 2 branches missed.">            if (ifFalse != null) {</span>
+<span class="nc" id="L1866">                return ifFalse;</span>
+            }
+            // Replace if (false) xxx by empty block
+<span class="nc" id="L1869">            return new Node(Token.BLOCK, lineno);</span>
+        }
+
+<span class="fc" id="L1872">        Node result = new Node(Token.BLOCK, lineno);</span>
+<span class="fc" id="L1873">        Node ifNotTarget = Node.newTarget();</span>
+<span class="fc" id="L1874">        Jump IFNE = new Jump(Token.IFNE, cond);</span>
+<span class="fc" id="L1875">        IFNE.target = ifNotTarget;</span>
+
+<span class="fc" id="L1877">        result.addChildToBack(IFNE);</span>
+<span class="fc" id="L1878">        result.addChildrenToBack(ifTrue);</span>
+
+<span class="fc bfc" id="L1880" title="All 2 branches covered.">        if (ifFalse != null) {</span>
+<span class="fc" id="L1881">            Node endTarget = Node.newTarget();</span>
+<span class="fc" id="L1882">            result.addChildToBack(makeJump(Token.GOTO, endTarget));</span>
+<span class="fc" id="L1883">            result.addChildToBack(ifNotTarget);</span>
+<span class="fc" id="L1884">            result.addChildrenToBack(ifFalse);</span>
+<span class="fc" id="L1885">            result.addChildToBack(endTarget);</span>
+<span class="fc" id="L1886">        } else {</span>
+<span class="fc" id="L1887">            result.addChildToBack(ifNotTarget);</span>
+        }
+
+<span class="fc" id="L1890">        return result;</span>
+    }
+
+    private Node createCondExpr(Node cond, Node ifTrue, Node ifFalse) {
+<span class="fc" id="L1894">        int condStatus = isAlwaysDefinedBoolean(cond);</span>
+<span class="pc bpc" id="L1895" title="1 of 2 branches missed.">        if (condStatus == ALWAYS_TRUE_BOOLEAN) {</span>
+<span class="nc" id="L1896">            return ifTrue;</span>
+<span class="pc bpc" id="L1897" title="1 of 2 branches missed.">        } else if (condStatus == ALWAYS_FALSE_BOOLEAN) {</span>
+<span class="nc" id="L1898">            return ifFalse;</span>
+        }
+<span class="fc" id="L1900">        return new Node(Token.HOOK, cond, ifTrue, ifFalse);</span>
+    }
+
+    private Node createUnary(int nodeType, Node child)
+    {
+<span class="fc" id="L1905">        int childType = child.getType();</span>
+<span class="pc bpc" id="L1906" title="2 of 6 branches missed.">        switch (nodeType) {</span>
+          case Token.DELPROP: {
+            Node n;
+<span class="nc bnc" id="L1909" title="All 2 branches missed.">            if (childType == Token.NAME) {</span>
+                // Transform Delete(Name &quot;a&quot;)
+                //  to Delete(Bind(&quot;a&quot;), String(&quot;a&quot;))
+<span class="nc" id="L1912">                child.setType(Token.BINDNAME);</span>
+<span class="nc" id="L1913">                Node left = child;</span>
+<span class="nc" id="L1914">                Node right = Node.newString(child.getString());</span>
+<span class="nc" id="L1915">                n = new Node(nodeType, left, right);</span>
+<span class="nc bnc" id="L1916" title="All 4 branches missed.">            } else if (childType == Token.GETPROP ||</span>
+                       childType == Token.GETELEM)
+            {
+<span class="nc" id="L1919">                Node left = child.getFirstChild();</span>
+<span class="nc" id="L1920">                Node right = child.getLastChild();</span>
+<span class="nc" id="L1921">                child.removeChild(left);</span>
+<span class="nc" id="L1922">                child.removeChild(right);</span>
+<span class="nc" id="L1923">                n = new Node(nodeType, left, right);</span>
+<span class="nc bnc" id="L1924" title="All 2 branches missed.">            } else if (childType == Token.GET_REF) {</span>
+<span class="nc" id="L1925">                Node ref = child.getFirstChild();</span>
+<span class="nc" id="L1926">                child.removeChild(ref);</span>
+<span class="nc" id="L1927">                n = new Node(Token.DEL_REF, ref);</span>
+<span class="nc" id="L1928">            } else {</span>
+                // Always evaluate delete operand, see ES5 11.4.1 &amp; bug #726121
+<span class="nc" id="L1930">                n = new Node(nodeType, new Node(Token.TRUE), child);</span>
+            }
+<span class="nc" id="L1932">            return n;</span>
+          }
+          case Token.TYPEOF:
+<span class="pc bpc" id="L1935" title="1 of 2 branches missed.">            if (childType == Token.NAME) {</span>
+<span class="fc" id="L1936">                child.setType(Token.TYPEOFNAME);</span>
+<span class="fc" id="L1937">                return child;</span>
+            }
+            break;
+          case Token.BITNOT:
+<span class="nc bnc" id="L1941" title="All 2 branches missed.">            if (childType == Token.NUMBER) {</span>
+<span class="nc" id="L1942">                int value = ScriptRuntime.toInt32(child.getDouble());</span>
+<span class="nc" id="L1943">                child.setDouble(~value);</span>
+<span class="nc" id="L1944">                return child;</span>
+            }
+            break;
+          case Token.NEG:
+<span class="fc bfc" id="L1948" title="All 2 branches covered.">            if (childType == Token.NUMBER) {</span>
+<span class="fc" id="L1949">                child.setDouble(-child.getDouble());</span>
+<span class="fc" id="L1950">                return child;</span>
+            }
+            break;
+          case Token.NOT: {
+<span class="fc" id="L1954">            int status = isAlwaysDefinedBoolean(child);</span>
+<span class="pc bpc" id="L1955" title="1 of 2 branches missed.">            if (status != 0) {</span>
+                int type;
+<span class="nc bnc" id="L1957" title="All 2 branches missed.">                if (status == ALWAYS_TRUE_BOOLEAN) {</span>
+<span class="nc" id="L1958">                    type = Token.FALSE;</span>
+                } else {
+<span class="nc" id="L1960">                    type = Token.TRUE;</span>
+                }
+<span class="nc bnc" id="L1962" title="All 4 branches missed.">                if (childType == Token.TRUE || childType == Token.FALSE) {</span>
+<span class="nc" id="L1963">                    child.setType(type);</span>
+<span class="nc" id="L1964">                    return child;</span>
+                }
+<span class="nc" id="L1966">                return new Node(type);</span>
+            }
+            break;
+          }
+        }
+<span class="fc" id="L1971">        return new Node(nodeType, child);</span>
+    }
+
+    private Node createCallOrNew(int nodeType, Node child) {
+<span class="fc" id="L1975">        int type = Node.NON_SPECIALCALL;</span>
+<span class="fc bfc" id="L1976" title="All 2 branches covered.">        if (child.getType() == Token.NAME) {</span>
+<span class="fc" id="L1977">            String name = child.getString();</span>
+<span class="fc bfc" id="L1978" title="All 2 branches covered.">            if (name.equals(&quot;eval&quot;)) {</span>
+<span class="fc" id="L1979">                type = Node.SPECIALCALL_EVAL;</span>
+<span class="pc bpc" id="L1980" title="1 of 2 branches missed.">            } else if (name.equals(&quot;With&quot;)) {</span>
+<span class="nc" id="L1981">                type = Node.SPECIALCALL_WITH;</span>
+            }
+<span class="pc bpc" id="L1983" title="1 of 2 branches missed.">        } else if (child.getType() == Token.GETPROP) {</span>
+<span class="fc" id="L1984">            String name = child.getLastChild().getString();</span>
+<span class="pc bpc" id="L1985" title="1 of 2 branches missed.">            if (name.equals(&quot;eval&quot;)) {</span>
+<span class="nc" id="L1986">                type = Node.SPECIALCALL_EVAL;</span>
+            }
+        }
+<span class="fc" id="L1989">        Node node = new Node(nodeType, child);</span>
+<span class="fc bfc" id="L1990" title="All 2 branches covered.">        if (type != Node.NON_SPECIALCALL) {</span>
+            // Calls to these functions require activation objects.
+<span class="fc" id="L1992">            setRequiresActivation();</span>
+<span class="fc" id="L1993">            node.putIntProp(Node.SPECIALCALL_PROP, type);</span>
+        }
+<span class="fc" id="L1995">        return node;</span>
+    }
+
+    private Node createIncDec(int nodeType, boolean post, Node child)
+    {
+<span class="fc" id="L2000">        child = makeReference(child);</span>
+<span class="fc" id="L2001">        int childType = child.getType();</span>
+
+<span class="pc bpc" id="L2003" title="1 of 2 branches missed.">        switch (childType) {</span>
+          case Token.NAME:
+          case Token.GETPROP:
+          case Token.GETELEM:
+          case Token.GET_REF: {
+<span class="fc" id="L2008">            Node n = new Node(nodeType, child);</span>
+<span class="fc" id="L2009">            int incrDecrMask = 0;</span>
+<span class="pc bpc" id="L2010" title="1 of 2 branches missed.">            if (nodeType == Token.DEC) {</span>
+<span class="nc" id="L2011">                incrDecrMask |= Node.DECR_FLAG;</span>
+            }
+<span class="pc bpc" id="L2013" title="1 of 2 branches missed.">            if (post) {</span>
+<span class="fc" id="L2014">                incrDecrMask |= Node.POST_FLAG;</span>
+            }
+<span class="fc" id="L2016">            n.putIntProp(Node.INCRDECR_PROP, incrDecrMask);</span>
+<span class="fc" id="L2017">            return n;</span>
+          }
+        }
+<span class="nc" id="L2020">        throw Kit.codeBug();</span>
+    }
+
+    private Node createPropertyGet(Node target, String namespace, String name,
+                                   int memberTypeFlags)
+    {
+<span class="pc bpc" id="L2026" title="2 of 4 branches missed.">        if (namespace == null &amp;&amp; memberTypeFlags == 0) {</span>
+<span class="pc bpc" id="L2027" title="1 of 2 branches missed.">            if (target == null) {</span>
+<span class="nc" id="L2028">                return createName(name);</span>
+            }
+<span class="fc" id="L2030">            checkActivationName(name, Token.GETPROP);</span>
+<span class="pc bpc" id="L2031" title="1 of 2 branches missed.">            if (ScriptRuntime.isSpecialProperty(name)) {</span>
+<span class="nc" id="L2032">                Node ref = new Node(Token.REF_SPECIAL, target);</span>
+<span class="nc" id="L2033">                ref.putProp(Node.NAME_PROP, name);</span>
+<span class="nc" id="L2034">                return new Node(Token.GET_REF, ref);</span>
+            }
+<span class="fc" id="L2036">            return new Node(Token.GETPROP, target, Node.newString(name));</span>
+        }
+<span class="nc" id="L2038">        Node elem = Node.newString(name);</span>
+<span class="nc" id="L2039">        memberTypeFlags |= Node.PROPERTY_FLAG;</span>
+<span class="nc" id="L2040">        return createMemberRefGet(target, namespace, elem, memberTypeFlags);</span>
+    }
+
+    /**
+     * @param target the node before the LB
+     * @param namespace optional namespace
+     * @param elem the node in the brackets
+     * @param memberTypeFlags E4X flags
+     */
+    private Node createElementGet(Node target, String namespace, Node elem,
+                                  int memberTypeFlags)
+    {
+        // OPT: could optimize to createPropertyGet
+        // iff elem is string that can not be number
+<span class="nc bnc" id="L2054" title="All 4 branches missed.">        if (namespace == null &amp;&amp; memberTypeFlags == 0) {</span>
+            // stand-alone [aaa] as primary expression is array literal
+            // declaration and should not come here!
+<span class="nc bnc" id="L2057" title="All 2 branches missed.">            if (target == null) throw Kit.codeBug();</span>
+<span class="nc" id="L2058">            return new Node(Token.GETELEM, target, elem);</span>
+        }
+<span class="nc" id="L2060">        return createMemberRefGet(target, namespace, elem, memberTypeFlags);</span>
+    }
+
+    private Node createMemberRefGet(Node target, String namespace, Node elem,
+                                    int memberTypeFlags)
+    {
+<span class="nc" id="L2066">        Node nsNode = null;</span>
+<span class="nc bnc" id="L2067" title="All 2 branches missed.">        if (namespace != null) {</span>
+            // See 11.1.2 in ECMA 357
+<span class="nc bnc" id="L2069" title="All 2 branches missed.">            if (namespace.equals(&quot;*&quot;)) {</span>
+<span class="nc" id="L2070">                nsNode = new Node(Token.NULL);</span>
+            } else {
+<span class="nc" id="L2072">                nsNode = createName(namespace);</span>
+            }
+        }
+        Node ref;
+<span class="nc bnc" id="L2076" title="All 2 branches missed.">        if (target == null) {</span>
+<span class="nc bnc" id="L2077" title="All 2 branches missed.">            if (namespace == null) {</span>
+<span class="nc" id="L2078">                ref = new Node(Token.REF_NAME, elem);</span>
+            } else {
+<span class="nc" id="L2080">                ref = new Node(Token.REF_NS_NAME, nsNode, elem);</span>
+            }
+        } else {
+<span class="nc bnc" id="L2083" title="All 2 branches missed.">            if (namespace == null) {</span>
+<span class="nc" id="L2084">                ref = new Node(Token.REF_MEMBER, target, elem);</span>
+            } else {
+<span class="nc" id="L2086">                ref = new Node(Token.REF_NS_MEMBER, target, nsNode, elem);</span>
+            }
+        }
+<span class="nc bnc" id="L2089" title="All 2 branches missed.">        if (memberTypeFlags != 0) {</span>
+<span class="nc" id="L2090">            ref.putIntProp(Node.MEMBER_TYPE_PROP, memberTypeFlags);</span>
+        }
+<span class="nc" id="L2092">        return new Node(Token.GET_REF, ref);</span>
+    }
+
+    private Node createBinary(int nodeType, Node left, Node right) {
+<span class="fc bfc" id="L2096" title="All 7 branches covered.">        switch (nodeType) {</span>
+
+          case Token.ADD:
+            // numerical addition and string concatenation
+<span class="fc bfc" id="L2100" title="All 2 branches covered.">            if (left.type == Token.STRING) {</span>
+                String s2;
+<span class="pc bpc" id="L2102" title="1 of 2 branches missed.">                if (right.type == Token.STRING) {</span>
+<span class="nc" id="L2103">                    s2 = right.getString();</span>
+<span class="pc bpc" id="L2104" title="1 of 2 branches missed.">                } else if (right.type == Token.NUMBER) {</span>
+<span class="nc" id="L2105">                    s2 = ScriptRuntime.numberToString(right.getDouble(), 10);</span>
+                } else {
+                    break;
+                }
+<span class="nc" id="L2109">                String s1 = left.getString();</span>
+<span class="nc" id="L2110">                left.setString(s1.concat(s2));</span>
+<span class="nc" id="L2111">                return left;</span>
+<span class="pc bpc" id="L2112" title="1 of 2 branches missed.">            } else if (left.type == Token.NUMBER) {</span>
+<span class="nc bnc" id="L2113" title="All 2 branches missed.">                if (right.type == Token.NUMBER) {</span>
+<span class="nc" id="L2114">                    left.setDouble(left.getDouble() + right.getDouble());</span>
+<span class="nc" id="L2115">                    return left;</span>
+<span class="nc bnc" id="L2116" title="All 2 branches missed.">                } else if (right.type == Token.STRING) {</span>
+                    String s1, s2;
+<span class="nc" id="L2118">                    s1 = ScriptRuntime.numberToString(left.getDouble(), 10);</span>
+<span class="nc" id="L2119">                    s2 = right.getString();</span>
+<span class="nc" id="L2120">                    right.setString(s1.concat(s2));</span>
+<span class="nc" id="L2121">                    return right;</span>
+                }
+            }
+            // can't do anything if we don't know  both types - since
+            // 0 + object is supposed to call toString on the object and do
+            // string concantenation rather than addition
+            break;
+
+          case Token.SUB:
+            // numerical subtraction
+<span class="fc bfc" id="L2131" title="All 2 branches covered.">            if (left.type == Token.NUMBER) {</span>
+<span class="fc" id="L2132">                double ld = left.getDouble();</span>
+<span class="pc bpc" id="L2133" title="1 of 2 branches missed.">                if (right.type == Token.NUMBER) {</span>
+                    //both numbers
+<span class="fc" id="L2135">                    left.setDouble(ld - right.getDouble());</span>
+<span class="fc" id="L2136">                    return left;</span>
+<span class="nc bnc" id="L2137" title="All 2 branches missed.">                } else if (ld == 0.0) {</span>
+                    // first 0: 0-x -&gt; -x
+<span class="nc" id="L2139">                    return new Node(Token.NEG, right);</span>
+                }
+<span class="pc bfc" id="L2141" title="All 2 branches covered.">            } else if (right.type == Token.NUMBER) {</span>
+<span class="pc bpc" id="L2142" title="1 of 2 branches missed.">                if (right.getDouble() == 0.0) {</span>
+                    //second 0: x - 0 -&gt; +x
+                    // can not make simply x because x - 0 must be number
+<span class="nc" id="L2145">                    return new Node(Token.POS, left);</span>
+                }
+            }
+            break;
+
+          case Token.MUL:
+            // numerical multiplication
+<span class="pc bpc" id="L2152" title="1 of 2 branches missed.">            if (left.type == Token.NUMBER) {</span>
+<span class="nc" id="L2153">                double ld = left.getDouble();</span>
+<span class="nc bnc" id="L2154" title="All 2 branches missed.">                if (right.type == Token.NUMBER) {</span>
+                    //both numbers
+<span class="nc" id="L2156">                    left.setDouble(ld * right.getDouble());</span>
+<span class="nc" id="L2157">                    return left;</span>
+<span class="nc bnc" id="L2158" title="All 2 branches missed.">                } else if (ld == 1.0) {</span>
+                    // first 1: 1 *  x -&gt; +x
+<span class="nc" id="L2160">                    return new Node(Token.POS, right);</span>
+                }
+<span class="pc bpc" id="L2162" title="1 of 2 branches missed.">            } else if (right.type == Token.NUMBER) {</span>
+<span class="nc bnc" id="L2163" title="All 2 branches missed.">                if (right.getDouble() == 1.0) {</span>
+                    //second 1: x * 1 -&gt; +x
+                    // can not make simply x because x - 0 must be number
+<span class="nc" id="L2166">                    return new Node(Token.POS, left);</span>
+                }
+            }
+            // can't do x*0: Infinity * 0 gives NaN, not 0
+            break;
+
+          case Token.DIV:
+            // number division
+<span class="fc bfc" id="L2174" title="All 2 branches covered.">            if (right.type == Token.NUMBER) {</span>
+<span class="fc" id="L2175">                double rd = right.getDouble();</span>
+<span class="pc bpc" id="L2176" title="1 of 2 branches missed.">                if (left.type == Token.NUMBER) {</span>
+                    // both constants -- just divide, trust Java to handle x/0
+<span class="nc" id="L2178">                    left.setDouble(left.getDouble() / rd);</span>
+<span class="nc" id="L2179">                    return left;</span>
+<span class="pc bpc" id="L2180" title="1 of 2 branches missed.">               } else if (rd == 1.0) {</span>
+                    // second 1: x/1 -&gt; +x
+                    // not simply x to force number convertion
+<span class="nc" id="L2183">                    return new Node(Token.POS, left);</span>
+                }
+<span class="fc" id="L2185">            }</span>
+            break;
+
+          case Token.AND: {
+            // Since x &amp;&amp; y gives x, not false, when Boolean(x) is false,
+            // and y, not Boolean(y), when Boolean(x) is true, x &amp;&amp; y
+            // can only be simplified if x is defined. See bug 309957.
+
+<span class="fc" id="L2193">            int leftStatus = isAlwaysDefinedBoolean(left);</span>
+<span class="pc bpc" id="L2194" title="1 of 2 branches missed.">            if (leftStatus == ALWAYS_FALSE_BOOLEAN) {</span>
+                // if the first one is false, just return it
+<span class="nc" id="L2196">                return left;</span>
+<span class="pc bpc" id="L2197" title="1 of 2 branches missed.">            } else if (leftStatus == ALWAYS_TRUE_BOOLEAN) {</span>
+                // if first is true, set to second
+<span class="nc" id="L2199">                return right;</span>
+            }
+            break;
+          }
+
+          case Token.OR: {
+            // Since x || y gives x, not true, when Boolean(x) is true,
+            // and y, not Boolean(y), when Boolean(x) is false, x || y
+            // can only be simplified if x is defined. See bug 309957.
+
+<span class="fc" id="L2209">            int leftStatus = isAlwaysDefinedBoolean(left);</span>
+<span class="pc bpc" id="L2210" title="1 of 2 branches missed.">            if (leftStatus == ALWAYS_TRUE_BOOLEAN) {</span>
+                // if the first one is true, just return it
+<span class="nc" id="L2212">                return left;</span>
+<span class="pc bpc" id="L2213" title="1 of 2 branches missed.">            } else if (leftStatus == ALWAYS_FALSE_BOOLEAN) {</span>
+                // if first is false, set to second
+<span class="nc" id="L2215">                return right;</span>
+            }
+            break;
+          }
+        }
+
+<span class="fc" id="L2221">        return new Node(nodeType, left, right);</span>
+    }
+
+    private Node createAssignment(int assignType, Node left, Node right)
+    {
+<span class="fc" id="L2226">        Node ref = makeReference(left);</span>
+<span class="pc bpc" id="L2227" title="1 of 2 branches missed.">        if (ref == null) {</span>
+<span class="nc bnc" id="L2228" title="All 2 branches missed.">            if (left.getType() == Token.ARRAYLIT ||</span>
+<span class="nc bnc" id="L2229" title="All 2 branches missed.">                left.getType() == Token.OBJECTLIT)</span>
+            {
+<span class="nc bnc" id="L2231" title="All 2 branches missed.">                if (assignType != Token.ASSIGN) {</span>
+<span class="nc" id="L2232">                    reportError(&quot;msg.bad.destruct.op&quot;);</span>
+<span class="nc" id="L2233">                    return right;</span>
+                }
+<span class="nc" id="L2235">                return createDestructuringAssignment(-1, left, right);</span>
+            }
+<span class="nc" id="L2237">            reportError(&quot;msg.bad.assign.left&quot;);</span>
+<span class="nc" id="L2238">            return right;</span>
+        }
+<span class="fc" id="L2240">        left = ref;</span>
+
+        int assignOp;
+<span class="pc bpc" id="L2243" title="10 of 13 branches missed.">        switch (assignType) {</span>
+          case Token.ASSIGN:
+<span class="fc" id="L2245">            return simpleAssignment(left, right);</span>
+<span class="nc" id="L2246">          case Token.ASSIGN_BITOR:  assignOp = Token.BITOR;  break;</span>
+<span class="nc" id="L2247">          case Token.ASSIGN_BITXOR: assignOp = Token.BITXOR; break;</span>
+<span class="nc" id="L2248">          case Token.ASSIGN_BITAND: assignOp = Token.BITAND; break;</span>
+<span class="nc" id="L2249">          case Token.ASSIGN_LSH:    assignOp = Token.LSH;    break;</span>
+<span class="fc" id="L2250">          case Token.ASSIGN_RSH:    assignOp = Token.RSH;    break;</span>
+<span class="nc" id="L2251">          case Token.ASSIGN_URSH:   assignOp = Token.URSH;   break;</span>
+<span class="fc" id="L2252">          case Token.ASSIGN_ADD:    assignOp = Token.ADD;    break;</span>
+<span class="nc" id="L2253">          case Token.ASSIGN_SUB:    assignOp = Token.SUB;    break;</span>
+<span class="nc" id="L2254">          case Token.ASSIGN_MUL:    assignOp = Token.MUL;    break;</span>
+<span class="nc" id="L2255">          case Token.ASSIGN_DIV:    assignOp = Token.DIV;    break;</span>
+<span class="nc" id="L2256">          case Token.ASSIGN_MOD:    assignOp = Token.MOD;    break;</span>
+<span class="nc" id="L2257">          default: throw Kit.codeBug();</span>
+        }
+
+<span class="fc" id="L2260">        int nodeType = left.getType();</span>
+<span class="pc bpc" id="L2261" title="2 of 4 branches missed.">        switch (nodeType) {</span>
+          case Token.NAME: {
+<span class="fc" id="L2263">            Node op = new Node(assignOp, left, right);</span>
+<span class="fc" id="L2264">            Node lvalueLeft = Node.newString(Token.BINDNAME, left.getString());</span>
+<span class="fc" id="L2265">            return new Node(Token.SETNAME, lvalueLeft, op);</span>
+          }
+          case Token.GETPROP:
+          case Token.GETELEM: {
+<span class="fc" id="L2269">            Node obj = left.getFirstChild();</span>
+<span class="fc" id="L2270">            Node id = left.getLastChild();</span>
+
+<span class="pc bpc" id="L2272" title="1 of 2 branches missed.">            int type = nodeType == Token.GETPROP</span>
+                       ? Token.SETPROP_OP
+                       : Token.SETELEM_OP;
+
+<span class="fc" id="L2276">            Node opLeft = new Node(Token.USE_STACK);</span>
+<span class="fc" id="L2277">            Node op = new Node(assignOp, opLeft, right);</span>
+<span class="fc" id="L2278">            return new Node(type, obj, id, op);</span>
+          }
+          case Token.GET_REF: {
+<span class="nc" id="L2281">            ref = left.getFirstChild();</span>
+<span class="nc" id="L2282">            checkMutableReference(ref);</span>
+<span class="nc" id="L2283">            Node opLeft = new Node(Token.USE_STACK);</span>
+<span class="nc" id="L2284">            Node op = new Node(assignOp, opLeft, right);</span>
+<span class="nc" id="L2285">            return new Node(Token.SET_REF_OP, ref, op);</span>
+          }
+        }
+
+<span class="nc" id="L2289">        throw Kit.codeBug();</span>
+    }
+
+    private Node createUseLocal(Node localBlock) {
+<span class="pc bpc" id="L2293" title="1 of 2 branches missed.">        if (Token.LOCAL_BLOCK != localBlock.getType()) throw Kit.codeBug();</span>
+<span class="fc" id="L2294">        Node result = new Node(Token.LOCAL_LOAD);</span>
+<span class="fc" id="L2295">        result.putProp(Node.LOCAL_BLOCK_PROP, localBlock);</span>
+<span class="fc" id="L2296">        return result;</span>
+    }
+
+    private Jump makeJump(int type, Node target) {
+<span class="fc" id="L2300">        Jump n = new Jump(type);</span>
+<span class="fc" id="L2301">        n.target = target;</span>
+<span class="fc" id="L2302">        return n;</span>
+    }
+
+    private Node makeReference(Node node) {
+<span class="fc" id="L2306">        int type = node.getType();</span>
+<span class="pc bpc" id="L2307" title="2 of 3 branches missed.">        switch (type) {</span>
+          case Token.NAME:
+          case Token.GETPROP:
+          case Token.GETELEM:
+          case Token.GET_REF:
+<span class="fc" id="L2312">            return node;</span>
+          case Token.CALL:
+<span class="nc" id="L2314">            node.setType(Token.REF_CALL);</span>
+<span class="nc" id="L2315">            return new Node(Token.GET_REF, node);</span>
+        }
+        // Signal caller to report error
+<span class="nc" id="L2318">        return null;</span>
+    }
+
+    // Check if Node always mean true or false in boolean context
+    private static int isAlwaysDefinedBoolean(Node node) {
+<span class="pc bpc" id="L2323" title="3 of 4 branches missed.">        switch (node.getType()) {</span>
+          case Token.FALSE:
+          case Token.NULL:
+<span class="nc" id="L2326">            return ALWAYS_FALSE_BOOLEAN;</span>
+          case Token.TRUE:
+<span class="nc" id="L2328">            return ALWAYS_TRUE_BOOLEAN;</span>
+          case Token.NUMBER: {
+<span class="nc" id="L2330">            double num = node.getDouble();</span>
+<span class="nc bnc" id="L2331" title="All 4 branches missed.">            if (num == num &amp;&amp; num != 0.0) {</span>
+<span class="nc" id="L2332">                return ALWAYS_TRUE_BOOLEAN;</span>
+            } else {
+<span class="nc" id="L2334">                return ALWAYS_FALSE_BOOLEAN;</span>
+            }
+          }
+        }
+<span class="fc" id="L2338">        return 0;</span>
+    }
+
+    // Check if node is the target of a destructuring bind.
+    boolean isDestructuring(Node n) {
+<span class="fc bfc" id="L2343" title="All 2 branches covered.">        return n instanceof DestructuringForm</span>
+<span class="pc bpc" id="L2344" title="1 of 2 branches missed.">            &amp;&amp; ((DestructuringForm)n).isDestructuring();</span>
+    }
+
+    Node decompileFunctionHeader(FunctionNode fn) {
+<span class="fc" id="L2348">        Node mexpr = null;</span>
+<span class="fc bfc" id="L2349" title="All 2 branches covered.">        if (fn.getFunctionName() != null) {</span>
+<span class="fc" id="L2350">            decompiler.addName(fn.getName());</span>
+<span class="pc bpc" id="L2351" title="1 of 2 branches missed.">        } else if (fn.getMemberExprNode() != null) {</span>
+<span class="nc" id="L2352">            mexpr = transform(fn.getMemberExprNode());</span>
+        }
+<span class="pc bpc" id="L2354" title="1 of 2 branches missed.">        boolean isArrow = fn.getFunctionType() == FunctionNode.ARROW_FUNCTION;</span>
+<span class="pc bpc" id="L2355" title="3 of 4 branches missed.">        boolean noParen = isArrow &amp;&amp; fn.getLp() == -1;</span>
+<span class="pc bpc" id="L2356" title="1 of 2 branches missed.">        if (!noParen) {</span>
+<span class="fc" id="L2357">            decompiler.addToken(Token.LP);</span>
+        }
+<span class="fc" id="L2359">        List&lt;AstNode&gt; params = fn.getParams();</span>
+<span class="fc bfc" id="L2360" title="All 2 branches covered.">        for (int i = 0; i &lt; params.size(); i++) {</span>
+<span class="fc" id="L2361">            decompile(params.get(i));</span>
+<span class="fc bfc" id="L2362" title="All 2 branches covered.">            if (i &lt; params.size() - 1) {</span>
+<span class="fc" id="L2363">                decompiler.addToken(Token.COMMA);</span>
+            }
+        }
+<span class="pc bpc" id="L2366" title="1 of 2 branches missed.">        if (!noParen) {</span>
+<span class="fc" id="L2367">            decompiler.addToken(Token.RP);</span>
+        }
+<span class="pc bpc" id="L2369" title="1 of 2 branches missed.">        if (isArrow) {</span>
+<span class="nc" id="L2370">            decompiler.addToken(Token.ARROW);</span>
+        }
+<span class="pc bpc" id="L2372" title="1 of 2 branches missed.">        if (!fn.isExpressionClosure()) {</span>
+<span class="fc" id="L2373">            decompiler.addEOL(Token.LC);</span>
+        }
+<span class="fc" id="L2375">        return mexpr;</span>
+    }
+
+    void decompile(AstNode node) {
+<span class="pc bpc" id="L2379" title="4 of 10 branches missed.">        switch (node.getType()) {</span>
+          case Token.ARRAYLIT:
+<span class="fc" id="L2381">              decompileArrayLiteral((ArrayLiteral)node);</span>
+<span class="fc" id="L2382">              break;</span>
+          case Token.OBJECTLIT:
+<span class="fc" id="L2384">              decompileObjectLiteral((ObjectLiteral)node);</span>
+<span class="fc" id="L2385">              break;</span>
+          case Token.STRING:
+<span class="nc" id="L2387">              decompiler.addString(((StringLiteral)node).getValue());</span>
+<span class="nc" id="L2388">              break;</span>
+          case Token.NAME:
+<span class="fc" id="L2390">              decompiler.addName(((Name)node).getIdentifier());</span>
+<span class="fc" id="L2391">              break;</span>
+          case Token.NUMBER:
+<span class="fc" id="L2393">              decompiler.addNumber(((NumberLiteral)node).getNumber());</span>
+<span class="fc" id="L2394">              break;</span>
+          case Token.GETPROP:
+<span class="nc" id="L2396">              decompilePropertyGet((PropertyGet)node);</span>
+<span class="nc" id="L2397">              break;</span>
+          case Token.EMPTY:
+<span class="fc" id="L2399">              break;</span>
+          case Token.GETELEM:
+<span class="nc" id="L2401">              decompileElementGet((ElementGet) node);</span>
+<span class="nc" id="L2402">              break;</span>
+          case Token.THIS:
+<span class="nc" id="L2404">              decompiler.addToken(node.getType());</span>
+<span class="nc" id="L2405">              break;</span>
+          default:
+<span class="pc" id="L2407">              Kit.codeBug(&quot;unexpected token: &quot;</span>
+<span class="fc" id="L2408">                          + Token.typeToName(node.getType()));</span>
+        }
+<span class="fc" id="L2410">    }</span>
+
+    // used for destructuring forms, since we don't transform() them
+    void decompileArrayLiteral(ArrayLiteral node) {
+<span class="fc" id="L2414">        decompiler.addToken(Token.LB);</span>
+<span class="fc" id="L2415">        List&lt;AstNode&gt; elems = node.getElements();</span>
+<span class="fc" id="L2416">        int size = elems.size();</span>
+<span class="pc bpc" id="L2417" title="1 of 2 branches missed.">        for (int i = 0; i &lt; size; i++) {</span>
+<span class="nc" id="L2418">            AstNode elem = elems.get(i);</span>
+<span class="nc" id="L2419">            decompile(elem);</span>
+<span class="nc bnc" id="L2420" title="All 2 branches missed.">            if (i &lt; size - 1) {</span>
+<span class="nc" id="L2421">                decompiler.addToken(Token.COMMA);</span>
+            }
+        }
+<span class="fc" id="L2424">        decompiler.addToken(Token.RB);</span>
+<span class="fc" id="L2425">    }</span>
+
+    // only used for destructuring forms
+    void decompileObjectLiteral(ObjectLiteral node) {
+<span class="fc" id="L2429">        decompiler.addToken(Token.LC);</span>
+<span class="fc" id="L2430">        List&lt;ObjectProperty&gt; props = node.getElements();</span>
+<span class="fc" id="L2431">        int size = props.size();</span>
+<span class="pc bfc" id="L2432" title="All 2 branches covered.">        for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc" id="L2433">            ObjectProperty prop = props.get(i);</span>
+<span class="fc" id="L2434">            boolean destructuringShorthand =</span>
+<span class="fc" id="L2435">                    Boolean.TRUE.equals(prop.getProp(Node.DESTRUCTURING_SHORTHAND));</span>
+<span class="nc" id="L2436">            decompile(prop.getLeft());</span>
+<span class="nc bnc" id="L2437" title="All 2 branches missed.">            if (!destructuringShorthand) {</span>
+<span class="nc" id="L2438">                decompiler.addToken(Token.COLON);</span>
+<span class="nc" id="L2439">                decompile(prop.getRight());</span>
+            }
+<span class="nc bnc" id="L2441" title="All 2 branches missed.">            if (i &lt; size - 1) {</span>
+<span class="nc" id="L2442">                decompiler.addToken(Token.COMMA);</span>
+            }
+        }
+<span class="fc" id="L2445">        decompiler.addToken(Token.RC);</span>
+<span class="fc" id="L2446">    }</span>
+
+    // only used for destructuring forms
+    void decompilePropertyGet(PropertyGet node) {
+<span class="fc" id="L2450">        decompile(node.getTarget());</span>
+<span class="fc" id="L2451">        decompiler.addToken(Token.DOT);</span>
+<span class="nc" id="L2452">        decompile(node.getProperty());</span>
+<span class="nc" id="L2453">    }</span>
+
+    // only used for destructuring forms
+    void decompileElementGet(ElementGet node) {
+<span class="fc" id="L2457">        decompile(node.getTarget());</span>
+<span class="fc" id="L2458">        decompiler.addToken(Token.LB);</span>
+<span class="fc" id="L2459">        decompile(node.getElement());</span>
+<span class="fc" id="L2460">        decompiler.addToken(Token.RB);</span>
+<span class="fc" id="L2461">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

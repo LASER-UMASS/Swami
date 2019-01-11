@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShellConsole.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.shell</a> &gt; <span class="el_source">ShellConsole.java</span></div><h1>ShellConsole.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.shell;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.nio.charset.Charset;
+import java.util.List;
+
+import org.mozilla.javascript.Function;
+import org.mozilla.javascript.Kit;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
+
+/**
+ *
+ * @author André Bargull
+ */
+public abstract class ShellConsole {
+
+<span class="fc" id="L31">    private final static Class[] NO_ARG = {};</span>
+<span class="fc" id="L32">    private final static Class[] BOOLEAN_ARG = {Boolean.TYPE};</span>
+<span class="fc" id="L33">    private final static Class[] STRING_ARG = {String.class};</span>
+<span class="fc" id="L34">    private final static Class[] CHARSEQ_ARG = {CharSequence.class};</span>
+
+<span class="fc" id="L36">    protected ShellConsole() {</span>
+<span class="fc" id="L37">    }</span>
+
+    /**
+     * Returns the underlying {@link InputStream}
+     */
+    public abstract InputStream getIn();
+
+    /**
+     * Reads a single line from the console
+     */
+    public abstract String readLine() throws IOException;
+
+    /**
+     * Reads a single line from the console and sets the console's prompt to
+     * {@code prompt}
+     */
+    public abstract String readLine(String prompt) throws IOException;
+
+    /**
+     * Flushes the console's output
+     */
+    public abstract void flush() throws IOException;
+
+    /**
+     * Prints a single string to the console
+     */
+    public abstract void print(String s) throws IOException;
+
+    /**
+     * Prints the newline character-sequence to the console
+     */
+    public abstract void println() throws IOException;
+
+    /**
+     * Prints a string and the newline character-sequence to the console
+     */
+    public abstract void println(String s) throws IOException;
+
+
+    private static Object tryInvoke(Object obj, String method,
+                                    Class[] paramTypes, Object... args) {
+        try {
+<span class="nc" id="L79">            Method m = obj.getClass().getDeclaredMethod(method, paramTypes);</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (m != null) {</span>
+<span class="nc" id="L81">                return m.invoke(obj, args);</span>
+            }
+<span class="nc" id="L83">        } catch (NoSuchMethodException e) {</span>
+<span class="nc" id="L84">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L85">        } catch (IllegalAccessException e) {</span>
+<span class="nc" id="L86">        } catch (InvocationTargetException e) {</span>
+<span class="nc" id="L87">        }</span>
+<span class="nc" id="L88">        return null;</span>
+    }
+
+    /**
+     * {@link ShellConsole} implementation for JLine v1
+     */
+    private static class JLineShellConsoleV1 extends ShellConsole {
+        private final Object reader;
+        private final InputStream in;
+
+<span class="nc" id="L98">        JLineShellConsoleV1(Object reader, Charset cs) {</span>
+<span class="nc" id="L99">            this.reader = reader;</span>
+<span class="nc" id="L100">            this.in = new ConsoleInputStream(this, cs);</span>
+<span class="nc" id="L101">        }</span>
+
+        @Override
+        public InputStream getIn() {
+<span class="nc" id="L105">            return in;</span>
+        }
+
+        @Override
+        public String readLine() throws IOException {
+<span class="nc" id="L110">            return (String) tryInvoke(reader, &quot;readLine&quot;, NO_ARG);</span>
+        }
+
+        @Override
+        public String readLine(String prompt) throws IOException {
+<span class="nc" id="L115">            return (String) tryInvoke(reader, &quot;readLine&quot;, STRING_ARG, prompt);</span>
+        }
+
+        @Override
+        public void flush() throws IOException {
+<span class="nc" id="L120">            tryInvoke(reader, &quot;flushConsole&quot;, NO_ARG);</span>
+<span class="nc" id="L121">        }</span>
+
+        @Override
+        public void print(String s) throws IOException {
+<span class="nc" id="L125">            tryInvoke(reader, &quot;printString&quot;, STRING_ARG, s);</span>
+<span class="nc" id="L126">        }</span>
+
+        @Override
+        public void println() throws IOException {
+<span class="nc" id="L130">            tryInvoke(reader, &quot;printNewline&quot;, NO_ARG);</span>
+<span class="nc" id="L131">        }</span>
+
+        @Override
+        public void println(String s) throws IOException {
+<span class="nc" id="L135">            tryInvoke(reader, &quot;printString&quot;, STRING_ARG, s);</span>
+<span class="nc" id="L136">            tryInvoke(reader, &quot;printNewline&quot;, NO_ARG);</span>
+<span class="nc" id="L137">        }</span>
+    }
+
+    /**
+     * {@link ShellConsole} implementation for JLine v2
+     */
+    private static class JLineShellConsoleV2 extends ShellConsole {
+        private final Object reader;
+        private final InputStream in;
+
+<span class="nc" id="L147">        JLineShellConsoleV2(Object reader, Charset cs) {</span>
+<span class="nc" id="L148">            this.reader = reader;</span>
+<span class="nc" id="L149">            this.in = new ConsoleInputStream(this, cs);</span>
+<span class="nc" id="L150">        }</span>
+
+        @Override
+        public InputStream getIn() {
+<span class="nc" id="L154">            return in;</span>
+        }
+
+        @Override
+        public String readLine() throws IOException {
+<span class="nc" id="L159">            return (String) tryInvoke(reader, &quot;readLine&quot;, NO_ARG);</span>
+        }
+
+        @Override
+        public String readLine(String prompt) throws IOException {
+<span class="nc" id="L164">            return (String) tryInvoke(reader, &quot;readLine&quot;, STRING_ARG, prompt);</span>
+        }
+
+        @Override
+        public void flush() throws IOException {
+<span class="nc" id="L169">            tryInvoke(reader, &quot;flush&quot;, NO_ARG);</span>
+<span class="nc" id="L170">        }</span>
+
+        @Override
+        public void print(String s) throws IOException {
+<span class="nc" id="L174">            tryInvoke(reader, &quot;print&quot;, CHARSEQ_ARG, s);</span>
+<span class="nc" id="L175">        }</span>
+
+        @Override
+        public void println() throws IOException {
+<span class="nc" id="L179">            tryInvoke(reader, &quot;println&quot;, NO_ARG);</span>
+<span class="nc" id="L180">        }</span>
+
+        @Override
+        public void println(String s) throws IOException {
+<span class="nc" id="L184">            tryInvoke(reader, &quot;println&quot;, CHARSEQ_ARG, s);</span>
+<span class="nc" id="L185">        }</span>
+    }
+
+    /**
+     * JLine's ConsoleReaderInputStream is no longer public, therefore we need
+     * to use our own implementation
+     */
+    private static class ConsoleInputStream extends InputStream {
+<span class="fc" id="L193">        private static final byte[] EMPTY = new byte[] {};</span>
+        private final ShellConsole console;
+        private final Charset cs;
+<span class="nc" id="L196">        private byte[] buffer = EMPTY;</span>
+<span class="nc" id="L197">        private int cursor = -1;</span>
+<span class="nc" id="L198">        private boolean atEOF = false;</span>
+
+<span class="nc" id="L200">        public ConsoleInputStream(ShellConsole console, Charset cs) {</span>
+<span class="nc" id="L201">            this.console = console;</span>
+<span class="nc" id="L202">            this.cs = cs;</span>
+<span class="nc" id="L203">        }</span>
+
+        @Override
+        public synchronized int read(byte[] b, int off, int len)
+                throws IOException {
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (b == null) {</span>
+<span class="nc" id="L209">                throw new NullPointerException();</span>
+<span class="nc bnc" id="L210" title="All 6 branches missed.">            } else if (off &lt; 0 || len &lt; 0 || len &gt; b.length - off) {</span>
+<span class="nc" id="L211">                throw new IndexOutOfBoundsException();</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            } else if (len == 0) {</span>
+<span class="nc" id="L213">                return 0;</span>
+            }
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if (!ensureInput()) {</span>
+<span class="nc" id="L216">                return -1;</span>
+            }
+<span class="nc" id="L218">            int n = Math.min(len, buffer.length - cursor);</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="nc" id="L220">                b[off + i] = buffer[cursor + i];</span>
+            }
+<span class="nc bnc" id="L222" title="All 2 branches missed.">            if (n &lt; len) {</span>
+<span class="nc" id="L223">                b[off + n++] = '\n';</span>
+            }
+<span class="nc" id="L225">            cursor += n;</span>
+<span class="nc" id="L226">            return n;</span>
+        }
+
+        @Override
+        public synchronized int read() throws IOException {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            if (!ensureInput()) {</span>
+<span class="nc" id="L232">                return -1;</span>
+            }
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if (cursor == buffer.length) {</span>
+<span class="nc" id="L235">                cursor++;</span>
+<span class="nc" id="L236">                return '\n';</span>
+            }
+<span class="nc" id="L238">            return buffer[cursor++];</span>
+        }
+
+        private boolean ensureInput() throws IOException {
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            if (atEOF) {</span>
+<span class="nc" id="L243">                return false;</span>
+            }
+<span class="nc bnc" id="L245" title="All 4 branches missed.">            if (cursor &lt; 0 || cursor &gt; buffer.length) {</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                if (readNextLine() == -1) {</span>
+<span class="nc" id="L247">                    atEOF = true;</span>
+<span class="nc" id="L248">                    return false;</span>
+                }
+<span class="nc" id="L250">                cursor = 0;</span>
+            }
+<span class="nc" id="L252">            return true;</span>
+        }
+
+        private int readNextLine() throws IOException {
+<span class="nc" id="L256">            String line = console.readLine(null);</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            if (line != null) {</span>
+<span class="nc" id="L258">                buffer = line.getBytes(cs);</span>
+<span class="nc" id="L259">                return buffer.length;</span>
+            } else {
+<span class="nc" id="L261">                buffer = EMPTY;</span>
+<span class="nc" id="L262">                return -1;</span>
+            }
+        }
+    }
+
+    private static class SimpleShellConsole extends ShellConsole {
+        private final InputStream in;
+        private final PrintWriter out;
+        private final BufferedReader reader;
+
+<span class="fc" id="L272">        SimpleShellConsole(InputStream in, PrintStream ps, Charset cs) {</span>
+<span class="fc" id="L273">            this.in = in;</span>
+<span class="fc" id="L274">            this.out = new PrintWriter(ps);</span>
+<span class="fc" id="L275">            this.reader = new BufferedReader(new InputStreamReader(in, cs));</span>
+<span class="fc" id="L276">        }</span>
+
+        @Override
+        public InputStream getIn() {
+<span class="fc" id="L280">            return in;</span>
+        }
+
+        @Override
+        public String readLine() throws IOException {
+<span class="fc" id="L285">            return reader.readLine();</span>
+        }
+
+        @Override
+        public String readLine(String prompt) throws IOException {
+<span class="pc bpc" id="L290" title="1 of 2 branches missed.">            if (prompt != null) {</span>
+<span class="fc" id="L291">                out.write(prompt);</span>
+<span class="fc" id="L292">                out.flush();</span>
+            }
+<span class="fc" id="L294">            return reader.readLine();</span>
+        }
+
+        @Override
+        public void flush() throws IOException {
+<span class="fc" id="L299">            out.flush();</span>
+<span class="fc" id="L300">        }</span>
+
+        @Override
+        public void print(String s) throws IOException {
+<span class="fc" id="L304">            out.print(s);</span>
+<span class="fc" id="L305">        }</span>
+
+        @Override
+        public void println() throws IOException {
+<span class="fc" id="L309">            out.println();</span>
+<span class="fc" id="L310">        }</span>
+
+        @Override
+        public void println(String s) throws IOException {
+<span class="fc" id="L314">            out.println(s);</span>
+<span class="fc" id="L315">        }</span>
+    }
+
+    /**
+     * Returns a new {@link ShellConsole} which uses the supplied
+     * {@link InputStream} and {@link PrintStream} for its input/output
+     */
+    public static ShellConsole getConsole(InputStream in, PrintStream ps,
+            Charset cs) {
+<span class="fc" id="L324">        return new SimpleShellConsole(in, ps, cs);</span>
+    }
+
+    /**
+     * Provides a specialized {@link ShellConsole} to handle line editing,
+     * history and completion. Relies on the JLine library (see
+     * &lt;http://jline.sourceforge.net&gt;).
+     */
+    public static ShellConsole getConsole(Scriptable scope, Charset cs) {
+        // We don't want a compile-time dependency on the JLine jar, so use
+        // reflection to load and reference the JLine classes.
+<span class="fc" id="L335">        ClassLoader classLoader = ShellConsole.class.getClassLoader();</span>
+<span class="pc bpc" id="L336" title="1 of 2 branches missed.">        if (classLoader == null) {</span>
+            // If the attempt to get a class specific class loader above failed
+            // then fallback to the system class loader.
+<span class="nc" id="L339">            classLoader = ClassLoader.getSystemClassLoader();</span>
+        }
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        if (classLoader == null) {</span>
+            // If for some reason we still don't have a handle to a class
+            // loader then give up (avoid a NullPointerException).
+<span class="nc" id="L344">            return null;</span>
+        }
+        try {
+            // first try to load JLine v2...
+<span class="fc" id="L348">            Class&lt;?&gt; readerClass = Kit.classOrNull(classLoader,</span>
+                    &quot;jline.console.ConsoleReader&quot;);
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">            if (readerClass != null) {</span>
+<span class="nc" id="L351">                return getJLineShellConsoleV2(classLoader, readerClass, scope, cs);</span>
+            }
+            // ...if that fails, try to load JLine v1
+<span class="fc" id="L354">            readerClass = Kit.classOrNull(classLoader, &quot;jline.ConsoleReader&quot;);</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">            if (readerClass != null) {</span>
+<span class="nc" id="L356">                return getJLineShellConsoleV1(classLoader, readerClass, scope, cs);</span>
+            }
+<span class="nc" id="L358">        } catch (NoSuchMethodException e) {</span>
+<span class="nc" id="L359">        } catch (IllegalAccessException e) {</span>
+<span class="nc" id="L360">        } catch (InstantiationException e) {</span>
+<span class="nc" id="L361">        } catch (InvocationTargetException e) {</span>
+<span class="pc" id="L362">        }</span>
+<span class="fc" id="L363">        return null;</span>
+    }
+
+    private static JLineShellConsoleV1 getJLineShellConsoleV1(
+            ClassLoader classLoader, Class&lt;?&gt; readerClass, Scriptable scope,
+            Charset cs) throws NoSuchMethodException, InstantiationException,
+            IllegalAccessException, InvocationTargetException {
+        // ConsoleReader reader = new ConsoleReader();
+<span class="nc" id="L371">        Constructor&lt;?&gt; c = readerClass.getConstructor();</span>
+<span class="nc" id="L372">        Object reader = c.newInstance();</span>
+
+        // reader.setBellEnabled(false);
+<span class="nc" id="L375">        tryInvoke(reader, &quot;setBellEnabled&quot;, BOOLEAN_ARG, Boolean.FALSE);</span>
+
+        // reader.addCompletor(new FlexibleCompletor(prefixes));
+<span class="nc" id="L378">        Class&lt;?&gt; completorClass = Kit.classOrNull(classLoader,</span>
+                &quot;jline.Completor&quot;);
+<span class="nc" id="L380">        Object completor = Proxy.newProxyInstance(classLoader,</span>
+                new Class[] { completorClass },
+                new FlexibleCompletor(completorClass, scope));
+<span class="nc" id="L383">        tryInvoke(reader, &quot;addCompletor&quot;, new Class[] {completorClass}, completor);</span>
+
+<span class="nc" id="L385">        return new JLineShellConsoleV1(reader, cs);</span>
+    }
+
+    private static JLineShellConsoleV2 getJLineShellConsoleV2(
+            ClassLoader classLoader, Class&lt;?&gt; readerClass, Scriptable scope,
+            Charset cs) throws NoSuchMethodException, InstantiationException,
+            IllegalAccessException, InvocationTargetException {
+        // ConsoleReader reader = new ConsoleReader();
+<span class="nc" id="L393">        Constructor&lt;?&gt; c = readerClass.getConstructor();</span>
+<span class="nc" id="L394">        Object reader = c.newInstance();</span>
+
+        // reader.setBellEnabled(false);
+<span class="nc" id="L397">        tryInvoke(reader, &quot;setBellEnabled&quot;, BOOLEAN_ARG, Boolean.FALSE);</span>
+
+        // reader.addCompleter(new FlexibleCompletor(prefixes));
+<span class="nc" id="L400">        Class&lt;?&gt; completorClass = Kit.classOrNull(classLoader,</span>
+                &quot;jline.console.completer.Completer&quot;);
+<span class="nc" id="L402">        Object completor = Proxy.newProxyInstance(classLoader,</span>
+                new Class[] { completorClass },
+                new FlexibleCompletor(completorClass, scope));
+<span class="nc" id="L405">        tryInvoke(reader, &quot;addCompleter&quot;, new Class[] {completorClass}, completor);</span>
+
+<span class="nc" id="L407">        return new JLineShellConsoleV2(reader, cs);</span>
+    }
+}
+
+/**
+* The completors provided with JLine are pretty uptight, they only
+* complete on a line that it can fully recognize (only composed of
+* completed strings). This one completes whatever came before.
+*/
+class FlexibleCompletor implements java.lang.reflect.InvocationHandler {
+    private Method completeMethod;
+    private Scriptable global;
+
+    FlexibleCompletor(Class&lt;?&gt; completorClass, Scriptable global)
+        throws NoSuchMethodException
+<span class="fc" id="L422">    {</span>
+<span class="fc" id="L423">        this.global = global;</span>
+<span class="nc" id="L424">        this.completeMethod = completorClass.getMethod(&quot;complete&quot;, String.class,</span>
+                Integer.TYPE, List.class);
+<span class="nc" id="L426">    }</span>
+
+    @SuppressWarnings({&quot;unchecked&quot;})
+    public Object invoke(Object proxy, Method method, Object[] args) {
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        if (method.equals(this.completeMethod)) {</span>
+<span class="nc" id="L431">            int result = complete((String)args[0], ((Integer) args[1]).intValue(),</span>
+                    (List&lt;String&gt;) args[2]);
+<span class="nc" id="L433">            return Integer.valueOf(result);</span>
+        }
+<span class="nc" id="L435">        throw new NoSuchMethodError(method.toString());</span>
+    }
+
+    public int complete(String buffer, int cursor, List&lt;String&gt; candidates) {
+        // Starting from &quot;cursor&quot; at the end of the buffer, look backward
+        // and collect a list of identifiers separated by (possibly zero)
+        // dots. Then look up each identifier in turn until getting to the
+        // last, presumably incomplete fragment. Then enumerate all the
+        // properties of the last object and find any that have the
+        // fragment as a prefix and return those for autocompletion.
+<span class="nc" id="L445">        int m = cursor - 1;</span>
+<span class="nc bnc" id="L446" title="All 2 branches missed.">        while (m &gt;= 0) {</span>
+<span class="nc" id="L447">            char c = buffer.charAt(m);</span>
+<span class="nc bnc" id="L448" title="All 4 branches missed.">            if (!Character.isJavaIdentifierPart(c) &amp;&amp; c != '.')</span>
+<span class="nc" id="L449">                break;</span>
+<span class="nc" id="L450">            m--;</span>
+<span class="nc" id="L451">        }</span>
+<span class="nc" id="L452">        String namesAndDots = buffer.substring(m+1, cursor);</span>
+<span class="nc" id="L453">        String[] names = namesAndDots.split(&quot;\\.&quot;, -1);</span>
+<span class="nc" id="L454">        Scriptable obj = this.global;</span>
+<span class="nc bnc" id="L455" title="All 2 branches missed.">        for (int i=0; i &lt; names.length - 1; i++) {</span>
+<span class="nc" id="L456">            Object val = obj.get(names[i], global);</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">            if (val instanceof Scriptable)</span>
+<span class="nc" id="L458">                obj = (Scriptable) val;</span>
+            else {
+<span class="nc" id="L460">                return buffer.length(); // no matches</span>
+            }
+        }
+<span class="nc bnc" id="L463" title="All 2 branches missed.">        Object[] ids = (obj instanceof ScriptableObject)</span>
+<span class="nc" id="L464">                       ? ((ScriptableObject)obj).getAllIds()</span>
+<span class="nc" id="L465">                       : obj.getIds();</span>
+<span class="nc" id="L466">        String lastPart = names[names.length-1];</span>
+<span class="nc bnc" id="L467" title="All 2 branches missed.">        for (int i=0; i &lt; ids.length; i++) {</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">            if (!(ids[i] instanceof String))</span>
+<span class="nc" id="L469">                continue;</span>
+<span class="nc" id="L470">            String id = (String)ids[i];</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">            if (id.startsWith(lastPart)) {</span>
+<span class="nc bnc" id="L472" title="All 2 branches missed.">                if (obj.get(id, obj) instanceof Function)</span>
+<span class="nc" id="L473">                    id += &quot;(&quot;;</span>
+<span class="nc" id="L474">                candidates.add(id);</span>
+            }
+        }
+<span class="nc" id="L477">        return buffer.length() - lastPart.length();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeTypedArrayIterator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeTypedArrayIterator.java</span></div><h1>NativeTypedArrayIterator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
+
+public class NativeTypedArrayIterator&lt;T&gt;
+    implements ListIterator&lt;T&gt;
+{
+    private final NativeTypedArrayView&lt;T&gt; view;
+
+    /** Position represents the position of the NEXT element */
+    private int position;
+<span class="fc" id="L19">    private int lastPosition = -1;</span>
+
+    NativeTypedArrayIterator(NativeTypedArrayView&lt;T&gt; view, int start)
+<span class="fc" id="L22">    {</span>
+<span class="fc" id="L23">        this.view = view;</span>
+<span class="fc" id="L24">        this.position = start;</span>
+<span class="fc" id="L25">    }</span>
+
+    @Override
+    public boolean hasNext()
+    {
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        return (position &lt; view.length);</span>
+    }
+
+    @Override
+    public boolean hasPrevious()
+    {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        return (position &gt; 0);</span>
+    }
+
+    @Override
+    public int nextIndex()
+    {
+<span class="fc" id="L42">        return position;</span>
+    }
+
+    @Override
+    public int previousIndex()
+    {
+<span class="fc" id="L48">        return position - 1;</span>
+    }
+
+    @Override
+    public T next()
+    {
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (hasNext()) {</span>
+<span class="fc" id="L55">            T ret = (T)view.get(position);</span>
+<span class="fc" id="L56">            lastPosition = position;</span>
+<span class="fc" id="L57">            position++;</span>
+<span class="fc" id="L58">            return ret;</span>
+        }
+<span class="fc" id="L60">        throw new NoSuchElementException();</span>
+    }
+
+    @Override
+    public T previous()
+    {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (hasPrevious()) {</span>
+<span class="fc" id="L67">            position--;</span>
+<span class="fc" id="L68">            lastPosition = position;</span>
+<span class="fc" id="L69">            return (T)view.get(position);</span>
+        }
+<span class="fc" id="L71">        throw new NoSuchElementException();</span>
+    }
+
+    @Override
+    public void set(T t)
+    {
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (lastPosition &lt; 0) {</span>
+<span class="fc" id="L78">            throw new IllegalStateException();</span>
+        }
+<span class="fc" id="L80">        view.js_set(lastPosition, t);</span>
+<span class="fc" id="L81">    }</span>
+
+    @Override
+    public void remove()
+    {
+<span class="fc" id="L86">        throw new UnsupportedOperationException();</span>
+    }
+
+    @Override
+    public void add(T t)
+    {
+<span class="fc" id="L92">        throw new UnsupportedOperationException();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

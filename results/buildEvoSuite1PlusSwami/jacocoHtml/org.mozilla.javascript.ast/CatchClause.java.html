@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CatchClause.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">CatchClause.java</span></div><h1>CatchClause.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * Node representing a catch-clause of a try-statement.
+ * Node type is {@link Token#CATCH}.
+ *
+ * &lt;pre&gt;&lt;i&gt;CatchClause&lt;/i&gt; :
+ *        &lt;b&gt;catch&lt;/b&gt; ( &lt;i&gt;&lt;b&gt;Identifier&lt;/b&gt;&lt;/i&gt; [&lt;b&gt;if&lt;/b&gt; Expression] ) Block&lt;/pre&gt;
+ */
+public class CatchClause extends AstNode {
+
+    private Name varName;
+    private AstNode catchCondition;
+    private Block body;
+<span class="fc" id="L23">    private int ifPosition = -1;</span>
+<span class="fc" id="L24">    private int lp = -1;</span>
+<span class="fc" id="L25">    private int rp = -1;</span>
+
+    {
+<span class="fc" id="L28">        type = Token.CATCH;</span>
+    }
+
+<span class="fc" id="L31">    public CatchClause() {</span>
+<span class="fc" id="L32">    }</span>
+
+    public CatchClause(int pos) {
+<span class="fc" id="L35">        super(pos);</span>
+<span class="fc" id="L36">    }</span>
+
+    public CatchClause(int pos, int len) {
+<span class="fc" id="L39">        super(pos, len);</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * Returns catch variable node
+     * @return catch variable
+     */
+    public Name getVarName() {
+<span class="fc" id="L47">        return varName;</span>
+    }
+
+    /**
+     * Sets catch variable node, and sets its parent to this node.
+     * @param varName catch variable
+     * @throws IllegalArgumentException if varName is {@code null}
+     */
+    public void setVarName(Name varName) {
+<span class="fc" id="L56">        assertNotNull(varName);</span>
+<span class="fc" id="L57">        this.varName = varName;</span>
+<span class="fc" id="L58">        varName.setParent(this);</span>
+<span class="fc" id="L59">    }</span>
+
+    /**
+     * Returns catch condition node, if present
+     * @return catch condition node, {@code null} if not present
+     */
+    public AstNode getCatchCondition() {
+<span class="fc" id="L66">        return catchCondition;</span>
+    }
+
+    /**
+     * Sets catch condition node, and sets its parent to this node.
+     * @param catchCondition catch condition node.  Can be {@code null}.
+     */
+    public void setCatchCondition(AstNode catchCondition) {
+<span class="fc" id="L74">        this.catchCondition = catchCondition;</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (catchCondition != null)</span>
+<span class="fc" id="L76">            catchCondition.setParent(this);</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Returns catch body
+     */
+    public Block getBody() {
+<span class="fc" id="L83">        return body;</span>
+    }
+
+    /**
+     * Sets catch body, and sets its parent to this node.
+     * @throws IllegalArgumentException if body is {@code null}
+     */
+    public void setBody(Block body) {
+<span class="fc" id="L91">        assertNotNull(body);</span>
+<span class="fc" id="L92">        this.body = body;</span>
+<span class="fc" id="L93">        body.setParent(this);</span>
+<span class="fc" id="L94">    }</span>
+
+    /**
+     * Returns left paren position
+     */
+    public int getLp() {
+<span class="fc" id="L100">        return lp;</span>
+    }
+
+    /**
+     * Sets left paren position
+     */
+    public void setLp(int lp) {
+<span class="fc" id="L107">        this.lp = lp;</span>
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * Returns right paren position
+     */
+    public int getRp() {
+<span class="fc" id="L114">        return rp;</span>
+    }
+
+    /**
+     * Sets right paren position
+     */
+    public void setRp(int rp) {
+<span class="fc" id="L121">        this.rp = rp;</span>
+<span class="fc" id="L122">    }</span>
+
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class="fc" id="L128">        this.lp = lp;</span>
+<span class="fc" id="L129">        this.rp = rp;</span>
+<span class="fc" id="L130">    }</span>
+
+    /**
+     * Returns position of &quot;if&quot; keyword
+     * @return position of &quot;if&quot; keyword, if present, or -1
+     */
+    public int getIfPosition() {
+<span class="fc" id="L137">        return ifPosition;</span>
+    }
+
+    /**
+     * Sets position of &quot;if&quot; keyword
+     * @param ifPosition position of &quot;if&quot; keyword, if present, or -1
+     */
+    public void setIfPosition(int ifPosition) {
+<span class="fc" id="L145">        this.ifPosition = ifPosition;</span>
+<span class="fc" id="L146">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L150">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L151">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L152">        sb.append(&quot;catch (&quot;);</span>
+<span class="fc" id="L153">        sb.append(varName.toSource(0));</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (catchCondition != null) {</span>
+<span class="fc" id="L155">            sb.append(&quot; if &quot;);</span>
+<span class="nc" id="L156">            sb.append(catchCondition.toSource(0));</span>
+        }
+<span class="fc" id="L158">        sb.append(&quot;) &quot;);</span>
+<span class="fc" id="L159">        sb.append(body.toSource(0));</span>
+<span class="fc" id="L160">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the catch var name node, the condition if
+     * non-{@code null}, and the catch body.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc" id="L170">            varName.visit(v);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">            if (catchCondition != null) {</span>
+<span class="nc" id="L172">                catchCondition.visit(v);</span>
+            }
+<span class="fc" id="L174">            body.visit(v);</span>
+        }
+<span class="fc" id="L176">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

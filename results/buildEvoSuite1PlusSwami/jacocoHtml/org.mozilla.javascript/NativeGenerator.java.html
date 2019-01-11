@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeGenerator.java</span></div><h1>NativeGenerator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements generator objects. See
+ * http://developer.mozilla.org/en/docs/New_in_JavaScript_1.7#Generators
+ *
+ * @author Norris Boyd
+ */
+public final class NativeGenerator extends IdScriptableObject {
+    private static final long serialVersionUID = 1645892441041347273L;
+
+<span class="fc" id="L18">    private static final Object GENERATOR_TAG = &quot;Generator&quot;;</span>
+
+    static NativeGenerator init(ScriptableObject scope, boolean sealed) {
+        // Generator
+        // Can't use &quot;NativeGenerator().exportAsJSClass&quot; since we don't want
+        // to define &quot;Generator&quot; as a constructor in the top-level scope.
+
+<span class="fc" id="L25">        NativeGenerator prototype = new NativeGenerator();</span>
+<span class="pc bpc" id="L26" title="1 of 2 branches missed.">        if (scope != null) {</span>
+<span class="fc" id="L27">            prototype.setParentScope(scope);</span>
+<span class="fc" id="L28">            prototype.setPrototype(getObjectPrototype(scope));</span>
+        }
+<span class="fc" id="L30">        prototype.activatePrototypeMap(MAX_PROTOTYPE_ID);</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        if (sealed) {</span>
+<span class="fc" id="L32">            prototype.sealObject();</span>
+        }
+
+        // Need to access Generator prototype when constructing
+        // Generator instances, but don't have a generator constructor
+        // to use to find the prototype. Use the &quot;associateValue&quot;
+        // approach instead.
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        if (scope != null) {</span>
+<span class="fc" id="L40">            scope.associateValue(GENERATOR_TAG, prototype);</span>
+        }
+
+<span class="fc" id="L43">        return prototype;</span>
+    }
+
+    /**
+     * Only for constructing the prototype object.
+     */
+<span class="fc" id="L49">    private NativeGenerator() { }</span>
+
+    public NativeGenerator(Scriptable scope, NativeFunction function,
+                           Object savedState)
+<span class="fc" id="L53">    {</span>
+<span class="fc" id="L54">        this.function = function;</span>
+<span class="fc" id="L55">        this.savedState = savedState;</span>
+        // Set parent and prototype properties. Since we don't have a
+        // &quot;Generator&quot; constructor in the top scope, we stash the
+        // prototype in the top scope's associated value.
+<span class="fc" id="L59">        Scriptable top = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="fc" id="L60">        this.setParentScope(top);</span>
+<span class="fc" id="L61">        NativeGenerator prototype = (NativeGenerator)</span>
+<span class="fc" id="L62">            ScriptableObject.getTopScopeValue(top, GENERATOR_TAG);</span>
+<span class="fc" id="L63">        this.setPrototype(prototype);</span>
+<span class="fc" id="L64">    }</span>
+
+    public static final int GENERATOR_SEND  = 0,
+                            GENERATOR_THROW = 1,
+                            GENERATOR_CLOSE = 2;
+
+    @Override
+    public String getClassName() {
+<span class="nc" id="L72">        return &quot;Generator&quot;;</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id) {
+        String s;
+        int arity;
+<span class="pc bpc" id="L79" title="1 of 6 branches missed.">        switch (id) {</span>
+<span class="fc" id="L80">          case Id_close:          arity=1; s=&quot;close&quot;;          break;</span>
+<span class="fc" id="L81">          case Id_next:           arity=1; s=&quot;next&quot;;           break;</span>
+<span class="fc" id="L82">          case Id_send:           arity=0; s=&quot;send&quot;;           break;</span>
+<span class="fc" id="L83">          case Id_throw:          arity=0; s=&quot;throw&quot;;          break;</span>
+<span class="fc" id="L84">          case Id___iterator__:   arity=1; s=&quot;__iterator__&quot;;   break;</span>
+<span class="nc" id="L85">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L87">        initPrototypeMethod(GENERATOR_TAG, id, s, arity);</span>
+<span class="fc" id="L88">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (!f.hasTag(GENERATOR_TAG)) {</span>
+<span class="nc" id="L95">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L97">        int id = f.methodId();</span>
+
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (!(thisObj instanceof NativeGenerator))</span>
+<span class="nc" id="L100">            throw incompatibleCallError(f);</span>
+
+<span class="nc" id="L102">        NativeGenerator generator = (NativeGenerator) thisObj;</span>
+
+<span class="nc bnc" id="L104" title="All 6 branches missed.">        switch (id) {</span>
+
+          case Id_close:
+            // need to run any pending finally clauses
+<span class="nc" id="L108">            return generator.resume(cx, scope, GENERATOR_CLOSE,</span>
+                                    new GeneratorClosedException());
+
+          case Id_next:
+            // arguments to next() are ignored
+<span class="nc" id="L113">            generator.firstTime = false;</span>
+<span class="nc" id="L114">            return generator.resume(cx, scope, GENERATOR_SEND,</span>
+                                    Undefined.instance);
+
+          case Id_send: {
+<span class="nc bnc" id="L118" title="All 2 branches missed.">            Object arg = args.length &gt; 0 ? args[0] : Undefined.instance;</span>
+<span class="nc bnc" id="L119" title="All 4 branches missed.">            if (generator.firstTime &amp;&amp; !arg.equals(Undefined.instance)) {</span>
+<span class="nc" id="L120">                throw ScriptRuntime.typeError0(&quot;msg.send.newborn&quot;);</span>
+            }
+<span class="nc" id="L122">            return generator.resume(cx, scope, GENERATOR_SEND, arg);</span>
+          }
+
+          case Id_throw:
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            return generator.resume(cx, scope, GENERATOR_THROW,</span>
+                args.length &gt; 0 ? args[0] : Undefined.instance);
+
+          case Id___iterator__:
+<span class="nc" id="L130">            return thisObj;</span>
+
+          default:
+<span class="nc" id="L133">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    private Object resume(Context cx, Scriptable scope, int operation,
+                          Object value)
+    {
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (savedState == null) {</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (operation == GENERATOR_CLOSE)</span>
+<span class="nc" id="L142">                return Undefined.instance;</span>
+            Object thrown;
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if (operation == GENERATOR_THROW) {</span>
+<span class="nc" id="L145">                thrown = value;</span>
+            } else {
+<span class="nc" id="L147">                thrown = NativeIterator.getStopIterationObject(scope);</span>
+            }
+<span class="nc" id="L149">            throw new JavaScriptException(thrown, lineSource, lineNumber);</span>
+        }
+        try {
+<span class="nc" id="L152">            synchronized (this) {</span>
+              // generator execution is necessarily single-threaded and
+              // non-reentrant.
+              // See https://bugzilla.mozilla.org/show_bug.cgi?id=349263
+<span class="nc bnc" id="L156" title="All 2 branches missed.">              if (locked)</span>
+<span class="nc" id="L157">                  throw ScriptRuntime.typeError0(&quot;msg.already.exec.gen&quot;);</span>
+<span class="nc" id="L158">              locked = true;</span>
+<span class="nc" id="L159">            }</span>
+<span class="nc" id="L160">            return function.resumeGenerator(cx, scope, operation, savedState,</span>
+                                            value);
+<span class="nc" id="L162">        } catch (GeneratorClosedException e) {</span>
+            // On closing a generator in the compile path, the generator
+            // throws a special exception. This ensures execution of all pending
+            // finalizers and will not get caught by user code.
+<span class="nc" id="L166">            return Undefined.instance;</span>
+<span class="nc" id="L167">        } catch (RhinoException e) {</span>
+<span class="nc" id="L168">            lineNumber = e.lineNumber();</span>
+<span class="nc" id="L169">            lineSource = e.lineSource();</span>
+<span class="nc" id="L170">            savedState = null;</span>
+<span class="nc" id="L171">            throw e;</span>
+        } finally {
+<span class="nc" id="L173">            synchronized (this) {</span>
+<span class="nc" id="L174">              locked = false;</span>
+<span class="nc" id="L175">            }</span>
+<span class="nc bnc" id="L176" title="All 6 branches missed.">            if (operation == GENERATOR_CLOSE)</span>
+<span class="nc" id="L177">                savedState = null;</span>
+<span class="nc" id="L178">        }</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s) {
+        int id;
+// #generated# Last update: 2007-06-14 13:13:03 EDT
+<span class="fc" id="L187">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L188">            int s_length = s.length();</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            if (s_length==4) {</span>
+<span class="fc" id="L190">                c=s.charAt(0);</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">                if (c=='n') { X=&quot;next&quot;;id=Id_next; }</span>
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                else if (c=='s') { X=&quot;send&quot;;id=Id_send; }</span>
+            }
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            else if (s_length==5) {</span>
+<span class="fc" id="L195">                c=s.charAt(0);</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">                if (c=='c') { X=&quot;close&quot;;id=Id_close; }</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">                else if (c=='t') { X=&quot;throw&quot;;id=Id_throw; }</span>
+            }
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            else if (s_length==12) { X=&quot;__iterator__&quot;;id=Id___iterator__; }</span>
+<span class="pc bpc" id="L200" title="4 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L204">        return id;</span>
+    }
+
+    private static final int
+        Id_close                 = 1,
+        Id_next                  = 2,
+        Id_send                  = 3,
+        Id_throw                 = 4,
+        Id___iterator__          = 5,
+        MAX_PROTOTYPE_ID         = 5;
+
+// #/string_id_map#
+    private NativeFunction function;
+    private Object savedState;
+    private String lineSource;
+    private int lineNumber;
+<span class="fc" id="L220">    private boolean firstTime = true;</span>
+    private boolean locked;
+
+<span class="nc" id="L223">    public static class GeneratorClosedException extends RuntimeException {</span>
+        private static final long serialVersionUID = 2561315658662379681L;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

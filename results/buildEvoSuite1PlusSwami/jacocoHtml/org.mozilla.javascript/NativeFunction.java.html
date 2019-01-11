@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeFunction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeFunction.java</span></div><h1>NativeFunction.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.debug.DebuggableScript;
+
+/**
+ * This class implements the Function native object.
+ * See ECMA 15.3.
+ * @author Norris Boyd
+ */
+<span class="fc" id="L16">public abstract class NativeFunction extends BaseFunction</span>
+{
+
+    static final long serialVersionUID = 8713897114082216401L;
+    
+    public final void initScriptFunction(Context cx, Scriptable scope)
+    {
+<span class="fc" id="L23">        ScriptRuntime.setFunctionProtoAndParent(this, scope);</span>
+<span class="fc" id="L24">    }</span>
+
+    /**
+     * @param indent How much to indent the decompiled result
+     *
+     * @param flags Flags specifying format of decompilation output
+     */
+    @Override
+    final String decompile(int indent, int flags)
+    {
+<span class="nc" id="L34">        String encodedSource = getEncodedSource();</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (encodedSource == null) {</span>
+<span class="nc" id="L36">            return super.decompile(indent, flags);</span>
+        } else {
+<span class="nc" id="L38">            UintMap properties = new UintMap(1);</span>
+<span class="nc" id="L39">            properties.put(Decompiler.INITIAL_INDENT_PROP, indent);</span>
+<span class="nc" id="L40">            return Decompiler.decompile(encodedSource, flags, properties);</span>
+        }
+    }
+
+    @Override
+    public int getLength()
+    {
+<span class="nc" id="L47">        int paramCount = getParamCount();</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (getLanguageVersion() != Context.VERSION_1_2) {</span>
+<span class="nc" id="L49">            return paramCount;</span>
+        }
+<span class="nc" id="L51">        Context cx = Context.getContext();</span>
+<span class="nc" id="L52">        NativeCall activation = ScriptRuntime.findFunctionActivation(cx, this);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (activation == null) {</span>
+<span class="nc" id="L54">            return paramCount;</span>
+        }
+<span class="nc" id="L56">        return activation.originalArgs.length;</span>
+    }
+
+    @Override
+    public int getArity()
+    {
+<span class="nc" id="L62">        return getParamCount();</span>
+    }
+
+    /**
+     * @deprecated Use {@link BaseFunction#getFunctionName()} instead.
+     * For backwards compatibility keep an old method name used by
+     * Batik and possibly others.
+     */
+    @Deprecated
+    public String jsGet_name()
+    {
+<span class="nc" id="L73">        return getFunctionName();</span>
+    }
+
+    /**
+     * Get encoded source string.
+     */
+    public String getEncodedSource()
+    {
+<span class="nc" id="L81">        return null;</span>
+    }
+
+    public DebuggableScript getDebuggableView()
+    {
+<span class="nc" id="L86">        return null;</span>
+    }
+
+    /**
+     * Resume execution of a suspended generator.
+     * @param cx The current context
+     * @param scope Scope for the parent generator function
+     * @param operation The resumption operation (next, send, etc.. )
+     * @param state The generator state (has locals, stack, etc.)
+     * @param value The return value of yield (if required).
+     * @return The next yielded value (if any)
+     */
+    public Object resumeGenerator(Context cx, Scriptable scope,
+                                  int operation, Object state, Object value)
+    {
+<span class="nc" id="L101">        throw new EvaluatorException(&quot;resumeGenerator() not implemented&quot;);</span>
+    }
+
+
+    protected abstract int getLanguageVersion();
+
+    /**
+     * Get number of declared parameters. It should be 0 for scripts.
+     */
+    protected abstract int getParamCount();
+
+    /**
+     * Get number of declared parameters and variables defined through var
+     * statements.
+     */
+    protected abstract int getParamAndVarCount();
+
+    /**
+     * Get parameter or variable name.
+     * If &lt;tt&gt;index &lt; {@link #getParamCount()}&lt;/tt&gt;, then return the name of the
+     * corresponding parameter. Otherwise return the name of variable.
+     */
+    protected abstract String getParamOrVarName(int index);
+
+    /**
+     * Get parameter or variable const-ness.
+     * If &lt;tt&gt;index &lt; {@link #getParamCount()}&lt;/tt&gt;, then return the const-ness
+     * of the corresponding parameter. Otherwise return whether the variable is
+     * const.
+     */
+    protected boolean getParamOrVarConst(int index)
+    {
+        // By default return false to preserve compatibility with existing
+        // classes subclassing this class, which are mostly generated by jsc
+        // from earlier Rhino versions. See Bugzilla #396117.
+<span class="nc" id="L136">        return false;</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

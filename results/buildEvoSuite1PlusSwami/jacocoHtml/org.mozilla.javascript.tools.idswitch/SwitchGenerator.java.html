@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SwitchGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.idswitch</a> &gt; <span class="el_source">SwitchGenerator.java</span></div><h1>SwitchGenerator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.idswitch;
+
+import org.mozilla.javascript.EvaluatorException;
+import org.mozilla.javascript.tools.ToolErrorReporter;
+
+<span class="fc" id="L11">public class SwitchGenerator {</span>
+
+<span class="fc" id="L13">    String v_switch_label = &quot;L0&quot;;</span>
+<span class="fc" id="L14">    String v_label = &quot;L&quot;;</span>
+<span class="fc" id="L15">    String v_s = &quot;s&quot;;</span>
+<span class="fc" id="L16">    String v_c = &quot;c&quot;;</span>
+<span class="fc" id="L17">    String v_guess = &quot;X&quot;;</span>
+<span class="fc" id="L18">    String v_id = &quot;id&quot;;</span>
+<span class="fc" id="L19">    String v_length_suffix = &quot;_length&quot;;</span>
+
+<span class="fc" id="L21">    int use_if_threshold = 3;</span>
+<span class="fc" id="L22">    int char_tail_test_threshold = 2;</span>
+
+    private IdValuePair[] pairs;
+    private String default_value;
+    private int[] columns;
+    private boolean c_was_defined;
+
+    private CodePrinter P;
+    private ToolErrorReporter R;
+    private String source_file;
+
+<span class="fc" id="L33">    public CodePrinter getCodePrinter() { return P; }</span>
+<span class="fc" id="L34">    public void setCodePrinter(CodePrinter value) { P = value; }</span>
+
+<span class="fc" id="L36">    public ToolErrorReporter getReporter() { return R; }</span>
+<span class="fc" id="L37">    public void setReporter(ToolErrorReporter value) { R = value; }</span>
+
+<span class="fc" id="L39">    public String getSourceFileName() { return source_file; }</span>
+<span class="fc" id="L40">    public void setSourceFileName(String value) { source_file = value; }</span>
+
+    public void generateSwitch(String[] pairs, String default_value) {
+<span class="fc" id="L43">        int N = pairs.length / 2;</span>
+<span class="fc" id="L44">        IdValuePair[] id_pairs = new IdValuePair[N];</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L46">            id_pairs[i] = new IdValuePair(pairs[2 * i], pairs[2 * i + 1]);</span>
+        }
+<span class="fc" id="L48">        generateSwitch(id_pairs, default_value);</span>
+
+<span class="fc" id="L50">    }</span>
+
+    public void generateSwitch(IdValuePair[] pairs, String default_value) {
+<span class="fc" id="L53">        int begin = 0;</span>
+<span class="fc" id="L54">        int end = pairs.length;</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">        if (begin == end) { return; }</span>
+<span class="fc" id="L56">        this.pairs = pairs;</span>
+<span class="fc" id="L57">        this.default_value = default_value;</span>
+
+<span class="fc" id="L59">        generate_body(begin, end, 2);</span>
+<span class="fc" id="L60">    }</span>
+
+    private void generate_body(int begin, int end, int indent_level) {
+<span class="fc" id="L63">        P.indent(indent_level);</span>
+<span class="fc" id="L64">        P.p(v_switch_label); P.p(&quot;: { &quot;);</span>
+<span class="fc" id="L65">        P.p(v_id); P.p(&quot; = &quot;); P.p(default_value);</span>
+<span class="fc" id="L66">        P.p(&quot;; String &quot;); P.p(v_guess); P.p(&quot; = null;&quot;);</span>
+
+<span class="fc" id="L68">        c_was_defined = false;</span>
+<span class="fc" id="L69">        int c_def_begin = P.getOffset();</span>
+<span class="fc" id="L70">        P.p(&quot; int &quot;); P.p(v_c); P.p(';');</span>
+<span class="fc" id="L71">        int c_def_end = P.getOffset();</span>
+<span class="fc" id="L72">        P.nl();</span>
+
+<span class="fc" id="L74">        generate_length_switch(begin, end, indent_level + 1);</span>
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (!c_was_defined) {</span>
+<span class="fc" id="L77">            P.erase(c_def_begin, c_def_end);</span>
+        }
+
+<span class="fc" id="L80">        P.indent(indent_level + 1);</span>
+<span class="fc" id="L81">        P.p(&quot;if (&quot;); P.p(v_guess); P.p(&quot;!=null &amp;&amp; &quot;);</span>
+<span class="fc" id="L82">        P.p(v_guess); P.p(&quot;!=&quot;); P.p(v_s);</span>
+<span class="fc" id="L83">        P.p(&quot; &amp;&amp; !&quot;); P.p(v_guess); P.p(&quot;.equals(&quot;); P.p(v_s); P.p(&quot;)) &quot;);</span>
+<span class="fc" id="L84">        P.p(v_id); P.p(&quot; = &quot;); P.p(default_value); P.p(&quot;;&quot;); P.nl();</span>
+
+        // Add break at end of block to suppress warning for unused label
+<span class="fc" id="L87">        P.indent(indent_level + 1);</span>
+<span class="fc" id="L88">        P.p(&quot;break &quot;); P.p(v_switch_label); P.p(&quot;;&quot;); P.nl();</span>
+
+<span class="fc" id="L90">        P.line(indent_level, &quot;}&quot;);</span>
+<span class="fc" id="L91">    }</span>
+
+    private void generate_length_switch(int begin, int end, int indent_level) {
+
+<span class="fc" id="L95">        sort_pairs(begin, end, -1);</span>
+
+<span class="fc" id="L97">        check_all_is_different(begin, end);</span>
+
+<span class="fc" id="L99">        int lengths_count = count_different_lengths(begin, end);</span>
+
+<span class="fc" id="L101">        columns = new int[pairs[end  - 1].idLength];</span>
+
+        boolean use_if;
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (lengths_count &lt;= use_if_threshold) {</span>
+<span class="fc" id="L105">            use_if = true;</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            if (lengths_count != 1) {</span>
+<span class="fc" id="L107">                P.indent(indent_level);</span>
+<span class="fc" id="L108">                P.p(&quot;int &quot;); P.p(v_s); P.p(v_length_suffix);</span>
+<span class="fc" id="L109">                P.p(&quot; = &quot;); P.p(v_s); P.p(&quot;.length();&quot;);</span>
+<span class="fc" id="L110">                P.nl();</span>
+            }
+        }
+        else {
+<span class="fc" id="L114">            use_if = false;</span>
+<span class="fc" id="L115">            P.indent(indent_level);</span>
+<span class="fc" id="L116">            P.p(v_label); P.p(&quot;: switch (&quot;);</span>
+<span class="fc" id="L117">            P.p(v_s); P.p(&quot;.length()) {&quot;);</span>
+<span class="fc" id="L118">            P.nl();</span>
+        }
+
+<span class="fc" id="L121">        int same_length_begin = begin;</span>
+<span class="fc" id="L122">        int cur_l = pairs[begin].idLength, l = 0;</span>
+<span class="fc" id="L123">        for (int i = begin;;) {</span>
+<span class="fc" id="L124">            ++i;</span>
+<span class="fc bfc" id="L125" title="All 4 branches covered.">            if (i == end || (l = pairs[i].idLength) != cur_l) {</span>
+                int next_indent;
+<span class="fc bfc" id="L127" title="All 2 branches covered.">                if (use_if) {</span>
+<span class="fc" id="L128">                    P.indent(indent_level);</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                    if (same_length_begin != begin) { P.p(&quot;else &quot;); }</span>
+<span class="fc" id="L130">                    P.p(&quot;if (&quot;);</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                    if (lengths_count == 1) {</span>
+<span class="fc" id="L132">                        P.p(v_s); P.p(&quot;.length()==&quot;);</span>
+                    }
+                    else {
+<span class="fc" id="L135">                        P.p(v_s); P.p(v_length_suffix); P.p(&quot;==&quot;);</span>
+                    }
+<span class="fc" id="L137">                    P.p(cur_l);</span>
+<span class="fc" id="L138">                    P.p(&quot;) {&quot;);</span>
+<span class="fc" id="L139">                    next_indent = indent_level + 1;</span>
+                }
+                else {
+<span class="fc" id="L142">                    P.indent(indent_level);</span>
+<span class="fc" id="L143">                    P.p(&quot;case &quot;); P.p(cur_l); P.p(&quot;:&quot;);</span>
+<span class="fc" id="L144">                    next_indent = indent_level + 1;</span>
+                }
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                generate_letter_switch</span>
+<span class="fc" id="L147">                    (same_length_begin, i, next_indent, !use_if, use_if);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (use_if) {</span>
+<span class="fc" id="L149">                    P.p(&quot;}&quot;); P.nl();</span>
+                }
+                else {
+<span class="fc" id="L152">                    P.p(&quot;break &quot;); P.p(v_label); P.p(&quot;;&quot;); P.nl();</span>
+                }
+
+<span class="fc bfc" id="L155" title="All 2 branches covered.">                if (i == end) { break; }</span>
+<span class="fc" id="L156">                same_length_begin = i;</span>
+<span class="fc" id="L157">                cur_l = l;</span>
+<span class="fc" id="L158">            }</span>
+        }
+
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (!use_if) {</span>
+<span class="fc" id="L162">            P.indent(indent_level); P.p(&quot;}&quot;); P.nl();</span>
+        }
+
+<span class="fc" id="L165">    }</span>
+
+    private void generate_letter_switch
+        (int begin, int end,
+         int indent_level, boolean label_was_defined, boolean inside_if)
+    {
+<span class="fc" id="L171">        int L = pairs[begin].idLength;</span>
+
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        for (int i = 0; i != L; ++i) {</span>
+<span class="fc" id="L174">            columns[i] = i;</span>
+        }
+
+<span class="fc" id="L177">        generate_letter_switch_r</span>
+<span class="fc" id="L178">            (begin, end, L, indent_level, label_was_defined, inside_if);</span>
+<span class="fc" id="L179">    }</span>
+
+
+    private boolean generate_letter_switch_r
+        (int begin, int end, int L,
+         int indent_level, boolean label_was_defined, boolean inside_if)
+    {
+<span class="fc" id="L186">        boolean next_is_unreachable = false;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (begin + 1 == end) {</span>
+<span class="fc" id="L188">            P.p(' ');</span>
+<span class="fc" id="L189">            IdValuePair pair = pairs[begin];</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            if (L &gt; char_tail_test_threshold) {</span>
+<span class="fc" id="L191">                P.p(v_guess); P.p(&quot;=&quot;); P.qstring(pair.id); P.p(&quot;;&quot;);</span>
+<span class="fc" id="L192">                P.p(v_id); P.p(&quot;=&quot;); P.p(pair.value); P.p(&quot;;&quot;);</span>
+            }
+            else {
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                if (L == 0) {</span>
+<span class="fc" id="L196">                    next_is_unreachable = true;</span>
+<span class="fc" id="L197">                    P.p(v_id); P.p(&quot;=&quot;); P.p(pair.value);</span>
+<span class="fc" id="L198">                    P.p(&quot;; break &quot;); P.p(v_switch_label); P.p(&quot;;&quot;);</span>
+                }
+                else {
+<span class="fc" id="L201">                    P.p(&quot;if (&quot;);</span>
+<span class="fc" id="L202">                    int column = columns[0];</span>
+<span class="fc" id="L203">                    P.p(v_s); P.p(&quot;.charAt(&quot;); P.p(column); P.p(&quot;)==&quot;);</span>
+<span class="fc" id="L204">                    P.qchar(pair.id.charAt(column));</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                    for (int i = 1; i != L; ++i) {</span>
+<span class="fc" id="L206">                        P.p(&quot; &amp;&amp; &quot;);</span>
+<span class="fc" id="L207">                        column = columns[i];</span>
+<span class="fc" id="L208">                        P.p(v_s); P.p(&quot;.charAt(&quot;); P.p(column); P.p(&quot;)==&quot;);</span>
+<span class="fc" id="L209">                        P.qchar(pair.id.charAt(column));</span>
+                    }
+<span class="fc" id="L211">                    P.p(&quot;) {&quot;);</span>
+<span class="fc" id="L212">                    P.p(v_id); P.p(&quot;=&quot;); P.p(pair.value);</span>
+<span class="fc" id="L213">                    P.p(&quot;; break &quot;); P.p(v_switch_label); P.p(&quot;;}&quot;);</span>
+                }
+            }
+<span class="fc" id="L216">            P.p(' ');</span>
+<span class="fc" id="L217">            return next_is_unreachable;</span>
+        }
+
+<span class="fc" id="L220">        int max_column_index = find_max_different_column(begin, end, L);</span>
+<span class="fc" id="L221">        int max_column = columns[max_column_index];</span>
+<span class="fc" id="L222">        int count = count_different_chars(begin, end, max_column);</span>
+
+<span class="fc" id="L224">        columns[max_column_index] = columns[L - 1];</span>
+
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        if (inside_if) { P.nl(); P.indent(indent_level); }</span>
+<span class="fc" id="L227">        else { P.p(' '); }</span>
+
+        boolean use_if;
+<span class="fc bfc" id="L230" title="All 2 branches covered.">        if (count &lt;= use_if_threshold) {</span>
+<span class="fc" id="L231">            use_if = true;</span>
+<span class="fc" id="L232">            c_was_defined = true;</span>
+<span class="fc" id="L233">            P.p(v_c); P.p(&quot;=&quot;); P.p(v_s);</span>
+<span class="fc" id="L234">            P.p(&quot;.charAt(&quot;); P.p(max_column); P.p(&quot;);&quot;);</span>
+        }
+        else {
+<span class="fc" id="L237">            use_if = false;</span>
+<span class="pc bpc" id="L238" title="1 of 2 branches missed.">            if (!label_was_defined) {</span>
+<span class="nc" id="L239">                label_was_defined = true;</span>
+<span class="nc" id="L240">                P.p(v_label); P.p(&quot;: &quot;);</span>
+            }
+<span class="fc" id="L242">            P.p(&quot;switch (&quot;); P.p(v_s);</span>
+<span class="fc" id="L243">            P.p(&quot;.charAt(&quot;); P.p(max_column); P.p(&quot;)) {&quot;);</span>
+        }
+
+<span class="fc" id="L246">        int same_char_begin = begin;</span>
+<span class="fc" id="L247">        int cur_ch = pairs[begin].id.charAt(max_column), ch = 0;</span>
+<span class="fc" id="L248">        for (int i = begin;;) {</span>
+<span class="fc" id="L249">            ++i;</span>
+<span class="pc bpc" id="L250" title="1 of 4 branches missed.">            if (i == end || (ch = pairs[i].id.charAt(max_column)) != cur_ch) {</span>
+                int next_indent;
+<span class="fc bfc" id="L252" title="All 2 branches covered.">                if (use_if) {</span>
+<span class="fc" id="L253">                    P.nl(); P.indent(indent_level);</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                    if (same_char_begin != begin) { P.p(&quot;else &quot;); }</span>
+<span class="fc" id="L255">                    P.p(&quot;if (&quot;); P.p(v_c); P.p(&quot;==&quot;);</span>
+<span class="fc" id="L256">                    P.qchar(cur_ch); P.p(&quot;) {&quot;);</span>
+<span class="fc" id="L257">                    next_indent = indent_level + 1;</span>
+                }
+                else {
+<span class="fc" id="L260">                    P.nl(); P.indent(indent_level);</span>
+<span class="fc" id="L261">                    P.p(&quot;case &quot;); P.qchar(cur_ch); P.p(&quot;:&quot;);</span>
+<span class="fc" id="L262">                    next_indent = indent_level + 1;</span>
+                }
+<span class="fc" id="L264">                boolean after_unreachable = generate_letter_switch_r</span>
+<span class="fc" id="L265">                    (same_char_begin, i, L - 1,</span>
+                     next_indent, label_was_defined, use_if);
+<span class="fc bfc" id="L267" title="All 2 branches covered.">                if (use_if) {</span>
+<span class="fc" id="L268">                    P.p(&quot;}&quot;);</span>
+                }
+                else {
+<span class="pc bpc" id="L271" title="1 of 2 branches missed.">                    if (!after_unreachable) {</span>
+<span class="fc" id="L272">                        P.p(&quot;break &quot;); P.p(v_label); P.p(&quot;;&quot;);</span>
+                    }
+                }
+<span class="fc bfc" id="L275" title="All 2 branches covered.">                if (i == end) { break; }</span>
+<span class="fc" id="L276">                same_char_begin = i;</span>
+<span class="fc" id="L277">                cur_ch = ch;</span>
+<span class="fc" id="L278">            }</span>
+        }
+
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        if (use_if) {</span>
+<span class="fc" id="L282">            P.nl();</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            if (inside_if) { P.indent(indent_level - 1); }</span>
+<span class="fc" id="L284">            else { P.indent(indent_level); }</span>
+        }
+        else {
+<span class="fc" id="L287">            P.nl(); P.indent(indent_level); P.p(&quot;}&quot;);</span>
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            if (inside_if) { P.nl(); P.indent(indent_level - 1);}</span>
+<span class="fc" id="L289">            else { P.p(' '); }</span>
+        }
+
+<span class="fc" id="L292">        columns[max_column_index] = max_column;</span>
+
+<span class="fc" id="L294">        return next_is_unreachable;</span>
+    }
+
+
+    private int count_different_lengths(int begin, int end) {
+<span class="fc" id="L299">        int lengths_count = 0;</span>
+<span class="fc" id="L300">        int cur_l = -1;</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">        for (; begin != end; ++begin) {</span>
+<span class="fc" id="L302">            int l = pairs[begin].idLength;</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            if (cur_l != l) {</span>
+<span class="fc" id="L304">                ++lengths_count; cur_l = l;</span>
+            }
+        }
+<span class="fc" id="L307">        return lengths_count;</span>
+    }
+
+    private int find_max_different_column(int begin, int end, int L) {
+<span class="fc" id="L311">        int max_count = 0;</span>
+<span class="fc" id="L312">        int max_index = 0;</span>
+
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">        for (int i = 0; i != L; ++i) {</span>
+<span class="fc" id="L315">            int column = columns[i];</span>
+<span class="fc" id="L316">            sort_pairs(begin, end, column);</span>
+<span class="fc" id="L317">            int count = count_different_chars(begin, end, column);</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (count == end - begin) { return i; }</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">            if (max_count &lt; count) {</span>
+<span class="fc" id="L320">                max_count = count;</span>
+<span class="fc" id="L321">                max_index = i;</span>
+            }
+        }
+
+<span class="nc bnc" id="L325" title="All 2 branches missed.">        if (max_index != L - 1) {</span>
+<span class="nc" id="L326">            sort_pairs(begin, end, columns[max_index]);</span>
+        }
+
+<span class="nc" id="L329">        return max_index;</span>
+    }
+
+    private int count_different_chars(int begin, int end, int column) {
+<span class="fc" id="L333">        int chars_count = 0;</span>
+<span class="fc" id="L334">        int cur_ch = -1;</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        for (; begin != end; ++begin) {</span>
+<span class="fc" id="L336">            int ch = pairs[begin].id.charAt(column);</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">            if (ch != cur_ch) {</span>
+<span class="fc" id="L338">                ++chars_count; cur_ch = ch;</span>
+            }
+        }
+<span class="fc" id="L341">        return chars_count;</span>
+    }
+
+    private void check_all_is_different(int begin, int end) {
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">        if (begin != end) {</span>
+<span class="fc" id="L346">            IdValuePair prev = pairs[begin];</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">            while (++begin != end) {</span>
+<span class="fc" id="L348">                IdValuePair current = pairs[begin];</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">                if (prev.id.equals(current.id)) {</span>
+<span class="nc" id="L350">                    throw on_same_pair_fail(prev, current);</span>
+                }
+<span class="fc" id="L352">                prev = current;</span>
+<span class="fc" id="L353">            }</span>
+        }
+<span class="fc" id="L355">    }</span>
+
+    private EvaluatorException on_same_pair_fail(IdValuePair a, IdValuePair b) {
+<span class="fc" id="L358">        int line1 = a.getLineNumber(), line2 = b.getLineNumber();</span>
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">        if (line2 &gt; line1) { int tmp = line1; line1 = line2; line2 = tmp; }</span>
+<span class="fc" id="L360">        String error_text = ToolErrorReporter.getMessage(</span>
+            &quot;msg.idswitch.same_string&quot;, a.id, new Integer(line2));
+<span class="nc" id="L362">        return R.runtimeError(error_text, source_file, line1, null, 0);</span>
+    }
+
+    private void sort_pairs(int begin, int end, int comparator) {
+<span class="fc" id="L366">        heap4Sort(pairs, begin, end - begin, comparator);</span>
+<span class="fc" id="L367">    }</span>
+
+    private static boolean bigger
+        (IdValuePair a, IdValuePair b, int comparator)
+    {
+<span class="fc bfc" id="L372" title="All 2 branches covered.">        if (comparator &lt; 0) {</span>
+        // For length selection switch it is enough to compare just length,
+        // but to detect same strings full comparison is essential
+            //return a.idLength &gt; b.idLength;
+<span class="fc" id="L376">            int diff = a.idLength - b.idLength;</span>
+<span class="fc bfc" id="L377" title="All 4 branches covered.">            if (diff != 0) { return diff &gt; 0; }</span>
+<span class="fc bfc" id="L378" title="All 2 branches covered.">            return a.id.compareTo(b.id) &gt; 0;</span>
+        }
+        else {
+<span class="fc bfc" id="L381" title="All 2 branches covered.">            return a.id.charAt(comparator) &gt; b.id.charAt(comparator);</span>
+        }
+    }
+
+    private static void heap4Sort
+        (IdValuePair[] array, int offset, int size, int comparator)
+    {
+<span class="fc bfc" id="L388" title="All 2 branches covered.">        if (size &lt;= 1) { return; }</span>
+<span class="fc" id="L389">        makeHeap4(array, offset, size, comparator);</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">        while (size &gt; 1) {</span>
+<span class="fc" id="L391">            --size;</span>
+<span class="fc" id="L392">            IdValuePair v1 = array[offset + size];</span>
+<span class="fc" id="L393">            IdValuePair v2 = array[offset + 0];</span>
+<span class="fc" id="L394">            array[offset + size] = v2;</span>
+<span class="fc" id="L395">            array[offset + 0] = v1;</span>
+<span class="fc" id="L396">            heapify4(array, offset, size, 0, comparator);</span>
+<span class="fc" id="L397">        }</span>
+<span class="fc" id="L398">    }</span>
+
+    private static void makeHeap4
+        (IdValuePair[] array, int offset, int size, int comparator)
+    {
+<span class="fc bfc" id="L403" title="All 2 branches covered.">        for (int i = ((size + 2) &gt;&gt; 2); i != 0;) {</span>
+<span class="fc" id="L404">            --i;</span>
+<span class="fc" id="L405">            heapify4(array, offset, size, i, comparator);</span>
+        }
+<span class="fc" id="L407">    }</span>
+
+    private static void heapify4
+        (IdValuePair[] array, int offset, int size, int i, int comparator)
+    {
+        int new_i1, new_i2, new_i3;
+<span class="fc" id="L413">        IdValuePair i_val = array[offset + i];</span>
+        for (;;) {
+<span class="fc" id="L415">            int base = (i &lt;&lt; 2);</span>
+<span class="fc" id="L416">            new_i1 = base | 1;</span>
+<span class="fc" id="L417">            new_i2 = base | 2;</span>
+<span class="fc" id="L418">            new_i3 = base | 3;</span>
+<span class="fc" id="L419">            int new_i4 = base + 4;</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">            if (new_i4 &gt;= size) { break; }</span>
+<span class="fc" id="L421">            IdValuePair val1 = array[offset + new_i1];</span>
+<span class="fc" id="L422">            IdValuePair val2 = array[offset + new_i2];</span>
+<span class="fc" id="L423">            IdValuePair val3 = array[offset + new_i3];</span>
+<span class="fc" id="L424">            IdValuePair val4 = array[offset + new_i4];</span>
+<span class="fc bfc" id="L425" title="All 2 branches covered.">            if (bigger(val2, val1, comparator)) {</span>
+<span class="fc" id="L426">                val1 = val2; new_i1 = new_i2;</span>
+            }
+<span class="fc bfc" id="L428" title="All 2 branches covered.">            if (bigger(val4, val3, comparator)) {</span>
+<span class="fc" id="L429">                val3 = val4; new_i3 = new_i4;</span>
+            }
+<span class="fc bfc" id="L431" title="All 2 branches covered.">            if (bigger(val3, val1, comparator)) {</span>
+<span class="fc" id="L432">                val1 = val3; new_i1 = new_i3;</span>
+            }
+<span class="fc bfc" id="L434" title="All 2 branches covered.">            if (bigger(i_val, val1, comparator)) { return; }</span>
+<span class="fc" id="L435">            array[offset + i] = val1;</span>
+<span class="fc" id="L436">            array[offset + new_i1] = i_val;</span>
+<span class="fc" id="L437">            i = new_i1;</span>
+<span class="fc" id="L438">        }</span>
+<span class="fc bfc" id="L439" title="All 2 branches covered.">        if (new_i1 &lt; size) {</span>
+<span class="fc" id="L440">            IdValuePair val1 = array[offset + new_i1];</span>
+<span class="fc bfc" id="L441" title="All 2 branches covered.">            if (new_i2 != size) {</span>
+<span class="fc" id="L442">                IdValuePair val2 = array[offset + new_i2];</span>
+<span class="fc bfc" id="L443" title="All 2 branches covered.">                if (bigger(val2, val1, comparator)) {</span>
+<span class="fc" id="L444">                    val1 = val2; new_i1 = new_i2;</span>
+                }
+<span class="fc bfc" id="L446" title="All 2 branches covered.">                if (new_i3 != size) {</span>
+<span class="fc" id="L447">                    IdValuePair val3 = array[offset + new_i3];</span>
+<span class="fc bfc" id="L448" title="All 2 branches covered.">                    if (bigger(val3, val1, comparator)) {</span>
+<span class="fc" id="L449">                        val1 = val3; new_i1 = new_i3;</span>
+                    }
+                }
+            }
+<span class="fc bfc" id="L453" title="All 2 branches covered.">            if (bigger(val1, i_val, comparator)) {</span>
+<span class="fc" id="L454">                array[offset + i] = val1;</span>
+<span class="fc" id="L455">                array[offset + new_i1] = i_val;</span>
+            }
+        }
+<span class="fc" id="L458">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

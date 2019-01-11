@@ -1,0 +1,835 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLObjectImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLObjectImpl.java</span></div><h1>XMLObjectImpl.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.xml.*;
+
+/**
+ *  This abstract class describes what all XML objects (XML, XMLList) should
+ *  have in common.
+ *
+ * @see XML
+ */
+abstract class XMLObjectImpl extends XMLObject {
+<span class="fc" id="L19">    private static final Object XMLOBJECT_TAG = &quot;XMLObject&quot;;</span>
+    private XMLLibImpl lib;
+    private boolean prototypeFlag;
+
+    protected XMLObjectImpl(XMLLibImpl lib, Scriptable scope,
+                            XMLObject prototype)
+<span class="fc" id="L25">    {</span>
+<span class="fc" id="L26">        initialize(lib, scope, prototype);</span>
+<span class="fc" id="L27">    }</span>
+
+    final void initialize(XMLLibImpl lib, Scriptable scope,
+                          XMLObject prototype)
+    {
+<span class="fc" id="L32">        setParentScope(scope);</span>
+<span class="fc" id="L33">        setPrototype(prototype);</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        prototypeFlag = (prototype == null);</span>
+<span class="fc" id="L35">        this.lib = lib;</span>
+<span class="fc" id="L36">    }</span>
+
+    final boolean isPrototype() {
+<span class="fc" id="L39">        return prototypeFlag;</span>
+    }
+
+    XMLLibImpl getLib() {
+<span class="fc" id="L43">        return lib;</span>
+    }
+
+    final XML newXML(XmlNode node) {
+<span class="nc" id="L47">        return lib.newXML(node);</span>
+    }
+
+    XML xmlFromNode(XmlNode node) {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (node.getXml() == null) {</span>
+<span class="nc" id="L52">            node.setXml( newXML(node) );</span>
+        }
+<span class="nc" id="L54">        return node.getXml();</span>
+    }
+
+    final XMLList newXMLList() {
+<span class="nc" id="L58">        return lib.newXMLList();</span>
+    }
+
+    final XMLList newXMLListFrom(Object o) {
+<span class="nc" id="L62">        return lib.newXMLListFrom(o);</span>
+    }
+
+    final XmlProcessor getProcessor() {
+<span class="fc" id="L66">        return lib.getProcessor();</span>
+    }
+
+    final QName newQName(String uri, String localName, String prefix) {
+<span class="nc" id="L70">        return lib.newQName(uri, localName, prefix);</span>
+    }
+
+    final QName newQName(XmlNode.QName name) {
+<span class="nc" id="L74">        return lib.newQName(name);</span>
+    }
+
+    final Namespace createNamespace(XmlNode.Namespace declaration) {
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (declaration == null) return null;</span>
+<span class="nc" id="L79">        return lib.createNamespaces( new XmlNode.Namespace[] { declaration } )[0];</span>
+    }
+
+    final Namespace[] createNamespaces(XmlNode.Namespace[] declarations) {
+<span class="nc" id="L83">        return lib.createNamespaces(declarations);</span>
+    }
+
+
+    @Override
+    public final Scriptable getPrototype() {
+<span class="fc" id="L89">        return super.getPrototype();</span>
+    }
+
+    @Override
+    public final void setPrototype(Scriptable prototype) {
+<span class="fc" id="L94">        super.setPrototype(prototype);</span>
+<span class="fc" id="L95">    }</span>
+
+    @Override
+    public final Scriptable getParentScope() {
+<span class="fc" id="L99">        return super.getParentScope();</span>
+    }
+
+    @Override
+    public final void setParentScope(Scriptable parent) {
+<span class="fc" id="L104">        super.setParentScope(parent);</span>
+<span class="fc" id="L105">    }</span>
+
+    @Override
+    public final Object getDefaultValue(Class&lt;?&gt; hint) {
+<span class="fc" id="L109">        return this.toString();</span>
+    }
+
+    @Override
+    public final boolean hasInstance(Scriptable scriptable) {
+<span class="nc" id="L114">        return super.hasInstance(scriptable);</span>
+    }
+
+    /**
+     * ecmaHas(cx, id) calls this after resolving when id to XMLName
+     * and checking it is not Uint32 index.
+     */
+    abstract boolean hasXMLProperty(XMLName name);
+
+    /**
+     * ecmaGet(cx, id) calls this after resolving when id to XMLName
+     * and checking it is not Uint32 index.
+     */
+    abstract Object getXMLProperty(XMLName name);
+
+    /**
+     * ecmaPut(cx, id, value) calls this after resolving when id to XMLName
+     * and checking it is not Uint32 index.
+     */
+    abstract void putXMLProperty(XMLName name, Object value);
+
+    /**
+     * ecmaDelete(cx, id) calls this after resolving when id to XMLName
+     * and checking it is not Uint32 index.
+     */
+    abstract void deleteXMLProperty(XMLName name);
+
+    /**
+     * Test XML equality with target the target.
+     */
+    abstract boolean equivalentXml(Object target);
+
+    abstract void addMatches(XMLList rv, XMLName name);
+
+    private XMLList getMatches(XMLName name) {
+<span class="nc" id="L149">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L150">        addMatches(rv, name);</span>
+<span class="nc" id="L151">        return rv;</span>
+    }
+
+    abstract XML getXML();
+
+    // Methods from section 12.4.4 in the spec
+    abstract XMLList child(int index);
+    abstract XMLList child(XMLName xmlName);
+    abstract XMLList children();
+    abstract XMLList comments();
+    abstract boolean contains(Object xml);
+    abstract XMLObjectImpl copy();
+    abstract XMLList elements(XMLName xmlName);
+    abstract boolean hasOwnProperty(XMLName xmlName);
+    abstract boolean hasComplexContent();
+    abstract boolean hasSimpleContent();
+    abstract int length();
+    abstract void normalize();
+    abstract Object parent();
+    abstract XMLList processingInstructions(XMLName xmlName);
+    abstract boolean propertyIsEnumerable(Object member);
+    abstract XMLList text();
+    @Override
+    public abstract String toString();
+    abstract String toSource(int indent);
+    abstract String toXMLString();
+    abstract Object valueOf();
+
+    protected abstract Object jsConstructor(Context cx, boolean inNewExpr, Object[] args);
+
+    //
+    //
+    // Methods overriding ScriptableObject
+    //
+    //
+
+    /**
+     * XMLObject always compare with any value and equivalentValues
+     * never returns {@link Scriptable#NOT_FOUND} for them but rather
+     * calls equivalentXml(value) and wrap the result as Boolean.
+     */
+    @Override
+    protected final Object equivalentValues(Object value) {
+<span class="nc" id="L194">        boolean result = equivalentXml(value);</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        return result ? Boolean.TRUE : Boolean.FALSE;</span>
+    }
+
+    //
+    //
+    // Methods overriding XMLObject
+    //
+    //
+
+    /**
+     * Implementation of ECMAScript [[Has]]
+     */
+    @Override
+    public final boolean has(Context cx, Object id) {
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        if (cx == null) cx = Context.getCurrentContext();</span>
+<span class="nc" id="L210">        XMLName xmlName = lib.toXMLNameOrIndex(cx, id);</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        if (xmlName == null) {</span>
+<span class="nc" id="L212">            long index = ScriptRuntime.lastUint32Result(cx);</span>
+            // XXX Fix this cast
+<span class="nc" id="L214">            return has((int)index, this);</span>
+        }
+<span class="nc" id="L216">        return hasXMLProperty(xmlName);</span>
+    }
+
+    @Override
+    public boolean has(String name, Scriptable start) {
+<span class="nc" id="L221">        Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L222">        return hasXMLProperty(lib.toXMLNameFromString(cx, name));</span>
+    }
+    /**
+     * Implementation of ECMAScript [[Get]]
+     */
+    @Override
+    public final Object get(Context cx, Object id) {
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (cx == null) cx = Context.getCurrentContext();</span>
+<span class="nc" id="L230">        XMLName xmlName = lib.toXMLNameOrIndex(cx, id);</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        if (xmlName == null) {</span>
+<span class="nc" id="L232">            long index = ScriptRuntime.lastUint32Result(cx);</span>
+            // XXX Fix this cast
+<span class="nc" id="L234">            Object result = get((int)index, this);</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            if (result == Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L236">                result = Undefined.instance;</span>
+            }
+<span class="nc" id="L238">            return result;</span>
+        }
+<span class="nc" id="L240">        return getXMLProperty(xmlName);</span>
+    }
+
+    @Override
+    public Object get(String name, Scriptable start) {
+<span class="nc" id="L245">        Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L246">        return getXMLProperty(lib.toXMLNameFromString(cx, name));</span>
+    }
+    /**
+     * Implementation of ECMAScript [[Put]]
+     */
+    @Override
+    public final void put(Context cx, Object id, Object value) {
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        if (cx == null) cx = Context.getCurrentContext();</span>
+<span class="nc" id="L254">        XMLName xmlName = lib.toXMLNameOrIndex(cx, id);</span>
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        if (xmlName == null) {</span>
+<span class="nc" id="L256">            long index = ScriptRuntime.lastUint32Result(cx);</span>
+            // XXX Fix this cast
+<span class="nc" id="L258">            put((int)index, this, value);</span>
+<span class="nc" id="L259">            return;</span>
+        }
+<span class="nc" id="L261">        putXMLProperty(xmlName, value);</span>
+<span class="nc" id="L262">    }</span>
+
+   @Override
+    public void put(String name, Scriptable start, Object value) {
+<span class="nc" id="L266">        Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L267">        putXMLProperty(lib.toXMLNameFromString(cx, name), value);</span>
+<span class="nc" id="L268">    }</span>
+    /**
+     * Implementation of ECMAScript [[Delete]].
+     */
+    @Override
+    public final boolean delete(Context cx, Object id) {
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (cx == null) cx = Context.getCurrentContext();</span>
+<span class="nc" id="L275">        XMLName xmlName = lib.toXMLNameOrIndex(cx, id);</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">        if (xmlName == null) {</span>
+<span class="nc" id="L277">            long index = ScriptRuntime.lastUint32Result(cx);</span>
+            // XXX Fix this
+<span class="nc" id="L279">            delete((int)index);</span>
+<span class="nc" id="L280">            return true;</span>
+        }
+<span class="nc" id="L282">        deleteXMLProperty(xmlName);</span>
+<span class="nc" id="L283">        return true;</span>
+    }
+
+
+    @Override
+    public void delete(String name) {
+<span class="nc" id="L289">        Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L290">        deleteXMLProperty(lib.toXMLNameFromString(cx, name));</span>
+<span class="nc" id="L291">    }</span>
+
+    @Override
+    public Object getFunctionProperty(Context cx, int id) {
+<span class="nc bnc" id="L295" title="All 2 branches missed.">        if (isPrototype()) {</span>
+<span class="nc" id="L296">            return super.get(id, this);</span>
+        } else {
+<span class="nc" id="L298">            Scriptable proto = getPrototype();</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">            if (proto instanceof XMLObject) {</span>
+<span class="nc" id="L300">                return ((XMLObject)proto).getFunctionProperty(cx, id);</span>
+            }
+        }
+<span class="nc" id="L303">        return NOT_FOUND;</span>
+    }
+
+    @Override
+    public Object getFunctionProperty(Context cx, String name) {
+<span class="nc bnc" id="L308" title="All 2 branches missed.">        if (isPrototype()) {</span>
+<span class="nc" id="L309">            return super.get(name, this);</span>
+        } else {
+<span class="nc" id="L311">            Scriptable proto = getPrototype();</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">            if (proto instanceof XMLObject) {</span>
+<span class="nc" id="L313">                return ((XMLObject)proto).getFunctionProperty(cx, name);</span>
+            }
+        }
+<span class="nc" id="L316">        return NOT_FOUND;</span>
+    }
+
+    //    TODO    Can this be made more strongly typed?
+    @Override
+    public Ref memberRef(Context cx, Object elem, int memberTypeFlags) {
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        boolean attribute = (memberTypeFlags &amp; Node.ATTRIBUTE_FLAG) != 0;</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">        boolean descendants = (memberTypeFlags &amp; Node.DESCENDANTS_FLAG) != 0;</span>
+<span class="nc bnc" id="L324" title="All 4 branches missed.">        if (!attribute &amp;&amp; !descendants) {</span>
+            // Code generation would use ecma(Get|Has|Delete|Set) for
+            // normal name identifiers so one ATTRIBUTE_FLAG
+            // or DESCENDANTS_FLAG has to be set
+<span class="nc" id="L328">            throw Kit.codeBug();</span>
+        }
+<span class="nc" id="L330">        XmlNode.QName qname = lib.toNodeQName(cx, elem, attribute);</span>
+<span class="nc" id="L331">        XMLName rv = XMLName.create(qname, attribute, descendants);</span>
+<span class="nc" id="L332">        rv.initXMLObject(this);</span>
+<span class="nc" id="L333">        return rv;</span>
+    }
+
+    /**
+     * Generic reference to implement x::ns, x.@ns::y, x..@ns::y etc.
+     */
+    @Override
+    public Ref memberRef(Context cx, Object namespace, Object elem,
+            int memberTypeFlags)
+    {
+<span class="nc bnc" id="L343" title="All 2 branches missed.">        boolean attribute = (memberTypeFlags &amp; Node.ATTRIBUTE_FLAG) != 0;</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        boolean descendants = (memberTypeFlags &amp; Node.DESCENDANTS_FLAG) != 0;</span>
+<span class="nc" id="L345">        XMLName rv = XMLName.create(lib.toNodeQName(cx, namespace, elem),</span>
+                attribute, descendants);
+<span class="nc" id="L347">        rv.initXMLObject(this);</span>
+<span class="nc" id="L348">        return rv;</span>
+    }
+
+    @Override
+    public NativeWith enterWith(Scriptable scope) {
+<span class="nc" id="L353">        return new XMLWithScope(lib, scope, this);</span>
+    }
+
+    @Override
+    public NativeWith enterDotQuery(Scriptable scope) {
+<span class="nc" id="L358">        XMLWithScope xws = new XMLWithScope(lib, scope, this);</span>
+<span class="nc" id="L359">        xws.initAsDotQuery();</span>
+<span class="nc" id="L360">        return xws;</span>
+    }
+
+    @Override
+    public final Object addValues(Context cx, boolean thisIsLeft,
+        Object value) {
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        if (value instanceof XMLObject) {</span>
+            XMLObject v1, v2;
+<span class="nc bnc" id="L368" title="All 2 branches missed.">            if (thisIsLeft) {</span>
+<span class="nc" id="L369">                v1 = this;</span>
+<span class="nc" id="L370">                v2 = (XMLObject)value;</span>
+            } else {
+<span class="nc" id="L372">                v1 = (XMLObject)value;</span>
+<span class="nc" id="L373">                v2 = this;</span>
+            }
+<span class="nc" id="L375">            return lib.addXMLObjects(cx, v1, v2);</span>
+        }
+<span class="nc bnc" id="L377" title="All 2 branches missed.">        if (value == Undefined.instance) {</span>
+            // both &quot;xml + undefined&quot; and &quot;undefined + xml&quot; gives String(xml)
+<span class="nc" id="L379">            return ScriptRuntime.toString(this);</span>
+        }
+
+<span class="nc" id="L382">        return super.addValues(cx, thisIsLeft, value);</span>
+    }
+
+    //
+    //
+    // IdScriptableObject machinery
+    //
+    //
+
+    final void exportAsJSClass(boolean sealed) {
+<span class="fc" id="L392">        prototypeFlag = true;</span>
+<span class="fc" id="L393">        exportAsJSClass(MAX_PROTOTYPE_ID, getParentScope(), sealed);</span>
+<span class="fc" id="L394">    }</span>
+
+// #string_id_map#
+    private final static int
+        Id_constructor             = 1,
+
+        Id_addNamespace            = 2,
+        Id_appendChild             = 3,
+        Id_attribute               = 4,
+        Id_attributes              = 5,
+        Id_child                   = 6,
+        Id_childIndex              = 7,
+        Id_children                = 8,
+        Id_comments                = 9,
+        Id_contains                = 10,
+        Id_copy                    = 11,
+        Id_descendants             = 12,
+        Id_elements                = 13,
+        Id_inScopeNamespaces       = 14,
+        Id_insertChildAfter        = 15,
+        Id_insertChildBefore       = 16,
+        Id_hasOwnProperty          = 17,
+        Id_hasComplexContent       = 18,
+        Id_hasSimpleContent        = 19,
+        Id_length                  = 20,
+        Id_localName               = 21,
+        Id_name                    = 22,
+        Id_namespace               = 23,
+        Id_namespaceDeclarations   = 24,
+        Id_nodeKind                = 25,
+        Id_normalize               = 26,
+        Id_parent                  = 27,
+        Id_prependChild            = 28,
+        Id_processingInstructions  = 29,
+        Id_propertyIsEnumerable    = 30,
+        Id_removeNamespace         = 31,
+        Id_replace                 = 32,
+        Id_setChildren             = 33,
+        Id_setLocalName            = 34,
+        Id_setName                 = 35,
+        Id_setNamespace            = 36,
+        Id_text                    = 37,
+        Id_toString                = 38,
+        Id_toSource                = 39,
+        Id_toXMLString             = 40,
+        Id_valueOf                 = 41,
+
+        MAX_PROTOTYPE_ID           = 41;
+
+    @Override
+    protected int findPrototypeId(String s) {
+        int id;
+// #generated# Last update: 2008-10-21 12:32:31 MESZ
+<span class="fc" id="L447">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L448" title="15 of 17 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L449">            case 4: c=s.charAt(0);</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                if (c=='c') { X=&quot;copy&quot;;id=Id_copy; }</span>
+<span class="nc bnc" id="L451" title="All 2 branches missed.">                else if (c=='n') { X=&quot;name&quot;;id=Id_name; }</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">                else if (c=='t') { X=&quot;text&quot;;id=Id_text; }</span>
+                break L;
+<span class="nc" id="L454">            case 5: X=&quot;child&quot;;id=Id_child; break L;</span>
+<span class="nc" id="L455">            case 6: c=s.charAt(0);</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">                if (c=='l') { X=&quot;length&quot;;id=Id_length; }</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">                else if (c=='p') { X=&quot;parent&quot;;id=Id_parent; }</span>
+                break L;
+<span class="fc" id="L459">            case 7: c=s.charAt(0);</span>
+<span class="pc bpc" id="L460" title="1 of 2 branches missed.">                if (c=='r') { X=&quot;replace&quot;;id=Id_replace; }</span>
+<span class="pc bpc" id="L461" title="1 of 2 branches missed.">                else if (c=='s') { X=&quot;setName&quot;;id=Id_setName; }</span>
+<span class="pc bpc" id="L462" title="1 of 2 branches missed.">                else if (c=='v') { X=&quot;valueOf&quot;;id=Id_valueOf; }</span>
+                break L;
+<span class="nc bnc" id="L464" title="All 7 branches missed.">            case 8: switch (s.charAt(2)) {</span>
+<span class="nc" id="L465">                case 'S': c=s.charAt(7);</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">                    if (c=='e') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="nc bnc" id="L467" title="All 2 branches missed.">                    else if (c=='g') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                    break L;
+<span class="nc" id="L469">                case 'd': X=&quot;nodeKind&quot;;id=Id_nodeKind; break L;</span>
+<span class="nc" id="L470">                case 'e': X=&quot;elements&quot;;id=Id_elements; break L;</span>
+<span class="nc" id="L471">                case 'i': X=&quot;children&quot;;id=Id_children; break L;</span>
+<span class="nc" id="L472">                case 'm': X=&quot;comments&quot;;id=Id_comments; break L;</span>
+<span class="nc" id="L473">                case 'n': X=&quot;contains&quot;;id=Id_contains; break L;</span>
+<span class="nc" id="L474">                } break L;</span>
+<span class="nc bnc" id="L475" title="All 5 branches missed.">            case 9: switch (s.charAt(2)) {</span>
+<span class="nc" id="L476">                case 'c': X=&quot;localName&quot;;id=Id_localName; break L;</span>
+<span class="nc" id="L477">                case 'm': X=&quot;namespace&quot;;id=Id_namespace; break L;</span>
+<span class="nc" id="L478">                case 'r': X=&quot;normalize&quot;;id=Id_normalize; break L;</span>
+<span class="nc" id="L479">                case 't': X=&quot;attribute&quot;;id=Id_attribute; break L;</span>
+<span class="nc" id="L480">                } break L;</span>
+<span class="nc" id="L481">            case 10: c=s.charAt(0);</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">                if (c=='a') { X=&quot;attributes&quot;;id=Id_attributes; }</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">                else if (c=='c') { X=&quot;childIndex&quot;;id=Id_childIndex; }</span>
+                break L;
+<span class="pc bpc" id="L485" title="5 of 6 branches missed.">            case 11: switch (s.charAt(0)) {</span>
+<span class="nc" id="L486">                case 'a': X=&quot;appendChild&quot;;id=Id_appendChild; break L;</span>
+<span class="fc" id="L487">                case 'c': X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+<span class="nc" id="L488">                case 'd': X=&quot;descendants&quot;;id=Id_descendants; break L;</span>
+<span class="nc" id="L489">                case 's': X=&quot;setChildren&quot;;id=Id_setChildren; break L;</span>
+<span class="nc" id="L490">                case 't': X=&quot;toXMLString&quot;;id=Id_toXMLString; break L;</span>
+<span class="nc" id="L491">                } break L;</span>
+<span class="nc" id="L492">            case 12: c=s.charAt(0);</span>
+<span class="nc bnc" id="L493" title="All 2 branches missed.">                if (c=='a') { X=&quot;addNamespace&quot;;id=Id_addNamespace; }</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">                else if (c=='p') { X=&quot;prependChild&quot;;id=Id_prependChild; }</span>
+<span class="nc bnc" id="L495" title="All 2 branches missed.">                else if (c=='s') {</span>
+<span class="nc" id="L496">                    c=s.charAt(3);</span>
+<span class="nc bnc" id="L497" title="All 2 branches missed.">                    if (c=='L') { X=&quot;setLocalName&quot;;id=Id_setLocalName; }</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">                    else if (c=='N') { X=&quot;setNamespace&quot;;id=Id_setNamespace; }</span>
+                }
+                break L;
+<span class="nc" id="L501">            case 14: X=&quot;hasOwnProperty&quot;;id=Id_hasOwnProperty; break L;</span>
+<span class="nc" id="L502">            case 15: X=&quot;removeNamespace&quot;;id=Id_removeNamespace; break L;</span>
+<span class="nc" id="L503">            case 16: c=s.charAt(0);</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                if (c=='h') { X=&quot;hasSimpleContent&quot;;id=Id_hasSimpleContent; }</span>
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                else if (c=='i') { X=&quot;insertChildAfter&quot;;id=Id_insertChildAfter; }</span>
+                break L;
+<span class="nc" id="L507">            case 17: c=s.charAt(3);</span>
+<span class="nc bnc" id="L508" title="All 2 branches missed.">                if (c=='C') { X=&quot;hasComplexContent&quot;;id=Id_hasComplexContent; }</span>
+<span class="nc bnc" id="L509" title="All 2 branches missed.">                else if (c=='c') { X=&quot;inScopeNamespaces&quot;;id=Id_inScopeNamespaces; }</span>
+<span class="nc bnc" id="L510" title="All 2 branches missed.">                else if (c=='e') { X=&quot;insertChildBefore&quot;;id=Id_insertChildBefore; }</span>
+                break L;
+<span class="nc" id="L512">            case 20: X=&quot;propertyIsEnumerable&quot;;id=Id_propertyIsEnumerable; break L;</span>
+<span class="nc" id="L513">            case 21: X=&quot;namespaceDeclarations&quot;;id=Id_namespaceDeclarations; break L;</span>
+<span class="nc" id="L514">            case 22: X=&quot;processingInstructions&quot;;id=Id_processingInstructions; break L;</span>
+            }
+<span class="pc bpc" id="L516" title="3 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L520">        return id;</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected void initPrototypeId(int id) {
+        String s;
+        int arity;
+<span class="pc bpc" id="L528" title="41 of 42 branches missed.">        switch (id) {</span>
+            case Id_constructor: {
+                IdFunctionObject ctor;
+<span class="fc bfc" id="L531" title="All 2 branches covered.">                if (this instanceof XML) {</span>
+<span class="fc" id="L532">                    ctor = new XMLCtor((XML)this, XMLOBJECT_TAG, id, 1);</span>
+                } else {
+<span class="fc" id="L534">                    ctor = new IdFunctionObject(this, XMLOBJECT_TAG, id, 1);</span>
+                }
+<span class="fc" id="L536">                initPrototypeConstructor(ctor);</span>
+<span class="fc" id="L537">                return;</span>
+            }
+
+<span class="nc" id="L540">            case Id_addNamespace:      arity=1; s=&quot;addNamespace&quot;;      break;</span>
+<span class="nc" id="L541">            case Id_appendChild:       arity=1; s=&quot;appendChild&quot;;       break;</span>
+<span class="nc" id="L542">            case Id_attribute:         arity=1; s=&quot;attribute&quot;;         break;</span>
+<span class="nc" id="L543">            case Id_attributes:        arity=0; s=&quot;attributes&quot;;        break;</span>
+<span class="nc" id="L544">            case Id_child:             arity=1; s=&quot;child&quot;;             break;</span>
+<span class="nc" id="L545">            case Id_childIndex:        arity=0; s=&quot;childIndex&quot;;        break;</span>
+<span class="nc" id="L546">            case Id_children:          arity=0; s=&quot;children&quot;;          break;</span>
+<span class="nc" id="L547">            case Id_comments:          arity=0; s=&quot;comments&quot;;          break;</span>
+<span class="nc" id="L548">            case Id_contains:          arity=1; s=&quot;contains&quot;;          break;</span>
+<span class="nc" id="L549">            case Id_copy:              arity=0; s=&quot;copy&quot;;              break;</span>
+<span class="nc" id="L550">            case Id_descendants:       arity=1; s=&quot;descendants&quot;;       break;</span>
+<span class="nc" id="L551">            case Id_elements:          arity=1; s=&quot;elements&quot;;          break;</span>
+<span class="nc" id="L552">            case Id_hasComplexContent: arity=0; s=&quot;hasComplexContent&quot;; break;</span>
+<span class="nc" id="L553">            case Id_hasOwnProperty:    arity=1; s=&quot;hasOwnProperty&quot;;    break;</span>
+<span class="nc" id="L554">            case Id_hasSimpleContent:  arity=0; s=&quot;hasSimpleContent&quot;;  break;</span>
+<span class="nc" id="L555">            case Id_inScopeNamespaces: arity=0; s=&quot;inScopeNamespaces&quot;; break;</span>
+<span class="nc" id="L556">            case Id_insertChildAfter:  arity=2; s=&quot;insertChildAfter&quot;;  break;</span>
+<span class="nc" id="L557">            case Id_insertChildBefore: arity=2; s=&quot;insertChildBefore&quot;; break;</span>
+<span class="nc" id="L558">            case Id_length:            arity=0; s=&quot;length&quot;;            break;</span>
+<span class="nc" id="L559">            case Id_localName:         arity=0; s=&quot;localName&quot;;         break;</span>
+<span class="nc" id="L560">            case Id_name:              arity=0; s=&quot;name&quot;;              break;</span>
+<span class="nc" id="L561">            case Id_namespace:         arity=1; s=&quot;namespace&quot;;         break;</span>
+            case Id_namespaceDeclarations:
+<span class="nc" id="L563">                arity=0; s=&quot;namespaceDeclarations&quot;; break;</span>
+<span class="nc" id="L564">            case Id_nodeKind:          arity=0; s=&quot;nodeKind&quot;;          break;</span>
+<span class="nc" id="L565">            case Id_normalize:         arity=0; s=&quot;normalize&quot;;         break;</span>
+<span class="nc" id="L566">            case Id_parent:            arity=0; s=&quot;parent&quot;;            break;</span>
+<span class="nc" id="L567">            case Id_prependChild:      arity=1; s=&quot;prependChild&quot;;      break;</span>
+            case Id_processingInstructions:
+<span class="nc" id="L569">                arity=1; s=&quot;processingInstructions&quot;; break;</span>
+            case Id_propertyIsEnumerable:
+<span class="nc" id="L571">                arity=1; s=&quot;propertyIsEnumerable&quot;; break;</span>
+<span class="nc" id="L572">            case Id_removeNamespace:   arity=1; s=&quot;removeNamespace&quot;;   break;</span>
+<span class="nc" id="L573">            case Id_replace:           arity=2; s=&quot;replace&quot;;           break;</span>
+<span class="nc" id="L574">            case Id_setChildren:       arity=1; s=&quot;setChildren&quot;;       break;</span>
+<span class="nc" id="L575">            case Id_setLocalName:      arity=1; s=&quot;setLocalName&quot;;      break;</span>
+<span class="nc" id="L576">            case Id_setName:           arity=1; s=&quot;setName&quot;;           break;</span>
+<span class="nc" id="L577">            case Id_setNamespace:      arity=1; s=&quot;setNamespace&quot;;      break;</span>
+<span class="nc" id="L578">            case Id_text:              arity=0; s=&quot;text&quot;;              break;</span>
+<span class="nc" id="L579">            case Id_toString:          arity=0; s=&quot;toString&quot;;          break;</span>
+<span class="nc" id="L580">            case Id_toSource:          arity=1; s=&quot;toSource&quot;;          break;</span>
+<span class="nc" id="L581">            case Id_toXMLString:       arity=1; s=&quot;toXMLString&quot;;       break;</span>
+<span class="nc" id="L582">            case Id_valueOf:           arity=0; s=&quot;valueOf&quot;;           break;</span>
+
+<span class="nc" id="L584">            default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L586">        initPrototypeMethod(XMLOBJECT_TAG, id, s, arity);</span>
+<span class="nc" id="L587">    }</span>
+
+    private Object[] toObjectArray(Object[] typed) {
+<span class="nc" id="L590">        Object[] rv = new Object[typed.length];</span>
+<span class="nc bnc" id="L591" title="All 2 branches missed.">        for (int i=0; i&lt;rv.length; i++) {</span>
+<span class="nc" id="L592">            rv[i] = typed[i];</span>
+        }
+<span class="nc" id="L594">        return rv;</span>
+    }
+
+    private void xmlMethodNotFound(Object object, String name) {
+<span class="nc" id="L598">        throw ScriptRuntime.notFunctionError(object, name);</span>
+    }
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L605" title="All 2 branches missed.">        if (!f.hasTag(XMLOBJECT_TAG)) {</span>
+<span class="nc" id="L606">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L608">        int id = f.methodId();</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">        if (id == Id_constructor) {</span>
+<span class="nc bnc" id="L610" title="All 2 branches missed.">            return jsConstructor(cx, thisObj == null, args);</span>
+        }
+
+        // All (XML|XMLList).prototype methods require thisObj to be XML
+<span class="nc bnc" id="L614" title="All 2 branches missed.">        if (!(thisObj instanceof XMLObjectImpl))</span>
+<span class="nc" id="L615">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L616">        XMLObjectImpl realThis = (XMLObjectImpl)thisObj;</span>
+
+<span class="nc" id="L618">        XML xml = realThis.getXML();</span>
+<span class="nc bnc" id="L619" title="All 41 branches missed.">        switch (id) {</span>
+            case Id_appendChild: {
+<span class="nc bnc" id="L621" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;appendChild&quot;);</span>
+<span class="nc" id="L622">                return xml.appendChild(arg(args, 0));</span>
+            }
+            case Id_addNamespace: {
+<span class="nc bnc" id="L625" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;addNamespace&quot;);</span>
+<span class="nc" id="L626">                Namespace ns = lib.castToNamespace(cx, arg(args, 0));</span>
+<span class="nc" id="L627">                return xml.addNamespace(ns);</span>
+            }
+            case Id_childIndex: {
+<span class="nc bnc" id="L630" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;childIndex&quot;);</span>
+<span class="nc" id="L631">                return ScriptRuntime.wrapInt(xml.childIndex());</span>
+            }
+            case Id_inScopeNamespaces: {
+<span class="nc bnc" id="L634" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;inScopeNamespaces&quot;);</span>
+<span class="nc" id="L635">                return cx.newArray(scope, toObjectArray(xml.inScopeNamespaces()));</span>
+            }
+            case Id_insertChildAfter: {
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;insertChildAfter&quot;);</span>
+<span class="nc" id="L639">                Object arg0 = arg(args, 0);</span>
+<span class="nc bnc" id="L640" title="All 4 branches missed.">                if (arg0 == null || arg0 instanceof XML) {</span>
+<span class="nc" id="L641">                    return xml.insertChildAfter((XML)arg0, arg(args, 1));</span>
+                }
+<span class="nc" id="L643">                return Undefined.instance;</span>
+            }
+            case Id_insertChildBefore: {
+<span class="nc bnc" id="L646" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;insertChildBefore&quot;);</span>
+<span class="nc" id="L647">                Object arg0 = arg(args, 0);</span>
+<span class="nc bnc" id="L648" title="All 4 branches missed.">                if (arg0 == null || arg0 instanceof XML) {</span>
+<span class="nc" id="L649">                    return xml.insertChildBefore((XML)arg0, arg(args, 1));</span>
+                }
+<span class="nc" id="L651">                return Undefined.instance;</span>
+            }
+            case Id_localName: {
+<span class="nc bnc" id="L654" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;localName&quot;);</span>
+<span class="nc" id="L655">                return xml.localName();</span>
+            }
+            case Id_name: {
+<span class="nc bnc" id="L658" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;name&quot;);</span>
+<span class="nc" id="L659">                return xml.name();</span>
+            }
+            case Id_namespace: {
+<span class="nc bnc" id="L662" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;namespace&quot;);</span>
+<span class="nc bnc" id="L663" title="All 2 branches missed.">                String prefix = (args.length &gt; 0) ? ScriptRuntime.toString(args[0]) : null;</span>
+<span class="nc" id="L664">                Namespace rv = xml.namespace(prefix);</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">                if (rv == null) {</span>
+<span class="nc" id="L666">                    return Undefined.instance;</span>
+                } else {
+<span class="nc" id="L668">                    return rv;</span>
+                }
+            }
+            case Id_namespaceDeclarations: {
+<span class="nc bnc" id="L672" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;namespaceDeclarations&quot;);</span>
+<span class="nc" id="L673">                Namespace[] array = xml.namespaceDeclarations();</span>
+<span class="nc" id="L674">                return cx.newArray(scope, toObjectArray(array));</span>
+            }
+            case Id_nodeKind: {
+<span class="nc bnc" id="L677" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;nodeKind&quot;);</span>
+<span class="nc" id="L678">                return xml.nodeKind();</span>
+            }
+            case Id_prependChild: {
+<span class="nc bnc" id="L681" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;prependChild&quot;);</span>
+<span class="nc" id="L682">                return xml.prependChild(arg(args, 0));</span>
+            }
+            case Id_removeNamespace: {
+<span class="nc bnc" id="L685" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;removeNamespace&quot;);</span>
+<span class="nc" id="L686">                Namespace ns = lib.castToNamespace(cx, arg(args, 0));</span>
+<span class="nc" id="L687">                return xml.removeNamespace(ns);</span>
+            }
+            case Id_replace: {
+<span class="nc bnc" id="L690" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;replace&quot;);</span>
+<span class="nc" id="L691">                XMLName xmlName = lib.toXMLNameOrIndex(cx, arg(args, 0));</span>
+<span class="nc" id="L692">                Object arg1 = arg(args, 1);</span>
+<span class="nc bnc" id="L693" title="All 2 branches missed.">                if (xmlName == null) {</span>
+                    //    I refuse to believe that this number will exceed 2^31
+<span class="nc" id="L695">                    int index = (int)ScriptRuntime.lastUint32Result(cx);</span>
+<span class="nc" id="L696">                    return xml.replace(index, arg1);</span>
+                } else {
+<span class="nc" id="L698">                    return xml.replace(xmlName, arg1);</span>
+                }
+            }
+            case Id_setChildren: {
+<span class="nc bnc" id="L702" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;setChildren&quot;);</span>
+<span class="nc" id="L703">                return xml.setChildren(arg(args, 0));</span>
+            }
+            case Id_setLocalName: {
+<span class="nc bnc" id="L706" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;setLocalName&quot;);</span>
+                String localName;
+<span class="nc" id="L708">                Object arg = arg(args, 0);</span>
+<span class="nc bnc" id="L709" title="All 2 branches missed.">                if (arg instanceof QName) {</span>
+<span class="nc" id="L710">                    localName = ((QName)arg).localName();</span>
+                } else {
+<span class="nc" id="L712">                    localName = ScriptRuntime.toString(arg);</span>
+                }
+<span class="nc" id="L714">                xml.setLocalName(localName);</span>
+<span class="nc" id="L715">                return Undefined.instance;</span>
+            }
+            case Id_setName: {
+<span class="nc bnc" id="L718" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;setName&quot;);</span>
+<span class="nc bnc" id="L719" title="All 2 branches missed.">                Object arg = (args.length != 0) ? args[0] : Undefined.instance;</span>
+<span class="nc" id="L720">                QName qname = lib.constructQName(cx, arg);</span>
+<span class="nc" id="L721">                xml.setName(qname);</span>
+<span class="nc" id="L722">                return Undefined.instance;</span>
+            }
+            case Id_setNamespace: {
+<span class="nc bnc" id="L725" title="All 2 branches missed.">                if (xml == null) xmlMethodNotFound(realThis, &quot;setNamespace&quot;);</span>
+<span class="nc" id="L726">                Namespace ns = lib.castToNamespace(cx, arg(args, 0));</span>
+<span class="nc" id="L727">                xml.setNamespace(ns);</span>
+<span class="nc" id="L728">                return Undefined.instance;</span>
+            }
+
+            case Id_attribute: {
+<span class="nc" id="L732">                XMLName xmlName = XMLName.create( lib.toNodeQName(cx, arg(args, 0), true), true, false );</span>
+<span class="nc" id="L733">                return realThis.getMatches(xmlName);</span>
+            }
+            case Id_attributes:
+<span class="nc" id="L736">                return realThis.getMatches(XMLName.create(XmlNode.QName.create(null, null), true, false));</span>
+            case Id_child: {
+<span class="nc" id="L738">                XMLName xmlName = lib.toXMLNameOrIndex(cx, arg(args, 0));</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">                if (xmlName == null) {</span>
+                    //    Two billion or so is a fine upper limit, so we cast to int
+<span class="nc" id="L741">                    int index = (int)ScriptRuntime.lastUint32Result(cx);</span>
+<span class="nc" id="L742">                    return realThis.child(index);</span>
+                } else {
+<span class="nc" id="L744">                    return realThis.child(xmlName);</span>
+                }
+            }
+            case Id_children:
+<span class="nc" id="L748">                return realThis.children();</span>
+            case Id_comments:
+<span class="nc" id="L750">                return realThis.comments();</span>
+            case Id_contains:
+<span class="nc" id="L752">                return ScriptRuntime.wrapBoolean(</span>
+<span class="nc" id="L753">                    realThis.contains(arg(args, 0)));</span>
+            case Id_copy:
+<span class="nc" id="L755">                return realThis.copy();</span>
+            case Id_descendants: {
+<span class="nc bnc" id="L757" title="All 2 branches missed.">                XmlNode.QName qname = (args.length == 0) ? XmlNode.QName.create(null, null) : lib.toNodeQName(cx, args[0], false);</span>
+<span class="nc" id="L758">                return realThis.getMatches( XMLName.create(qname, false, true) );</span>
+            }
+            case Id_elements: {
+<span class="nc bnc" id="L761" title="All 2 branches missed.">                XMLName xmlName = (args.length == 0)</span>
+<span class="nc" id="L762">                ? XMLName.formStar()</span>
+<span class="nc" id="L763">                : lib.toXMLName(cx, args[0]);</span>
+<span class="nc" id="L764">                return realThis.elements(xmlName);</span>
+            }
+            case Id_hasOwnProperty: {
+<span class="nc" id="L767">                XMLName xmlName = lib.toXMLName(cx, arg(args, 0));</span>
+<span class="nc" id="L768">                return ScriptRuntime.wrapBoolean(</span>
+<span class="nc" id="L769">                    realThis.hasOwnProperty(xmlName));</span>
+            }
+            case Id_hasComplexContent:
+<span class="nc" id="L772">                return ScriptRuntime.wrapBoolean(realThis.hasComplexContent());</span>
+            case Id_hasSimpleContent:
+<span class="nc" id="L774">                return ScriptRuntime.wrapBoolean(realThis.hasSimpleContent());</span>
+            case Id_length:
+<span class="nc" id="L776">                return ScriptRuntime.wrapInt(realThis.length());</span>
+            case Id_normalize:
+<span class="nc" id="L778">                realThis.normalize();</span>
+<span class="nc" id="L779">                return Undefined.instance;</span>
+            case Id_parent:
+<span class="nc" id="L781">                return realThis.parent();</span>
+            case Id_processingInstructions: {
+<span class="nc bnc" id="L783" title="All 2 branches missed.">                XMLName xmlName = (args.length &gt; 0)</span>
+<span class="nc" id="L784">                ? lib.toXMLName(cx, args[0])</span>
+<span class="nc" id="L785">                : XMLName.formStar();</span>
+<span class="nc" id="L786">                return realThis.processingInstructions(xmlName);</span>
+            }
+            case Id_propertyIsEnumerable: {
+<span class="nc" id="L789">                return ScriptRuntime.wrapBoolean(</span>
+<span class="nc" id="L790">                    realThis.propertyIsEnumerable(arg(args, 0)));</span>
+            }
+            case Id_text:
+<span class="nc" id="L793">                return realThis.text();</span>
+            case Id_toString:
+<span class="nc" id="L795">                return realThis.toString();</span>
+            case Id_toSource:
+<span class="nc" id="L797">                int indent = ScriptRuntime.toInt32(args, 0);</span>
+<span class="nc" id="L798">                return realThis.toSource(indent);</span>
+            case Id_toXMLString: {
+<span class="nc" id="L800">                return realThis.toXMLString();</span>
+            }
+            case Id_valueOf:
+<span class="nc" id="L803">                return realThis.valueOf();</span>
+        }
+<span class="nc" id="L805">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private static Object arg(Object[] args, int i) {
+<span class="nc bnc" id="L809" title="All 2 branches missed.">        return (i &lt; args.length) ? args[i] : Undefined.instance;</span>
+    }
+
+    final XML newTextElementXML(XmlNode reference, XmlNode.QName qname, String value) {
+<span class="nc" id="L813">        return lib.newTextElementXML(reference, qname, value);</span>
+    }
+
+    /* TODO: Hopefully this can be replaced with ecmaToXml below. */
+    final XML newXMLFromJs(Object inputObject) {
+<span class="nc" id="L818">        return lib.newXMLFromJs(inputObject);</span>
+    }
+
+    final XML ecmaToXml(Object object) {
+<span class="nc" id="L822">        return lib.ecmaToXml(object);</span>
+    }
+
+    final String ecmaEscapeAttributeValue(String s) {
+        //    TODO    Check this
+<span class="nc" id="L827">        String quoted = lib.escapeAttributeValue(s);</span>
+<span class="nc" id="L828">        return quoted.substring(1, quoted.length() - 1);</span>
+    }
+
+    final XML createEmptyXML() {
+<span class="nc" id="L832">        return newXML(XmlNode.createEmpty(getProcessor()));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">SecurityController.java</span></div><h1>SecurityController.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * This class describes the support needed to implement security.
+ * &lt;p&gt;
+ * Three main pieces of functionality are required to implement
+ * security for JavaScript. First, it must be possible to define
+ * classes with an associated security domain. (This security
+ * domain may be any object incorporating notion of access
+ * restrictions that has meaning to an embedding; for a client-side
+ * JavaScript embedding this would typically be
+ * java.security.ProtectionDomain or similar object depending on an
+ * origin URL and/or a digital certificate.)
+ * Next it must be possible to get a security domain object that
+ * allows a particular action only if all security domains
+ * associated with code on the current Java stack allows it. And
+ * finally, it must be possible to execute script code with
+ * associated security domain injected into Java stack.
+ * &lt;p&gt;
+ * These three pieces of functionality are encapsulated in the
+ * SecurityController class.
+ *
+ * @see org.mozilla.javascript.Context#setSecurityController(SecurityController)
+ * @see java.lang.ClassLoader
+ * @since 1.5 Release 4
+ */
+<span class="fc" id="L35">public abstract class SecurityController</span>
+{
+    private static SecurityController global;
+
+// The method must NOT be public or protected
+    static SecurityController global()
+    {
+<span class="fc" id="L42">        return global;</span>
+    }
+
+    /**
+     * Check if global {@link SecurityController} was already installed.
+     * @see #initGlobal(SecurityController controller)
+     */
+    public static boolean hasGlobal()
+    {
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        return global != null;</span>
+    }
+
+    /**
+     * Initialize global controller that will be used for all
+     * security-related operations. The global controller takes precedence
+     * over already installed {@link Context}-specific controllers and cause
+     * any subsequent call to
+     * {@link Context#setSecurityController(SecurityController)}
+     * to throw an exception.
+     * &lt;p&gt;
+     * The method can only be called once.
+     *
+     * @see #hasGlobal()
+     */
+    public static void initGlobal(SecurityController controller)
+    {
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (controller == null) throw new IllegalArgumentException();</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (global != null) {</span>
+<span class="fc" id="L70">            throw new SecurityException(&quot;Cannot overwrite already installed global SecurityController&quot;);</span>
+        }
+<span class="fc" id="L72">        global = controller;</span>
+<span class="fc" id="L73">    }</span>
+
+    /**
+     * Get class loader-like object that can be used
+     * to define classes with the given security context.
+     * @param parentLoader parent class loader to delegate search for classes
+     *        not defined by the class loader itself
+     * @param securityDomain some object specifying the security
+     *        context of the code that is defined by the returned class loader.
+     */
+    public abstract GeneratedClassLoader createClassLoader(
+        ClassLoader parentLoader, Object securityDomain);
+
+    /**
+     * Create {@link GeneratedClassLoader} with restrictions imposed by
+     * staticDomain and all current stack frames.
+     * The method uses the SecurityController instance associated with the
+     * current {@link Context} to construct proper dynamic domain and create
+     * corresponding class loader.
+     * &lt;par&gt;
+     * If no SecurityController is associated with the current {@link Context} ,
+     * the method calls {@link Context#createClassLoader(ClassLoader parent)}.
+     *
+     * @param parent parent class loader. If null,
+     *        {@link Context#getApplicationClassLoader()} will be used.
+     * @param staticDomain static security domain.
+     */
+    public static GeneratedClassLoader createLoader(
+        ClassLoader parent, Object staticDomain)
+    {
+<span class="fc" id="L103">        Context cx = Context.getContext();</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        if (parent == null) {</span>
+<span class="nc" id="L105">            parent = cx.getApplicationClassLoader();</span>
+        }
+<span class="fc" id="L107">        SecurityController sc = cx.getSecurityController();</span>
+        GeneratedClassLoader loader;
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">        if (sc == null) {</span>
+<span class="fc" id="L110">            loader = cx.createClassLoader(parent);</span>
+        } else {
+<span class="nc" id="L112">            Object dynamicDomain = sc.getDynamicSecurityDomain(staticDomain);</span>
+<span class="nc" id="L113">            loader = sc.createClassLoader(parent, dynamicDomain);</span>
+        }
+<span class="fc" id="L115">        return loader;</span>
+    }
+
+    public static Class&lt;?&gt; getStaticSecurityDomainClass() {
+<span class="nc" id="L119">        SecurityController sc = Context.getContext().getSecurityController();</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        return sc == null ? null : sc.getStaticSecurityDomainClassInternal();</span>
+    }
+
+    public Class&lt;?&gt; getStaticSecurityDomainClassInternal()
+    {
+<span class="nc" id="L125">        return null;</span>
+    }
+
+    /**
+     * Get dynamic security domain that allows an action only if it is allowed
+     * by the current Java stack and &lt;i&gt;securityDomain&lt;/i&gt;. If
+     * &lt;i&gt;securityDomain&lt;/i&gt; is null, return domain representing permissions
+     * allowed by the current stack.
+     */
+    public abstract Object getDynamicSecurityDomain(Object securityDomain);
+
+    /**
+     * Call {@link
+     * Callable#call(Context cx, Scriptable scope, Scriptable thisObj,
+     *               Object[] args)}
+     * of &lt;i&gt;callable&lt;/i&gt; under restricted security domain where an action is
+     * allowed only if it is allowed according to the Java stack on the
+     * moment of the &lt;i&gt;execWithDomain&lt;/i&gt; call and &lt;i&gt;securityDomain&lt;/i&gt;.
+     * Any call to {@link #getDynamicSecurityDomain(Object)} during
+     * execution of &lt;tt&gt;callable.call(cx, scope, thisObj, args)&lt;/tt&gt;
+     * should return a domain incorporate restrictions imposed by
+     * &lt;i&gt;securityDomain&lt;/i&gt; and Java stack on the moment of callWithDomain
+     * invocation.
+     * &lt;p&gt;
+     * The method should always be overridden, it is not declared abstract
+     * for compatibility reasons.
+     */
+    public Object callWithDomain(Object securityDomain, Context cx,
+                                 final Callable callable, Scriptable scope,
+                                 final Scriptable thisObj, final Object[] args)
+    {
+<span class="nc" id="L156">        return execWithDomain(cx, scope, new Script()</span>
+<span class="nc" id="L157">        {</span>
+            public Object exec(Context cx, Scriptable scope)
+            {
+<span class="nc" id="L160">                return callable.call(cx, scope, thisObj, args);</span>
+            }
+
+        }, securityDomain);
+    }
+
+    /**
+     * @deprecated The application should not override this method and instead
+     * override
+     * {@link #callWithDomain(Object securityDomain, Context cx, Callable callable, Scriptable scope, Scriptable thisObj, Object[] args)}.
+     */
+    @Deprecated
+    public Object execWithDomain(Context cx, Scriptable scope,
+                                 Script script, Object securityDomain)
+    {
+<span class="nc" id="L175">        throw new IllegalStateException(&quot;callWithDomain should be overridden&quot;);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeArrayBuffer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeArrayBuffer.java</span></div><h1>NativeArrayBuffer.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.IdScriptableObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * A NativeArrayBuffer is the backing buffer for a typed array. Used inside JavaScript code,
+ * it implements the ArrayBuffer interface. Used directly from Java, it simply holds a byte array.
+ */
+
+public class NativeArrayBuffer
+    extends IdScriptableObject
+{
+    private static final long serialVersionUID = 3110411773054879549L;
+
+    public static final String CLASS_NAME = &quot;ArrayBuffer&quot;;
+
+<span class="fc" id="L28">    private static final byte[] EMPTY_BUF = new byte[0];</span>
+
+<span class="fc" id="L30">    public static final NativeArrayBuffer EMPTY_BUFFER = new NativeArrayBuffer();</span>
+
+    final byte[] buffer;
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L37">        return CLASS_NAME;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L42">        NativeArrayBuffer na = new NativeArrayBuffer();</span>
+<span class="fc" id="L43">        na.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L44">    }</span>
+
+    /**
+     * Create an empty buffer.
+     */
+    public NativeArrayBuffer()
+<span class="fc" id="L50">    {</span>
+<span class="fc" id="L51">        buffer = EMPTY_BUF;</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Create a buffer of the specified length in bytes.
+     */
+    public NativeArrayBuffer(int len)
+<span class="fc" id="L58">    {</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (len &lt; 0) {</span>
+<span class="fc" id="L60">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;Negative array length &quot; + len);</span>
+        }
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (len == 0) {</span>
+<span class="fc" id="L63">            buffer = EMPTY_BUF;</span>
+        } else {
+<span class="fc" id="L65">            buffer = new byte[len];</span>
+        }
+<span class="fc" id="L67">    }</span>
+
+    /**
+     * Get the number of bytes in the buffer.
+     */
+    public int getLength() {
+<span class="fc" id="L73">        return buffer.length;</span>
+    }
+
+    /**
+     * Return the actual bytes that back the buffer. This is a reference to the real buffer,
+     * so changes to bytes here will be reflected in the actual object and all its views.
+     */
+    public byte[] getBuffer() {
+<span class="fc" id="L81">        return buffer;</span>
+    }
+
+    // Actual implementations of actual code
+
+    /**
+     * Return a new buffer that represents a slice of this buffer's content, starting at position
+     * &quot;start&quot; and ending at position &quot;end&quot;. Both values will be &quot;clamped&quot; as per the JavaScript
+     * spec so that invalid values may be passed and will be adjusted up or down accordingly.
+     * This method will return a new buffer that contains a copy of the original buffer. Changes
+     * there will not affect the content of the buffer.
+     *
+     * @param s the position where the new buffer will start
+     * @param e the position where it will end
+     */
+    public NativeArrayBuffer slice(int s, int e)
+    {
+        // Handle negative start and and as relative to start
+        // Clamp as per the spec to between 0 and length
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">        int end = Math.max(0, Math.min(buffer.length, (e &lt; 0 ? buffer.length + e : e)));</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        int start = Math.min(end, Math.max(0, (s &lt; 0 ? buffer.length + s : s)));</span>
+<span class="fc" id="L102">        int len = end - start;</span>
+
+<span class="fc" id="L104">        NativeArrayBuffer newBuf = new NativeArrayBuffer(len);</span>
+<span class="fc" id="L105">        System.arraycopy(buffer, start, newBuf.buffer, 0, len);</span>
+<span class="fc" id="L106">        return newBuf;</span>
+    }
+
+    // Function-calling dispatcher
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (!f.hasTag(CLASS_NAME)) {</span>
+<span class="nc" id="L116">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L118">        int id = f.methodId();</span>
+<span class="pc bpc" id="L119" title="1 of 4 branches missed.">        switch (id) {</span>
+        case ConstructorId_isView:
+<span class="pc bpc" id="L121" title="1 of 4 branches missed.">            return (isArg(args, 0) &amp;&amp; (args[0] instanceof NativeArrayBufferView));</span>
+
+        case Id_constructor:
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            int length = isArg(args, 0) ? ScriptRuntime.toInt32(args[0]) : 0;</span>
+<span class="nc" id="L125">            return new NativeArrayBuffer(length);</span>
+
+        case Id_slice:
+<span class="fc" id="L128">            NativeArrayBuffer self = realThis(thisObj, f);</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">            int start = isArg(args, 0) ? ScriptRuntime.toInt32(args[0]) : 0;</span>
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">            int end = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : self.buffer.length;</span>
+<span class="fc" id="L131">            return self.slice(start, end);</span>
+        }
+<span class="fc" id="L133">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private static NativeArrayBuffer realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        if (!(thisObj instanceof NativeArrayBuffer))</span>
+<span class="nc" id="L139">            throw incompatibleCallError(f);</span>
+<span class="fc" id="L140">        return (NativeArrayBuffer)thisObj;</span>
+    }
+
+    private static boolean isArg(Object[] args, int i)
+    {
+<span class="fc bfc" id="L145" title="All 4 branches covered.">        return ((args.length &gt; i) &amp;&amp; !Undefined.instance.equals(args[i]));</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L153" title="1 of 3 branches missed.">        switch (id) {</span>
+<span class="fc" id="L154">        case Id_constructor:            arity = 1; s = &quot;constructor&quot;; break;</span>
+<span class="nc" id="L155">        case Id_slice:                  arity = 1; s = &quot;slice&quot;; break;</span>
+<span class="fc" id="L156">        default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L158">        initPrototypeMethod(CLASS_NAME, id, s, arity);</span>
+<span class="fc" id="L159">    }</span>
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated#
+<span class="fc" id="L168">        L0: { id = 0; String X = null;</span>
+<span class="fc" id="L169">            int s_length = s.length();</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            if (s_length==5) { X=&quot;slice&quot;;id=Id_slice; }</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">            else if (s_length==6) { X=&quot;isView&quot;;id=Id_isView; }</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L173" title="4 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L177">        return id;</span>
+    }
+
+    // Table of all functions
+    private static final int
+        Id_constructor          = 1,
+        Id_slice                = 2,
+        Id_isView               = 3,
+        MAX_PROTOTYPE_ID        = Id_isView;
+
+// #/string_id_map#
+
+    // Constructor (aka static) functions here
+
+    private static final int ConstructorId_isView = -Id_isView;
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L196">        addIdFunctionProperty(ctor, CLASS_NAME, ConstructorId_isView, &quot;isView&quot;, 1);</span>
+<span class="fc" id="L197">    }</span>
+
+    // Properties here
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L204">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">        if (id == Id_byteLength) { return &quot;byteLength&quot;; }</span>
+<span class="nc" id="L211">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">        if (id == Id_byteLength) {</span>
+<span class="fc" id="L218">            return ScriptRuntime.wrapInt(buffer.length);</span>
+        }
+<span class="nc" id="L220">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        if (&quot;byteLength&quot;.equals(s)) {</span>
+<span class="fc" id="L227">            return instanceIdInfo(READONLY | PERMANENT, Id_byteLength);</span>
+        }
+<span class="fc" id="L229">        return super.findInstanceIdInfo(s);</span>
+    }
+
+    // Table of all properties
+    private static final int
+        Id_byteLength           = 1,
+        MAX_INSTANCE_ID         = Id_byteLength;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

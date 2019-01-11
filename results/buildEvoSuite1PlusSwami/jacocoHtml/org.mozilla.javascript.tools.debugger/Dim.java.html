@@ -1,0 +1,1546 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Dim.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.debugger</a> &gt; <span class="el_source">Dim.java</span></div><h1>Dim.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.debugger;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.debug.*;
+import java.util.*;
+import java.io.*;
+import java.net.URL;
+
+/**
+ * Dim or Debugger Implementation for Rhino.
+ */
+<span class="fc" id="L17">public class Dim {</span>
+
+    // Constants for instructing the debugger what action to perform
+    // to end interruption.  Used by 'returnValue'.
+    public static final int STEP_OVER = 0;
+    public static final int STEP_INTO = 1;
+    public static final int STEP_OUT = 2;
+    public static final int GO = 3;
+    public static final int BREAK = 4;
+    public static final int EXIT = 5;
+
+    // Constants for the DimIProxy interface implementation class.
+    private static final int IPROXY_DEBUG = 0;
+    private static final int IPROXY_LISTEN = 1;
+    private static final int IPROXY_COMPILE_SCRIPT = 2;
+    private static final int IPROXY_EVAL_SCRIPT = 3;
+    private static final int IPROXY_STRING_IS_COMPILABLE = 4;
+    private static final int IPROXY_OBJECT_TO_STRING = 5;
+    private static final int IPROXY_OBJECT_PROPERTY = 6;
+    private static final int IPROXY_OBJECT_IDS = 7;
+
+    /**
+     * Interface to the debugger GUI.
+     */
+    private GuiCallback callback;
+
+    /**
+     * Whether the debugger should break.
+     */
+    private boolean breakFlag;
+
+    /**
+     * The ScopeProvider object that provides the scope in which to
+     * evaluate script.
+     */
+    private ScopeProvider scopeProvider;
+
+    /**
+     * The SourceProvider object that provides the source of evaluated scripts.
+     */
+    private SourceProvider sourceProvider;
+
+    /**
+     * The index of the current stack frame.
+     */
+<span class="fc" id="L62">    private int frameIndex = -1;</span>
+
+    /**
+     * Information about the current stack at the point of interruption.
+     */
+    private volatile ContextData interruptedContextData;
+
+    /**
+     * The ContextFactory to listen to for debugging information.
+     */
+    private ContextFactory contextFactory;
+
+    /**
+     * Synchronization object used to allow script evaluations to
+     * happen when a thread is resumed.
+     */
+<span class="fc" id="L78">    private Object monitor = new Object();</span>
+
+    /**
+     * Synchronization object used to wait for valid
+     * {@link #interruptedContextData}.
+     */
+<span class="fc" id="L84">    private Object eventThreadMonitor = new Object();</span>
+
+    /**
+     * The action to perform to end the interruption loop.
+     */
+<span class="fc" id="L89">    private volatile int returnValue = -1;</span>
+
+    /**
+     * Whether the debugger is inside the interruption loop.
+     */
+    private boolean insideInterruptLoop;
+
+    /**
+     * The requested script string to be evaluated when the thread
+     * has been resumed.
+     */
+    private String evalRequest;
+
+    /**
+     * The stack frame in which to evaluate {@link #evalRequest}.
+     */
+    private StackFrame evalFrame;
+
+    /**
+     * The result of evaluating {@link #evalRequest}.
+     */
+    private String evalResult;
+
+    /**
+     * Whether the debugger should break when a script exception is thrown.
+     */
+    private boolean breakOnExceptions;
+
+    /**
+     * Whether the debugger should break when a script function is entered.
+     */
+    private boolean breakOnEnter;
+
+    /**
+     * Whether the debugger should break when a script function is returned
+     * from.
+     */
+    private boolean breakOnReturn;
+
+    /**
+     * Table mapping URLs to information about the script source.
+     */
+<span class="fc" id="L131">    private final Map&lt;String,SourceInfo&gt; urlToSourceInfo =</span>
+<span class="fc" id="L132">        Collections.synchronizedMap(new HashMap&lt;String,SourceInfo&gt;());</span>
+
+    /**
+     * Table mapping function names to information about the function.
+     */
+<span class="fc" id="L137">    private final Map&lt;String,FunctionSource&gt; functionNames =</span>
+<span class="fc" id="L138">        Collections.synchronizedMap(new HashMap&lt;String,FunctionSource&gt;());</span>
+
+    /**
+     * Table mapping functions to information about the function.
+     */
+<span class="fc" id="L143">    private final Map&lt;DebuggableScript,FunctionSource&gt; functionToSource =</span>
+<span class="fc" id="L144">        Collections.synchronizedMap(new HashMap&lt;DebuggableScript,FunctionSource&gt;());</span>
+
+    /**
+     * ContextFactory.Listener instance attached to {@link #contextFactory}.
+     */
+    private DimIProxy listener;
+
+    /**
+     * Sets the GuiCallback object to use.
+     */
+    public void setGuiCallback(GuiCallback callback) {
+<span class="fc" id="L155">        this.callback = callback;</span>
+<span class="fc" id="L156">    }</span>
+
+    /**
+     * Tells the debugger to break at the next opportunity.
+     */
+    public void setBreak() {
+<span class="fc" id="L162">        this.breakFlag = true;</span>
+<span class="fc" id="L163">    }</span>
+
+    /**
+     * Sets the ScopeProvider to be used.
+     */
+    public void setScopeProvider(ScopeProvider scopeProvider) {
+<span class="fc" id="L169">        this.scopeProvider = scopeProvider;</span>
+<span class="fc" id="L170">    }</span>
+
+    /**
+     * Sets the ScopeProvider to be used.
+     */
+    public void setSourceProvider(final SourceProvider sourceProvider) {
+<span class="fc" id="L176">        this.sourceProvider = sourceProvider;</span>
+<span class="fc" id="L177">    }</span>
+
+    /**
+     * Switches context to the stack frame with the given index.
+     */
+    public void contextSwitch(int frameIndex) {
+<span class="fc" id="L183">        this.frameIndex = frameIndex;</span>
+<span class="fc" id="L184">    }</span>
+
+    /**
+     * Sets whether the debugger should break on exceptions.
+     */
+    public void setBreakOnExceptions(boolean breakOnExceptions) {
+<span class="fc" id="L190">        this.breakOnExceptions = breakOnExceptions;</span>
+<span class="fc" id="L191">    }</span>
+
+    /**
+     * Sets whether the debugger should break on function entering.
+     */
+    public void setBreakOnEnter(boolean breakOnEnter) {
+<span class="fc" id="L197">        this.breakOnEnter = breakOnEnter;</span>
+<span class="fc" id="L198">    }</span>
+
+    /**
+     * Sets whether the debugger should break on function return.
+     */
+    public void setBreakOnReturn(boolean breakOnReturn) {
+<span class="fc" id="L204">        this.breakOnReturn = breakOnReturn;</span>
+<span class="fc" id="L205">    }</span>
+
+    /**
+     * Attaches the debugger to the given ContextFactory.
+     */
+    public void attachTo(ContextFactory factory) {
+<span class="fc" id="L211">        detach();</span>
+<span class="fc" id="L212">        this.contextFactory = factory;</span>
+<span class="fc" id="L213">        this.listener = new DimIProxy(this, IPROXY_LISTEN);</span>
+<span class="fc" id="L214">        factory.addListener(this.listener);</span>
+<span class="fc" id="L215">    }</span>
+
+    /**
+     * Detaches the debugger from the current ContextFactory.
+     */
+    public void detach() {
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        if (listener != null) {</span>
+<span class="fc" id="L222">            contextFactory.removeListener(listener);</span>
+<span class="fc" id="L223">            contextFactory = null;</span>
+<span class="fc" id="L224">            listener = null;</span>
+        }
+<span class="fc" id="L226">    }</span>
+
+    /**
+     * Releases resources associated with this debugger.
+     */
+    public void dispose() {
+<span class="fc" id="L232">        detach();</span>
+<span class="fc" id="L233">    }</span>
+
+    /**
+     * Returns the FunctionSource object for the given script or function.
+     */
+    private FunctionSource getFunctionSource(DebuggableScript fnOrScript) {
+<span class="nc" id="L239">        FunctionSource fsource = functionSource(fnOrScript);</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        if (fsource == null) {</span>
+<span class="nc" id="L241">            String url = getNormalizedUrl(fnOrScript);</span>
+<span class="nc" id="L242">            SourceInfo si = sourceInfo(url);</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">            if (si == null) {</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                if (!fnOrScript.isGeneratedScript()) {</span>
+                    // Not eval or Function, try to load it from URL
+<span class="nc" id="L246">                    String source = loadSource(url);</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                    if (source != null) {</span>
+<span class="nc" id="L248">                        DebuggableScript top = fnOrScript;</span>
+                        for (;;) {
+<span class="nc" id="L250">                            DebuggableScript parent = top.getParent();</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                            if (parent == null) {</span>
+<span class="nc" id="L252">                                break;</span>
+                            }
+<span class="nc" id="L254">                            top = parent;</span>
+<span class="nc" id="L255">                        }</span>
+<span class="nc" id="L256">                        registerTopScript(top, source);</span>
+<span class="nc" id="L257">                        fsource = functionSource(fnOrScript);</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L262">        return fsource;</span>
+    }
+
+    /**
+     * Loads the script at the given URL.
+     */
+    private String loadSource(String sourceUrl) {
+<span class="nc" id="L269">        String source = null;</span>
+<span class="nc" id="L270">        int hash = sourceUrl.indexOf('#');</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (hash &gt;= 0) {</span>
+<span class="nc" id="L272">            sourceUrl = sourceUrl.substring(0, hash);</span>
+        }
+        try {
+            InputStream is;
+          openStream:
+            {
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                if (sourceUrl.indexOf(':') &lt; 0) {</span>
+                    // Can be a file name
+                    try {
+<span class="nc bnc" id="L281" title="All 2 branches missed.">                        if (sourceUrl.startsWith(&quot;~/&quot;)) {</span>
+<span class="nc" id="L282">                            String home = SecurityUtilities.getSystemProperty(&quot;user.home&quot;);</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                            if (home != null) {</span>
+<span class="nc" id="L284">                                String pathFromHome = sourceUrl.substring(2);</span>
+<span class="nc" id="L285">                                File f = new File(new File(home), pathFromHome);</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                                if (f.exists()) {</span>
+<span class="nc" id="L287">                                    is = new FileInputStream(f);</span>
+<span class="nc" id="L288">                                    break openStream;</span>
+                                }
+                            }
+                        }
+<span class="nc" id="L292">                        File f = new File(sourceUrl);</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">                        if (f.exists()) {</span>
+<span class="nc" id="L294">                            is = new FileInputStream(f);</span>
+<span class="nc" id="L295">                            break openStream;</span>
+                        }
+<span class="nc" id="L297">                    } catch (SecurityException ex) { }</span>
+                    // No existing file, assume missed http://
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                    if (sourceUrl.startsWith(&quot;//&quot;)) {</span>
+<span class="nc" id="L300">                        sourceUrl = &quot;http:&quot; + sourceUrl;</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">                    } else if (sourceUrl.startsWith(&quot;/&quot;)) {</span>
+<span class="nc" id="L302">                        sourceUrl = &quot;http://127.0.0.1&quot; + sourceUrl;</span>
+                    } else {
+<span class="nc" id="L304">                        sourceUrl = &quot;http://&quot; + sourceUrl;</span>
+                    }
+                }
+
+<span class="nc" id="L308">                is = (new URL(sourceUrl)).openStream();</span>
+            }
+
+            try {
+<span class="nc" id="L312">                source = Kit.readReader(new InputStreamReader(is));</span>
+            } finally {
+<span class="nc" id="L314">                is.close();</span>
+<span class="nc" id="L315">            }</span>
+<span class="nc" id="L316">        } catch (IOException ex) {</span>
+<span class="nc" id="L317">            System.err.println</span>
+<span class="nc" id="L318">                (&quot;Failed to load source from &quot;+sourceUrl+&quot;: &quot;+ ex);</span>
+<span class="nc" id="L319">        }</span>
+<span class="nc" id="L320">        return source;</span>
+    }
+
+    /**
+     * Registers the given script as a top-level script in the debugger.
+     */
+    private void registerTopScript(DebuggableScript topScript, String source) {
+<span class="pc bpc" id="L327" title="1 of 2 branches missed.">        if (!topScript.isTopLevel()) {</span>
+<span class="nc" id="L328">            throw new IllegalArgumentException();</span>
+        }
+<span class="fc" id="L330">        String url = getNormalizedUrl(topScript);</span>
+<span class="fc" id="L331">        DebuggableScript[] functions = getAllFunctions(topScript);</span>
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">        if (sourceProvider != null) {</span>
+<span class="nc" id="L333">            final String providedSource = sourceProvider.getSource(topScript);</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            if(providedSource != null) {</span>
+<span class="nc" id="L335">                source = providedSource;</span>
+            }
+        }
+
+<span class="fc" id="L339">        final SourceInfo sourceInfo = new SourceInfo(source, functions, url);</span>
+
+<span class="fc" id="L341">        synchronized (urlToSourceInfo) {</span>
+<span class="fc" id="L342">            SourceInfo old = urlToSourceInfo.get(url);</span>
+<span class="pc bpc" id="L343" title="1 of 2 branches missed.">            if (old != null) {</span>
+<span class="nc" id="L344">                sourceInfo.copyBreakpointsFrom(old);</span>
+            }
+<span class="fc" id="L346">            urlToSourceInfo.put(url, sourceInfo);</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">            for (int i = 0; i != sourceInfo.functionSourcesTop(); ++i) {</span>
+<span class="fc" id="L348">                FunctionSource fsource = sourceInfo.functionSource(i);</span>
+<span class="fc" id="L349">                String name = fsource.name();</span>
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">                if (name.length() != 0) {</span>
+<span class="nc" id="L351">                    functionNames.put(name, fsource);</span>
+                }
+            }
+<span class="pc" id="L354">        }</span>
+
+<span class="fc" id="L356">        synchronized (functionToSource) {</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">            for (int i = 0; i != functions.length; ++i) {</span>
+<span class="fc" id="L358">                FunctionSource fsource = sourceInfo.functionSource(i);</span>
+<span class="fc" id="L359">                functionToSource.put(functions[i], fsource);</span>
+            }
+<span class="nc" id="L361">        }</span>
+
+<span class="nc" id="L363">        callback.updateSourceText(sourceInfo);</span>
+<span class="nc" id="L364">    }</span>
+
+    /**
+     * Returns the FunctionSource object for the given function or script.
+     */
+    private FunctionSource functionSource(DebuggableScript fnOrScript) {
+<span class="nc" id="L370">        return functionToSource.get(fnOrScript);</span>
+    }
+
+    /**
+     * Returns an array of all function names.
+     */
+    public String[] functionNames() {
+<span class="fc" id="L377">        synchronized (urlToSourceInfo) {</span>
+<span class="fc" id="L378">            return functionNames.keySet().toArray(new String[functionNames.size()]);</span>
+<span class="nc" id="L379">        }</span>
+    }
+
+    /**
+     * Returns the FunctionSource object for the function with the given name.
+     */
+    public FunctionSource functionSourceByName(String functionName) {
+<span class="fc" id="L386">        return functionNames.get(functionName);</span>
+    }
+
+    /**
+     * Returns the SourceInfo object for the given URL.
+     */
+    public SourceInfo sourceInfo(String url) {
+<span class="fc" id="L393">        return urlToSourceInfo.get(url);</span>
+    }
+
+    /**
+     * Returns the source URL for the given script or function.
+     */
+    private String getNormalizedUrl(DebuggableScript fnOrScript) {
+<span class="fc" id="L400">        String url = fnOrScript.getSourceName();</span>
+<span class="pc bpc" id="L401" title="1 of 2 branches missed.">        if (url == null) { url = &quot;&lt;stdin&gt;&quot;; }</span>
+        else {
+            // Not to produce window for eval from different lines,
+            // strip line numbers, i.e. replace all #[0-9]+\(eval\) by
+            // (eval)
+            // Option: similar teatment for Function?
+<span class="fc" id="L407">            char evalSeparator = '#';</span>
+<span class="fc" id="L408">            StringBuilder sb = null;</span>
+<span class="fc" id="L409">            int urlLength = url.length();</span>
+<span class="fc" id="L410">            int cursor = 0;</span>
+            for (;;) {
+<span class="fc" id="L412">                int searchStart = url.indexOf(evalSeparator, cursor);</span>
+<span class="pc bpc" id="L413" title="1 of 2 branches missed.">                if (searchStart &lt; 0) {</span>
+<span class="fc" id="L414">                    break;</span>
+                }
+<span class="nc" id="L416">                String replace = null;</span>
+<span class="nc" id="L417">                int i = searchStart + 1;</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">                while (i != urlLength) {</span>
+<span class="nc" id="L419">                    int c = url.charAt(i);</span>
+<span class="nc bnc" id="L420" title="All 4 branches missed.">                    if (!('0' &lt;= c &amp;&amp; c &lt;= '9')) {</span>
+<span class="nc" id="L421">                        break;</span>
+                    }
+<span class="nc" id="L423">                    ++i;</span>
+<span class="nc" id="L424">                }</span>
+<span class="nc bnc" id="L425" title="All 2 branches missed.">                if (i != searchStart + 1) {</span>
+                    // i points after #[0-9]+
+<span class="nc bnc" id="L427" title="All 2 branches missed.">                    if (&quot;(eval)&quot;.regionMatches(0, url, i, 6)) {</span>
+<span class="nc" id="L428">                        cursor = i + 6;</span>
+<span class="nc" id="L429">                        replace = &quot;(eval)&quot;;</span>
+                    }
+                }
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                if (replace == null) {</span>
+<span class="nc" id="L433">                    break;</span>
+                }
+<span class="nc bnc" id="L435" title="All 2 branches missed.">                if (sb == null) {</span>
+<span class="nc" id="L436">                    sb = new StringBuilder();</span>
+<span class="nc" id="L437">                    sb.append(url.substring(0, searchStart));</span>
+                }
+<span class="nc" id="L439">                sb.append(replace);</span>
+<span class="nc" id="L440">            }</span>
+<span class="pc bpc" id="L441" title="1 of 2 branches missed.">            if (sb != null) {</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">                if (cursor != urlLength) {</span>
+<span class="nc" id="L443">                    sb.append(url.substring(cursor));</span>
+                }
+<span class="nc" id="L445">                url = sb.toString();</span>
+            }
+        }
+<span class="fc" id="L448">        return url;</span>
+    }
+
+    /**
+     * Returns an array of all functions in the given script.
+     */
+    private static DebuggableScript[] getAllFunctions
+            (DebuggableScript function) {
+<span class="fc" id="L456">        ObjArray functions = new ObjArray();</span>
+<span class="fc" id="L457">        collectFunctions_r(function, functions);</span>
+<span class="fc" id="L458">        DebuggableScript[] result = new DebuggableScript[functions.size()];</span>
+<span class="fc" id="L459">        functions.toArray(result);</span>
+<span class="fc" id="L460">        return result;</span>
+    }
+
+    /**
+     * Helper function for {@link #getAllFunctions(DebuggableScript)}.
+     */
+    private static void collectFunctions_r(DebuggableScript function,
+                                             ObjArray array) {
+<span class="fc" id="L468">        array.add(function);</span>
+<span class="pc bpc" id="L469" title="1 of 2 branches missed.">        for (int i = 0; i != function.getFunctionCount(); ++i) {</span>
+<span class="nc" id="L470">            collectFunctions_r(function.getFunction(i), array);</span>
+        }
+<span class="fc" id="L472">    }</span>
+
+    /**
+     * Clears all breakpoints.
+     */
+    public void clearAllBreakpoints() {
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">        for (SourceInfo si: urlToSourceInfo.values()) {</span>
+<span class="nc" id="L479">            si.removeAllBreakpoints();</span>
+<span class="nc" id="L480">        }</span>
+<span class="fc" id="L481">    }</span>
+
+    /**
+     * Called when a breakpoint has been hit.
+     */
+    private void handleBreakpointHit(StackFrame frame, Context cx) {
+<span class="nc" id="L487">        breakFlag = false;</span>
+<span class="nc" id="L488">        interrupted(cx, frame, null);</span>
+<span class="nc" id="L489">    }</span>
+
+    /**
+     * Called when a script exception has been thrown.
+     */
+    private void handleExceptionThrown(Context cx, Throwable ex,
+                                         StackFrame frame) {
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (breakOnExceptions) {</span>
+<span class="nc" id="L497">            ContextData cd = frame.contextData();</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            if (cd.lastProcessedException != ex) {</span>
+<span class="nc" id="L499">                interrupted(cx, frame, ex);</span>
+<span class="nc" id="L500">                cd.lastProcessedException = ex;</span>
+            }
+        }
+<span class="nc" id="L503">    }</span>
+
+    /**
+     * Returns the current ContextData object.
+     */
+    public ContextData currentContextData() {
+<span class="fc" id="L509">        return interruptedContextData;</span>
+    }
+
+    /**
+     * Sets the action to perform to end interruption.
+     */
+    public void setReturnValue(int returnValue) {
+<span class="fc" id="L516">        synchronized (monitor) {</span>
+<span class="fc" id="L517">            this.returnValue = returnValue;</span>
+<span class="fc" id="L518">            monitor.notify();</span>
+<span class="pc" id="L519">        }</span>
+<span class="fc" id="L520">    }</span>
+
+    /**
+     * Resumes execution of script.
+     */
+    public void go() {
+<span class="fc" id="L526">        synchronized (monitor) {</span>
+<span class="fc" id="L527">            this.returnValue = GO;</span>
+<span class="fc" id="L528">            monitor.notifyAll();</span>
+<span class="pc" id="L529">        }</span>
+<span class="fc" id="L530">    }</span>
+
+    /**
+     * Evaluates the given script.
+     */
+    public String eval(String expr) {
+<span class="fc" id="L536">        String result = &quot;undefined&quot;;</span>
+<span class="fc bfc" id="L537" title="All 2 branches covered.">        if (expr == null) {</span>
+<span class="fc" id="L538">            return result;</span>
+        }
+<span class="fc" id="L540">        ContextData contextData = currentContextData();</span>
+<span class="pc bpc" id="L541" title="3 of 4 branches missed.">        if (contextData == null || frameIndex &gt;= contextData.frameCount()) {</span>
+<span class="fc" id="L542">            return result;</span>
+        }
+<span class="nc" id="L544">        StackFrame frame = contextData.getFrame(frameIndex);</span>
+<span class="nc bnc" id="L545" title="All 2 branches missed.">        if (contextData.eventThreadFlag) {</span>
+<span class="nc" id="L546">            Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L547">            result = do_eval(cx, frame, expr);</span>
+<span class="nc" id="L548">        } else {</span>
+<span class="nc" id="L549">            synchronized (monitor) {</span>
+<span class="nc bnc" id="L550" title="All 2 branches missed.">                if (insideInterruptLoop) {</span>
+<span class="nc" id="L551">                    evalRequest = expr;</span>
+<span class="nc" id="L552">                    evalFrame = frame;</span>
+<span class="nc" id="L553">                    monitor.notify();</span>
+                    do {
+                        try {
+<span class="nc" id="L556">                            monitor.wait();</span>
+<span class="nc" id="L557">                        } catch (InterruptedException exc) {</span>
+<span class="nc" id="L558">                            Thread.currentThread().interrupt();</span>
+<span class="nc" id="L559">                            break;</span>
+<span class="nc" id="L560">                        }</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">                    } while (evalRequest != null);</span>
+<span class="nc" id="L562">                    result = evalResult;</span>
+                }
+<span class="nc" id="L564">            }</span>
+        }
+<span class="nc" id="L566">        return result;</span>
+    }
+
+    /**
+     * Compiles the given script.
+     */
+    public void compileScript(String url, String text) {
+<span class="fc" id="L573">        DimIProxy action = new DimIProxy(this, IPROXY_COMPILE_SCRIPT);</span>
+<span class="fc" id="L574">        action.url = url;</span>
+<span class="fc" id="L575">        action.text = text;</span>
+<span class="nc" id="L576">        action.withContext();</span>
+<span class="nc" id="L577">    }</span>
+
+    /**
+     * Evaluates the given script.
+     */
+    public void evalScript(final String url, final String text) {
+<span class="fc" id="L583">        DimIProxy action = new DimIProxy(this, IPROXY_EVAL_SCRIPT);</span>
+<span class="fc" id="L584">        action.url = url;</span>
+<span class="fc" id="L585">        action.text = text;</span>
+<span class="nc" id="L586">        action.withContext();</span>
+<span class="nc" id="L587">    }</span>
+
+    /**
+     * Converts the given script object to a string.
+     */
+    public String objectToString(Object object) {
+<span class="fc" id="L593">        DimIProxy action = new DimIProxy(this, IPROXY_OBJECT_TO_STRING);</span>
+<span class="fc" id="L594">        action.object = object;</span>
+<span class="fc" id="L595">        action.withContext();</span>
+<span class="fc" id="L596">        return action.stringResult;</span>
+    }
+
+    /**
+     * Returns whether the given string is syntactically valid script.
+     */
+    public boolean stringIsCompilableUnit(String str) {
+<span class="fc" id="L603">        DimIProxy action = new DimIProxy(this, IPROXY_STRING_IS_COMPILABLE);</span>
+<span class="fc" id="L604">        action.text = str;</span>
+<span class="fc" id="L605">        action.withContext();</span>
+<span class="fc" id="L606">        return action.booleanResult;</span>
+    }
+
+    /**
+     * Returns the value of a property on the given script object.
+     */
+    public Object getObjectProperty(Object object, Object id) {
+<span class="fc" id="L613">        DimIProxy action = new DimIProxy(this, IPROXY_OBJECT_PROPERTY);</span>
+<span class="fc" id="L614">        action.object = object;</span>
+<span class="fc" id="L615">        action.id = id;</span>
+<span class="fc" id="L616">        action.withContext();</span>
+<span class="fc" id="L617">        return action.objectResult;</span>
+    }
+
+    /**
+     * Returns an array of the property names on the given script object.
+     */
+    public Object[] getObjectIds(Object object) {
+<span class="fc" id="L624">        DimIProxy action = new DimIProxy(this, IPROXY_OBJECT_IDS);</span>
+<span class="fc" id="L625">        action.object = object;</span>
+<span class="fc" id="L626">        action.withContext();</span>
+<span class="fc" id="L627">        return action.objectArrayResult;</span>
+    }
+
+    /**
+     * Returns the value of a property on the given script object.
+     */
+    private Object getObjectPropertyImpl(Context cx, Object object,
+                                           Object id) {
+<span class="fc" id="L635">        Scriptable scriptable = (Scriptable)object;</span>
+        Object result;
+<span class="fc bfc" id="L637" title="All 2 branches covered.">        if (id instanceof String) {</span>
+<span class="fc" id="L638">            String name = (String)id;</span>
+<span class="pc bpc" id="L639" title="1 of 2 branches missed.">            if (name.equals(&quot;this&quot;)) {</span>
+<span class="nc" id="L640">                result = scriptable;</span>
+<span class="pc bpc" id="L641" title="1 of 2 branches missed.">            } else if (name.equals(&quot;__proto__&quot;)) {</span>
+<span class="nc" id="L642">                result = scriptable.getPrototype();</span>
+<span class="pc bpc" id="L643" title="1 of 2 branches missed.">            } else if (name.equals(&quot;__parent__&quot;)) {</span>
+<span class="nc" id="L644">                result = scriptable.getParentScope();</span>
+            } else {
+<span class="fc" id="L646">                result = ScriptableObject.getProperty(scriptable, name);</span>
+<span class="pc bpc" id="L647" title="1 of 2 branches missed.">                if (result == ScriptableObject.NOT_FOUND) {</span>
+<span class="fc" id="L648">                    result = Undefined.instance;</span>
+                }
+            }
+<span class="fc" id="L651">        } else {</span>
+<span class="fc" id="L652">            int index = ((Integer)id).intValue();</span>
+<span class="fc" id="L653">            result = ScriptableObject.getProperty(scriptable, index);</span>
+<span class="pc bpc" id="L654" title="1 of 2 branches missed.">            if (result == ScriptableObject.NOT_FOUND) {</span>
+<span class="fc" id="L655">                result = Undefined.instance;</span>
+            }
+        }
+<span class="fc" id="L658">        return result;</span>
+    }
+
+    /**
+     * Returns an array of the property names on the given script object.
+     */
+    private Object[] getObjectIdsImpl(Context cx, Object object) {
+<span class="pc bpc" id="L665" title="1 of 4 branches missed.">        if (!(object instanceof Scriptable) || object == Undefined.instance) {</span>
+<span class="fc" id="L666">            return Context.emptyArgs;</span>
+        }
+
+        Object[] ids;
+<span class="fc" id="L670">        Scriptable scriptable = (Scriptable)object;</span>
+<span class="pc bpc" id="L671" title="1 of 2 branches missed.">        if (scriptable instanceof DebuggableObject) {</span>
+<span class="fc" id="L672">            ids = ((DebuggableObject)scriptable).getAllIds();</span>
+        } else {
+<span class="nc" id="L674">            ids = scriptable.getIds();</span>
+        }
+
+<span class="fc" id="L677">        Scriptable proto = scriptable.getPrototype();</span>
+<span class="fc" id="L678">        Scriptable parent = scriptable.getParentScope();</span>
+<span class="fc" id="L679">        int extra = 0;</span>
+<span class="pc bpc" id="L680" title="1 of 2 branches missed.">        if (proto != null) {</span>
+<span class="fc" id="L681">            ++extra;</span>
+        }
+<span class="pc bpc" id="L683" title="1 of 2 branches missed.">        if (parent != null) {</span>
+<span class="fc" id="L684">            ++extra;</span>
+        }
+<span class="pc bpc" id="L686" title="1 of 2 branches missed.">        if (extra != 0) {</span>
+<span class="fc" id="L687">            Object[] tmp = new Object[extra + ids.length];</span>
+<span class="fc" id="L688">            System.arraycopy(ids, 0, tmp, extra, ids.length);</span>
+<span class="fc" id="L689">            ids = tmp;</span>
+<span class="fc" id="L690">            extra = 0;</span>
+<span class="pc bpc" id="L691" title="1 of 2 branches missed.">            if (proto != null) {</span>
+<span class="fc" id="L692">                ids[extra++] = &quot;__proto__&quot;;</span>
+            }
+<span class="pc bpc" id="L694" title="1 of 2 branches missed.">            if (parent != null) {</span>
+<span class="fc" id="L695">                ids[extra++] = &quot;__parent__&quot;;</span>
+            }
+        }
+
+<span class="fc" id="L699">        return ids;</span>
+    }
+
+    /**
+     * Interrupts script execution.
+     */
+    private void interrupted(Context cx, final StackFrame frame,
+                               Throwable scriptException) {
+<span class="nc" id="L707">        ContextData contextData = frame.contextData();</span>
+<span class="nc" id="L708">        boolean eventThreadFlag = callback.isGuiEventThread();</span>
+<span class="nc" id="L709">        contextData.eventThreadFlag = eventThreadFlag;</span>
+
+<span class="nc" id="L711">        boolean recursiveEventThreadCall = false;</span>
+
+interruptedCheck:
+<span class="nc" id="L714">        synchronized (eventThreadMonitor) {</span>
+<span class="nc bnc" id="L715" title="All 2 branches missed.">            if (eventThreadFlag) {</span>
+<span class="nc bnc" id="L716" title="All 2 branches missed.">                if (interruptedContextData != null) {</span>
+<span class="nc" id="L717">                    recursiveEventThreadCall = true;</span>
+<span class="nc" id="L718">                    break interruptedCheck;</span>
+                }
+            } else {
+<span class="nc bnc" id="L721" title="All 2 branches missed.">                while (interruptedContextData != null) {</span>
+                    try {
+<span class="nc" id="L723">                        eventThreadMonitor.wait();</span>
+<span class="nc" id="L724">                    } catch (InterruptedException exc) {</span>
+<span class="nc" id="L725">                        return;</span>
+<span class="nc" id="L726">                    }</span>
+                }
+            }
+<span class="nc" id="L729">            interruptedContextData = contextData;</span>
+<span class="nc" id="L730">        }</span>
+
+<span class="nc bnc" id="L732" title="All 2 branches missed.">        if (recursiveEventThreadCall) {</span>
+            // XXX: For now the following is commented out as on Linux
+            // too deep recursion of dispatchNextGuiEvent causes GUI lockout.
+            // Note: it can make GUI unresponsive if long-running script
+            // will be called on GUI thread while processing another interrupt
+            if (false) {
+               // Run event dispatch until gui sets a flag to exit the initial
+               // call to interrupted.
+                while (this.returnValue == -1) {
+                    try {
+                        callback.dispatchNextGuiEvent();
+                    } catch (InterruptedException exc) {
+                    }
+                }
+            }
+<span class="nc" id="L747">            return;</span>
+        }
+
+<span class="nc bnc" id="L750" title="All 2 branches missed.">        if (interruptedContextData == null) Kit.codeBug();</span>
+
+        try {
+            do {
+<span class="nc" id="L754">                int frameCount = contextData.frameCount();</span>
+<span class="nc" id="L755">                this.frameIndex = frameCount -1;</span>
+
+<span class="nc" id="L757">                final String threadTitle = Thread.currentThread().toString();</span>
+                final String alertMessage;
+<span class="nc bnc" id="L759" title="All 2 branches missed.">                if (scriptException == null) {</span>
+<span class="nc" id="L760">                    alertMessage = null;</span>
+                } else {
+<span class="nc" id="L762">                    alertMessage = scriptException.toString();</span>
+                }
+
+<span class="nc" id="L765">                int returnValue = -1;</span>
+<span class="nc bnc" id="L766" title="All 2 branches missed.">                if (!eventThreadFlag) {</span>
+<span class="nc" id="L767">                    synchronized (monitor) {</span>
+<span class="nc bnc" id="L768" title="All 2 branches missed.">                        if (insideInterruptLoop) Kit.codeBug();</span>
+<span class="nc" id="L769">                        this.insideInterruptLoop = true;</span>
+<span class="nc" id="L770">                        this.evalRequest = null;</span>
+<span class="nc" id="L771">                        this.returnValue = -1;</span>
+<span class="nc" id="L772">                        callback.enterInterrupt(frame, threadTitle,</span>
+                                                alertMessage);
+                        try {
+                            for (;;) {
+                                try {
+<span class="nc" id="L777">                                    monitor.wait();</span>
+<span class="nc" id="L778">                                } catch (InterruptedException exc) {</span>
+<span class="nc" id="L779">                                    Thread.currentThread().interrupt();</span>
+<span class="nc" id="L780">                                    break;</span>
+<span class="nc" id="L781">                                }</span>
+<span class="nc bnc" id="L782" title="All 2 branches missed.">                                if (evalRequest != null) {</span>
+<span class="nc" id="L783">                                    this.evalResult = null;</span>
+                                    try {
+<span class="nc" id="L785">                                        evalResult = do_eval(cx, evalFrame,</span>
+                                                             evalRequest);
+                                    } finally {
+<span class="nc" id="L788">                                        evalRequest = null;</span>
+<span class="nc" id="L789">                                        evalFrame = null;</span>
+<span class="nc" id="L790">                                        monitor.notify();</span>
+<span class="nc" id="L791">                                    }</span>
+<span class="nc" id="L792">                                    continue;</span>
+                                }
+<span class="nc bnc" id="L794" title="All 2 branches missed.">                                if (this.returnValue != -1) {</span>
+<span class="nc" id="L795">                                    returnValue = this.returnValue;</span>
+<span class="nc" id="L796">                                    break;</span>
+                                }
+                            }
+                        } finally {
+<span class="nc" id="L800">                            insideInterruptLoop = false;</span>
+<span class="nc" id="L801">                        }</span>
+<span class="nc" id="L802">                    }</span>
+                } else {
+<span class="nc" id="L804">                    this.returnValue = -1;</span>
+<span class="nc" id="L805">                    callback.enterInterrupt(frame, threadTitle, alertMessage);</span>
+<span class="nc bnc" id="L806" title="All 2 branches missed.">                    while (this.returnValue == -1) {</span>
+                        try {
+<span class="nc" id="L808">                            callback.dispatchNextGuiEvent();</span>
+<span class="nc" id="L809">                        } catch (InterruptedException exc) {</span>
+<span class="nc" id="L810">                        }</span>
+                    }
+<span class="nc" id="L812">                    returnValue = this.returnValue;</span>
+                }
+<span class="nc bnc" id="L814" title="All 4 branches missed.">                switch (returnValue) {</span>
+                case STEP_OVER:
+<span class="nc" id="L816">                    contextData.breakNextLine = true;</span>
+<span class="nc" id="L817">                    contextData.stopAtFrameDepth = contextData.frameCount();</span>
+<span class="nc" id="L818">                    break;</span>
+                case STEP_INTO:
+<span class="nc" id="L820">                    contextData.breakNextLine = true;</span>
+<span class="nc" id="L821">                    contextData.stopAtFrameDepth = -1;</span>
+<span class="nc" id="L822">                    break;</span>
+                case STEP_OUT:
+<span class="nc bnc" id="L824" title="All 2 branches missed.">                    if (contextData.frameCount() &gt; 1) {</span>
+<span class="nc" id="L825">                        contextData.breakNextLine = true;</span>
+<span class="nc" id="L826">                        contextData.stopAtFrameDepth</span>
+<span class="nc" id="L827">                            = contextData.frameCount() -1;</span>
+                    }
+                    break;
+                }
+            } while (false);
+        } finally {
+<span class="nc" id="L833">            synchronized (eventThreadMonitor) {</span>
+<span class="nc" id="L834">                interruptedContextData = null;</span>
+<span class="nc" id="L835">                eventThreadMonitor.notifyAll();</span>
+<span class="nc" id="L836">            }</span>
+<span class="nc" id="L837">        }</span>
+
+<span class="nc" id="L839">    }</span>
+
+    /**
+     * Evaluates script in the given stack frame.
+     */
+    private static String do_eval(Context cx, StackFrame frame, String expr) {
+        String resultString;
+<span class="nc" id="L846">        Debugger saved_debugger = cx.getDebugger();</span>
+<span class="nc" id="L847">        Object saved_data = cx.getDebuggerContextData();</span>
+<span class="nc" id="L848">        int saved_level = cx.getOptimizationLevel();</span>
+
+<span class="nc" id="L850">        cx.setDebugger(null, null);</span>
+<span class="nc" id="L851">        cx.setOptimizationLevel(-1);</span>
+<span class="nc" id="L852">        cx.setGeneratingDebug(false);</span>
+        try {
+<span class="nc" id="L854">            Callable script = (Callable)cx.compileString(expr, &quot;&quot;, 0, null);</span>
+<span class="nc" id="L855">            Object result = script.call(cx, frame.scope, frame.thisObj,</span>
+                                        ScriptRuntime.emptyArgs);
+<span class="nc bnc" id="L857" title="All 2 branches missed.">            if (result == Undefined.instance) {</span>
+<span class="nc" id="L858">                resultString = &quot;&quot;;</span>
+            } else {
+<span class="nc" id="L860">                resultString = ScriptRuntime.toString(result);</span>
+            }
+<span class="nc" id="L862">        } catch (Exception exc) {</span>
+<span class="nc" id="L863">            resultString = exc.getMessage();</span>
+        } finally {
+<span class="nc" id="L865">            cx.setGeneratingDebug(true);</span>
+<span class="nc" id="L866">            cx.setOptimizationLevel(saved_level);</span>
+<span class="nc" id="L867">            cx.setDebugger(saved_debugger, saved_data);</span>
+<span class="nc" id="L868">        }</span>
+<span class="nc bnc" id="L869" title="All 2 branches missed.">        if (resultString == null) {</span>
+<span class="nc" id="L870">            resultString = &quot;null&quot;;</span>
+        }
+<span class="nc" id="L872">        return resultString;</span>
+    }
+
+    /**
+     * Proxy class to implement debug interfaces without bloat of class
+     * files.
+     */
+    private static class DimIProxy
+        implements ContextAction, ContextFactory.Listener, Debugger {
+
+        /**
+         * The debugger.
+         */
+        private Dim dim;
+
+        /**
+         * The interface implementation type.  One of the IPROXY_* constants
+         * defined in {@link Dim}.
+         */
+        private int type;
+
+        /**
+         * The URL origin of the script to compile or evaluate.
+         */
+        private String url;
+
+        /**
+         * The text of the script to compile, evaluate or test for compilation.
+         */
+        private String text;
+
+        /**
+         * The object to convert, get a property from or enumerate.
+         */
+        private Object object;
+
+        /**
+         * The property to look up in {@link #object}.
+         */
+        private Object id;
+
+        /**
+         * The boolean result of the action.
+         */
+        private boolean booleanResult;
+
+        /**
+         * The String result of the action.
+         */
+        private String stringResult;
+
+        /**
+         * The Object result of the action.
+         */
+        private Object objectResult;
+
+        /**
+         * The Object[] result of the action.
+         */
+        private Object[] objectArrayResult;
+
+        /**
+         * Creates a new DimIProxy.
+         */
+<span class="fc" id="L936">        private DimIProxy(Dim dim, int type) {</span>
+<span class="fc" id="L937">            this.dim = dim;</span>
+<span class="fc" id="L938">            this.type = type;</span>
+<span class="fc" id="L939">        }</span>
+
+        // ContextAction
+
+        /**
+         * Performs the action given by {@link #type}.
+         */
+        public Object run(Context cx) {
+<span class="pc bpc" id="L947" title="2 of 7 branches missed.">            switch (type) {</span>
+              case IPROXY_COMPILE_SCRIPT:
+<span class="nc" id="L949">                cx.compileString(text, url, 1, null);</span>
+<span class="nc" id="L950">                break;</span>
+
+              case IPROXY_EVAL_SCRIPT:
+                {
+<span class="fc" id="L954">                    Scriptable scope = null;</span>
+<span class="fc bfc" id="L955" title="All 2 branches covered.">                    if (dim.scopeProvider != null) {</span>
+<span class="fc" id="L956">                        scope = dim.scopeProvider.getScope();</span>
+                    }
+<span class="pc bpc" id="L958" title="1 of 2 branches missed.">                    if (scope == null) {</span>
+<span class="fc" id="L959">                        scope = new ImporterTopLevel(cx);</span>
+                    }
+<span class="nc" id="L961">                    cx.evaluateString(scope, text, url, 1, null);</span>
+                }
+<span class="nc" id="L963">                break;</span>
+
+              case IPROXY_STRING_IS_COMPILABLE:
+<span class="fc" id="L966">                booleanResult = cx.stringIsCompilableUnit(text);</span>
+<span class="fc" id="L967">                break;</span>
+
+              case IPROXY_OBJECT_TO_STRING:
+<span class="pc bpc" id="L970" title="1 of 2 branches missed.">                if (object == Undefined.instance) {</span>
+<span class="nc" id="L971">                    stringResult = &quot;undefined&quot;;</span>
+<span class="fc bfc" id="L972" title="All 2 branches covered.">                } else if (object == null) {</span>
+<span class="fc" id="L973">                    stringResult = &quot;null&quot;;</span>
+<span class="pc bpc" id="L974" title="1 of 2 branches missed.">                } else if (object instanceof NativeCall) {</span>
+<span class="nc" id="L975">                    stringResult = &quot;[object Call]&quot;;</span>
+                } else {
+<span class="fc" id="L977">                    stringResult = Context.toString(object);</span>
+                }
+<span class="fc" id="L979">                break;</span>
+
+              case IPROXY_OBJECT_PROPERTY:
+<span class="fc" id="L982">                objectResult = dim.getObjectPropertyImpl(cx, object, id);</span>
+<span class="fc" id="L983">                break;</span>
+
+              case IPROXY_OBJECT_IDS:
+<span class="fc" id="L986">                objectArrayResult = dim.getObjectIdsImpl(cx, object);</span>
+<span class="fc" id="L987">                break;</span>
+
+              default:
+<span class="nc" id="L990">                throw Kit.codeBug();</span>
+            }
+<span class="fc" id="L992">            return null;</span>
+        }
+
+        /**
+         * Performs the action given by {@link #type} with the attached
+         * {@link ContextFactory}.
+         */
+        private void withContext() {
+<span class="fc" id="L1000">            dim.contextFactory.call(this);</span>
+<span class="fc" id="L1001">        }</span>
+
+        // ContextFactory.Listener
+
+        /**
+         * Called when a Context is created.
+         */
+        public void contextCreated(Context cx) {
+<span class="pc bpc" id="L1009" title="1 of 2 branches missed.">            if (type != IPROXY_LISTEN) Kit.codeBug();</span>
+<span class="fc" id="L1010">            ContextData contextData = new ContextData();</span>
+<span class="fc" id="L1011">            Debugger debugger = new DimIProxy(dim, IPROXY_DEBUG);</span>
+<span class="fc" id="L1012">            cx.setDebugger(debugger, contextData);</span>
+<span class="fc" id="L1013">            cx.setGeneratingDebug(true);</span>
+<span class="fc" id="L1014">            cx.setOptimizationLevel(-1);</span>
+<span class="fc" id="L1015">        }</span>
+
+        /**
+         * Called when a Context is destroyed.
+         */
+        public void contextReleased(Context cx) {
+<span class="pc bpc" id="L1021" title="1 of 2 branches missed.">            if (type != IPROXY_LISTEN) Kit.codeBug();</span>
+<span class="fc" id="L1022">        }</span>
+
+        // Debugger
+
+        /**
+         * Returns a StackFrame for the given function or script.
+         */
+        public DebugFrame getFrame(Context cx, DebuggableScript fnOrScript) {
+<span class="nc bnc" id="L1030" title="All 2 branches missed.">            if (type != IPROXY_DEBUG) Kit.codeBug();</span>
+
+<span class="nc" id="L1032">            FunctionSource item = dim.getFunctionSource(fnOrScript);</span>
+<span class="nc bnc" id="L1033" title="All 2 branches missed.">            if (item == null) {</span>
+                // Can not debug if source is not available
+<span class="nc" id="L1035">                return null;</span>
+            }
+<span class="nc" id="L1037">            return new StackFrame(cx, dim, item);</span>
+        }
+
+        /**
+         * Called when compilation is finished.
+         */
+        public void handleCompilationDone(Context cx,
+                                          DebuggableScript fnOrScript,
+                                          String source) {
+<span class="pc bpc" id="L1046" title="1 of 2 branches missed.">            if (type != IPROXY_DEBUG) Kit.codeBug();</span>
+
+<span class="nc bnc" id="L1048" title="All 2 branches missed.">            if (!fnOrScript.isTopLevel()) {</span>
+<span class="nc" id="L1049">                return;</span>
+            }
+<span class="nc" id="L1051">            dim.registerTopScript(fnOrScript, source);</span>
+<span class="nc" id="L1052">        }</span>
+    }
+
+    /**
+     * Class to store information about a stack.
+     */
+<span class="fc" id="L1058">    public static class ContextData {</span>
+
+        /**
+         * The stack frames.
+         */
+<span class="fc" id="L1063">        private ObjArray frameStack = new ObjArray();</span>
+
+        /**
+         * Whether the debugger should break at the next line in this context.
+         */
+        private boolean breakNextLine;
+
+        /**
+         * The frame depth the debugger should stop at.  Used to implement
+         * &quot;step over&quot; and &quot;step out&quot;.
+         */
+<span class="fc" id="L1074">        private int stopAtFrameDepth = -1;</span>
+
+        /**
+         * Whether this context is in the event thread.
+         */
+        private boolean eventThreadFlag;
+
+        /**
+         * The last exception that was processed.
+         */
+        private Throwable lastProcessedException;
+
+        /**
+         * Returns the ContextData for the given Context.
+         */
+        public static ContextData get(Context cx) {
+<span class="nc" id="L1090">            return (ContextData) cx.getDebuggerContextData();</span>
+        }
+
+        /**
+         * Returns the number of stack frames.
+         */
+        public int frameCount() {
+<span class="fc" id="L1097">            return frameStack.size();</span>
+        }
+
+        /**
+         * Returns the stack frame with the given index.
+         */
+        public StackFrame getFrame(int frameNumber) {
+<span class="fc" id="L1104">            int num = frameStack.size() - frameNumber - 1;</span>
+<span class="nc" id="L1105">            return (StackFrame) frameStack.get(num);</span>
+        }
+
+        /**
+         * Pushes a stack frame on to the stack.
+         */
+        private void pushFrame(StackFrame frame) {
+<span class="nc" id="L1112">            frameStack.push(frame);</span>
+<span class="nc" id="L1113">        }</span>
+
+        /**
+         * Pops a stack frame from the stack.
+         */
+        private void popFrame() {
+<span class="nc" id="L1119">            frameStack.pop();</span>
+<span class="nc" id="L1120">        }</span>
+    }
+
+    /**
+     * Object to represent one stack frame.
+     */
+    public static class StackFrame implements DebugFrame {
+
+        /**
+         * The debugger.
+         */
+        private Dim dim;
+
+        /**
+         * The ContextData for the Context being debugged.
+         */
+        private ContextData contextData;
+
+        /**
+         * The scope.
+         */
+        private Scriptable scope;
+
+        /**
+         * The 'this' object.
+         */
+        private Scriptable thisObj;
+
+        /**
+         * Information about the function.
+         */
+        private FunctionSource fsource;
+
+        /**
+         * Array of breakpoint state for each source line.
+         */
+        private boolean[] breakpoints;
+
+        /**
+         * Current line number.
+         */
+        private int lineNumber;
+
+        /**
+         * Creates a new StackFrame.
+         */
+<span class="nc" id="L1166">        private StackFrame(Context cx, Dim dim, FunctionSource fsource) {</span>
+<span class="nc" id="L1167">            this.dim = dim;</span>
+<span class="nc" id="L1168">            this.contextData = ContextData.get(cx);</span>
+<span class="nc" id="L1169">            this.fsource = fsource;</span>
+<span class="nc" id="L1170">            this.breakpoints = fsource.sourceInfo().breakpoints;</span>
+<span class="nc" id="L1171">            this.lineNumber = fsource.firstLine();</span>
+<span class="nc" id="L1172">        }</span>
+
+        /**
+         * Called when the stack frame is entered.
+         */
+        public void onEnter(Context cx, Scriptable scope,
+                            Scriptable thisObj, Object[] args) {
+<span class="nc" id="L1179">            contextData.pushFrame(this);</span>
+<span class="nc" id="L1180">            this.scope = scope;</span>
+<span class="nc" id="L1181">            this.thisObj = thisObj;</span>
+<span class="nc bnc" id="L1182" title="All 2 branches missed.">            if (dim.breakOnEnter) {</span>
+<span class="nc" id="L1183">                dim.handleBreakpointHit(this, cx);</span>
+            }
+<span class="nc" id="L1185">        }</span>
+
+        /**
+         * Called when the current position has changed.
+         */
+        public void onLineChange(Context cx, int lineno) {
+<span class="nc" id="L1191">            this.lineNumber = lineno;</span>
+
+<span class="nc bnc" id="L1193" title="All 4 branches missed.">            if (!breakpoints[lineno] &amp;&amp; !dim.breakFlag) {</span>
+<span class="nc" id="L1194">                boolean lineBreak = contextData.breakNextLine;</span>
+<span class="nc bnc" id="L1195" title="All 4 branches missed.">                if (lineBreak &amp;&amp; contextData.stopAtFrameDepth &gt;= 0) {</span>
+<span class="nc" id="L1196">                    lineBreak = (contextData.frameCount()</span>
+<span class="nc bnc" id="L1197" title="All 2 branches missed.">                                 &lt;= contextData.stopAtFrameDepth);</span>
+                }
+<span class="nc bnc" id="L1199" title="All 2 branches missed.">                if (!lineBreak) {</span>
+<span class="nc" id="L1200">                    return;</span>
+                }
+<span class="nc" id="L1202">                contextData.stopAtFrameDepth = -1;</span>
+<span class="nc" id="L1203">                contextData.breakNextLine = false;</span>
+            }
+
+<span class="nc" id="L1206">            dim.handleBreakpointHit(this, cx);</span>
+<span class="nc" id="L1207">        }</span>
+
+        /**
+         * Called when an exception has been thrown.
+         */
+        public void onExceptionThrown(Context cx, Throwable exception) {
+<span class="nc" id="L1213">            dim.handleExceptionThrown(cx, exception, this);</span>
+<span class="nc" id="L1214">        }</span>
+
+        /**
+         * Called when the stack frame has been left.
+         */
+        public void onExit(Context cx, boolean byThrow,
+                           Object resultOrException) {
+<span class="nc bnc" id="L1221" title="All 4 branches missed.">            if (dim.breakOnReturn &amp;&amp; !byThrow) {</span>
+<span class="nc" id="L1222">                dim.handleBreakpointHit(this, cx);</span>
+            }
+<span class="nc" id="L1224">            contextData.popFrame();</span>
+<span class="nc" id="L1225">        }</span>
+
+        /**
+         * Called when a 'debugger' statement is executed.
+         */
+        public void onDebuggerStatement(Context cx) {
+<span class="nc" id="L1231">            dim.handleBreakpointHit(this, cx);</span>
+<span class="nc" id="L1232">        }</span>
+
+        /**
+         * Returns the SourceInfo object for the function.
+         */
+        public SourceInfo sourceInfo() {
+<span class="nc" id="L1238">            return fsource.sourceInfo();</span>
+        }
+
+        /**
+         * Returns the ContextData object for the Context.
+         */
+        public ContextData contextData() {
+<span class="nc" id="L1245">            return contextData;</span>
+        }
+
+        /**
+         * Returns the scope object for this frame.
+         */
+        public Object scope() {
+<span class="nc" id="L1252">            return scope;</span>
+        }
+
+        /**
+         * Returns the 'this' object for this frame.
+         */
+        public Object thisObj() {
+<span class="nc" id="L1259">            return thisObj;</span>
+        }
+
+        /**
+         * Returns the source URL.
+         */
+        public String getUrl() {
+<span class="nc" id="L1266">            return fsource.sourceInfo().url();</span>
+        }
+
+        /**
+         * Returns the current line number.
+         */
+        public int getLineNumber() {
+<span class="nc" id="L1273">            return lineNumber;</span>
+        }
+        
+        /**
+         * Returns the current function name.
+         */
+        public String getFunctionName() {
+<span class="nc" id="L1280">            return fsource.name();</span>
+        }
+    }
+
+    /**
+     * Class to store information about a function.
+     */
+    public static class FunctionSource {
+
+        /**
+         * Information about the source of the function.
+         */
+        private SourceInfo sourceInfo;
+
+        /**
+         * Line number of the first line of the function.
+         */
+        private int firstLine;
+
+        /**
+         * The function name.
+         */
+        private String name;
+
+        /**
+         * Creates a new FunctionSource.
+         */
+        private FunctionSource(SourceInfo sourceInfo, int firstLine,
+<span class="fc" id="L1308">                                 String name) {</span>
+<span class="pc bpc" id="L1309" title="1 of 2 branches missed.">            if (name == null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L1310">            this.sourceInfo = sourceInfo;</span>
+<span class="fc" id="L1311">            this.firstLine = firstLine;</span>
+<span class="fc" id="L1312">            this.name = name;</span>
+<span class="fc" id="L1313">        }</span>
+
+        /**
+         * Returns the SourceInfo object that describes the source of the
+         * function.
+         */
+        public SourceInfo sourceInfo() {
+<span class="nc" id="L1320">            return sourceInfo;</span>
+        }
+
+        /**
+         * Returns the line number of the first line of the function.
+         */
+        public int firstLine() {
+<span class="nc" id="L1327">            return firstLine;</span>
+        }
+
+        /**
+         * Returns the name of the function.
+         */
+        public String name() {
+<span class="fc" id="L1334">            return name;</span>
+        }
+    }
+
+    /**
+     * Class to store information about a script source.
+     */
+    public static class SourceInfo {
+
+        /**
+         * An empty array of booleans.
+         */
+<span class="fc" id="L1346">        private static final boolean[] EMPTY_BOOLEAN_ARRAY = new boolean[0];</span>
+
+        /**
+         * The script.
+         */
+        private String source;
+
+        /**
+         * The URL of the script.
+         */
+        private String url;
+
+        /**
+         * Array indicating which lines can have breakpoints set.
+         */
+        private boolean[] breakableLines;
+
+        /**
+         * Array indicating whether a breakpoint is set on the line.
+         */
+        private boolean[] breakpoints;
+
+        /**
+         * Array of FunctionSource objects for the functions in the script.
+         */
+        private FunctionSource[] functionSources;
+
+        /**
+         * Creates a new SourceInfo object.
+         */
+        private SourceInfo(String source, DebuggableScript[] functions,
+<span class="fc" id="L1377">                             String normilizedUrl) {</span>
+<span class="fc" id="L1378">            this.source = source;</span>
+<span class="fc" id="L1379">            this.url = normilizedUrl;</span>
+
+<span class="fc" id="L1381">            int N = functions.length;</span>
+<span class="fc" id="L1382">            int[][] lineArrays = new int[N][];</span>
+<span class="fc bfc" id="L1383" title="All 2 branches covered.">            for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L1384">                lineArrays[i] = functions[i].getLineNumbers();</span>
+            }
+
+<span class="fc" id="L1387">            int minAll = 0, maxAll = -1;</span>
+<span class="fc" id="L1388">            int[] firstLines = new int[N];</span>
+<span class="fc bfc" id="L1389" title="All 2 branches covered.">            for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L1390">                int[] lines = lineArrays[i];</span>
+<span class="pc bpc" id="L1391" title="2 of 4 branches missed.">                if (lines == null || lines.length == 0) {</span>
+<span class="nc" id="L1392">                    firstLines[i] = -1;</span>
+                } else {
+                    int min, max;
+<span class="fc" id="L1395">                    min = max = lines[0];</span>
+<span class="pc bpc" id="L1396" title="1 of 2 branches missed.">                    for (int j = 1; j != lines.length; ++j) {</span>
+<span class="nc" id="L1397">                        int line = lines[j];</span>
+<span class="nc bnc" id="L1398" title="All 2 branches missed.">                        if (line &lt; min) {</span>
+<span class="nc" id="L1399">                            min = line;</span>
+<span class="nc bnc" id="L1400" title="All 2 branches missed.">                        } else if (line &gt; max) {</span>
+<span class="nc" id="L1401">                            max = line;</span>
+                        }
+                    }
+<span class="fc" id="L1404">                    firstLines[i] = min;</span>
+<span class="pc bpc" id="L1405" title="1 of 2 branches missed.">                    if (minAll &gt; maxAll) {</span>
+<span class="fc" id="L1406">                        minAll = min;</span>
+<span class="fc" id="L1407">                        maxAll = max;</span>
+                    } else {
+<span class="nc bnc" id="L1409" title="All 2 branches missed.">                        if (min &lt; minAll) {</span>
+<span class="nc" id="L1410">                            minAll = min;</span>
+                        }
+<span class="nc bnc" id="L1412" title="All 2 branches missed.">                        if (max &gt; maxAll) {</span>
+<span class="nc" id="L1413">                            maxAll = max;</span>
+                        }
+                    }
+                }
+            }
+
+<span class="pc bpc" id="L1419" title="1 of 2 branches missed.">            if (minAll &gt; maxAll) {</span>
+                // No line information
+<span class="nc" id="L1421">                this.breakableLines = EMPTY_BOOLEAN_ARRAY;</span>
+<span class="nc" id="L1422">                this.breakpoints = EMPTY_BOOLEAN_ARRAY;</span>
+            } else {
+<span class="pc bpc" id="L1424" title="1 of 2 branches missed.">                if (minAll &lt; 0) {</span>
+                    // Line numbers can not be negative
+<span class="nc" id="L1426">                    throw new IllegalStateException(String.valueOf(minAll));</span>
+                }
+<span class="fc" id="L1428">                int linesTop = maxAll + 1;</span>
+<span class="fc" id="L1429">                this.breakableLines = new boolean[linesTop];</span>
+<span class="fc" id="L1430">                this.breakpoints = new boolean[linesTop];</span>
+<span class="fc bfc" id="L1431" title="All 2 branches covered.">                for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L1432">                    int[] lines = lineArrays[i];</span>
+<span class="pc bpc" id="L1433" title="2 of 4 branches missed.">                    if (lines != null &amp;&amp; lines.length != 0) {</span>
+<span class="fc bfc" id="L1434" title="All 2 branches covered.">                        for (int j = 0; j != lines.length; ++j) {</span>
+<span class="fc" id="L1435">                            int line = lines[j];</span>
+<span class="fc" id="L1436">                            this.breakableLines[line] = true;</span>
+                        }
+                    }
+                }
+            }
+<span class="fc" id="L1441">            this.functionSources = new FunctionSource[N];</span>
+<span class="fc bfc" id="L1442" title="All 2 branches covered.">            for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L1443">                String name = functions[i].getFunctionName();</span>
+<span class="pc bpc" id="L1444" title="1 of 2 branches missed.">                if (name == null) {</span>
+<span class="fc" id="L1445">                    name = &quot;&quot;;</span>
+                }
+<span class="fc" id="L1447">                this.functionSources[i]</span>
+                    = new FunctionSource(this, firstLines[i], name);
+            }
+<span class="fc" id="L1450">        }</span>
+
+        /**
+         * Returns the source text.
+         */
+        public String source() {
+<span class="nc" id="L1456">            return this.source;</span>
+        }
+
+        /**
+         * Returns the script's origin URL.
+         */
+        public String url() {
+<span class="nc" id="L1463">            return this.url;</span>
+        }
+
+        /**
+         * Returns the number of FunctionSource objects stored in this object.
+         */
+        public int functionSourcesTop() {
+<span class="fc" id="L1470">            return functionSources.length;</span>
+        }
+
+        /**
+         * Returns the FunctionSource object with the given index.
+         */
+        public FunctionSource functionSource(int i) {
+<span class="fc" id="L1477">            return functionSources[i];</span>
+        }
+
+        /**
+         * Copies the breakpoints from the given SourceInfo object into this
+         * one.
+         */
+        private void copyBreakpointsFrom(SourceInfo old) {
+<span class="nc" id="L1485">            int end = old.breakpoints.length;</span>
+<span class="nc bnc" id="L1486" title="All 2 branches missed.">            if (end &gt; this.breakpoints.length) {</span>
+<span class="nc" id="L1487">                end = this.breakpoints.length;</span>
+            }
+<span class="nc bnc" id="L1489" title="All 2 branches missed.">            for (int line = 0; line != end; ++line) {</span>
+<span class="nc bnc" id="L1490" title="All 2 branches missed.">                if (old.breakpoints[line]) {</span>
+<span class="nc" id="L1491">                    this.breakpoints[line] = true;</span>
+                }
+            }
+<span class="nc" id="L1494">        }</span>
+
+        /**
+         * Returns whether the given line number can have a breakpoint set on
+         * it.
+         */
+        public boolean breakableLine(int line) {
+<span class="nc bnc" id="L1501" title="All 4 branches missed.">            return (line &lt; this.breakableLines.length)</span>
+                   &amp;&amp; this.breakableLines[line];
+        }
+
+        /**
+         * Returns whether there is a breakpoint set on the given line.
+         */
+        public boolean breakpoint(int line) {
+<span class="nc bnc" id="L1509" title="All 2 branches missed.">            if (!breakableLine(line)) {</span>
+<span class="nc" id="L1510">                throw new IllegalArgumentException(String.valueOf(line));</span>
+            }
+<span class="nc bnc" id="L1512" title="All 4 branches missed.">            return line &lt; this.breakpoints.length &amp;&amp; this.breakpoints[line];</span>
+        }
+
+        /**
+         * Sets or clears the breakpoint flag for the given line.
+         */
+        public boolean breakpoint(int line, boolean value) {
+<span class="nc bnc" id="L1519" title="All 2 branches missed.">            if (!breakableLine(line)) {</span>
+<span class="nc" id="L1520">                throw new IllegalArgumentException(String.valueOf(line));</span>
+            }
+            boolean changed;
+<span class="nc" id="L1523">            synchronized (breakpoints) {</span>
+<span class="nc bnc" id="L1524" title="All 2 branches missed.">                if (breakpoints[line] != value) {</span>
+<span class="nc" id="L1525">                    breakpoints[line] = value;</span>
+<span class="nc" id="L1526">                    changed = true;</span>
+                } else {
+<span class="nc" id="L1528">                    changed = false;</span>
+                }
+<span class="nc" id="L1530">            }</span>
+<span class="nc" id="L1531">            return changed;</span>
+        }
+
+        /**
+         * Removes all breakpoints from the script.
+         */
+        public void removeAllBreakpoints() {
+<span class="nc" id="L1538">            synchronized (breakpoints) {</span>
+<span class="nc bnc" id="L1539" title="All 2 branches missed.">                for (int line = 0; line != breakpoints.length; ++line) {</span>
+<span class="nc" id="L1540">                    breakpoints[line] = false;</span>
+                }
+<span class="nc" id="L1542">            }</span>
+<span class="nc" id="L1543">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,610 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BaseFunction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">BaseFunction.java</span></div><h1>BaseFunction.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * The base class for Function objects
+ * See ECMA 15.3.
+ * @author Norris Boyd
+ */
+public class BaseFunction extends IdScriptableObject implements Function
+{
+
+    static final long serialVersionUID = 5311394446546053859L;
+
+<span class="fc" id="L19">    private static final Object FUNCTION_TAG = &quot;Function&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L23">        BaseFunction obj = new BaseFunction();</span>
+        // Function.prototype attributes: see ECMA 15.3.3.1
+<span class="fc" id="L25">        obj.prototypePropertyAttributes = DONTENUM | READONLY | PERMANENT;</span>
+<span class="fc" id="L26">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L27">    }</span>
+
+    public BaseFunction()
+<span class="fc" id="L30">    {</span>
+<span class="fc" id="L31">    }</span>
+
+    public BaseFunction(Scriptable scope, Scriptable prototype)
+    {
+<span class="fc" id="L35">        super(scope, prototype);</span>
+<span class="fc" id="L36">    }</span>
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L40">        return &quot;Function&quot;;</span>
+    }
+
+    /**
+     * Gets the value returned by calling the typeof operator on this object.
+     * @see org.mozilla.javascript.ScriptableObject#getTypeOf()
+     * @return &quot;function&quot; or &quot;undefined&quot; if {@link #avoidObjectDetection()} returns &lt;code&gt;true&lt;/code&gt;
+     */
+    @Override
+    public String getTypeOf()
+    {
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        return avoidObjectDetection() ? &quot;undefined&quot; : &quot;function&quot;;</span>
+    }
+
+    /**
+     * Implements the instanceof operator for JavaScript Function objects.
+     * &lt;p&gt;
+     * &lt;code&gt;
+     * foo = new Foo();&lt;br&gt;
+     * foo instanceof Foo;  // true&lt;br&gt;
+     * &lt;/code&gt;
+     *
+     * @param instance The value that appeared on the LHS of the instanceof
+     *              operator
+     * @return true if the &quot;prototype&quot; property of &quot;this&quot; appears in
+     *              value's prototype chain
+     *
+     */
+    @Override
+    public boolean hasInstance(Scriptable instance)
+    {
+<span class="fc" id="L71">        Object protoProp = ScriptableObject.getProperty(this, &quot;prototype&quot;);</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (protoProp instanceof Scriptable) {</span>
+<span class="fc" id="L73">            return ScriptRuntime.jsDelegatesTo(instance, (Scriptable)protoProp);</span>
+        }
+<span class="nc" id="L75">        throw ScriptRuntime.typeError1(&quot;msg.instanceof.bad.prototype&quot;,</span>
+<span class="nc" id="L76">                                       getFunctionName());</span>
+    }
+
+// #string_id_map#
+
+    private static final int
+        Id_length       = 1,
+        Id_arity        = 2,
+        Id_name         = 3,
+        Id_prototype    = 4,
+        Id_arguments    = 5,
+
+        MAX_INSTANCE_ID = 5;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L93">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:15 EDT
+<span class="fc" id="L101">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc bfc" id="L102" title="All 5 branches covered.">            L: switch (s.length()) {</span>
+<span class="fc" id="L103">            case 4: X=&quot;name&quot;;id=Id_name; break L;</span>
+<span class="fc" id="L104">            case 5: X=&quot;arity&quot;;id=Id_arity; break L;</span>
+<span class="fc" id="L105">            case 6: X=&quot;length&quot;;id=Id_length; break L;</span>
+<span class="fc" id="L106">            case 9: c=s.charAt(0);</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                if (c=='a') { X=&quot;arguments&quot;;id=Id_arguments; }</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">                else if (c=='p') { X=&quot;prototype&quot;;id=Id_prototype; }</span>
+                break L;
+            }
+<span class="fc bfc" id="L111" title="All 6 branches covered.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+// #/string_id_map#
+
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="pc bpc" id="L120" title="1 of 4 branches missed.">        switch (id) {</span>
+          case Id_length:
+          case Id_arity:
+          case Id_name:
+<span class="fc" id="L124">            attr = DONTENUM | READONLY | PERMANENT;</span>
+<span class="fc" id="L125">            break;</span>
+          case Id_prototype:
+            // some functions such as built-ins don't have a prototype property
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (!hasPrototypeProperty()) {</span>
+<span class="fc" id="L129">                return 0;</span>
+            }
+<span class="fc" id="L131">            attr = prototypePropertyAttributes;</span>
+<span class="fc" id="L132">            break;</span>
+          case Id_arguments:
+<span class="fc" id="L134">            attr = argumentsAttributes;</span>
+<span class="fc" id="L135">            break;</span>
+<span class="nc" id="L136">          default: throw new IllegalStateException();</span>
+        }
+<span class="fc" id="L138">        return instanceIdInfo(attr, id);</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L144" title="1 of 6 branches missed.">        switch (id) {</span>
+<span class="fc" id="L145">            case Id_length:       return &quot;length&quot;;</span>
+<span class="fc" id="L146">            case Id_arity:        return &quot;arity&quot;;</span>
+<span class="fc" id="L147">            case Id_name:         return &quot;name&quot;;</span>
+<span class="fc" id="L148">            case Id_prototype:    return &quot;prototype&quot;;</span>
+<span class="fc" id="L149">            case Id_arguments:    return &quot;arguments&quot;;</span>
+        }
+<span class="nc" id="L151">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L157" title="3 of 6 branches missed.">        switch (id) {</span>
+<span class="fc" id="L158">          case Id_length:    return ScriptRuntime.wrapInt(getLength());</span>
+<span class="nc" id="L159">          case Id_arity:     return ScriptRuntime.wrapInt(getArity());</span>
+<span class="fc" id="L160">          case Id_name:      return getFunctionName();</span>
+<span class="fc" id="L161">          case Id_prototype: return getPrototypeProperty();</span>
+<span class="nc" id="L162">          case Id_arguments: return getArguments();</span>
+        }
+<span class="nc" id="L164">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="pc bpc" id="L170" title="3 of 4 branches missed.">        switch (id) {</span>
+            case Id_prototype:
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                if ((prototypePropertyAttributes &amp; READONLY) == 0) {</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                    prototypeProperty = (value != null)</span>
+                                        ? value : UniqueTag.NULL_VALUE;
+                }
+<span class="nc" id="L176">                return;</span>
+            case Id_arguments:
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                if (value == NOT_FOUND) {</span>
+                    // This should not be called since &quot;arguments&quot; is PERMANENT
+<span class="nc" id="L180">                    Kit.codeBug();</span>
+                }
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                if (defaultHas(&quot;arguments&quot;)) {</span>
+<span class="nc" id="L183">                    defaultPut(&quot;arguments&quot;, value);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                } else if ((argumentsAttributes &amp; READONLY) == 0) {</span>
+<span class="nc" id="L185">                    argumentsObj = value;</span>
+                }
+<span class="nc" id="L187">                return;</span>
+            case Id_name:
+            case Id_arity:
+            case Id_length:
+<span class="fc" id="L191">                return;</span>
+        }
+<span class="nc" id="L193">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L194">    }</span>
+
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr)
+    {
+<span class="pc bpc" id="L199" title="2 of 3 branches missed.">        switch (id) {</span>
+            case Id_prototype:
+<span class="fc" id="L201">                prototypePropertyAttributes = attr;</span>
+<span class="fc" id="L202">                return;</span>
+            case Id_arguments:
+<span class="nc" id="L204">                argumentsAttributes = attr;</span>
+<span class="nc" id="L205">                return;</span>
+        }
+<span class="nc" id="L207">        super.setInstanceIdAttributes(id, attr);</span>
+<span class="nc" id="L208">    }</span>
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+        // Fix up bootstrapping problem: getPrototype of the IdFunctionObject
+        // can not return Function.prototype because Function object is not
+        // yet defined.
+<span class="fc" id="L216">        ctor.setPrototype(this);</span>
+<span class="fc" id="L217">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L218">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L225" title="5 of 7 branches missed.">        switch (id) {</span>
+<span class="fc" id="L226">          case Id_constructor: arity=1; s=&quot;constructor&quot;; break;</span>
+<span class="fc" id="L227">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="nc" id="L228">          case Id_toSource:    arity=1; s=&quot;toSource&quot;;    break;</span>
+<span class="nc" id="L229">          case Id_apply:       arity=2; s=&quot;apply&quot;;       break;</span>
+<span class="nc" id="L230">          case Id_call:        arity=1; s=&quot;call&quot;;        break;</span>
+<span class="nc" id="L231">          case Id_bind:        arity=1; s=&quot;bind&quot;;        break;</span>
+<span class="nc" id="L232">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L234">        initPrototypeMethod(FUNCTION_TAG, id, s, arity);</span>
+<span class="fc" id="L235">    }</span>
+
+    static boolean isApply(IdFunctionObject f) {
+<span class="nc bnc" id="L238" title="All 4 branches missed.">        return f.hasTag(FUNCTION_TAG) &amp;&amp; f.methodId() == Id_apply;</span>
+    }
+
+    static boolean isApplyOrCall(IdFunctionObject f) {
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        if(f.hasTag(FUNCTION_TAG)) {</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">            switch(f.methodId()) {</span>
+                case Id_apply:
+                case Id_call:
+<span class="nc" id="L246">                    return true;</span>
+            }
+        }
+<span class="fc" id="L249">        return false;</span>
+    }
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">        if (!f.hasTag(FUNCTION_TAG)) {</span>
+<span class="nc" id="L257">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L259">        int id = f.methodId();</span>
+<span class="pc bpc" id="L260" title="5 of 6 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="nc" id="L262">            return jsConstructor(cx, scope, args);</span>
+
+          case Id_toString: {
+<span class="fc" id="L265">            BaseFunction realf = realFunction(thisObj, f);</span>
+<span class="fc" id="L266">            int indent = ScriptRuntime.toInt32(args, 0);</span>
+<span class="fc" id="L267">            return realf.decompile(indent, 0);</span>
+          }
+
+          case Id_toSource: {
+<span class="nc" id="L271">            BaseFunction realf = realFunction(thisObj, f);</span>
+<span class="nc" id="L272">            int indent = 0;</span>
+<span class="nc" id="L273">            int flags = Decompiler.TO_SOURCE_FLAG;</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">            if (args.length != 0) {</span>
+<span class="nc" id="L275">                indent = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">                if (indent &gt;= 0) {</span>
+<span class="nc" id="L277">                    flags = 0;</span>
+                } else {
+<span class="nc" id="L279">                    indent = 0;</span>
+                }
+            }
+<span class="nc" id="L282">            return realf.decompile(indent, flags);</span>
+          }
+
+          case Id_apply:
+          case Id_call:
+<span class="nc bnc" id="L287" title="All 2 branches missed.">            return ScriptRuntime.applyOrCall(id == Id_apply,</span>
+                                             cx, scope, thisObj, args);
+
+          case Id_bind:
+<span class="nc bnc" id="L291" title="All 2 branches missed.">            if ( !(thisObj instanceof Callable) ) {</span>
+<span class="nc" id="L292">              throw ScriptRuntime.notFunctionError(thisObj);</span>
+            }
+<span class="nc" id="L294">            Callable targetFunction = (Callable) thisObj;</span>
+<span class="nc" id="L295">            int argc = args.length;</span>
+            final Scriptable boundThis;
+            final Object[] boundArgs;
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            if (argc &gt; 0) {</span>
+<span class="nc" id="L299">              boundThis = ScriptRuntime.toObjectOrNull(cx, args[0], scope);</span>
+<span class="nc" id="L300">              boundArgs = new Object[argc-1];</span>
+<span class="nc" id="L301">              System.arraycopy(args, 1, boundArgs, 0, argc-1);</span>
+            } else {
+<span class="nc" id="L303">              boundThis = null;</span>
+<span class="nc" id="L304">              boundArgs = ScriptRuntime.emptyArgs;</span>
+            }
+<span class="nc" id="L306">            return new BoundFunction(cx, scope, targetFunction, boundThis, boundArgs);</span>
+        }
+<span class="nc" id="L308">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private BaseFunction realFunction(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="fc" id="L313">        Object x = thisObj.getDefaultValue(ScriptRuntime.FunctionClass);</span>
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">        if (x instanceof Delegator) {</span>
+<span class="nc" id="L315">            x = ((Delegator)x).getDelegee();</span>
+        }
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        if (x instanceof BaseFunction) {</span>
+<span class="fc" id="L318">            return (BaseFunction)x;</span>
+        }
+<span class="nc" id="L320">        throw ScriptRuntime.typeError1(&quot;msg.incompat.call&quot;,</span>
+<span class="nc" id="L321">                                       f.getFunctionName());</span>
+    }
+
+    /**
+     * Make value as DontEnum, DontDelete, ReadOnly
+     * prototype property of this Function object
+     */
+    public void setImmunePrototypeProperty(Object value)
+    {
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">        if ((prototypePropertyAttributes &amp; READONLY) != 0) {</span>
+<span class="nc" id="L331">            throw new IllegalStateException();</span>
+        }
+<span class="pc bpc" id="L333" title="1 of 2 branches missed.">        prototypeProperty = (value != null) ? value : UniqueTag.NULL_VALUE;</span>
+<span class="fc" id="L334">        prototypePropertyAttributes = DONTENUM | PERMANENT | READONLY;</span>
+<span class="fc" id="L335">    }</span>
+
+    protected Scriptable getClassPrototype()
+    {
+<span class="fc" id="L339">        Object protoVal = getPrototypeProperty();</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        if (protoVal instanceof Scriptable) {</span>
+<span class="fc" id="L341">            return (Scriptable) protoVal;</span>
+        }
+<span class="nc" id="L343">        return ScriptableObject.getObjectPrototype(this);</span>
+    }
+
+    /**
+     * Should be overridden.
+     */
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="fc" id="L352">        return Undefined.instance;</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="fc" id="L357">        Scriptable result = createObject(cx, scope);</span>
+<span class="pc bpc" id="L358" title="1 of 2 branches missed.">        if (result != null) {</span>
+<span class="nc" id="L359">            Object val = call(cx, scope, result, args);</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">            if (val instanceof Scriptable) {</span>
+<span class="nc" id="L361">                result = (Scriptable)val;</span>
+            }
+<span class="nc" id="L363">        } else {</span>
+<span class="fc" id="L364">            Object val = call(cx, scope, null, args);</span>
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">            if (!(val instanceof Scriptable)) {</span>
+                // It is program error not to return Scriptable from
+                // the call method if createObject returns null.
+<span class="nc" id="L368">                throw new IllegalStateException(</span>
+                    &quot;Bad implementaion of call as constructor, name=&quot;
+<span class="nc" id="L370">                    +getFunctionName()+&quot; in &quot;+getClass().getName());</span>
+            }
+<span class="fc" id="L372">            result = (Scriptable)val;</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">            if (result.getPrototype() == null) {</span>
+<span class="fc" id="L374">                Scriptable proto = getClassPrototype();</span>
+<span class="pc bpc" id="L375" title="1 of 2 branches missed.">                if (result != proto) {</span>
+<span class="fc" id="L376">                    result.setPrototype(proto);</span>
+                }
+            }
+<span class="fc bfc" id="L379" title="All 2 branches covered.">            if (result.getParentScope() == null) {</span>
+<span class="fc" id="L380">                Scriptable parent = getParentScope();</span>
+<span class="pc bpc" id="L381" title="1 of 2 branches missed.">                if (result != parent) {</span>
+<span class="fc" id="L382">                    result.setParentScope(parent);</span>
+                }
+            }
+        }
+<span class="fc" id="L386">        return result;</span>
+    }
+
+    /**
+     * Creates new script object.
+     * The default implementation of {@link #construct} uses the method to
+     * to get the value for &lt;tt&gt;thisObj&lt;/tt&gt; argument when invoking
+     * {@link #call}.
+     * The methos is allowed to return &lt;tt&gt;null&lt;/tt&gt; to indicate that
+     * {@link #call} will create a new object itself. In this case
+     * {@link #construct} will set scope and prototype on the result
+     * {@link #call} unless they are already set.
+     */
+    public Scriptable createObject(Context cx, Scriptable scope)
+    {
+<span class="fc" id="L401">        Scriptable newInstance = new NativeObject();</span>
+<span class="fc" id="L402">        newInstance.setPrototype(getClassPrototype());</span>
+<span class="fc" id="L403">        newInstance.setParentScope(getParentScope());</span>
+<span class="fc" id="L404">        return newInstance;</span>
+    }
+
+    /**
+     * Decompile the source information associated with this js
+     * function/script back into a string.
+     *
+     * @param indent How much to indent the decompiled result.
+     *
+     * @param flags Flags specifying format of decompilation output.
+     */
+    String decompile(int indent, int flags)
+    {
+<span class="nc" id="L417">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        boolean justbody = (0 != (flags &amp; Decompiler.ONLY_BODY_FLAG));</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">        if (!justbody) {</span>
+<span class="nc" id="L420">            sb.append(&quot;function &quot;);</span>
+<span class="nc" id="L421">            sb.append(getFunctionName());</span>
+<span class="nc" id="L422">            sb.append(&quot;() {\n\t&quot;);</span>
+        }
+<span class="nc" id="L424">        sb.append(&quot;[native code, arity=&quot;);</span>
+<span class="nc" id="L425">        sb.append(getArity());</span>
+<span class="nc" id="L426">        sb.append(&quot;]\n&quot;);</span>
+<span class="nc bnc" id="L427" title="All 2 branches missed.">        if (!justbody) {</span>
+<span class="nc" id="L428">            sb.append(&quot;}\n&quot;);</span>
+        }
+<span class="nc" id="L430">        return sb.toString();</span>
+    }
+
+<span class="nc" id="L433">    public int getArity() { return 0; }</span>
+
+<span class="nc" id="L435">    public int getLength() { return 0; }</span>
+
+    public String getFunctionName() {
+<span class="nc" id="L438">        return &quot;&quot;;</span>
+    }
+
+    protected boolean hasPrototypeProperty() {
+<span class="fc bfc" id="L442" title="All 4 branches covered.">        return prototypeProperty != null || this instanceof NativeFunction;</span>
+    }
+
+    protected Object getPrototypeProperty() {
+<span class="fc" id="L446">        Object result = prototypeProperty;</span>
+<span class="fc bfc" id="L447" title="All 2 branches covered.">        if (result == null) {</span>
+            // only create default prototype on native JavaScript functions,
+            // not on built-in functions, java methods, host objects etc.
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">            if (this instanceof NativeFunction) {</span>
+<span class="fc" id="L451">                result = setupDefaultPrototype();</span>
+            } else {
+<span class="nc" id="L453">                result = Undefined.instance;</span>
+            }
+<span class="pc bpc" id="L455" title="1 of 2 branches missed.">        } else if (result == UniqueTag.NULL_VALUE) {</span>
+<span class="nc" id="L456">            result = null;</span>
+        }
+<span class="fc" id="L458">        return result;</span>
+    }
+
+    private synchronized Object setupDefaultPrototype() {
+<span class="pc bpc" id="L462" title="1 of 2 branches missed.">        if (prototypeProperty != null) {</span>
+<span class="nc" id="L463">            return prototypeProperty;</span>
+        }
+<span class="fc" id="L465">        NativeObject obj = new NativeObject();</span>
+<span class="fc" id="L466">        final int attr = ScriptableObject.DONTENUM;</span>
+<span class="fc" id="L467">        obj.defineProperty(&quot;constructor&quot;, this, attr);</span>
+        // put the prototype property into the object now, then in the
+        // wacky case of a user defining a function Object(), we don't
+        // get an infinite loop trying to find the prototype.
+<span class="fc" id="L471">        prototypeProperty = obj;</span>
+<span class="fc" id="L472">        Scriptable proto = getObjectPrototype(this);</span>
+<span class="pc bpc" id="L473" title="1 of 2 branches missed.">        if (proto != obj) {</span>
+            // not the one we just made, it must remain grounded
+<span class="fc" id="L475">            obj.setPrototype(proto);</span>
+        }
+<span class="fc" id="L477">        return obj;</span>
+    }
+
+    private Object getArguments()
+    {
+      // &lt;Function name&gt;.arguments is deprecated, so we use a slow
+      // way of getting it that doesn't add to the invocation cost.
+      // TODO: add warning, error based on version
+<span class="nc bnc" id="L485" title="All 2 branches missed.">      Object value = defaultHas(&quot;arguments&quot;) ? defaultGet(&quot;arguments&quot;) : argumentsObj;</span>
+<span class="nc bnc" id="L486" title="All 2 branches missed.">      if (value != NOT_FOUND) {</span>
+          // Should after changing &lt;Function name&gt;.arguments its
+          // activation still be available during Function call?
+          // This code assumes it should not:
+          // defaultGet(&quot;arguments&quot;) != NOT_FOUND
+          // means assigned arguments
+<span class="nc" id="L492">          return value;</span>
+      }
+<span class="nc" id="L494">      Context cx = Context.getContext();</span>
+<span class="nc" id="L495">      NativeCall activation = ScriptRuntime.findFunctionActivation(cx, this);</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">      return (activation == null)</span>
+             ? null
+<span class="nc" id="L498">             : activation.get(&quot;arguments&quot;, activation);</span>
+    }
+
+    private static Object jsConstructor(Context cx, Scriptable scope,
+                                        Object[] args)
+    {
+<span class="nc" id="L504">        int arglen = args.length;</span>
+<span class="nc" id="L505">        StringBuilder sourceBuf = new StringBuilder();</span>
+
+<span class="nc" id="L507">        sourceBuf.append(&quot;function &quot;);</span>
+        /* version != 1.2 Function constructor behavior -
+         * print 'anonymous' as the function name if the
+         * version (under which the function was compiled) is
+         * less than 1.2... or if it's greater than 1.2, because
+         * we need to be closer to ECMA.
+         */
+<span class="nc bnc" id="L514" title="All 2 branches missed.">        if (cx.getLanguageVersion() != Context.VERSION_1_2) {</span>
+<span class="nc" id="L515">            sourceBuf.append(&quot;anonymous&quot;);</span>
+        }
+<span class="nc" id="L517">        sourceBuf.append('(');</span>
+
+        // Append arguments as coma separated strings
+<span class="nc bnc" id="L520" title="All 2 branches missed.">        for (int i = 0; i &lt; arglen - 1; i++) {</span>
+<span class="nc bnc" id="L521" title="All 2 branches missed.">            if (i &gt; 0) {</span>
+<span class="nc" id="L522">                sourceBuf.append(',');</span>
+            }
+<span class="nc" id="L524">            sourceBuf.append(ScriptRuntime.toString(args[i]));</span>
+        }
+<span class="nc" id="L526">        sourceBuf.append(&quot;) {&quot;);</span>
+<span class="nc bnc" id="L527" title="All 2 branches missed.">        if (arglen != 0) {</span>
+            // append function body
+<span class="nc" id="L529">            String funBody = ScriptRuntime.toString(args[arglen - 1]);</span>
+<span class="nc" id="L530">            sourceBuf.append(funBody);</span>
+        }
+<span class="nc" id="L532">        sourceBuf.append(&quot;\n}&quot;);</span>
+<span class="nc" id="L533">        String source = sourceBuf.toString();</span>
+
+<span class="nc" id="L535">        int[] linep = new int[1];</span>
+<span class="nc" id="L536">        String filename = Context.getSourcePositionFromStack(linep);</span>
+<span class="nc bnc" id="L537" title="All 2 branches missed.">        if (filename == null) {</span>
+<span class="nc" id="L538">            filename = &quot;&lt;eval'ed string&gt;&quot;;</span>
+<span class="nc" id="L539">            linep[0] = 1;</span>
+        }
+
+<span class="nc" id="L542">        String sourceURI = ScriptRuntime.</span>
+<span class="nc" id="L543">            makeUrlForGeneratedScript(false, filename, linep[0]);</span>
+
+<span class="nc" id="L545">        Scriptable global = ScriptableObject.getTopLevelScope(scope);</span>
+
+        ErrorReporter reporter;
+<span class="nc" id="L548">        reporter = DefaultErrorReporter.forEval(cx.getErrorReporter());</span>
+
+<span class="nc" id="L550">        Evaluator evaluator = Context.createInterpreter();</span>
+<span class="nc bnc" id="L551" title="All 2 branches missed.">        if (evaluator == null) {</span>
+<span class="nc" id="L552">            throw new JavaScriptException(&quot;Interpreter not present&quot;,</span>
+                    filename, linep[0]);
+        }
+
+        // Compile with explicit interpreter instance to force interpreter
+        // mode.
+<span class="nc" id="L558">        return cx.compileFunction(global, source, evaluator, reporter,</span>
+                                  sourceURI, 1, null);
+    }
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #string_id_map#
+// #generated# Last update: 2009-07-24 16:00:52 EST
+<span class="fc" id="L568">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc bfc" id="L569" title="All 5 branches covered.">            L: switch (s.length()) {</span>
+<span class="fc" id="L570">            case 4: c=s.charAt(0);</span>
+<span class="pc bpc" id="L571" title="1 of 2 branches missed.">                if (c=='b') { X=&quot;bind&quot;;id=Id_bind; }</span>
+<span class="pc bpc" id="L572" title="1 of 2 branches missed.">                else if (c=='c') { X=&quot;call&quot;;id=Id_call; }</span>
+                break L;
+<span class="fc" id="L574">            case 5: X=&quot;apply&quot;;id=Id_apply; break L;</span>
+<span class="fc" id="L575">            case 8: c=s.charAt(3);</span>
+<span class="pc bpc" id="L576" title="1 of 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="pc bpc" id="L577" title="1 of 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+<span class="fc" id="L579">            case 11: X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+            }
+<span class="pc bpc" id="L581" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L585">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor    = 1,
+        Id_toString       = 2,
+        Id_toSource       = 3,
+        Id_apply          = 4,
+        Id_call           = 5,
+        Id_bind           = 6,
+
+        MAX_PROTOTYPE_ID  = Id_bind;
+
+// #/string_id_map#
+
+    private Object prototypeProperty;
+<span class="fc" id="L601">    private Object argumentsObj = NOT_FOUND;</span>
+
+    // For function object instances, attributes are
+    //  {configurable:false, enumerable:false};
+    // see ECMA 15.3.5.2
+<span class="fc" id="L606">    private int prototypePropertyAttributes = PERMANENT|DONTENUM;</span>
+<span class="fc" id="L607">    private int argumentsAttributes = PERMANENT|DONTENUM;</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

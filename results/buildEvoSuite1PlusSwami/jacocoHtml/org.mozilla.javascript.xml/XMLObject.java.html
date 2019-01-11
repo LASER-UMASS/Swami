@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xml</a> &gt; <span class="el_source">XMLObject.java</span></div><h1>XMLObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xml;
+
+import org.mozilla.javascript.*;
+
+/**
+ *  This Interface describes what all XML objects (XML, XMLList) should have in common.
+ *
+ */
+public abstract class XMLObject extends IdScriptableObject
+{
+    
+    static final long serialVersionUID = 8455156490438576500L;
+    
+    public XMLObject()
+<span class="fc" id="L21">    {</span>
+<span class="fc" id="L22">    }</span>
+
+    public XMLObject(Scriptable scope, Scriptable prototype)
+    {
+<span class="nc" id="L26">        super(scope, prototype);</span>
+<span class="nc" id="L27">    }</span>
+
+    /**
+     * Implementation of ECMAScript [[Has]].
+     */
+    public abstract boolean has(Context cx, Object id);
+
+    /**
+     * Implementation of ECMAScript [[Get]].
+     */
+    public abstract Object get(Context cx, Object id);
+
+    /**
+     * Implementation of ECMAScript [[Put]].
+     */
+    public abstract void put(Context cx, Object id, Object value);
+
+    /**
+     * Implementation of ECMAScript [[Delete]].
+     */
+    public abstract boolean delete(Context cx, Object id);
+
+
+    public abstract Object getFunctionProperty(Context cx, String name);
+
+    public abstract Object getFunctionProperty(Context cx, int id);
+
+    /**
+     * Return an additional object to look for methods that runtime should
+     * consider during method search. Return null if no such object available.
+     */
+    public abstract Scriptable getExtraMethodSource(Context cx);
+
+    /**
+     * Generic reference to implement x.@y, x..y etc.
+     */
+    public abstract Ref memberRef(Context cx, Object elem,
+                                  int memberTypeFlags);
+
+    /**
+     * Generic reference to implement x::ns, x.@ns::y, x..@ns::y etc.
+     */
+    public abstract Ref memberRef(Context cx, Object namespace, Object elem,
+                                  int memberTypeFlags);
+
+    /**
+     * Wrap this object into NativeWith to implement the with statement.
+     */
+    public abstract NativeWith enterWith(Scriptable scope);
+
+    /**
+     * Wrap this object into NativeWith to implement the .() query.
+     */
+    public abstract NativeWith enterDotQuery(Scriptable scope);
+
+    /**
+     * Custom &lt;tt&gt;+&lt;/tt&gt; operator.
+     * Should return {@link Scriptable#NOT_FOUND} if this object does not have
+     * custom addition operator for the given value,
+     * or the result of the addition operation.
+     * &lt;p&gt;
+     * The default implementation returns {@link Scriptable#NOT_FOUND}
+     * to indicate no custom addition operation.
+     *
+     * @param cx the Context object associated with the current thread.
+     * @param thisIsLeft if true, the object should calculate this + value
+     *                   if false, the object should calculate value + this.
+     * @param value the second argument for addition operation.
+     */
+    public Object addValues(Context cx, boolean thisIsLeft, Object value)
+    {
+<span class="nc" id="L98">        return Scriptable.NOT_FOUND;</span>
+    }
+
+    /**
+     * Gets the value returned by calling the typeof operator on this object.
+     * @see org.mozilla.javascript.ScriptableObject#getTypeOf()
+     * @return &quot;xml&quot; or &quot;undefined&quot; if {@link #avoidObjectDetection()} returns &lt;code&gt;true&lt;/code&gt;
+     */
+    @Override
+    public String getTypeOf()
+    {
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        return avoidObjectDetection() ? &quot;undefined&quot; : &quot;xml&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,2790 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Context.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Context.java</span></div><h1>Context.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
+
+import org.mozilla.javascript.ast.AstRoot;
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.debug.DebuggableScript;
+import org.mozilla.javascript.debug.Debugger;
+import org.mozilla.javascript.xml.XMLLib;
+
+/**
+ * This class represents the runtime context of an executing script.
+ *
+ * Before executing a script, an instance of Context must be created
+ * and associated with the thread that will be executing the script.
+ * The Context will be used to store information about the executing
+ * of the script such as the call stack. Contexts are associated with
+ * the current thread  using the {@link #call(ContextAction)}
+ * or {@link #enter()} methods.&lt;p&gt;
+ *
+ * Different forms of script execution are supported. Scripts may be
+ * evaluated from the source directly, or first compiled and then later
+ * executed. Interactive execution is also supported.&lt;p&gt;
+ *
+ * Some aspects of script execution, such as type conversions and
+ * object creation, may be accessed directly through methods of
+ * Context.
+ *
+ * @see Scriptable
+ * @author Norris Boyd
+ * @author Brendan Eich
+ */
+
+public class Context
+{
+    /**
+     * Language versions.
+     *
+     * All integral values are reserved for future version numbers.
+     */
+
+    /**
+     * The unknown version.
+     */
+    public static final int VERSION_UNKNOWN =   -1;
+
+    /**
+     * The default version.
+     */
+    public static final int VERSION_DEFAULT =    0;
+
+    /**
+     * JavaScript 1.0
+     */
+    public static final int VERSION_1_0 =      100;
+
+    /**
+     * JavaScript 1.1
+     */
+    public static final int VERSION_1_1 =      110;
+
+    /**
+     * JavaScript 1.2
+     */
+    public static final int VERSION_1_2 =      120;
+
+    /**
+     * JavaScript 1.3
+     */
+    public static final int VERSION_1_3 =      130;
+
+    /**
+     * JavaScript 1.4
+     */
+    public static final int VERSION_1_4 =      140;
+
+    /**
+     * JavaScript 1.5
+     */
+    public static final int VERSION_1_5 =      150;
+
+    /**
+     * JavaScript 1.6
+     */
+    public static final int VERSION_1_6 =      160;
+
+    /**
+     * JavaScript 1.7
+     */
+    public static final int VERSION_1_7 =      170;
+
+    /**
+     * JavaScript 1.8
+     */
+    public static final int VERSION_1_8 =      180;
+
+    /**
+     * ECMAScript 6.
+     */
+    public static final int VERSION_ES6 =      200;
+
+    /**
+     * Controls behaviour of &lt;tt&gt;Date.prototype.getYear()&lt;/tt&gt;.
+     * If &lt;tt&gt;hasFeature(FEATURE_NON_ECMA_GET_YEAR)&lt;/tt&gt; returns true,
+     * Date.prototype.getYear subtructs 1900 only if 1900 &lt;= date &lt; 2000.
+     * The default behavior of {@link #hasFeature(int)} is always to subtruct
+     * 1900 as rquired by ECMAScript B.2.4.
+     */
+    public static final int FEATURE_NON_ECMA_GET_YEAR = 1;
+
+    /**
+     * Control if member expression as function name extension is available.
+     * If &lt;tt&gt;hasFeature(FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME)&lt;/tt&gt; returns
+     * true, allow &lt;tt&gt;function memberExpression(args) { body }&lt;/tt&gt; to be
+     * syntax sugar for &lt;tt&gt;memberExpression = function(args) { body }&lt;/tt&gt;,
+     * when memberExpression is not a simple identifier.
+     * See ECMAScript-262, section 11.2 for definition of memberExpression.
+     * By default {@link #hasFeature(int)} returns false.
+     */
+    public static final int FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME = 2;
+
+    /**
+     * Control if reserved keywords are treated as identifiers.
+     * If &lt;tt&gt;hasFeature(RESERVED_KEYWORD_AS_IDENTIFIER)&lt;/tt&gt; returns true,
+     * treat future reserved keyword (see  Ecma-262, section 7.5.3) as ordinary
+     * identifiers but warn about this usage.
+     *
+     * By default {@link #hasFeature(int)} returns false.
+     */
+    public static final int FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER = 3;
+
+    /**
+     * Control if &lt;tt&gt;toString()&lt;/tt&gt; should returns the same result
+     * as  &lt;tt&gt;toSource()&lt;/tt&gt; when applied to objects and arrays.
+     * If &lt;tt&gt;hasFeature(FEATURE_TO_STRING_AS_SOURCE)&lt;/tt&gt; returns true,
+     * calling &lt;tt&gt;toString()&lt;/tt&gt; on JS objects gives the same result as
+     * calling &lt;tt&gt;toSource()&lt;/tt&gt;. That is it returns JS source with code
+     * to create an object with all enumeratable fields of the original object
+     * instead of printing &lt;tt&gt;[object &lt;i&gt;result of
+     * {@link Scriptable#getClassName()}&lt;/i&gt;]&lt;/tt&gt;.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns true only if
+     * the current JS version is set to {@link #VERSION_1_2}.
+     */
+    public static final int FEATURE_TO_STRING_AS_SOURCE = 4;
+
+    /**
+     * Control if properties &lt;tt&gt;__proto__&lt;/tt&gt; and &lt;tt&gt;__parent__&lt;/tt&gt;
+     * are treated specially.
+     * If &lt;tt&gt;hasFeature(FEATURE_PARENT_PROTO_PROPERTIES)&lt;/tt&gt; returns true,
+     * treat &lt;tt&gt;__parent__&lt;/tt&gt; and &lt;tt&gt;__proto__&lt;/tt&gt; as special properties.
+     * &lt;p&gt;
+     * The properties allow to query and set scope and prototype chains for the
+     * objects. The special meaning of the properties is available
+     * only when they are used as the right hand side of the dot operator.
+     * For example, while &lt;tt&gt;x.__proto__ = y&lt;/tt&gt; changes the prototype
+     * chain of the object &lt;tt&gt;x&lt;/tt&gt; to point to &lt;tt&gt;y&lt;/tt&gt;,
+     * &lt;tt&gt;x[&quot;__proto__&quot;] = y&lt;/tt&gt; simply assigns a new value to the property
+     * &lt;tt&gt;__proto__&lt;/tt&gt; in &lt;tt&gt;x&lt;/tt&gt; even when the feature is on.
+     *
+     * By default {@link #hasFeature(int)} returns true.
+     */
+    public static final int FEATURE_PARENT_PROTO_PROPERTIES = 5;
+
+    /**
+     * @deprecated In previous releases, this name was given to
+     * FEATURE_PARENT_PROTO_PROPERTIES.
+     */
+    @Deprecated
+    public static final int FEATURE_PARENT_PROTO_PROPRTIES = 5;
+
+    /**
+     * Control if support for E4X(ECMAScript for XML) extension is available.
+     * If hasFeature(FEATURE_E4X) returns true, the XML syntax is available.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns true if
+     * the current JS version is set to {@link #VERSION_DEFAULT}
+     * or is at least {@link #VERSION_1_6}.
+     * @since 1.6 Release 1
+     */
+    public static final int FEATURE_E4X = 6;
+
+    /**
+     * Control if dynamic scope should be used for name access.
+     * If hasFeature(FEATURE_DYNAMIC_SCOPE) returns true, then the name lookup
+     * during name resolution will use the top scope of the script or function
+     * which is at the top of JS execution stack instead of the top scope of the
+     * script or function from the current stack frame if the top scope of
+     * the top stack frame contains the top scope of the current stack frame
+     * on its prototype chain.
+     * &lt;p&gt;
+     * This is useful to define shared scope containing functions that can
+     * be called from scripts and functions using private scopes.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.6 Release 1
+     */
+    public static final int FEATURE_DYNAMIC_SCOPE = 7;
+
+    /**
+     * Control if strict variable mode is enabled.
+     * When the feature is on Rhino reports runtime errors if assignment
+     * to a global variable that does not exist is executed. When the feature
+     * is off such assignments create a new variable in the global scope as
+     * required by ECMA 262.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.6 Release 1
+     */
+    public static final int FEATURE_STRICT_VARS = 8;
+
+    /**
+     * Control if strict eval mode is enabled.
+     * When the feature is on Rhino reports runtime errors if non-string
+     * argument is passed to the eval function. When the feature is off
+     * eval simply return non-string argument as is without performing any
+     * evaluation as required by ECMA 262.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.6 Release 1
+     */
+    public static final int FEATURE_STRICT_EVAL = 9;
+
+    /**
+     * When the feature is on Rhino will add a &quot;fileName&quot; and &quot;lineNumber&quot;
+     * properties to Error objects automatically. When the feature is off, you
+     * have to explicitly pass them as the second and third argument to the
+     * Error constructor. Note that neither behavior is fully ECMA 262
+     * compliant (as 262 doesn't specify a three-arg constructor), but keeping
+     * the feature off results in Error objects that don't have
+     * additional non-ECMA properties when constructed using the ECMA-defined
+     * single-arg constructor and is thus desirable if a stricter ECMA
+     * compliance is desired, specifically adherence to the point 15.11.5. of
+     * the standard.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.6 Release 6
+     */
+    public static final int FEATURE_LOCATION_INFORMATION_IN_ERROR = 10;
+
+    /**
+     * Controls whether JS 1.5 'strict mode' is enabled.
+     * When the feature is on, Rhino reports more than a dozen different
+     * warnings.  When the feature is off, these warnings are not generated.
+     * FEATURE_STRICT_MODE implies FEATURE_STRICT_VARS and FEATURE_STRICT_EVAL.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.6 Release 6
+     */
+    public static final int FEATURE_STRICT_MODE = 11;
+
+    /**
+     * Controls whether a warning should be treated as an error.
+     * @since 1.6 Release 6
+     */
+    public static final int FEATURE_WARNING_AS_ERROR = 12;
+
+    /**
+     * Enables enhanced access to Java.
+     * Specifically, controls whether private and protected members can be
+     * accessed, and whether scripts can catch all Java exceptions.
+     * &lt;p&gt;
+     * Note that this feature should only be enabled for trusted scripts.
+     * &lt;p&gt;
+     * By default {@link #hasFeature(int)} returns false.
+     * @since 1.7 Release 1
+     */
+    public static final int FEATURE_ENHANCED_JAVA_ACCESS = 13;
+
+    /**
+     * Enables access to JavaScript features from ECMAscript 6 that are present in
+     * JavaScript engines that do not yet support version 6, such as V8.
+     * This includes support for typed arrays. Default is true.
+     * @since 1.7 Release 3
+     */
+    public static final int FEATURE_V8_EXTENSIONS = 14;
+
+    /**
+     * Defines how an undefined  &quot;this&quot; parameter is handled in certain calls. Previously Rhino
+     * would convert an undefined &quot;this&quot; to null, whereas recent specs call for it to be treated
+     * differently. Default is to be set if language version &lt;= 1.7.
+     * @since 1.7.7
+     */
+    public static final int FEATURE_OLD_UNDEF_NULL_THIS = 15;
+
+    /**
+     * If set, then the order of property key enumeration will be first numeric keys in numeric order,
+     * followed by string keys in order of creation, and finally Symbol keys, as specified in ES6.
+     * Default is true for language version &gt;= &quot;ES6&quot; and false otherwise.
+     * @since 1.7.7.1
+     */
+    public static final int FEATURE_ENUMERATE_IDS_FIRST = 16;
+
+    /**
+     * If set, then all objects will have a thread-safe property map. (Note that this doesn't make
+     * everything else that they do thread-safe -- that depends on the specific implementation.
+     * If not set, users should not share Rhino objects between threads, unless the &quot;sync&quot;
+     * function is used to wrap them with an explicit synchronizer. The default
+     * is false, which means that by default, individual objects are not thread-safe.
+     * @since 1.7.8
+     */
+    public static final int FEATURE_THREAD_SAFE_OBJECTS = 17;
+
+    /**
+     * If set, then all integer numbers will be returned without decimal place. For instance
+     * assume there is a function like this:
+     * &lt;code&gt;function foo() {return 5;}&lt;/code&gt;
+     * 5 will be returned if feature is set, 5.0 otherwise.
+     */
+    public static final int FEATURE_INTEGER_WITHOUT_DECIMAL_PLACE = 18;
+
+    public static final String languageVersionProperty = &quot;language version&quot;;
+    public static final String errorReporterProperty   = &quot;error reporter&quot;;
+
+    /**
+     * Convenient value to use as zero-length array of objects.
+     */
+<span class="fc" id="L344">    public static final Object[] emptyArgs = ScriptRuntime.emptyArgs;</span>
+
+    /**
+     * Creates a new Context. The context will be associated with the {@link
+     * ContextFactory#getGlobal() global context factory}.
+     *
+     * Note that the Context must be associated with a thread before
+     * it can be used to execute a script.
+     * @deprecated this constructor is deprecated because it creates a
+     * dependency on a static singleton context factory. Use
+     * {@link ContextFactory#enter()} or
+     * {@link ContextFactory#call(ContextAction)} instead. If you subclass
+     * this class, consider using {@link #Context(ContextFactory)} constructor
+     * instead in the subclasses' constructors.
+     */
+    @Deprecated
+    public Context()
+    {
+<span class="nc" id="L362">        this(ContextFactory.getGlobal());</span>
+<span class="nc" id="L363">    }</span>
+
+    /**
+     * Creates a new context. Provided as a preferred super constructor for
+     * subclasses in place of the deprecated default public constructor.
+     * @param factory the context factory associated with this context (most
+     * likely, the one that created the context). Can not be null. The context
+     * features are inherited from the factory, and the context will also
+     * otherwise use its factory's services.
+     * @throws IllegalArgumentException if factory parameter is null.
+     */
+    protected Context(ContextFactory factory)
+<span class="fc" id="L375">    {</span>
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">        if(factory == null) {</span>
+<span class="nc" id="L377">            throw new IllegalArgumentException(&quot;factory == null&quot;);</span>
+        }
+<span class="fc" id="L379">        this.factory = factory;</span>
+<span class="fc" id="L380">        version = VERSION_DEFAULT;</span>
+<span class="pc bpc" id="L381" title="1 of 2 branches missed.">        optimizationLevel = codegenClass != null ? 0 : -1;</span>
+<span class="fc" id="L382">        maximumInterpreterStackDepth = Integer.MAX_VALUE;</span>
+<span class="fc" id="L383">    }</span>
+
+    /**
+     * Get the current Context.
+     *
+     * The current Context is per-thread; this method looks up
+     * the Context associated with the current thread. &lt;p&gt;
+     *
+     * @return the Context associated with the current thread, or
+     *         null if no context is associated with the current
+     *         thread.
+     * @see ContextFactory#enterContext()
+     * @see ContextFactory#call(ContextAction)
+     */
+    public static Context getCurrentContext()
+    {
+<span class="fc" id="L399">        Object helper = VMBridge.instance.getThreadContextHelper();</span>
+<span class="fc" id="L400">        return VMBridge.instance.getContext(helper);</span>
+    }
+
+    /**
+     * Same as calling {@link ContextFactory#enterContext()} on the global
+     * ContextFactory instance.
+     * @return a Context associated with the current thread
+     * @see #getCurrentContext()
+     * @see #exit()
+     * @see #call(ContextAction)
+     */
+    public static Context enter()
+    {
+<span class="fc" id="L413">        return enter(null);</span>
+    }
+
+    /**
+     * Get a Context associated with the current thread, using
+     * the given Context if need be.
+     * &lt;p&gt;
+     * The same as &lt;code&gt;enter()&lt;/code&gt; except that &lt;code&gt;cx&lt;/code&gt;
+     * is associated with the current thread and returned if
+     * the current thread has no associated context and &lt;code&gt;cx&lt;/code&gt;
+     * is not associated with any other thread.
+     * @param cx a Context to associate with the thread if possible
+     * @return a Context associated with the current thread
+     * @deprecated use {@link ContextFactory#enterContext(Context)} instead as
+     * this method relies on usage of a static singleton &quot;global&quot; ContextFactory.
+     * @see ContextFactory#enterContext(Context)
+     * @see ContextFactory#call(ContextAction)
+     */
+    @Deprecated
+    public static Context enter(Context cx)
+    {
+<span class="fc" id="L434">        return enter(cx, ContextFactory.getGlobal());</span>
+    }
+
+    static final Context enter(Context cx, ContextFactory factory)
+    {
+<span class="fc" id="L439">        Object helper = VMBridge.instance.getThreadContextHelper();</span>
+<span class="fc" id="L440">        Context old = VMBridge.instance.getContext(helper);</span>
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        if (old != null) {</span>
+<span class="fc" id="L442">            cx = old;</span>
+        } else {
+<span class="pc bpc" id="L444" title="1 of 2 branches missed.">            if (cx == null) {</span>
+<span class="fc" id="L445">                cx = factory.makeContext();</span>
+<span class="pc bpc" id="L446" title="1 of 2 branches missed.">                if (cx.enterCount != 0) {</span>
+<span class="nc" id="L447">                    throw new IllegalStateException(&quot;factory.makeContext() returned Context instance already associated with some thread&quot;);</span>
+                }
+<span class="fc" id="L449">                factory.onContextCreated(cx);</span>
+<span class="pc bpc" id="L450" title="3 of 4 branches missed.">                if (factory.isSealed() &amp;&amp; !cx.isSealed()) {</span>
+<span class="nc" id="L451">                    cx.seal(null);</span>
+                }
+            } else {
+<span class="nc bnc" id="L454" title="All 2 branches missed.">                if (cx.enterCount != 0) {</span>
+<span class="nc" id="L455">                    throw new IllegalStateException(&quot;can not use Context instance already associated with some thread&quot;);</span>
+                }
+            }
+<span class="fc" id="L458">            VMBridge.instance.setContext(helper, cx);</span>
+        }
+<span class="fc" id="L460">        ++cx.enterCount;</span>
+<span class="fc" id="L461">        return cx;</span>
+     }
+
+    /**
+     * Exit a block of code requiring a Context.
+     *
+     * Calling &lt;code&gt;exit()&lt;/code&gt; will remove the association between
+     * the current thread and a Context if the prior call to
+     * {@link ContextFactory#enterContext()} on this thread newly associated a
+     * Context with this thread. Once the current thread no longer has an
+     * associated Context, it cannot be used to execute JavaScript until it is
+     * again associated with a Context.
+     * @see ContextFactory#enterContext()
+     */
+    public static void exit()
+    {
+<span class="fc" id="L477">        Object helper = VMBridge.instance.getThreadContextHelper();</span>
+<span class="fc" id="L478">        Context cx = VMBridge.instance.getContext(helper);</span>
+<span class="pc bpc" id="L479" title="1 of 2 branches missed.">        if (cx == null) {</span>
+<span class="nc" id="L480">            throw new IllegalStateException(</span>
+                &quot;Calling Context.exit without previous Context.enter&quot;);
+        }
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">        if (cx.enterCount &lt; 1) Kit.codeBug();</span>
+<span class="fc bfc" id="L484" title="All 2 branches covered.">        if (--cx.enterCount == 0) {</span>
+<span class="fc" id="L485">            VMBridge.instance.setContext(helper, null);</span>
+<span class="fc" id="L486">            cx.factory.onContextReleased(cx);</span>
+        }
+<span class="fc" id="L488">    }</span>
+
+    /**
+     * Call {@link ContextAction#run(Context cx)}
+     * using the Context instance associated with the current thread.
+     * If no Context is associated with the thread, then
+     * &lt;tt&gt;ContextFactory.getGlobal().makeContext()&lt;/tt&gt; will be called to
+     * construct new Context instance. The instance will be temporary
+     * associated with the thread during call to
+     * {@link ContextAction#run(Context)}.
+     * @deprecated use {@link ContextFactory#call(ContextAction)} instead as
+     * this method relies on usage of a static singleton &quot;global&quot;
+     * ContextFactory.
+     * @return The result of {@link ContextAction#run(Context)}.
+     */
+    @Deprecated
+    public static Object call(ContextAction action)
+    {
+<span class="nc" id="L506">        return call(ContextFactory.getGlobal(), action);</span>
+    }
+
+    /**
+     * Call {@link
+     * Callable#call(Context cx, Scriptable scope, Scriptable thisObj,
+     *               Object[] args)}
+     * using the Context instance associated with the current thread.
+     * If no Context is associated with the thread, then
+     * {@link ContextFactory#makeContext()} will be called to construct
+     * new Context instance. The instance will be temporary associated
+     * with the thread during call to {@link ContextAction#run(Context)}.
+     * &lt;p&gt;
+     * It is allowed but not advisable to use null for &lt;tt&gt;factory&lt;/tt&gt;
+     * argument in which case the global static singleton ContextFactory
+     * instance will be used to create new context instances.
+     * @see ContextFactory#call(ContextAction)
+     */
+    public static Object call(ContextFactory factory, final Callable callable,
+                              final Scriptable scope, final Scriptable thisObj,
+                              final Object[] args)
+    {
+<span class="nc bnc" id="L528" title="All 2 branches missed.">        if(factory == null) {</span>
+<span class="nc" id="L529">            factory = ContextFactory.getGlobal();</span>
+        }
+<span class="nc" id="L531">        return call(factory, new ContextAction() {</span>
+            public Object run(Context cx) {
+<span class="nc" id="L533">                return callable.call(cx, scope, thisObj, args);</span>
+            }
+        });
+    }
+
+    /**
+     * The method implements {@link ContextFactory#call(ContextAction)} logic.
+     */
+    static Object call(ContextFactory factory, ContextAction action) {
+<span class="fc" id="L542">        Context cx = enter(null, factory);</span>
+        try {
+<span class="fc" id="L544">            return action.run(cx);</span>
+        }
+        finally {
+<span class="fc" id="L547">            exit();</span>
+<span class="fc" id="L548">        }</span>
+    }
+
+    /**
+     * @deprecated
+     * @see ContextFactory#addListener(org.mozilla.javascript.ContextFactory.Listener)
+     * @see ContextFactory#getGlobal()
+     */
+    @Deprecated
+    public static void addContextListener(ContextListener listener)
+    {
+        // Special workaround for the debugger
+<span class="nc" id="L560">        String DBG = &quot;org.mozilla.javascript.tools.debugger.Main&quot;;</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (DBG.equals(listener.getClass().getName())) {</span>
+<span class="nc" id="L562">            Class&lt;?&gt; cl = listener.getClass();</span>
+<span class="nc" id="L563">            Class&lt;?&gt; factoryClass = Kit.classOrNull(</span>
+                &quot;org.mozilla.javascript.ContextFactory&quot;);
+<span class="nc" id="L565">            Class&lt;?&gt;[] sig = { factoryClass };</span>
+<span class="nc" id="L566">            Object[] args = { ContextFactory.getGlobal() };</span>
+            try {
+<span class="nc" id="L568">                Method m = cl.getMethod(&quot;attachTo&quot;, sig);</span>
+<span class="nc" id="L569">                m.invoke(listener, args);</span>
+<span class="nc" id="L570">            } catch (Exception ex) {</span>
+<span class="nc" id="L571">                RuntimeException rex = new RuntimeException();</span>
+<span class="nc" id="L572">                Kit.initCause(rex, ex);</span>
+<span class="nc" id="L573">                throw rex;</span>
+<span class="nc" id="L574">            }</span>
+<span class="nc" id="L575">            return;</span>
+        }
+
+<span class="nc" id="L578">        ContextFactory.getGlobal().addListener(listener);</span>
+<span class="nc" id="L579">    }</span>
+
+    /**
+     * @deprecated
+     * @see ContextFactory#removeListener(org.mozilla.javascript.ContextFactory.Listener)
+     * @see ContextFactory#getGlobal()
+     */
+    @Deprecated
+    public static void removeContextListener(ContextListener listener)
+    {
+<span class="nc" id="L589">        ContextFactory.getGlobal().addListener(listener);</span>
+<span class="nc" id="L590">    }</span>
+
+    /**
+     * Return {@link ContextFactory} instance used to create this Context.
+     */
+    public final ContextFactory getFactory()
+    {
+<span class="fc" id="L597">        return factory;</span>
+    }
+
+    /**
+     * Checks if this is a sealed Context. A sealed Context instance does not
+     * allow to modify any of its properties and will throw an exception
+     * on any such attempt.
+     * @see #seal(Object sealKey)
+     */
+    public final boolean isSealed()
+    {
+<span class="nc" id="L608">        return sealed;</span>
+    }
+
+    /**
+     * Seal this Context object so any attempt to modify any of its properties
+     * including calling {@link #enter()} and {@link #exit()} methods will
+     * throw an exception.
+     * &lt;p&gt;
+     * If &lt;tt&gt;sealKey&lt;/tt&gt; is not null, calling
+     * {@link #unseal(Object sealKey)} with the same key unseals
+     * the object. If &lt;tt&gt;sealKey&lt;/tt&gt; is null, unsealing is no longer possible.
+     *
+     * @see #isSealed()
+     * @see #unseal(Object)
+     */
+    public final void seal(Object sealKey)
+    {
+<span class="nc bnc" id="L625" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc" id="L626">        sealed = true;</span>
+<span class="nc" id="L627">        this.sealKey = sealKey;</span>
+<span class="nc" id="L628">    }</span>
+
+    /**
+     * Unseal previously sealed Context object.
+     * The &lt;tt&gt;sealKey&lt;/tt&gt; argument should not be null and should match
+     * &lt;tt&gt;sealKey&lt;/tt&gt; suplied with the last call to
+     * {@link #seal(Object)} or an exception will be thrown.
+     *
+     * @see #isSealed()
+     * @see #seal(Object sealKey)
+     */
+    public final void unseal(Object sealKey)
+    {
+<span class="nc bnc" id="L641" title="All 2 branches missed.">        if (sealKey == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        if (this.sealKey != sealKey) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L643" title="All 2 branches missed.">        if (!sealed) throw new IllegalStateException();</span>
+<span class="nc" id="L644">        sealed = false;</span>
+<span class="nc" id="L645">        this.sealKey = null;</span>
+<span class="nc" id="L646">    }</span>
+
+    static void onSealedMutation()
+    {
+<span class="nc" id="L650">        throw new IllegalStateException();</span>
+    }
+
+    /**
+     * Get the current language version.
+     * &lt;p&gt;
+     * The language version number affects JavaScript semantics as detailed
+     * in the overview documentation.
+     *
+     * @return an integer that is one of VERSION_1_0, VERSION_1_1, etc.
+     */
+    public final int getLanguageVersion()
+    {
+<span class="fc" id="L663">       return version;</span>
+    }
+
+    /**
+     * Set the language version.
+     *
+     * &lt;p&gt;
+     * Setting the language version will affect functions and scripts compiled
+     * subsequently. See the overview documentation for version-specific
+     * behavior.
+     *
+     * @param version the version as specified by VERSION_1_0, VERSION_1_1, etc.
+     */
+    public void setLanguageVersion(int version)
+    {
+<span class="pc bpc" id="L678" title="1 of 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="fc" id="L679">        checkLanguageVersion(version);</span>
+<span class="fc" id="L680">        Object listeners = propertyListeners;</span>
+<span class="pc bpc" id="L681" title="3 of 4 branches missed.">        if (listeners != null &amp;&amp; version != this.version) {</span>
+<span class="nc" id="L682">            firePropertyChangeImpl(listeners, languageVersionProperty,</span>
+<span class="nc" id="L683">                               Integer.valueOf(this.version),</span>
+<span class="nc" id="L684">                               Integer.valueOf(version));</span>
+        }
+<span class="fc" id="L686">        this.version = version;</span>
+<span class="fc" id="L687">    }</span>
+
+    public static boolean isValidLanguageVersion(int version)
+    {
+<span class="fc bfc" id="L691" title="All 2 branches covered.">        switch (version) {</span>
+            case VERSION_DEFAULT:
+            case VERSION_1_0:
+            case VERSION_1_1:
+            case VERSION_1_2:
+            case VERSION_1_3:
+            case VERSION_1_4:
+            case VERSION_1_5:
+            case VERSION_1_6:
+            case VERSION_1_7:
+            case VERSION_1_8:
+            case VERSION_ES6:
+<span class="fc" id="L703">                return true;</span>
+        }
+<span class="fc" id="L705">        return false;</span>
+    }
+
+    public static void checkLanguageVersion(int version)
+    {
+<span class="fc bfc" id="L710" title="All 2 branches covered.">        if (isValidLanguageVersion(version)) {</span>
+<span class="fc" id="L711">            return;</span>
+        }
+<span class="fc" id="L713">        throw new IllegalArgumentException(&quot;Bad language version: &quot;+version);</span>
+    }
+
+    /**
+     * Get the implementation version.
+     *
+     * &lt;p&gt;
+     * The implementation version is of the form
+     * &lt;pre&gt;
+     *    &quot;&lt;i&gt;name langVer&lt;/i&gt; &lt;code&gt;release&lt;/code&gt; &lt;i&gt;relNum date&lt;/i&gt;&quot;
+     * &lt;/pre&gt;
+     * where &lt;i&gt;name&lt;/i&gt; is the name of the product, &lt;i&gt;langVer&lt;/i&gt; is
+     * the language version, &lt;i&gt;relNum&lt;/i&gt; is the release number, and
+     * &lt;i&gt;date&lt;/i&gt; is the release date for that specific
+     * release in the form &quot;yyyy mm dd&quot;.
+     *
+     * @return a string that encodes the product, language version, release
+     *         number, and date.
+     */
+    public final String getImplementationVersion()
+    {
+<span class="pc bpc" id="L734" title="1 of 2 branches missed.">        if (implementationVersion == null) {</span>
+            Enumeration&lt;URL&gt; urls;
+            try {
+<span class="fc" id="L737">                urls = Context.class.getClassLoader().getResources(&quot;META-INF/MANIFEST.MF&quot;);</span>
+<span class="nc" id="L738">            } catch (IOException ioe) {</span>
+<span class="nc" id="L739">                return null;</span>
+<span class="fc" id="L740">            }</span>
+
+            // There will be many manifests in the world -- enumerate all of them until we find the right one.
+<span class="fc bfc" id="L743" title="All 2 branches covered.">            while (urls.hasMoreElements()) {</span>
+<span class="fc" id="L744">                URL metaUrl = urls.nextElement();</span>
+<span class="fc" id="L745">                InputStream is = null;</span>
+                try {
+<span class="fc" id="L747">                    is = metaUrl.openStream();</span>
+<span class="fc" id="L748">                    Manifest mf = new Manifest(is);</span>
+<span class="fc" id="L749">                    Attributes attrs = mf.getMainAttributes();</span>
+<span class="pc bpc" id="L750" title="1 of 2 branches missed.">                    if (&quot;Mozilla Rhino&quot;.equals(attrs.getValue(&quot;Implementation-Title&quot;))) {</span>
+<span class="nc" id="L751">                        implementationVersion =</span>
+<span class="nc" id="L752">                            &quot;Rhino &quot; + attrs.getValue(&quot;Implementation-Version&quot;) + &quot; &quot; + attrs.getValue(&quot;Built-Date&quot;).replaceAll(&quot;-&quot;, &quot; &quot;);</span>
+<span class="nc" id="L753">                        return implementationVersion;</span>
+                    }
+<span class="nc" id="L755">                } catch (IOException e) {</span>
+                    // Ignore this unlikely event
+                } finally {
+<span class="nc" id="L758">                    try {</span>
+<span class="pc bpc" id="L759" title="7 of 8 branches missed.">                        if (is != null) is.close();</span>
+<span class="nc" id="L760">                    } catch (IOException e) {</span>
+                        // Ignore this even unlikelier event
+<span class="pc" id="L762">                    }</span>
+<span class="nc" id="L763">                }</span>
+<span class="fc" id="L764">            }</span>
+        }
+
+<span class="fc" id="L767">        return implementationVersion;</span>
+    }
+
+    /**
+     * Get the current error reporter.
+     *
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public final ErrorReporter getErrorReporter()
+    {
+<span class="fc bfc" id="L777" title="All 2 branches covered.">        if (errorReporter == null) {</span>
+<span class="fc" id="L778">            return DefaultErrorReporter.instance;</span>
+        }
+<span class="fc" id="L780">        return errorReporter;</span>
+    }
+
+    /**
+     * Change the current error reporter.
+     *
+     * @return the previous error reporter
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public final ErrorReporter setErrorReporter(ErrorReporter reporter)
+    {
+<span class="pc bpc" id="L791" title="1 of 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="pc bpc" id="L792" title="1 of 2 branches missed.">        if (reporter == null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L793">        ErrorReporter old = getErrorReporter();</span>
+<span class="pc bpc" id="L794" title="1 of 2 branches missed.">        if (reporter == old) {</span>
+<span class="nc" id="L795">            return old;</span>
+        }
+<span class="fc" id="L797">        Object listeners = propertyListeners;</span>
+<span class="pc bpc" id="L798" title="1 of 2 branches missed.">        if (listeners != null) {</span>
+<span class="nc" id="L799">            firePropertyChangeImpl(listeners, errorReporterProperty,</span>
+                                   old, reporter);
+        }
+<span class="fc" id="L802">        this.errorReporter = reporter;</span>
+<span class="fc" id="L803">        return old;</span>
+    }
+
+    /**
+     * Get the current locale.  Returns the default locale if none has
+     * been set.
+     *
+     * @see java.util.Locale
+     */
+
+    public final Locale getLocale()
+    {
+<span class="fc bfc" id="L815" title="All 2 branches covered.">        if (locale == null)</span>
+<span class="fc" id="L816">            locale = Locale.getDefault();</span>
+<span class="fc" id="L817">        return locale;</span>
+    }
+
+    /**
+     * Set the current locale.
+     *
+     * @see java.util.Locale
+     */
+    public final Locale setLocale(Locale loc)
+    {
+<span class="nc bnc" id="L827" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc" id="L828">        Locale result = locale;</span>
+<span class="nc" id="L829">        locale = loc;</span>
+<span class="nc" id="L830">        return result;</span>
+    }
+
+    /**
+     * Register an object to receive notifications when a bound property
+     * has changed
+     * @see java.beans.PropertyChangeEvent
+     * @see #removePropertyChangeListener(java.beans.PropertyChangeListener)
+     * @param l the listener
+     */
+    public final void addPropertyChangeListener(PropertyChangeListener l)
+    {
+<span class="nc bnc" id="L842" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc" id="L843">        propertyListeners = Kit.addListener(propertyListeners, l);</span>
+<span class="nc" id="L844">    }</span>
+
+    /**
+     * Remove an object from the list of objects registered to receive
+     * notification of changes to a bounded property
+     * @see java.beans.PropertyChangeEvent
+     * @see #addPropertyChangeListener(java.beans.PropertyChangeListener)
+     * @param l the listener
+     */
+    public final void removePropertyChangeListener(PropertyChangeListener l)
+    {
+<span class="nc bnc" id="L855" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc" id="L856">        propertyListeners = Kit.removeListener(propertyListeners, l);</span>
+<span class="nc" id="L857">    }</span>
+
+    /**
+     * Notify any registered listeners that a bounded property has changed
+     * @see #addPropertyChangeListener(java.beans.PropertyChangeListener)
+     * @see #removePropertyChangeListener(java.beans.PropertyChangeListener)
+     * @see java.beans.PropertyChangeListener
+     * @see java.beans.PropertyChangeEvent
+     * @param  property  the bound property
+     * @param  oldValue  the old value
+     * @param  newValue   the new value
+     */
+    final void firePropertyChange(String property, Object oldValue,
+                                  Object newValue)
+    {
+<span class="nc" id="L872">        Object listeners = propertyListeners;</span>
+<span class="nc bnc" id="L873" title="All 2 branches missed.">        if (listeners != null) {</span>
+<span class="nc" id="L874">            firePropertyChangeImpl(listeners, property, oldValue, newValue);</span>
+        }
+<span class="nc" id="L876">    }</span>
+
+    private void firePropertyChangeImpl(Object listeners, String property,
+                                        Object oldValue, Object newValue)
+    {
+<span class="nc" id="L881">        for (int i = 0; ; ++i) {</span>
+<span class="nc" id="L882">            Object l = Kit.getListener(listeners, i);</span>
+<span class="nc bnc" id="L883" title="All 2 branches missed.">            if (l == null)</span>
+<span class="nc" id="L884">                break;</span>
+<span class="nc bnc" id="L885" title="All 2 branches missed.">            if (l instanceof PropertyChangeListener) {</span>
+<span class="nc" id="L886">                PropertyChangeListener pcl = (PropertyChangeListener)l;</span>
+<span class="nc" id="L887">                pcl.propertyChange(new PropertyChangeEvent(</span>
+                    this, property, oldValue, newValue));
+            }
+        }
+<span class="nc" id="L891">    }</span>
+
+    /**
+     * Report a warning using the error reporter for the current thread.
+     *
+     * @param message the warning message to report
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param lineSource the text of the line (may be null)
+     * @param lineOffset the offset into lineSource where problem was detected
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static void reportWarning(String message, String sourceName,
+                                     int lineno, String lineSource,
+                                     int lineOffset)
+    {
+<span class="fc" id="L907">        Context cx = Context.getContext();</span>
+<span class="pc bpc" id="L908" title="1 of 2 branches missed.">        if (cx.hasFeature(FEATURE_WARNING_AS_ERROR))</span>
+<span class="nc" id="L909">            reportError(message, sourceName, lineno, lineSource, lineOffset);</span>
+        else
+<span class="fc" id="L911">            cx.getErrorReporter().warning(message, sourceName, lineno,</span>
+                                          lineSource, lineOffset);
+<span class="fc" id="L913">    }</span>
+
+    /**
+     * Report a warning using the error reporter for the current thread.
+     *
+     * @param message the warning message to report
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static void reportWarning(String message)
+    {
+<span class="fc" id="L923">        int[] linep = { 0 };</span>
+<span class="fc" id="L924">        String filename = getSourcePositionFromStack(linep);</span>
+<span class="fc" id="L925">        Context.reportWarning(message, filename, linep[0], null, 0);</span>
+<span class="fc" id="L926">    }</span>
+
+    public static void reportWarning(String message, Throwable t)
+    {
+<span class="nc" id="L930">        int[] linep = { 0 };</span>
+<span class="nc" id="L931">        String filename = getSourcePositionFromStack(linep);</span>
+<span class="nc" id="L932">        Writer sw = new StringWriter();</span>
+<span class="nc" id="L933">        PrintWriter pw = new PrintWriter(sw);</span>
+<span class="nc" id="L934">        pw.println(message);</span>
+<span class="nc" id="L935">        t.printStackTrace(pw);</span>
+<span class="nc" id="L936">        pw.flush();</span>
+<span class="nc" id="L937">        Context.reportWarning(sw.toString(), filename, linep[0], null, 0);</span>
+<span class="nc" id="L938">    }</span>
+
+    /**
+     * Report an error using the error reporter for the current thread.
+     *
+     * @param message the error message to report
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param lineSource the text of the line (may be null)
+     * @param lineOffset the offset into lineSource where problem was detected
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static void reportError(String message, String sourceName,
+                                   int lineno, String lineSource,
+                                   int lineOffset)
+    {
+<span class="fc" id="L954">        Context cx = getCurrentContext();</span>
+<span class="pc bpc" id="L955" title="1 of 2 branches missed.">        if (cx != null) {</span>
+<span class="fc" id="L956">            cx.getErrorReporter().error(message, sourceName, lineno,</span>
+                                        lineSource, lineOffset);
+        } else {
+<span class="nc" id="L959">            throw new EvaluatorException(message, sourceName, lineno,</span>
+                                         lineSource, lineOffset);
+        }
+<span class="fc" id="L962">    }</span>
+
+    /**
+     * Report an error using the error reporter for the current thread.
+     *
+     * @param message the error message to report
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static void reportError(String message)
+    {
+<span class="fc" id="L972">        int[] linep = { 0 };</span>
+<span class="fc" id="L973">        String filename = getSourcePositionFromStack(linep);</span>
+<span class="fc" id="L974">        Context.reportError(message, filename, linep[0], null, 0);</span>
+<span class="fc" id="L975">    }</span>
+
+    /**
+     * Report a runtime error using the error reporter for the current thread.
+     *
+     * @param message the error message to report
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param lineSource the text of the line (may be null)
+     * @param lineOffset the offset into lineSource where problem was detected
+     * @return a runtime exception that will be thrown to terminate the
+     *         execution of the script
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static EvaluatorException reportRuntimeError(String message,
+                                                        String sourceName,
+                                                        int lineno,
+                                                        String lineSource,
+                                                        int lineOffset)
+    {
+<span class="fc" id="L995">        Context cx = getCurrentContext();</span>
+<span class="fc bfc" id="L996" title="All 2 branches covered.">        if (cx != null) {</span>
+<span class="fc" id="L997">            return cx.getErrorReporter().</span>
+<span class="fc" id="L998">                            runtimeError(message, sourceName, lineno,</span>
+                                         lineSource, lineOffset);
+        } else {
+<span class="fc" id="L1001">            throw new EvaluatorException(message, sourceName, lineno,</span>
+                                         lineSource, lineOffset);
+        }
+    }
+
+    static EvaluatorException reportRuntimeError0(String messageId)
+    {
+<span class="fc" id="L1008">        String msg = ScriptRuntime.getMessage0(messageId);</span>
+<span class="nc" id="L1009">        return reportRuntimeError(msg);</span>
+    }
+
+    static EvaluatorException reportRuntimeError1(String messageId,
+                                                  Object arg1)
+    {
+<span class="fc" id="L1015">        String msg = ScriptRuntime.getMessage1(messageId, arg1);</span>
+<span class="fc" id="L1016">        return reportRuntimeError(msg);</span>
+    }
+
+    static EvaluatorException reportRuntimeError2(String messageId,
+                                                  Object arg1, Object arg2)
+    {
+<span class="fc" id="L1022">        String msg = ScriptRuntime.getMessage2(messageId, arg1, arg2);</span>
+<span class="nc" id="L1023">        return reportRuntimeError(msg);</span>
+    }
+
+    static EvaluatorException reportRuntimeError3(String messageId,
+                                                  Object arg1, Object arg2,
+                                                  Object arg3)
+    {
+<span class="nc" id="L1030">        String msg = ScriptRuntime.getMessage3(messageId, arg1, arg2, arg3);</span>
+<span class="nc" id="L1031">        return reportRuntimeError(msg);</span>
+    }
+
+    static EvaluatorException reportRuntimeError4(String messageId,
+                                                  Object arg1, Object arg2,
+                                                  Object arg3, Object arg4)
+    {
+<span class="nc" id="L1038">        String msg</span>
+<span class="nc" id="L1039">            = ScriptRuntime.getMessage4(messageId, arg1, arg2, arg3, arg4);</span>
+<span class="nc" id="L1040">        return reportRuntimeError(msg);</span>
+    }
+
+    /**
+     * Report a runtime error using the error reporter for the current thread.
+     *
+     * @param message the error message to report
+     * @see org.mozilla.javascript.ErrorReporter
+     */
+    public static EvaluatorException reportRuntimeError(String message)
+    {
+<span class="fc" id="L1051">        int[] linep = { 0 };</span>
+<span class="fc" id="L1052">        String filename = getSourcePositionFromStack(linep);</span>
+<span class="fc" id="L1053">        return Context.reportRuntimeError(message, filename, linep[0], null, 0);</span>
+    }
+
+    /**
+     * Initialize the standard objects.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.
+     *
+     * @return the initialized scope
+     */
+    public final ScriptableObject initStandardObjects()
+    {
+<span class="fc" id="L1072">        return initStandardObjects(null, false);</span>
+    }
+
+    /**
+     * Initialize the standard objects, leaving out those that offer access directly
+     * to Java classes. This sets up &quot;scope&quot; to have access to all the standard
+     * JavaScript classes, but does not create global objects for any top-level
+     * Java packages. In addition, the &quot;Packages,&quot; &quot;JavaAdapter,&quot; and
+     * &quot;JavaImporter&quot; classes, and the &quot;getClass&quot; function, are not
+     * initialized.
+     *
+     * The result of this function is a scope that may be safely used in a &quot;sandbox&quot;
+     * environment where it is not desirable to give access to Java code from JavaScript.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.
+     *
+     * @return the initialized scope
+     */
+    public final ScriptableObject initSafeStandardObjects()
+    {
+<span class="fc" id="L1099">        return initSafeStandardObjects(null, false);</span>
+    }
+
+    /**
+     * Initialize the standard objects.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.
+     *
+     * @param scope the scope to initialize, or null, in which case a new
+     *        object will be created to serve as the scope
+     * @return the initialized scope. The method returns the value of the scope
+     *         argument if it is not null or newly allocated scope object which
+     *         is an instance {@link ScriptableObject}.
+     */
+    public final Scriptable initStandardObjects(ScriptableObject scope)
+    {
+<span class="nc" id="L1122">        return initStandardObjects(scope, false);</span>
+    }
+
+    /**
+     * Initialize the standard objects, leaving out those that offer access directly
+     * to Java classes. This sets up &quot;scope&quot; to have access to all the standard
+     * JavaScript classes, but does not create global objects for any top-level
+     * Java packages. In addition, the &quot;Packages,&quot; &quot;JavaAdapter,&quot; and
+     * &quot;JavaImporter&quot; classes, and the &quot;getClass&quot; function, are not
+     * initialized.
+     *
+     * The result of this function is a scope that may be safely used in a &quot;sandbox&quot;
+     * environment where it is not desirable to give access to Java code from JavaScript.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.
+     *
+     * @param scope the scope to initialize, or null, in which case a new
+     *        object will be created to serve as the scope
+     * @return the initialized scope. The method returns the value of the scope
+     *         argument if it is not null or newly allocated scope object which
+     *         is an instance {@link ScriptableObject}.
+     */
+    public final Scriptable initSafeStandardObjects(ScriptableObject scope)
+    {
+<span class="nc" id="L1153">        return initSafeStandardObjects(scope, false);</span>
+    }
+
+    /**
+     * Initialize the standard objects.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.&lt;p&gt;
+     *
+     * This form of the method also allows for creating &quot;sealed&quot; standard
+     * objects. An object that is sealed cannot have properties added, changed,
+     * or removed. This is useful to create a &quot;superglobal&quot; that can be shared
+     * among several top-level objects. Note that sealing is not allowed in
+     * the current ECMA/ISO language specification, but is likely for
+     * the next version.
+     *
+     * @param scope the scope to initialize, or null, in which case a new
+     *        object will be created to serve as the scope
+     * @param sealed whether or not to create sealed standard objects that
+     *        cannot be modified.
+     * @return the initialized scope. The method returns the value of the scope
+     *         argument if it is not null or newly allocated scope object.
+     * @since 1.4R3
+     */
+    public ScriptableObject initStandardObjects(ScriptableObject scope,
+                                                boolean sealed)
+    {
+<span class="fc" id="L1186">        return ScriptRuntime.initStandardObjects(this, scope, sealed);</span>
+    }
+
+    /**
+     * Initialize the standard objects, leaving out those that offer access directly
+     * to Java classes. This sets up &quot;scope&quot; to have access to all the standard
+     * JavaScript classes, but does not create global objects for any top-level
+     * Java packages. In addition, the &quot;Packages,&quot; &quot;JavaAdapter,&quot; and
+     * &quot;JavaImporter&quot; classes, and the &quot;getClass&quot; function, are not
+     * initialized.
+     *
+     * The result of this function is a scope that may be safely used in a &quot;sandbox&quot;
+     * environment where it is not desirable to give access to Java code from JavaScript.
+     *
+     * Creates instances of the standard objects and their constructors
+     * (Object, String, Number, Date, etc.), setting up 'scope' to act
+     * as a global object as in ECMA 15.1.&lt;p&gt;
+     *
+     * This method must be called to initialize a scope before scripts
+     * can be evaluated in that scope.&lt;p&gt;
+     *
+     * This method does not affect the Context it is called upon.&lt;p&gt;
+     *
+     * This form of the method also allows for creating &quot;sealed&quot; standard
+     * objects. An object that is sealed cannot have properties added, changed,
+     * or removed. This is useful to create a &quot;superglobal&quot; that can be shared
+     * among several top-level objects. Note that sealing is not allowed in
+     * the current ECMA/ISO language specification, but is likely for
+     * the next version.
+     *
+     * @param scope the scope to initialize, or null, in which case a new
+     *        object will be created to serve as the scope
+     * @param sealed whether or not to create sealed standard objects that
+     *        cannot be modified.
+     * @return the initialized scope. The method returns the value of the scope
+     *         argument if it is not null or newly allocated scope object.
+     * @since 1.7.6
+     */
+    public ScriptableObject initSafeStandardObjects(ScriptableObject scope,
+                                                    boolean sealed)
+    {
+<span class="fc" id="L1227">        return ScriptRuntime.initSafeStandardObjects(this, scope, sealed);</span>
+    }
+
+    /**
+     * Get the singleton object that represents the JavaScript Undefined value.
+     */
+    public static Object getUndefinedValue()
+    {
+<span class="fc" id="L1235">        return Undefined.instance;</span>
+    }
+
+    /**
+     * Evaluate a JavaScript source string.
+     *
+     * The provided source name and line number are used for error messages
+     * and for producing debug information.
+     *
+     * @param scope the scope to execute in
+     * @param source the JavaScript source
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param securityDomain an arbitrary object that specifies security
+     *        information about the origin or owner of the script. For
+     *        implementations that don't care about security, this value
+     *        may be null.
+     * @return the result of evaluating the string
+     * @see org.mozilla.javascript.SecurityController
+     */
+    public final Object evaluateString(Scriptable scope, String source,
+                                       String sourceName, int lineno,
+                                       Object securityDomain)
+    {
+<span class="nc" id="L1259">        Script script = compileString(source, sourceName, lineno,</span>
+                                      securityDomain);
+<span class="nc bnc" id="L1261" title="All 2 branches missed.">        if (script != null) {</span>
+<span class="nc" id="L1262">            return script.exec(this, scope);</span>
+        } else {
+<span class="nc" id="L1264">            return null;</span>
+        }
+    }
+
+    /**
+     * Evaluate a reader as JavaScript source.
+     *
+     * All characters of the reader are consumed.
+     *
+     * @param scope the scope to execute in
+     * @param in the Reader to get JavaScript source from
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param securityDomain an arbitrary object that specifies security
+     *        information about the origin or owner of the script. For
+     *        implementations that don't care about security, this value
+     *        may be null.
+     * @return the result of evaluating the source
+     *
+     * @exception IOException if an IOException was generated by the Reader
+     */
+    public final Object evaluateReader(Scriptable scope, Reader in,
+                                       String sourceName, int lineno,
+                                       Object securityDomain)
+        throws IOException
+    {
+<span class="nc" id="L1290">        Script script = compileReader(scope, in, sourceName, lineno,</span>
+                                      securityDomain);
+<span class="nc bnc" id="L1292" title="All 2 branches missed.">        if (script != null) {</span>
+<span class="nc" id="L1293">            return script.exec(this, scope);</span>
+        } else {
+<span class="nc" id="L1295">            return null;</span>
+        }
+    }
+
+    /**
+     * Execute script that may pause execution by capturing a continuation.
+     * Caller must be prepared to catch a ContinuationPending exception
+     * and resume execution by calling
+     * {@link #resumeContinuation(Object, Scriptable, Object)}.
+     * @param script The script to execute. Script must have been compiled
+     *      with interpreted mode (optimization level -1)
+     * @param scope The scope to execute the script against
+     * @throws ContinuationPending if the script calls a function that results
+     *      in a call to {@link #captureContinuation()}
+     * @since 1.7 Release 2
+     */
+    public Object executeScriptWithContinuations(Script script,
+            Scriptable scope)
+        throws ContinuationPending
+    {
+<span class="nc bnc" id="L1315" title="All 2 branches missed.">        if (!(script instanceof InterpretedFunction) ||</span>
+<span class="nc bnc" id="L1316" title="All 2 branches missed.">            !((InterpretedFunction)script).isScript())</span>
+        {
+            // Can only be applied to scripts
+<span class="nc" id="L1319">            throw new IllegalArgumentException(&quot;Script argument was not&quot; +</span>
+                    &quot; a script or was not created by interpreted mode &quot;);
+        }
+<span class="nc" id="L1322">        return callFunctionWithContinuations((InterpretedFunction) script,</span>
+                scope, ScriptRuntime.emptyArgs);
+    }
+
+    /**
+     * Call function that may pause execution by capturing a continuation.
+     * Caller must be prepared to catch a ContinuationPending exception
+     * and resume execution by calling
+     * {@link #resumeContinuation(Object, Scriptable, Object)}.
+     * @param function The function to call. The function must have been
+     *      compiled with interpreted mode (optimization level -1)
+     * @param scope The scope to execute the script against
+     * @param args The arguments for the function
+     * @throws ContinuationPending if the script calls a function that results
+     *      in a call to {@link #captureContinuation()}
+     * @since 1.7 Release 2
+     */
+    public Object callFunctionWithContinuations(Callable function,
+            Scriptable scope, Object[] args)
+        throws ContinuationPending
+    {
+<span class="nc bnc" id="L1343" title="All 2 branches missed.">        if (!(function instanceof InterpretedFunction)) {</span>
+            // Can only be applied to scripts
+<span class="nc" id="L1345">            throw new IllegalArgumentException(&quot;Function argument was not&quot; +</span>
+                    &quot; created by interpreted mode &quot;);
+        }
+<span class="nc bnc" id="L1348" title="All 2 branches missed.">        if (ScriptRuntime.hasTopCall(this)) {</span>
+<span class="nc" id="L1349">            throw new IllegalStateException(&quot;Cannot have any pending top &quot; +</span>
+                    &quot;calls when executing a script with continuations&quot;);
+        }
+        // Annotate so we can check later to ensure no java code in
+        // intervening frames
+<span class="nc" id="L1354">        isContinuationsTopCall = true;</span>
+<span class="nc" id="L1355">        return ScriptRuntime.doTopCall(function, this, scope, scope, args, isTopLevelStrict);</span>
+    }
+
+    /**
+     * Capture a continuation from the current execution. The execution must
+     * have been started via a call to
+     * {@link #executeScriptWithContinuations(Script, Scriptable)} or
+     * {@link #callFunctionWithContinuations(Callable, Scriptable, Object[])}.
+     * This implies that the code calling
+     * this method must have been called as a function from the
+     * JavaScript script. Also, there cannot be any non-JavaScript code
+     * between the JavaScript frames (e.g., a call to eval()). The
+     * ContinuationPending exception returned must be thrown.
+     * @return A ContinuationPending exception that must be thrown
+     * @since 1.7 Release 2
+     */
+    public ContinuationPending captureContinuation() {
+<span class="nc" id="L1372">        return new ContinuationPending(</span>
+<span class="nc" id="L1373">                Interpreter.captureContinuation(this));</span>
+    }
+
+    /**
+     * Restarts execution of the JavaScript suspended at the call
+     * to {@link #captureContinuation()}. Execution of the code will resume
+     * with the functionResult as the result of the call that captured the
+     * continuation.
+     * Execution of the script will either conclude normally and the
+     * result returned, another continuation will be captured and
+     * thrown, or the script will terminate abnormally and throw an exception.
+     * @param continuation The value returned by
+     * {@link ContinuationPending#getContinuation()}
+     * @param functionResult This value will appear to the code being resumed
+     *      as the result of the function that captured the continuation
+     * @throws ContinuationPending if another continuation is captured before
+     *      the code terminates
+     * @since 1.7 Release 2
+     */
+    public Object resumeContinuation(Object continuation,
+            Scriptable scope, Object functionResult)
+            throws ContinuationPending
+    {
+<span class="nc" id="L1396">        Object[] args = { functionResult };</span>
+<span class="nc" id="L1397">        return Interpreter.restartContinuation(</span>
+                (org.mozilla.javascript.NativeContinuation) continuation,
+                this, scope, args);
+    }
+
+    /**
+     * Check whether a string is ready to be compiled.
+     * &lt;p&gt;
+     * stringIsCompilableUnit is intended to support interactive compilation of
+     * JavaScript.  If compiling the string would result in an error
+     * that might be fixed by appending more source, this method
+     * returns false.  In every other case, it returns true.
+     * &lt;p&gt;
+     * Interactive shells may accumulate source lines, using this
+     * method after each new line is appended to check whether the
+     * statement being entered is complete.
+     *
+     * @param source the source buffer to check
+     * @return whether the source is ready for compilation
+     * @since 1.4 Release 2
+     */
+    public final boolean stringIsCompilableUnit(String source) {
+<span class="fc" id="L1419">        boolean errorseen = false;</span>
+<span class="fc" id="L1420">        CompilerEnvirons compilerEnv = new CompilerEnvirons();</span>
+<span class="fc" id="L1421">        compilerEnv.initFromContext(this);</span>
+        // no source name or source text manager, because we're just
+        // going to throw away the result.
+<span class="fc" id="L1424">        compilerEnv.setGeneratingSource(false);</span>
+<span class="fc" id="L1425">        Parser p = new Parser(compilerEnv, DefaultErrorReporter.instance);</span>
+        try {
+<span class="nc" id="L1427">            p.parse(source, null, 1);</span>
+<span class="fc" id="L1428">        } catch (EvaluatorException ee) {</span>
+<span class="fc" id="L1429">            errorseen = true;</span>
+<span class="nc" id="L1430">        }</span>
+        // Return false only if an error occurred as a result of reading past
+        // the end of the file, i.e. if the source could be fixed by
+        // appending more source.
+<span class="pc bpc" id="L1434" title="1 of 4 branches missed.">        return !(errorseen &amp;&amp; p.eof());</span>
+    }
+
+    /**
+     * @deprecated
+     * @see #compileReader(Reader in, String sourceName, int lineno,
+     *                     Object securityDomain)
+     */
+    @Deprecated
+    public final Script compileReader(Scriptable scope, Reader in,
+                                      String sourceName, int lineno,
+                                      Object securityDomain)
+        throws IOException
+    {
+<span class="nc" id="L1448">        return compileReader(in, sourceName, lineno, securityDomain);</span>
+    }
+
+    /**
+     * Compiles the source in the given reader.
+     * &lt;p&gt;
+     * Returns a script that may later be executed.
+     * Will consume all the source in the reader.
+     *
+     * @param in the input reader
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number for reporting errors
+     * @param securityDomain an arbitrary object that specifies security
+     *        information about the origin or owner of the script. For
+     *        implementations that don't care about security, this value
+     *        may be null.
+     * @return a script that may later be executed
+     * @exception IOException if an IOException was generated by the Reader
+     * @see org.mozilla.javascript.Script
+     */
+    public final Script compileReader(Reader in, String sourceName,
+                                      int lineno, Object securityDomain)
+        throws IOException
+    {
+<span class="nc bnc" id="L1472" title="All 2 branches missed.">        if (lineno &lt; 0) {</span>
+            // For compatibility IllegalArgumentException can not be thrown here
+<span class="nc" id="L1474">            lineno = 0;</span>
+        }
+<span class="nc" id="L1476">        return (Script) compileImpl(null, in, null, sourceName, lineno,</span>
+                                    securityDomain, false, null, null);
+    }
+
+    /**
+     * Compiles the source in the given string.
+     * &lt;p&gt;
+     * Returns a script that may later be executed.
+     *
+     * @param source the source string
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number for reporting errors. Use
+     *        0 if the line number is unknown.
+     * @param securityDomain an arbitrary object that specifies security
+     *        information about the origin or owner of the script. For
+     *        implementations that don't care about security, this value
+     *        may be null.
+     * @return a script that may later be executed
+     * @see org.mozilla.javascript.Script
+     */
+    public final Script compileString(String source,
+                                      String sourceName, int lineno,
+                                      Object securityDomain)
+    {
+<span class="fc bfc" id="L1500" title="All 2 branches covered.">        if (lineno &lt; 0) {</span>
+            // For compatibility IllegalArgumentException can not be thrown here
+<span class="fc" id="L1502">            lineno = 0;</span>
+        }
+<span class="fc" id="L1504">        return compileString(source, null, null, sourceName, lineno,</span>
+                             securityDomain);
+    }
+
+    final Script compileString(String source,
+                               Evaluator compiler,
+                               ErrorReporter compilationErrorReporter,
+                               String sourceName, int lineno,
+                               Object securityDomain)
+    {
+        try {
+<span class="fc" id="L1515">            return (Script) compileImpl(null, null, source, sourceName, lineno,</span>
+                                        securityDomain, false,
+                                        compiler, compilationErrorReporter);
+<span class="nc" id="L1518">        } catch (IOException ex) {</span>
+            // Should not happen when dealing with source as string
+<span class="nc" id="L1520">            throw new RuntimeException();</span>
+        }
+    }
+
+    /**
+     * Compile a JavaScript function.
+     * &lt;p&gt;
+     * The function source must be a function definition as defined by
+     * ECMA (e.g., &quot;function f(a) { return a; }&quot;).
+     *
+     * @param scope the scope to compile relative to
+     * @param source the function definition source
+     * @param sourceName a string describing the source, such as a filename
+     * @param lineno the starting line number
+     * @param securityDomain an arbitrary object that specifies security
+     *        information about the origin or owner of the script. For
+     *        implementations that don't care about security, this value
+     *        may be null.
+     * @return a Function that may later be called
+     * @see org.mozilla.javascript.Function
+     */
+    public final Function compileFunction(Scriptable scope, String source,
+                                          String sourceName, int lineno,
+                                          Object securityDomain)
+    {
+<span class="nc" id="L1545">        return compileFunction(scope, source, null, null, sourceName, lineno,</span>
+                               securityDomain);
+    }
+
+    final Function compileFunction(Scriptable scope, String source,
+                                   Evaluator compiler,
+                                   ErrorReporter compilationErrorReporter,
+                                   String sourceName, int lineno,
+                                   Object securityDomain)
+    {
+        try {
+<span class="nc" id="L1556">            return (Function) compileImpl(scope, null, source, sourceName,</span>
+                                          lineno, securityDomain, true,
+                                          compiler, compilationErrorReporter);
+        }
+<span class="nc" id="L1560">        catch (IOException ioe) {</span>
+            // Should never happen because we just made the reader
+            // from a String
+<span class="nc" id="L1563">            throw new RuntimeException();</span>
+        }
+    }
+
+    /**
+     * Decompile the script.
+     * &lt;p&gt;
+     * The canonical source of the script is returned.
+     *
+     * @param script the script to decompile
+     * @param indent the number of spaces to indent the result
+     * @return a string representing the script source
+     */
+    public final String decompileScript(Script script, int indent)
+    {
+<span class="nc" id="L1578">        NativeFunction scriptImpl = (NativeFunction) script;</span>
+<span class="nc" id="L1579">        return scriptImpl.decompile(indent, 0);</span>
+    }
+
+    /**
+     * Decompile a JavaScript Function.
+     * &lt;p&gt;
+     * Decompiles a previously compiled JavaScript function object to
+     * canonical source.
+     * &lt;p&gt;
+     * Returns function body of '[native code]' if no decompilation
+     * information is available.
+     *
+     * @param fun the JavaScript function to decompile
+     * @param indent the number of spaces to indent the result
+     * @return a string representing the function source
+     */
+    public final String decompileFunction(Function fun, int indent)
+    {
+<span class="nc bnc" id="L1597" title="All 2 branches missed.">        if (fun instanceof BaseFunction)</span>
+<span class="nc" id="L1598">            return ((BaseFunction)fun).decompile(indent, 0);</span>
+        else
+<span class="nc" id="L1600">            return &quot;function &quot; + fun.getClassName() +</span>
+                   &quot;() {\n\t[native code]\n}\n&quot;;
+    }
+
+    /**
+     * Decompile the body of a JavaScript Function.
+     * &lt;p&gt;
+     * Decompiles the body a previously compiled JavaScript Function
+     * object to canonical source, omitting the function header and
+     * trailing brace.
+     *
+     * Returns '[native code]' if no decompilation information is available.
+     *
+     * @param fun the JavaScript function to decompile
+     * @param indent the number of spaces to indent the result
+     * @return a string representing the function body source.
+     */
+    public final String decompileFunctionBody(Function fun, int indent)
+    {
+<span class="nc bnc" id="L1619" title="All 2 branches missed.">        if (fun instanceof BaseFunction) {</span>
+<span class="nc" id="L1620">            BaseFunction bf = (BaseFunction)fun;</span>
+<span class="nc" id="L1621">            return bf.decompile(indent, Decompiler.ONLY_BODY_FLAG);</span>
+        }
+        // ALERT: not sure what the right response here is.
+<span class="nc" id="L1624">        return &quot;[native code]\n&quot;;</span>
+    }
+
+    /**
+     * Create a new JavaScript object.
+     *
+     * Equivalent to evaluating &quot;new Object()&quot;.
+     * @param scope the scope to search for the constructor and to evaluate
+     *              against
+     * @return the new object
+     */
+    public Scriptable newObject(Scriptable scope)
+    {
+<span class="fc" id="L1637">        NativeObject result = new NativeObject();</span>
+<span class="fc" id="L1638">        ScriptRuntime.setBuiltinProtoAndParent(result, scope,</span>
+                TopLevel.Builtins.Object);
+<span class="fc" id="L1640">        return result;</span>
+    }
+
+    /**
+     * Create a new JavaScript object by executing the named constructor.
+     *
+     * The call &lt;code&gt;newObject(scope, &quot;Foo&quot;)&lt;/code&gt; is equivalent to
+     * evaluating &quot;new Foo()&quot;.
+     *
+     * @param scope the scope to search for the constructor and to evaluate against
+     * @param constructorName the name of the constructor to call
+     * @return the new object
+     */
+    public Scriptable newObject(Scriptable scope, String constructorName)
+    {
+<span class="fc" id="L1655">        return newObject(scope, constructorName, ScriptRuntime.emptyArgs);</span>
+    }
+
+    /**
+     * Creates a new JavaScript object by executing the named constructor.
+     *
+     * Searches &lt;code&gt;scope&lt;/code&gt; for the named constructor, calls it with
+     * the given arguments, and returns the result.&lt;p&gt;
+     *
+     * The code
+     * &lt;pre&gt;
+     * Object[] args = { &quot;a&quot;, &quot;b&quot; };
+     * newObject(scope, &quot;Foo&quot;, args)&lt;/pre&gt;
+     * is equivalent to evaluating &quot;new Foo('a', 'b')&quot;, assuming that the Foo
+     * constructor has been defined in &lt;code&gt;scope&lt;/code&gt;.
+     *
+     * @param scope The scope to search for the constructor and to evaluate
+     *              against
+     * @param constructorName the name of the constructor to call
+     * @param args the array of arguments for the constructor
+     * @return the new object
+     */
+    public Scriptable newObject(Scriptable scope, String constructorName,
+                                Object[] args)
+    {
+<span class="fc" id="L1680">        return ScriptRuntime.newObject(this, scope, constructorName, args);</span>
+    }
+
+    /**
+     * Create an array with a specified initial length.
+     * &lt;p&gt;
+     * @param scope the scope to create the object in
+     * @param length the initial length (JavaScript arrays may have
+     *               additional properties added dynamically).
+     * @return the new array object
+     */
+    public Scriptable newArray(Scriptable scope, int length)
+    {
+<span class="fc" id="L1693">        NativeArray result = new NativeArray(length);</span>
+<span class="fc" id="L1694">        ScriptRuntime.setBuiltinProtoAndParent(result, scope,</span>
+                TopLevel.Builtins.Array);
+<span class="fc" id="L1696">        return result;</span>
+    }
+
+    /**
+     * Create an array with a set of initial elements.
+     *
+     * @param scope the scope to create the object in.
+     * @param elements the initial elements. Each object in this array
+     *                 must be an acceptable JavaScript type and type
+     *                 of array should be exactly Object[], not
+     *                 SomeObjectSubclass[].
+     * @return the new array object.
+     */
+    public Scriptable newArray(Scriptable scope, Object[] elements)
+    {
+<span class="pc bpc" id="L1711" title="1 of 2 branches missed.">        if (elements.getClass().getComponentType() != ScriptRuntime.ObjectClass)</span>
+<span class="nc" id="L1712">            throw new IllegalArgumentException();</span>
+<span class="fc" id="L1713">        NativeArray result = new NativeArray(elements);</span>
+<span class="fc" id="L1714">        ScriptRuntime.setBuiltinProtoAndParent(result, scope,</span>
+                TopLevel.Builtins.Array);
+<span class="fc" id="L1716">        return result;</span>
+    }
+
+    /**
+     * Get the elements of a JavaScript array.
+     * &lt;p&gt;
+     * If the object defines a length property convertible to double number,
+     * then the number is converted Uint32 value as defined in Ecma 9.6
+     * and Java array of that size is allocated.
+     * The array is initialized with the values obtained by
+     * calling get() on object for each value of i in [0,length-1]. If
+     * there is not a defined value for a property the Undefined value
+     * is used to initialize the corresponding element in the array. The
+     * Java array is then returned.
+     * If the object doesn't define a length property or it is not a number,
+     * empty array is returned.
+     * @param object the JavaScript array or array-like object
+     * @return a Java array of objects
+     * @since 1.4 release 2
+     */
+    public final Object[] getElements(Scriptable object)
+    {
+<span class="nc" id="L1738">        return ScriptRuntime.getArrayElements(object);</span>
+    }
+
+    /**
+     * Convert the value to a JavaScript boolean value.
+     * &lt;p&gt;
+     * See ECMA 9.2.
+     *
+     * @param value a JavaScript value
+     * @return the corresponding boolean value converted using
+     *         the ECMA rules
+     */
+    public static boolean toBoolean(Object value)
+    {
+<span class="nc" id="L1752">        return ScriptRuntime.toBoolean(value);</span>
+    }
+
+    /**
+     * Convert the value to a JavaScript Number value.
+     * &lt;p&gt;
+     * Returns a Java double for the JavaScript Number.
+     * &lt;p&gt;
+     * See ECMA 9.3.
+     *
+     * @param value a JavaScript value
+     * @return the corresponding double value converted using
+     *         the ECMA rules
+     */
+    public static double toNumber(Object value)
+    {
+<span class="fc" id="L1768">        return ScriptRuntime.toNumber(value);</span>
+    }
+
+    /**
+     * Convert the value to a JavaScript String value.
+     * &lt;p&gt;
+     * See ECMA 9.8.
+     * &lt;p&gt;
+     * @param value a JavaScript value
+     * @return the corresponding String value converted using
+     *         the ECMA rules
+     */
+    public static String toString(Object value)
+    {
+<span class="fc" id="L1782">        return ScriptRuntime.toString(value);</span>
+    }
+
+    /**
+     * Convert the value to an JavaScript object value.
+     * &lt;p&gt;
+     * Note that a scope must be provided to look up the constructors
+     * for Number, Boolean, and String.
+     * &lt;p&gt;
+     * See ECMA 9.9.
+     * &lt;p&gt;
+     * Additionally, arbitrary Java objects and classes will be
+     * wrapped in a Scriptable object with its Java fields and methods
+     * reflected as JavaScript properties of the object.
+     *
+     * @param value any Java object
+     * @param scope global scope containing constructors for Number,
+     *              Boolean, and String
+     * @return new JavaScript object
+     */
+    public static Scriptable toObject(Object value, Scriptable scope)
+    {
+<span class="nc" id="L1804">        return ScriptRuntime.toObject(scope, value);</span>
+    }
+
+    /**
+     * @deprecated
+     * @see #toObject(Object, Scriptable)
+     */
+    @Deprecated
+    public static Scriptable toObject(Object value, Scriptable scope,
+                                      Class&lt;?&gt; staticType)
+    {
+<span class="nc" id="L1815">        return ScriptRuntime.toObject(scope, value);</span>
+    }
+
+    /**
+     * Convenient method to convert java value to its closest representation
+     * in JavaScript.
+     * &lt;p&gt;
+     * If value is an instance of String, Number, Boolean, Function or
+     * Scriptable, it is returned as it and will be treated as the corresponding
+     * JavaScript type of string, number, boolean, function and object.
+     * &lt;p&gt;
+     * Note that for Number instances during any arithmetic operation in
+     * JavaScript the engine will always use the result of
+     * &lt;tt&gt;Number.doubleValue()&lt;/tt&gt; resulting in a precision loss if
+     * the number can not fit into double.
+     * &lt;p&gt;
+     * If value is an instance of Character, it will be converted to string of
+     * length 1 and its JavaScript type will be string.
+     * &lt;p&gt;
+     * The rest of values will be wrapped as LiveConnect objects
+     * by calling {@link WrapFactory#wrap(Context cx, Scriptable scope,
+     * Object obj, Class staticType)} as in:
+     * &lt;pre&gt;
+     *    Context cx = Context.getCurrentContext();
+     *    return cx.getWrapFactory().wrap(cx, scope, value, null);
+     * &lt;/pre&gt;
+     *
+     * @param value any Java object
+     * @param scope top scope object
+     * @return value suitable to pass to any API that takes JavaScript values.
+     */
+    public static Object javaToJS(Object value, Scriptable scope)
+    {
+<span class="pc bpc" id="L1848" title="4 of 8 branches missed.">        if (value instanceof String || value instanceof Number</span>
+            || value instanceof Boolean || value instanceof Scriptable)
+        {
+<span class="nc" id="L1851">            return value;</span>
+<span class="pc bpc" id="L1852" title="1 of 2 branches missed.">        } else if (value instanceof Character) {</span>
+<span class="nc" id="L1853">            return String.valueOf(((Character)value).charValue());</span>
+        } else {
+<span class="fc" id="L1855">            Context cx = Context.getContext();</span>
+<span class="fc" id="L1856">            return cx.getWrapFactory().wrap(cx, scope, value, null);</span>
+        }
+    }
+
+    /**
+     * Convert a JavaScript value into the desired type.
+     * Uses the semantics defined with LiveConnect3 and throws an
+     * Illegal argument exception if the conversion cannot be performed.
+     * @param value the JavaScript value to convert
+     * @param desiredType the Java type to convert to. Primitive Java
+     *        types are represented using the TYPE fields in the corresponding
+     *        wrapper class in java.lang.
+     * @return the converted value
+     * @throws EvaluatorException if the conversion cannot be performed
+     */
+    public static Object jsToJava(Object value, Class&lt;?&gt; desiredType)
+        throws EvaluatorException
+    {
+<span class="fc" id="L1874">        return NativeJavaObject.coerceTypeImpl(desiredType, value);</span>
+    }
+
+    /**
+     * @deprecated
+     * @see #jsToJava(Object, Class)
+     * @throws IllegalArgumentException if the conversion cannot be performed.
+     *         Note that {@link #jsToJava(Object, Class)} throws
+     *         {@link EvaluatorException} instead.
+     */
+    @Deprecated
+    public static Object toType(Object value, Class&lt;?&gt; desiredType)
+        throws IllegalArgumentException
+    {
+        try {
+<span class="nc" id="L1889">            return jsToJava(value, desiredType);</span>
+<span class="nc" id="L1890">        } catch (EvaluatorException ex) {</span>
+            IllegalArgumentException
+<span class="nc" id="L1892">                ex2 = new IllegalArgumentException(ex.getMessage());</span>
+<span class="nc" id="L1893">            Kit.initCause(ex2, ex);</span>
+<span class="nc" id="L1894">            throw ex2;</span>
+        }
+    }
+
+    /**
+     * Rethrow the exception wrapping it as the script runtime exception.
+     * Unless the exception is instance of {@link EcmaError} or
+     * {@link EvaluatorException} it will be wrapped as
+     * {@link WrappedException}, a subclass of {@link EvaluatorException}.
+     * The resulting exception object always contains
+     * source name and line number of script that triggered exception.
+     * &lt;p&gt;
+     * This method always throws an exception, its return value is provided
+     * only for convenience to allow a usage like:
+     * &lt;pre&gt;
+     * throw Context.throwAsScriptRuntimeEx(ex);
+     * &lt;/pre&gt;
+     * to indicate that code after the method is unreachable.
+     * @throws EvaluatorException
+     * @throws EcmaError
+     */
+    public static RuntimeException throwAsScriptRuntimeEx(Throwable e)
+    {
+<span class="pc bpc" id="L1917" title="1 of 2 branches missed.">        while ((e instanceof InvocationTargetException)) {</span>
+<span class="nc" id="L1918">            e = ((InvocationTargetException) e).getTargetException();</span>
+        }
+        // special handling of Error so scripts would not catch them
+<span class="pc bpc" id="L1921" title="1 of 2 branches missed.">        if (e instanceof Error) {</span>
+<span class="nc" id="L1922">            Context cx = getContext();</span>
+<span class="nc bnc" id="L1923" title="All 2 branches missed.">            if (cx == null ||</span>
+<span class="nc bnc" id="L1924" title="All 2 branches missed.">                !cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS))</span>
+            {
+<span class="nc" id="L1926">                throw (Error)e;</span>
+            }
+        }
+<span class="pc bpc" id="L1929" title="1 of 2 branches missed.">        if (e instanceof RhinoException) {</span>
+<span class="nc" id="L1930">            throw (RhinoException)e;</span>
+        }
+<span class="fc" id="L1932">        throw new WrappedException(e);</span>
+    }
+
+    /**
+     * Tell whether debug information is being generated.
+     * @since 1.3
+     */
+    public final boolean isGeneratingDebug()
+    {
+<span class="fc" id="L1941">        return generatingDebug;</span>
+    }
+
+    /**
+     * Specify whether or not debug information should be generated.
+     * &lt;p&gt;
+     * Setting the generation of debug information on will set the
+     * optimization level to zero.
+     * @since 1.3
+     */
+    public final void setGeneratingDebug(boolean generatingDebug)
+    {
+<span class="pc bpc" id="L1953" title="1 of 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="fc" id="L1954">        generatingDebugChanged = true;</span>
+<span class="pc bpc" id="L1955" title="1 of 4 branches missed.">        if (generatingDebug &amp;&amp; getOptimizationLevel() &gt; 0)</span>
+<span class="nc" id="L1956">            setOptimizationLevel(0);</span>
+<span class="fc" id="L1957">        this.generatingDebug = generatingDebug;</span>
+<span class="fc" id="L1958">    }</span>
+
+    /**
+     * Tell whether source information is being generated.
+     * @since 1.3
+     */
+    public final boolean isGeneratingSource()
+    {
+<span class="fc" id="L1966">        return generatingSource;</span>
+    }
+
+    /**
+     * Specify whether or not source information should be generated.
+     * &lt;p&gt;
+     * Without source information, evaluating the &quot;toString&quot; method
+     * on JavaScript functions produces only &quot;[native code]&quot; for
+     * the body of the function.
+     * Note that code generated without source is not fully ECMA
+     * conformant.
+     * @since 1.3
+     */
+    public final void setGeneratingSource(boolean generatingSource)
+    {
+<span class="nc bnc" id="L1981" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc" id="L1982">        this.generatingSource = generatingSource;</span>
+<span class="nc" id="L1983">    }</span>
+
+    /**
+     * Get the current optimization level.
+     * &lt;p&gt;
+     * The optimization level is expressed as an integer between -1 and
+     * 9.
+     * @since 1.3
+     *
+     */
+    public final int getOptimizationLevel()
+    {
+<span class="fc" id="L1995">        return optimizationLevel;</span>
+    }
+
+    /**
+     * Set the current optimization level.
+     * &lt;p&gt;
+     * The optimization level is expected to be an integer between -1 and
+     * 9. Any negative values will be interpreted as -1, and any values
+     * greater than 9 will be interpreted as 9.
+     * An optimization level of -1 indicates that interpretive mode will
+     * always be used. Levels 0 through 9 indicate that class files may
+     * be generated. Higher optimization levels trade off compile time
+     * performance for runtime performance.
+     * The optimizer level can't be set greater than -1 if the optimizer
+     * package doesn't exist at run time.
+     * @param optimizationLevel an integer indicating the level of
+     *        optimization to perform
+     * @since 1.3
+     *
+     */
+    public final void setOptimizationLevel(int optimizationLevel)
+    {
+<span class="pc bpc" id="L2017" title="1 of 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="pc bpc" id="L2018" title="1 of 2 branches missed.">        if (optimizationLevel == -2) {</span>
+            // To be compatible with Cocoon fork
+<span class="nc" id="L2020">            optimizationLevel = -1;</span>
+        }
+<span class="fc" id="L2022">        checkOptimizationLevel(optimizationLevel);</span>
+<span class="pc bpc" id="L2023" title="1 of 2 branches missed.">        if (codegenClass == null)</span>
+<span class="nc" id="L2024">            optimizationLevel = -1;</span>
+<span class="fc" id="L2025">        this.optimizationLevel = optimizationLevel;</span>
+<span class="fc" id="L2026">    }</span>
+
+    public static boolean isValidOptimizationLevel(int optimizationLevel)
+    {
+<span class="pc bpc" id="L2030" title="2 of 4 branches missed.">        return -1 &lt;= optimizationLevel &amp;&amp; optimizationLevel &lt;= 9;</span>
+    }
+
+    public static void checkOptimizationLevel(int optimizationLevel)
+    {
+<span class="pc bpc" id="L2035" title="1 of 2 branches missed.">        if (isValidOptimizationLevel(optimizationLevel)) {</span>
+<span class="fc" id="L2036">            return;</span>
+        }
+<span class="nc" id="L2038">        throw new IllegalArgumentException(</span>
+            &quot;Optimization level outside [-1..9]: &quot;+optimizationLevel);
+    }
+
+    /**
+     * Returns the maximum stack depth (in terms of number of call frames)
+     * allowed in a single invocation of interpreter. If the set depth would be
+     * exceeded, the interpreter will throw an EvaluatorException in the script.
+     * Defaults to Integer.MAX_VALUE. The setting only has effect for
+     * interpreted functions (those compiled with optimization level set to -1).
+     * As the interpreter doesn't use the Java stack but rather manages its own
+     * stack in the heap memory, a runaway recursion in interpreted code would
+     * eventually consume all available memory and cause OutOfMemoryError
+     * instead of a StackOverflowError limited to only a single thread. This
+     * setting helps prevent such situations.
+     *
+     * @return The current maximum interpreter stack depth.
+     */
+    public final int getMaximumInterpreterStackDepth()
+    {
+<span class="fc" id="L2058">        return maximumInterpreterStackDepth;</span>
+    }
+
+    /**
+     * Sets the maximum stack depth (in terms of number of call frames)
+     * allowed in a single invocation of interpreter. If the set depth would be
+     * exceeded, the interpreter will throw an EvaluatorException in the script.
+     * Defaults to Integer.MAX_VALUE. The setting only has effect for
+     * interpreted functions (those compiled with optimization level set to -1).
+     * As the interpreter doesn't use the Java stack but rather manages its own
+     * stack in the heap memory, a runaway recursion in interpreted code would
+     * eventually consume all available memory and cause OutOfMemoryError
+     * instead of a StackOverflowError limited to only a single thread. This
+     * setting helps prevent such situations.
+     *
+     * @param max the new maximum interpreter stack depth
+     * @throws IllegalStateException if this context's optimization level is not
+     * -1
+     * @throws IllegalArgumentException if the new depth is not at least 1
+     */
+    public final void setMaximumInterpreterStackDepth(int max)
+    {
+<span class="nc bnc" id="L2080" title="All 2 branches missed.">        if(sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2081" title="All 2 branches missed.">        if(optimizationLevel != -1) {</span>
+<span class="nc" id="L2082">            throw new IllegalStateException(&quot;Cannot set maximumInterpreterStackDepth when optimizationLevel != -1&quot;);</span>
+        }
+<span class="nc bnc" id="L2084" title="All 2 branches missed.">        if(max &lt; 1) {</span>
+<span class="nc" id="L2085">            throw new IllegalArgumentException(&quot;Cannot set maximumInterpreterStackDepth to less than 1&quot;);</span>
+        }
+<span class="nc" id="L2087">        maximumInterpreterStackDepth = max;</span>
+<span class="nc" id="L2088">    }</span>
+
+    /**
+     * Set the security controller for this context.
+     * &lt;p&gt; SecurityController may only be set if it is currently null
+     * and {@link SecurityController#hasGlobal()} is &lt;tt&gt;false&lt;/tt&gt;.
+     * Otherwise a SecurityException is thrown.
+     * @param controller a SecurityController object
+     * @throws SecurityException if there is already a SecurityController
+     *         object for this Context or globally installed.
+     * @see SecurityController#initGlobal(SecurityController controller)
+     * @see SecurityController#hasGlobal()
+     */
+    public final void setSecurityController(SecurityController controller)
+    {
+<span class="nc bnc" id="L2103" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2104" title="All 2 branches missed.">        if (controller == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L2105" title="All 2 branches missed.">        if (securityController != null) {</span>
+<span class="nc" id="L2106">            throw new SecurityException(&quot;Can not overwrite existing SecurityController object&quot;);</span>
+        }
+<span class="nc bnc" id="L2108" title="All 2 branches missed.">        if (SecurityController.hasGlobal()) {</span>
+<span class="nc" id="L2109">            throw new SecurityException(&quot;Can not overwrite existing global SecurityController object&quot;);</span>
+        }
+<span class="nc" id="L2111">        securityController = controller;</span>
+<span class="nc" id="L2112">    }</span>
+
+    /**
+     * Set the LiveConnect access filter for this context.
+     * &lt;p&gt; {@link ClassShutter} may only be set if it is currently null.
+     * Otherwise a SecurityException is thrown.
+     * @param shutter a ClassShutter object
+     * @throws SecurityException if there is already a ClassShutter
+     *         object for this Context
+     */
+    public synchronized final void setClassShutter(ClassShutter shutter)
+    {
+<span class="nc bnc" id="L2124" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2125" title="All 2 branches missed.">        if (shutter == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L2126" title="All 2 branches missed.">        if (hasClassShutter) {</span>
+<span class="nc" id="L2127">            throw new SecurityException(&quot;Cannot overwrite existing &quot; +</span>
+                                        &quot;ClassShutter object&quot;);
+        }
+<span class="nc" id="L2130">        classShutter = shutter;</span>
+<span class="nc" id="L2131">        hasClassShutter = true;</span>
+<span class="nc" id="L2132">    }</span>
+
+    final synchronized ClassShutter getClassShutter()
+    {
+<span class="fc" id="L2136">        return classShutter;</span>
+    }
+
+    public interface ClassShutterSetter {
+        public void setClassShutter(ClassShutter shutter);
+        public ClassShutter getClassShutter();
+    }
+
+    public final synchronized ClassShutterSetter getClassShutterSetter() {
+<span class="nc bnc" id="L2145" title="All 2 branches missed.">        if (hasClassShutter)</span>
+<span class="nc" id="L2146">            return null;</span>
+<span class="nc" id="L2147">        hasClassShutter = true;</span>
+<span class="nc" id="L2148">        return new ClassShutterSetter() {</span>
+            public void setClassShutter(ClassShutter shutter) {
+<span class="nc" id="L2150">                classShutter = shutter;</span>
+<span class="nc" id="L2151">            }</span>
+            public ClassShutter getClassShutter() {
+<span class="nc" id="L2153">                return classShutter;</span>
+            }
+        };
+    }
+
+    /**
+     * Get a value corresponding to a key.
+     * &lt;p&gt;
+     * Since the Context is associated with a thread it can be
+     * used to maintain values that can be later retrieved using
+     * the current thread.
+     * &lt;p&gt;
+     * Note that the values are maintained with the Context, so
+     * if the Context is disassociated from the thread the values
+     * cannot be retrieved. Also, if private data is to be maintained
+     * in this manner the key should be a java.lang.Object
+     * whose reference is not divulged to untrusted code.
+     * @param key the key used to lookup the value
+     * @return a value previously stored using putThreadLocal.
+     */
+    public final Object getThreadLocal(Object key)
+    {
+<span class="nc bnc" id="L2175" title="All 2 branches missed.">        if (threadLocalMap == null)</span>
+<span class="nc" id="L2176">            return null;</span>
+<span class="nc" id="L2177">        return threadLocalMap.get(key);</span>
+    }
+
+    /**
+     * Put a value that can later be retrieved using a given key.
+     * &lt;p&gt;
+     * @param key the key used to index the value
+     * @param value the value to save
+     */
+    public synchronized final void putThreadLocal(Object key, Object value)
+    {
+<span class="nc bnc" id="L2188" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2189" title="All 2 branches missed.">        if (threadLocalMap == null)</span>
+<span class="nc" id="L2190">            threadLocalMap = new HashMap&lt;Object,Object&gt;();</span>
+<span class="nc" id="L2191">        threadLocalMap.put(key, value);</span>
+<span class="nc" id="L2192">    }</span>
+
+    /**
+     * Remove values from thread-local storage.
+     * @param key the key for the entry to remove.
+     * @since 1.5 release 2
+     */
+    public final void removeThreadLocal(Object key)
+    {
+<span class="nc bnc" id="L2201" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2202" title="All 2 branches missed.">        if (threadLocalMap == null)</span>
+<span class="nc" id="L2203">            return;</span>
+<span class="nc" id="L2204">        threadLocalMap.remove(key);</span>
+<span class="nc" id="L2205">    }</span>
+
+    /**
+     * @deprecated
+     * @see ClassCache#get(Scriptable)
+     * @see ClassCache#setCachingEnabled(boolean)
+     */
+    @Deprecated
+    public static void setCachingEnabled(boolean cachingEnabled)
+    {
+<span class="nc" id="L2215">    }</span>
+
+    /**
+     * Set a WrapFactory for this Context.
+     * &lt;p&gt;
+     * The WrapFactory allows custom object wrapping behavior for
+     * Java object manipulated with JavaScript.
+     * @see WrapFactory
+     * @since 1.5 Release 4
+     */
+    public final void setWrapFactory(WrapFactory wrapFactory)
+    {
+<span class="nc bnc" id="L2227" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2228" title="All 2 branches missed.">        if (wrapFactory == null) throw new IllegalArgumentException();</span>
+<span class="nc" id="L2229">        this.wrapFactory = wrapFactory;</span>
+<span class="nc" id="L2230">    }</span>
+
+    /**
+     * Return the current WrapFactory, or null if none is defined.
+     * @see WrapFactory
+     * @since 1.5 Release 4
+     */
+    public final WrapFactory getWrapFactory()
+    {
+<span class="fc bfc" id="L2239" title="All 2 branches covered.">        if (wrapFactory == null) {</span>
+<span class="fc" id="L2240">            wrapFactory = new WrapFactory();</span>
+        }
+<span class="fc" id="L2242">        return wrapFactory;</span>
+    }
+
+    /**
+     * Return the current debugger.
+     * @return the debugger, or null if none is attached.
+     */
+    public final Debugger getDebugger()
+    {
+<span class="nc" id="L2251">        return debugger;</span>
+    }
+
+    /**
+     * Return the debugger context data associated with current context.
+     * @return the debugger data, or null if debugger is not attached
+     */
+    public final Object getDebuggerContextData()
+    {
+<span class="nc" id="L2260">        return debuggerData;</span>
+    }
+
+    /**
+     * Set the associated debugger.
+     * @param debugger the debugger to be used on callbacks from
+     * the engine.
+     * @param contextData arbitrary object that debugger can use to store
+     *        per Context data.
+     */
+    public final void setDebugger(Debugger debugger, Object contextData)
+    {
+<span class="pc bpc" id="L2272" title="1 of 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="fc" id="L2273">        this.debugger = debugger;</span>
+<span class="fc" id="L2274">        debuggerData = contextData;</span>
+<span class="fc" id="L2275">    }</span>
+
+    /**
+     * Return DebuggableScript instance if any associated with the script.
+     * If callable supports DebuggableScript implementation, the method
+     * returns it. Otherwise null is returned.
+     */
+    public static DebuggableScript getDebuggableView(Script script)
+    {
+<span class="nc bnc" id="L2284" title="All 2 branches missed.">        if (script instanceof NativeFunction) {</span>
+<span class="nc" id="L2285">            return ((NativeFunction)script).getDebuggableView();</span>
+        }
+<span class="nc" id="L2287">        return null;</span>
+    }
+
+    /**
+     * Controls certain aspects of script semantics.
+     * Should be overwritten to alter default behavior.
+     * &lt;p&gt;
+     * The default implementation calls
+     * {@link ContextFactory#hasFeature(Context cx, int featureIndex)}
+     * that allows to customize Context behavior without introducing
+     * Context subclasses.  {@link ContextFactory} documentation gives
+     * an example of hasFeature implementation.
+     *
+     * @param featureIndex feature index to check
+     * @return true if the &lt;code&gt;featureIndex&lt;/code&gt; feature is turned on
+     * @see #FEATURE_NON_ECMA_GET_YEAR
+     * @see #FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME
+     * @see #FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER
+     * @see #FEATURE_TO_STRING_AS_SOURCE
+     * @see #FEATURE_PARENT_PROTO_PROPRTIES
+     * @see #FEATURE_E4X
+     * @see #FEATURE_DYNAMIC_SCOPE
+     * @see #FEATURE_STRICT_VARS
+     * @see #FEATURE_STRICT_EVAL
+     * @see #FEATURE_LOCATION_INFORMATION_IN_ERROR
+     * @see #FEATURE_STRICT_MODE
+     * @see #FEATURE_WARNING_AS_ERROR
+     * @see #FEATURE_ENHANCED_JAVA_ACCESS
+     */
+    public boolean hasFeature(int featureIndex)
+    {
+<span class="fc" id="L2318">        ContextFactory f = getFactory();</span>
+<span class="fc" id="L2319">        return f.hasFeature(this, featureIndex);</span>
+    }
+
+    /**
+     * Returns an object which specifies an E4X implementation to use within
+     * this &lt;code&gt;Context&lt;/code&gt;. Note that the XMLLib.Factory interface should
+     * be considered experimental.
+     *
+     * The default implementation uses the implementation provided by this
+     * &lt;code&gt;Context&lt;/code&gt;'s {@link ContextFactory}.
+     *
+     * @return An XMLLib.Factory. Should not return &lt;code&gt;null&lt;/code&gt; if
+     *         {@link #FEATURE_E4X} is enabled. See {@link #hasFeature}.
+     */
+    public XMLLib.Factory getE4xImplementationFactory() {
+<span class="fc" id="L2334">        return getFactory().getE4xImplementationFactory();</span>
+    }
+
+    /**
+     * Get threshold of executed instructions counter that triggers call to
+     * &lt;code&gt;observeInstructionCount()&lt;/code&gt;.
+     * When the threshold is zero, instruction counting is disabled,
+     * otherwise each time the run-time executes at least the threshold value
+     * of script instructions, &lt;code&gt;observeInstructionCount()&lt;/code&gt; will
+     * be called.
+     */
+    public final int getInstructionObserverThreshold()
+    {
+<span class="fc" id="L2347">        return instructionThreshold;</span>
+    }
+
+    /**
+     * Set threshold of executed instructions counter that triggers call to
+     * &lt;code&gt;observeInstructionCount()&lt;/code&gt;.
+     * When the threshold is zero, instruction counting is disabled,
+     * otherwise each time the run-time executes at least the threshold value
+     * of script instructions, &lt;code&gt;observeInstructionCount()&lt;/code&gt; will
+     * be called.&lt;p/&gt;
+     * Note that the meaning of &quot;instruction&quot; is not guaranteed to be
+     * consistent between compiled and interpretive modes: executing a given
+     * script or function in the different modes will result in different
+     * instruction counts against the threshold.
+     * {@link #setGenerateObserverCount} is called with true if
+     * &lt;code&gt;threshold&lt;/code&gt; is greater than zero, false otherwise.
+     * @param threshold The instruction threshold
+     */
+    public final void setInstructionObserverThreshold(int threshold)
+    {
+<span class="nc bnc" id="L2367" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2368" title="All 2 branches missed.">        if (threshold &lt; 0) throw new IllegalArgumentException();</span>
+<span class="nc" id="L2369">        instructionThreshold = threshold;</span>
+<span class="nc bnc" id="L2370" title="All 2 branches missed.">        setGenerateObserverCount(threshold &gt; 0);</span>
+<span class="nc" id="L2371">    }</span>
+
+    /**
+     * Turn on or off generation of code with callbacks to
+     * track the count of executed instructions.
+     * Currently only affects JVM byte code generation: this slows down the
+     * generated code, but code generated without the callbacks will not
+     * be counted toward instruction thresholds. Rhino's interpretive
+     * mode does instruction counting without inserting callbacks, so
+     * there is no requirement to compile code differently.
+     * @param generateObserverCount if true, generated code will contain
+     * calls to accumulate an estimate of the instructions executed.
+     */
+    public void setGenerateObserverCount(boolean generateObserverCount) {
+<span class="nc" id="L2385">        this.generateObserverCount = generateObserverCount;</span>
+<span class="nc" id="L2386">    }</span>
+
+    /**
+     * Allow application to monitor counter of executed script instructions
+     * in Context subclasses.
+     * Run-time calls this when instruction counting is enabled and the counter
+     * reaches limit set by &lt;code&gt;setInstructionObserverThreshold()&lt;/code&gt;.
+     * The method is useful to observe long running scripts and if necessary
+     * to terminate them.
+     * &lt;p&gt;
+     * The default implementation calls
+     * {@link ContextFactory#observeInstructionCount(Context cx,
+     *                                               int instructionCount)}
+     * that allows to customize Context behavior without introducing
+     * Context subclasses.
+     *
+     * @param instructionCount amount of script instruction executed since
+     * last call to &lt;code&gt;observeInstructionCount&lt;/code&gt;
+     * @throws Error to terminate the script
+     * @see #setOptimizationLevel(int)
+     */
+    protected void observeInstructionCount(int instructionCount)
+    {
+<span class="nc" id="L2409">        ContextFactory f = getFactory();</span>
+<span class="nc" id="L2410">        f.observeInstructionCount(this, instructionCount);</span>
+<span class="nc" id="L2411">    }</span>
+
+    /**
+     * Create class loader for generated classes.
+     * The method calls {@link ContextFactory#createClassLoader(ClassLoader)}
+     * using the result of {@link #getFactory()}.
+     */
+    public GeneratedClassLoader createClassLoader(ClassLoader parent)
+    {
+<span class="fc" id="L2420">        ContextFactory f = getFactory();</span>
+<span class="fc" id="L2421">        return f.createClassLoader(parent);</span>
+    }
+
+    public final ClassLoader getApplicationClassLoader()
+    {
+<span class="pc bpc" id="L2426" title="1 of 2 branches missed.">        if (applicationClassLoader == null) {</span>
+<span class="fc" id="L2427">            ContextFactory f = getFactory();</span>
+<span class="fc" id="L2428">            ClassLoader loader = f.getApplicationClassLoader();</span>
+<span class="pc bpc" id="L2429" title="1 of 2 branches missed.">            if (loader == null) {</span>
+                ClassLoader threadLoader
+<span class="fc" id="L2431">                    = Thread.currentThread().getContextClassLoader();</span>
+<span class="pc bpc" id="L2432" title="1 of 2 branches missed.">                if (threadLoader != null</span>
+<span class="pc bpc" id="L2433" title="1 of 2 branches missed.">                    &amp;&amp; Kit.testIfCanLoadRhinoClasses(threadLoader))</span>
+                {
+                    // Thread.getContextClassLoader is not cached since
+                    // its caching prevents it from GC which may lead to
+                    // a memory leak and hides updates to
+                    // Thread.getContextClassLoader
+<span class="fc" id="L2439">                    return threadLoader;</span>
+                }
+                // Thread.getContextClassLoader can not load Rhino classes,
+                // try to use the loader of ContextFactory or Context
+                // subclasses.
+<span class="nc" id="L2444">                Class&lt;?&gt; fClass = f.getClass();</span>
+<span class="nc bnc" id="L2445" title="All 2 branches missed.">                if (fClass != ScriptRuntime.ContextFactoryClass) {</span>
+<span class="nc" id="L2446">                    loader = fClass.getClassLoader();</span>
+                } else {
+<span class="nc" id="L2448">                    loader = getClass().getClassLoader();</span>
+                }
+            }
+<span class="nc" id="L2451">            applicationClassLoader = loader;</span>
+        }
+<span class="nc" id="L2453">        return applicationClassLoader;</span>
+    }
+
+    public final void setApplicationClassLoader(ClassLoader loader)
+    {
+<span class="nc bnc" id="L2458" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2459" title="All 2 branches missed.">        if (loader == null) {</span>
+            // restore default behaviour
+<span class="nc" id="L2461">            applicationClassLoader = null;</span>
+<span class="nc" id="L2462">            return;</span>
+        }
+<span class="nc bnc" id="L2464" title="All 2 branches missed.">        if (!Kit.testIfCanLoadRhinoClasses(loader)) {</span>
+<span class="nc" id="L2465">            throw new IllegalArgumentException(</span>
+                &quot;Loader can not resolve Rhino classes&quot;);
+        }
+<span class="nc" id="L2468">        applicationClassLoader = loader;</span>
+<span class="nc" id="L2469">    }</span>
+
+    /********** end of API **********/
+
+    /**
+     * Internal method that reports an error for missing calls to
+     * enter().
+     */
+    static Context getContext()
+    {
+<span class="fc" id="L2479">        Context cx = getCurrentContext();</span>
+<span class="fc bfc" id="L2480" title="All 2 branches covered.">        if (cx == null) {</span>
+<span class="fc" id="L2481">            throw new RuntimeException(</span>
+                &quot;No Context associated with current Thread&quot;);
+        }
+<span class="fc" id="L2484">        return cx;</span>
+    }
+
+    private Object compileImpl(Scriptable scope,
+                               Reader sourceReader, String sourceString,
+                               String sourceName, int lineno,
+                               Object securityDomain, boolean returnFunction,
+                               Evaluator compiler,
+                               ErrorReporter compilationErrorReporter)
+        throws IOException
+    {
+<span class="pc bpc" id="L2495" title="1 of 2 branches missed.">        if(sourceName == null) {</span>
+<span class="nc" id="L2496">            sourceName = &quot;unnamed script&quot;;</span>
+        }
+<span class="pc bpc" id="L2498" title="3 of 4 branches missed.">        if (securityDomain != null &amp;&amp; getSecurityController() == null) {</span>
+<span class="nc" id="L2499">            throw new IllegalArgumentException(</span>
+                &quot;securityDomain should be null if setSecurityController() was never called&quot;);
+        }
+
+        // One of sourceReader or sourceString has to be null
+<span class="pc bpc" id="L2504" title="3 of 6 branches missed.">        if (!(sourceReader == null ^ sourceString == null)) Kit.codeBug();</span>
+        // scope should be given if and only if compiling function
+<span class="pc bpc" id="L2506" title="2 of 4 branches missed.">        if (!(scope == null ^ returnFunction)) Kit.codeBug();</span>
+
+<span class="fc" id="L2508">        CompilerEnvirons compilerEnv = new CompilerEnvirons();</span>
+<span class="fc" id="L2509">        compilerEnv.initFromContext(this);</span>
+<span class="pc bpc" id="L2510" title="1 of 2 branches missed.">        if (compilationErrorReporter == null) {</span>
+<span class="fc" id="L2511">            compilationErrorReporter = compilerEnv.getErrorReporter();</span>
+        }
+
+<span class="fc bfc" id="L2514" title="All 2 branches covered.">        if (debugger != null) {</span>
+<span class="pc bpc" id="L2515" title="1 of 2 branches missed.">            if (sourceReader != null) {</span>
+<span class="nc" id="L2516">                sourceString = Kit.readReader(sourceReader);</span>
+<span class="nc" id="L2517">                sourceReader = null;</span>
+            }
+        }
+
+<span class="fc" id="L2521">        Parser p = new Parser(compilerEnv, compilationErrorReporter);</span>
+<span class="pc bpc" id="L2522" title="1 of 2 branches missed.">        if (returnFunction) {</span>
+<span class="nc" id="L2523">            p.calledByCompileFunction = true;</span>
+        }
+<span class="pc bpc" id="L2525" title="1 of 2 branches missed.">        if (isStrictMode()) {</span>
+<span class="nc" id="L2526">            p.setDefaultUseStrictDirective(true);</span>
+        }
+        AstRoot ast;
+<span class="pc bpc" id="L2529" title="1 of 2 branches missed.">        if (sourceString != null) {</span>
+<span class="fc" id="L2530">            ast = p.parse(sourceString, sourceName, lineno);</span>
+        } else {
+<span class="nc" id="L2532">            ast = p.parse(sourceReader, sourceName, lineno);</span>
+        }
+<span class="pc bpc" id="L2534" title="1 of 2 branches missed.">        if (returnFunction) {</span>
+            // parser no longer adds function to script node
+<span class="nc bnc" id="L2536" title="All 2 branches missed.">            if (!(ast.getFirstChild() != null</span>
+<span class="nc bnc" id="L2537" title="All 2 branches missed.">                  &amp;&amp; ast.getFirstChild().getType() == Token.FUNCTION))</span>
+            {
+                // XXX: the check just looks for the first child
+                // and allows for more nodes after it for compatibility
+                // with sources like function() {};;;
+<span class="nc" id="L2542">                throw new IllegalArgumentException(</span>
+                    &quot;compileFunction only accepts source with single JS function: &quot;+sourceString);
+            }
+        }
+
+<span class="fc" id="L2547">        IRFactory irf = new IRFactory(compilerEnv, compilationErrorReporter);</span>
+<span class="fc" id="L2548">        ScriptNode tree = irf.transformTree(ast);</span>
+
+        // discard everything but the IR tree
+<span class="fc" id="L2551">        p = null;</span>
+<span class="fc" id="L2552">        ast = null;</span>
+<span class="fc" id="L2553">        irf = null;</span>
+
+<span class="pc bpc" id="L2555" title="1 of 2 branches missed.">        if (compiler == null) {</span>
+<span class="fc" id="L2556">            compiler = createCompiler();</span>
+        }
+
+<span class="fc" id="L2559">        Object bytecode = compiler.compile(compilerEnv,</span>
+<span class="fc" id="L2560">                                           tree, tree.getEncodedSource(),</span>
+                                           returnFunction);
+<span class="fc bfc" id="L2562" title="All 2 branches covered.">        if (debugger != null) {</span>
+<span class="pc bpc" id="L2563" title="1 of 2 branches missed.">            if (sourceString == null) Kit.codeBug();</span>
+<span class="pc bpc" id="L2564" title="1 of 2 branches missed.">            if (bytecode instanceof DebuggableScript) {</span>
+<span class="fc" id="L2565">                DebuggableScript dscript = (DebuggableScript)bytecode;</span>
+<span class="nc" id="L2566">                notifyDebugger_r(this, dscript, sourceString);</span>
+<span class="nc" id="L2567">            } else {</span>
+<span class="nc" id="L2568">                throw new RuntimeException(&quot;NOT SUPPORTED&quot;);</span>
+            }
+        }
+
+        Object result;
+<span class="pc bpc" id="L2573" title="1 of 2 branches missed.">        if (returnFunction) {</span>
+<span class="nc" id="L2574">            result = compiler.createFunctionObject(this, scope, bytecode, securityDomain);</span>
+        } else {
+<span class="fc" id="L2576">            result = compiler.createScriptObject(bytecode, securityDomain);</span>
+        }
+
+<span class="fc" id="L2579">        return result;</span>
+    }
+
+    private static void notifyDebugger_r(Context cx, DebuggableScript dscript,
+                                         String debugSource)
+    {
+<span class="nc" id="L2585">        cx.debugger.handleCompilationDone(cx, dscript, debugSource);</span>
+<span class="nc bnc" id="L2586" title="All 2 branches missed.">        for (int i = 0; i != dscript.getFunctionCount(); ++i) {</span>
+<span class="nc" id="L2587">            notifyDebugger_r(cx, dscript.getFunction(i), debugSource);</span>
+        }
+<span class="nc" id="L2589">    }</span>
+
+<span class="fc" id="L2591">    private static Class&lt;?&gt; codegenClass = Kit.classOrNull(</span>
+                             &quot;org.mozilla.javascript.optimizer.Codegen&quot;);
+<span class="fc" id="L2593">    private static Class&lt;?&gt; interpreterClass = Kit.classOrNull(</span>
+                             &quot;org.mozilla.javascript.Interpreter&quot;);
+
+    private Evaluator createCompiler()
+    {
+<span class="fc" id="L2598">        Evaluator result = null;</span>
+<span class="pc bpc" id="L2599" title="1 of 4 branches missed.">        if (optimizationLevel &gt;= 0 &amp;&amp; codegenClass != null) {</span>
+<span class="fc" id="L2600">            result = (Evaluator)Kit.newInstanceOrNull(codegenClass);</span>
+        }
+<span class="fc bfc" id="L2602" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc" id="L2603">            result = createInterpreter();</span>
+        }
+<span class="fc" id="L2605">        return result;</span>
+    }
+
+    static Evaluator createInterpreter()
+    {
+<span class="fc" id="L2610">        return (Evaluator)Kit.newInstanceOrNull(interpreterClass);</span>
+    }
+
+    static String getSourcePositionFromStack(int[] linep)
+    {
+<span class="fc" id="L2615">        Context cx = getCurrentContext();</span>
+<span class="fc bfc" id="L2616" title="All 2 branches covered.">        if (cx == null)</span>
+<span class="fc" id="L2617">            return null;</span>
+<span class="fc bfc" id="L2618" title="All 2 branches covered.">        if (cx.lastInterpreterFrame != null) {</span>
+<span class="fc" id="L2619">            Evaluator evaluator = createInterpreter();</span>
+<span class="pc bpc" id="L2620" title="1 of 2 branches missed.">            if (evaluator != null)</span>
+<span class="fc" id="L2621">                return evaluator.getSourcePositionFromStack(cx, linep);</span>
+        }
+        /**
+         * A bit of a hack, but the only way to get filename and line
+         * number from an enclosing frame.
+         */
+<span class="fc" id="L2627">        StackTraceElement[] stackTrace = new Throwable().getStackTrace();</span>
+<span class="fc bfc" id="L2628" title="All 2 branches covered.">        for (StackTraceElement st : stackTrace) {</span>
+<span class="fc" id="L2629">            String file = st.getFileName();</span>
+<span class="pc bpc" id="L2630" title="1 of 4 branches missed.">            if (!(file == null || file.endsWith(&quot;.java&quot;))) {</span>
+<span class="fc" id="L2631">                int line = st.getLineNumber();</span>
+<span class="pc bpc" id="L2632" title="1 of 2 branches missed.">                if (line &gt;= 0) {</span>
+<span class="nc" id="L2633">                    linep[0] = line;</span>
+<span class="nc" id="L2634">                    return file;</span>
+                }
+            }
+        }
+
+<span class="fc" id="L2639">        return null;</span>
+    }
+
+    RegExpProxy getRegExpProxy()
+    {
+<span class="fc bfc" id="L2644" title="All 2 branches covered.">        if (regExpProxy == null) {</span>
+<span class="fc" id="L2645">            Class&lt;?&gt; cl = Kit.classOrNull(</span>
+                          &quot;org.mozilla.javascript.regexp.RegExpImpl&quot;);
+<span class="pc bpc" id="L2647" title="1 of 2 branches missed.">            if (cl != null) {</span>
+<span class="fc" id="L2648">                regExpProxy = (RegExpProxy)Kit.newInstanceOrNull(cl);</span>
+            }
+        }
+<span class="fc" id="L2651">        return regExpProxy;</span>
+    }
+
+    final boolean isVersionECMA1()
+    {
+<span class="pc bpc" id="L2656" title="1 of 4 branches missed.">        return version == VERSION_DEFAULT || version &gt;= VERSION_1_3;</span>
+    }
+
+// The method must NOT be public or protected
+    SecurityController getSecurityController()
+    {
+<span class="fc" id="L2662">        SecurityController global = SecurityController.global();</span>
+<span class="pc bpc" id="L2663" title="1 of 2 branches missed.">        if (global != null) {</span>
+<span class="nc" id="L2664">            return global;</span>
+        }
+<span class="fc" id="L2666">        return securityController;</span>
+    }
+
+    public final boolean isGeneratingDebugChanged()
+    {
+<span class="fc" id="L2671">        return generatingDebugChanged;</span>
+    }
+
+    /**
+     * Add a name to the list of names forcing the creation of real
+     * activation objects for functions.
+     *
+     * @param name the name of the object to add to the list
+     */
+    public void addActivationName(String name)
+    {
+<span class="nc bnc" id="L2682" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2683" title="All 2 branches missed.">        if (activationNames == null)</span>
+<span class="nc" id="L2684">            activationNames = new HashSet&lt;String&gt;();</span>
+<span class="nc" id="L2685">        activationNames.add(name);</span>
+<span class="nc" id="L2686">    }</span>
+
+    /**
+     * Check whether the name is in the list of names of objects
+     * forcing the creation of activation objects.
+     *
+     * @param name the name of the object to test
+     *
+     * @return true if an function activation object is needed.
+     */
+    public final boolean isActivationNeeded(String name)
+    {
+<span class="nc bnc" id="L2698" title="All 4 branches missed.">        return activationNames != null &amp;&amp; activationNames.contains(name);</span>
+    }
+
+    /**
+     * Remove a name from the list of names forcing the creation of real
+     * activation objects for functions.
+     *
+     * @param name the name of the object to remove from the list
+     */
+    public void removeActivationName(String name)
+    {
+<span class="nc bnc" id="L2709" title="All 2 branches missed.">        if (sealed) onSealedMutation();</span>
+<span class="nc bnc" id="L2710" title="All 2 branches missed.">        if (activationNames != null)</span>
+<span class="nc" id="L2711">            activationNames.remove(name);</span>
+<span class="nc" id="L2712">    }</span>
+
+    public final boolean isStrictMode() {
+<span class="pc bpc" id="L2715" title="2 of 6 branches missed.">        return isTopLevelStrict || (currentActivationCall != null &amp;&amp; currentActivationCall.isStrict);</span>
+    }
+
+    private static String implementationVersion;
+
+    private final ContextFactory factory;
+    private boolean sealed;
+    private Object sealKey;
+
+    Scriptable topCallScope;
+    boolean isContinuationsTopCall;
+    NativeCall currentActivationCall;
+    XMLLib cachedXMLLib;
+    BaseFunction typeErrorThrower;
+
+    // for Objects, Arrays to tag themselves as being printed out,
+    // so they don't print themselves out recursively.
+    // Use ObjToIntMap instead of java.util.HashSet for JDK 1.1 compatibility
+    ObjToIntMap iterating;
+
+    Object interpreterSecurityDomain;
+
+    int version;
+
+    private SecurityController securityController;
+    private boolean hasClassShutter;
+    private ClassShutter classShutter;
+    private ErrorReporter errorReporter;
+    RegExpProxy regExpProxy;
+    private Locale locale;
+    private boolean generatingDebug;
+    private boolean generatingDebugChanged;
+<span class="fc" id="L2747">    private boolean generatingSource=true;</span>
+    boolean useDynamicScope;
+    private int optimizationLevel;
+    private int maximumInterpreterStackDepth;
+    private WrapFactory wrapFactory;
+    Debugger debugger;
+    private Object debuggerData;
+    private int enterCount;
+    private Object propertyListeners;
+    private Map&lt;Object,Object&gt; threadLocalMap;
+    private ClassLoader applicationClassLoader;
+
+    /**
+     * This is the list of names of objects forcing the creation of
+     * function activation records.
+     */
+    Set&lt;String&gt; activationNames;
+
+    // For the interpreter to store the last frame for error reports etc.
+    Object lastInterpreterFrame;
+
+    // For the interpreter to store information about previous invocations
+    // interpreter invocations
+    ObjArray previousInterpreterInvocations;
+
+    // For instruction counting (interpreter only)
+    int instructionCount;
+    int instructionThreshold;
+
+    // It can be used to return the second index-like result from function
+    int scratchIndex;
+
+    // It can be used to return the second uint32 result from function
+    long scratchUint32;
+
+    // It can be used to return the second Scriptable result from function
+    Scriptable scratchScriptable;
+
+    // Generate an observer count on compiled code
+<span class="fc" id="L2786">    public boolean generateObserverCount = false;</span>
+
+    boolean isTopLevelStrict;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

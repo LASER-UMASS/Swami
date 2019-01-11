@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeArrayBufferView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeArrayBufferView.java</span></div><h1>NativeArrayBufferView.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.IdScriptableObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * This class is the abstract parent for all views of the array. It shows a view of the underlying
+ * NativeArrayBuffer. Many views may simultaneously share the same buffer, and changes to one will affect all.
+ */
+
+public abstract class NativeArrayBufferView
+    extends IdScriptableObject
+{
+    private static final long serialVersionUID = 6884475582973958419L;
+
+    /** Many view objects can share the same backing array */
+    protected final NativeArrayBuffer arrayBuffer;
+    /** The offset, in bytes, from the start of the backing array */
+    protected final int offset;
+    /** The length, in bytes, of the portion of the backing array that we use */
+    protected final int byteLength;
+
+    public NativeArrayBufferView()
+<span class="fc" id="L31">    {</span>
+<span class="fc" id="L32">        arrayBuffer = NativeArrayBuffer.EMPTY_BUFFER;</span>
+<span class="fc" id="L33">        offset = 0;</span>
+<span class="fc" id="L34">        byteLength = 0;</span>
+<span class="fc" id="L35">    }</span>
+
+    protected NativeArrayBufferView(NativeArrayBuffer ab, int offset, int byteLength)
+<span class="fc" id="L38">    {</span>
+<span class="fc" id="L39">        this.offset = offset;</span>
+<span class="fc" id="L40">        this.byteLength = byteLength;</span>
+<span class="fc" id="L41">        this.arrayBuffer = ab;</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * Return the buffer that backs this view.
+     */
+    public NativeArrayBuffer getBuffer() {
+<span class="fc" id="L48">        return arrayBuffer;</span>
+    }
+
+    /**
+     * Return the offset in bytes from the start of the buffer that this view represents.
+     */
+    public int getByteOffset() {
+<span class="fc" id="L55">        return offset;</span>
+    }
+
+    /**
+     * Return the length, in bytes, of the part of the buffer that this view represents.
+     */
+    public int getByteLength() {
+<span class="fc" id="L62">        return byteLength;</span>
+    }
+
+    protected static boolean isArg(Object[] args, int i)
+    {
+<span class="pc bpc" id="L67" title="3 of 4 branches missed.">        return ((args.length &gt; i) &amp;&amp; !Undefined.instance.equals(args[i]));</span>
+    }
+
+    // Property dispatcher
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L75">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L81" title="1 of 4 branches missed.">        switch (id) {</span>
+<span class="fc" id="L82">        case Id_buffer: return &quot;buffer&quot;;</span>
+<span class="fc" id="L83">        case Id_byteOffset: return &quot;byteOffset&quot;;</span>
+<span class="fc" id="L84">        case Id_byteLength: return &quot;byteLength&quot;;</span>
+<span class="nc" id="L85">        default: return super.getInstanceIdName(id);</span>
+        }
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">        switch (id) {</span>
+        case Id_buffer:
+<span class="fc" id="L94">            return arrayBuffer;</span>
+        case Id_byteOffset:
+<span class="fc" id="L96">            return ScriptRuntime.wrapInt(offset);</span>
+        case Id_byteLength:
+<span class="fc" id="L98">            return ScriptRuntime.wrapInt(byteLength);</span>
+        default:
+<span class="nc" id="L100">            return super.getInstanceIdValue(id);</span>
+        }
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2014-12-08 17:32:09 PST
+<span class="fc" id="L111">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L112">            int s_length = s.length();</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            if (s_length==6) { X=&quot;buffer&quot;;id=Id_buffer; }</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">            else if (s_length==10) {</span>
+<span class="fc" id="L115">                c=s.charAt(4);</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">                if (c=='L') { X=&quot;byteLength&quot;;id=Id_byteLength; }</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                else if (c=='O') { X=&quot;byteOffset&quot;;id=Id_byteOffset; }</span>
+            }
+<span class="pc bpc" id="L119" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (id == 0) {</span>
+<span class="fc" id="L124">            return super.findInstanceIdInfo(s);</span>
+        }
+<span class="fc" id="L126">        return instanceIdInfo(READONLY | PERMANENT, id);</span>
+    }
+
+    private static final int
+        Id_buffer               = 1,
+        Id_byteOffset           = 2,
+        Id_byteLength           = 3,
+        MAX_INSTANCE_ID         = Id_byteLength;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

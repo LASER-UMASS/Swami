@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PolicySecurityController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">PolicySecurityController.java</span></div><h1>PolicySecurityController.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.ref.SoftReference;
+import java.lang.reflect.UndeclaredThrowableException;
+import java.security.AccessController;
+import java.security.CodeSource;
+import java.security.Policy;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.security.SecureClassLoader;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+import org.mozilla.classfile.ByteCode;
+import org.mozilla.classfile.ClassFileWriter;
+
+/**
+ * A security controller relying on Java {@link Policy} in effect. When you use
+ * this security controller, your securityDomain objects must be instances of
+ * {@link CodeSource} representing the location from where you load your
+ * scripts. Any Java policy &quot;grant&quot; statements matching the URL and certificate
+ * in code sources will apply to the scripts. If you specify any certificates
+ * within your {@link CodeSource} objects, it is your responsibility to verify
+ * (or not) that the script source files are signed in whatever
+ * implementation-specific way you're using.
+ * @author Attila Szegedi
+ */
+<span class="fc" id="L33">public class PolicySecurityController extends SecurityController</span>
+{
+<span class="fc" id="L35">    private static final byte[] secureCallerImplBytecode = loadBytecode();</span>
+
+    // We're storing a CodeSource -&gt; (ClassLoader -&gt; SecureRenderer), since we
+    // need to have one renderer per class loader. We're using weak hash maps
+    // and soft references all the way, since we don't want to interfere with
+    // cleanup of either CodeSource or ClassLoader objects.
+    private static final Map&lt;CodeSource,Map&lt;ClassLoader,SoftReference&lt;SecureCaller&gt;&gt;&gt;
+<span class="fc" id="L42">        callers =</span>
+            new WeakHashMap&lt;CodeSource,Map&lt;ClassLoader,SoftReference&lt;SecureCaller&gt;&gt;&gt;();
+
+    @Override
+    public Class&lt;?&gt; getStaticSecurityDomainClassInternal() {
+<span class="fc" id="L47">        return CodeSource.class;</span>
+    }
+
+    private static class Loader extends SecureClassLoader
+    implements GeneratedClassLoader
+    {
+        private final CodeSource codeSource;
+
+        Loader(ClassLoader parent, CodeSource codeSource)
+        {
+<span class="nc" id="L57">            super(parent);</span>
+<span class="nc" id="L58">            this.codeSource = codeSource;</span>
+<span class="nc" id="L59">        }</span>
+
+        public Class&lt;?&gt; defineClass(String name, byte[] data)
+        {
+<span class="nc" id="L63">            return defineClass(name, data, 0, data.length, codeSource);</span>
+        }
+
+        public void linkClass(Class&lt;?&gt; cl)
+        {
+<span class="nc" id="L68">            resolveClass(cl);</span>
+<span class="nc" id="L69">        }</span>
+    }
+
+    @Override
+    public GeneratedClassLoader createClassLoader(final ClassLoader parent,
+            final Object securityDomain)
+    {
+<span class="nc" id="L76">        return (Loader)AccessController.doPrivileged(</span>
+            new PrivilegedAction&lt;Object&gt;()
+<span class="fc" id="L78">            {</span>
+                public Object run()
+                {
+<span class="nc" id="L81">                    return new Loader(parent, (CodeSource)securityDomain);</span>
+                }
+            });
+    }
+
+    @Override
+    public Object getDynamicSecurityDomain(Object securityDomain)
+    {
+        // No separate notion of dynamic security domain - just return what was
+        // passed in.
+<span class="fc" id="L91">        return securityDomain;</span>
+    }
+
+    @Override
+    public Object callWithDomain(final Object securityDomain, final Context cx,
+            Callable callable, Scriptable scope, Scriptable thisObj,
+            Object[] args)
+    {
+        // Run in doPrivileged as we might be checked for &quot;getClassLoader&quot;
+        // runtime permission
+<span class="nc" id="L101">        final ClassLoader classLoader = (ClassLoader)AccessController.doPrivileged(</span>
+<span class="fc" id="L102">            new PrivilegedAction&lt;Object&gt;() {</span>
+                public Object run() {
+<span class="nc" id="L104">                    return cx.getApplicationClassLoader();</span>
+                }
+            });
+<span class="nc" id="L107">        final CodeSource codeSource = (CodeSource)securityDomain;</span>
+        Map&lt;ClassLoader,SoftReference&lt;SecureCaller&gt;&gt; classLoaderMap;
+<span class="nc" id="L109">        synchronized (callers) {</span>
+<span class="nc" id="L110">            classLoaderMap = callers.get(codeSource);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if(classLoaderMap == null) {</span>
+<span class="nc" id="L112">                classLoaderMap = new WeakHashMap&lt;ClassLoader,SoftReference&lt;SecureCaller&gt;&gt;();</span>
+<span class="nc" id="L113">                callers.put(codeSource, classLoaderMap);</span>
+            }
+<span class="nc" id="L115">        }</span>
+        SecureCaller caller;
+<span class="nc" id="L117">        synchronized (classLoaderMap) {</span>
+<span class="nc" id="L118">            SoftReference&lt;SecureCaller&gt; ref = classLoaderMap.get(classLoader);</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">            if (ref != null) {</span>
+<span class="nc" id="L120">                caller = ref.get();</span>
+            } else {
+<span class="nc" id="L122">                caller = null;</span>
+            }
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            if (caller == null)</span>
+            {
+                try
+                {
+                    // Run in doPrivileged as we'll be checked for
+                    // &quot;createClassLoader&quot; runtime permission
+<span class="nc" id="L130">                    caller = (SecureCaller)AccessController.doPrivileged(</span>
+                            new PrivilegedExceptionAction&lt;Object&gt;()
+<span class="nc" id="L132">                    {</span>
+                        public Object run() throws Exception
+                        {
+<span class="nc" id="L135">                            Loader loader = new Loader(classLoader,</span>
+                                    codeSource);
+<span class="nc" id="L137">                            Class&lt;?&gt; c = loader.defineClass(</span>
+<span class="nc" id="L138">                                    SecureCaller.class.getName() + &quot;Impl&quot;,</span>
+<span class="nc" id="L139">                                    secureCallerImplBytecode);</span>
+<span class="nc" id="L140">                            return c.newInstance();</span>
+                        }
+                    });
+<span class="nc" id="L143">                    classLoaderMap.put(classLoader, new SoftReference&lt;SecureCaller&gt;(caller));</span>
+                }
+<span class="nc" id="L145">                catch(PrivilegedActionException ex)</span>
+                {
+<span class="nc" id="L147">                    throw new UndeclaredThrowableException(ex.getCause());</span>
+<span class="nc" id="L148">                }</span>
+            }
+<span class="nc" id="L150">        }</span>
+<span class="nc" id="L151">        return caller.call(callable, cx, scope, thisObj, args);</span>
+    }
+
+<span class="nc" id="L154">    public abstract static class SecureCaller</span>
+    {
+        public abstract Object call(Callable callable, Context cx, Scriptable scope,
+                Scriptable thisObj, Object[] args);
+    }
+
+
+    private static byte[] loadBytecode()
+    {
+<span class="fc" id="L163">        String secureCallerClassName = SecureCaller.class.getName();</span>
+<span class="fc" id="L164">        ClassFileWriter cfw = new ClassFileWriter(</span>
+                secureCallerClassName + &quot;Impl&quot;, secureCallerClassName,
+                &quot;&lt;generated&gt;&quot;);
+<span class="fc" id="L167">        cfw.startMethod(&quot;&lt;init&gt;&quot;, &quot;()V&quot;, ClassFileWriter.ACC_PUBLIC);</span>
+<span class="fc" id="L168">        cfw.addALoad(0);</span>
+<span class="fc" id="L169">        cfw.addInvoke(ByteCode.INVOKESPECIAL, secureCallerClassName,</span>
+                &quot;&lt;init&gt;&quot;, &quot;()V&quot;);
+<span class="fc" id="L171">        cfw.add(ByteCode.RETURN);</span>
+<span class="fc" id="L172">        cfw.stopMethod((short)1);</span>
+<span class="fc" id="L173">        String callableCallSig =</span>
+            &quot;Lorg/mozilla/javascript/Context;&quot; +
+            &quot;Lorg/mozilla/javascript/Scriptable;&quot; +
+            &quot;Lorg/mozilla/javascript/Scriptable;&quot; +
+            &quot;[Ljava/lang/Object;)Ljava/lang/Object;&quot;;
+
+<span class="fc" id="L179">        cfw.startMethod(&quot;call&quot;,</span>
+                &quot;(Lorg/mozilla/javascript/Callable;&quot; + callableCallSig,
+                (short)(ClassFileWriter.ACC_PUBLIC
+                        | ClassFileWriter.ACC_FINAL));
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        for(int i = 1; i &lt; 6; ++i) {</span>
+<span class="fc" id="L184">            cfw.addALoad(i);</span>
+        }
+<span class="fc" id="L186">        cfw.addInvoke(ByteCode.INVOKEINTERFACE,</span>
+                &quot;org/mozilla/javascript/Callable&quot;, &quot;call&quot;,
+                &quot;(&quot; + callableCallSig);
+<span class="fc" id="L189">        cfw.add(ByteCode.ARETURN);</span>
+<span class="fc" id="L190">        cfw.stopMethod((short)6);</span>
+<span class="fc" id="L191">        return cfw.toByteArray();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

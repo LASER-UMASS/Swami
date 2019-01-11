@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScriptStackElement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ScriptStackElement.java</span></div><h1>ScriptStackElement.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+/**
+ * This class represents an element on the script execution stack.
+ * @see RhinoException#getScriptStack()
+ * @author Hannes Wallnoefer
+ * @since 1.7R3
+ */
+public final class ScriptStackElement implements Serializable {
+
+    static final long serialVersionUID = -6416688260860477449L;
+
+    public final String fileName;
+    public final String functionName;
+    public final int lineNumber;
+
+<span class="fc" id="L23">    public ScriptStackElement(String fileName, String functionName, int lineNumber) {</span>
+<span class="fc" id="L24">        this.fileName = fileName;</span>
+<span class="fc" id="L25">        this.functionName = functionName;</span>
+<span class="fc" id="L26">        this.lineNumber = lineNumber;</span>
+<span class="fc" id="L27">    }</span>
+
+    @Override
+    public String toString() {
+<span class="fc" id="L31">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L32">        renderMozillaStyle(sb);</span>
+<span class="fc" id="L33">        return sb.toString();</span>
+    }
+
+    /**
+     * Render stack element in Java-inspired style:
+     * &lt;code&gt;    at fileName:lineNumber (functionName)&lt;/code&gt;
+     *
+     * @param sb the StringBuilder to append to
+     */
+    public void renderJavaStyle(StringBuilder sb) {
+<span class="fc" id="L43">        sb.append(&quot;\tat &quot;).append(fileName);</span>
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">        if (lineNumber &gt; -1) {</span>
+<span class="fc" id="L45">            sb.append(':').append(lineNumber);</span>
+        }
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (functionName != null) {</span>
+<span class="fc" id="L48">            sb.append(&quot; (&quot;).append(functionName).append(')');</span>
+        }
+<span class="fc" id="L50">    }</span>
+
+    /**
+     * Render stack element in Mozilla/Firefox style:
+     * &lt;code&gt;functionName()@fileName:lineNumber&lt;/code&gt;
+     *
+     * @param sb the StringBuilder to append to
+     */
+    public void renderMozillaStyle(StringBuilder sb) {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (functionName != null) {</span>
+<span class="fc" id="L60">            sb.append(functionName).append(&quot;()&quot;);</span>
+        }
+<span class="fc" id="L62">        sb.append('@').append(fileName);</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (lineNumber &gt; -1) {</span>
+<span class="fc" id="L64">            sb.append(':').append(lineNumber);</span>
+        }
+<span class="fc" id="L66">    }</span>
+
+    /**
+     * Render stack element in V8 style:
+     * &lt;code&gt;    at functionName (fileName:lineNumber:columnNumber)&lt;/code&gt;
+     * or:
+     * &lt;code&gt;    at fileName:lineNumber:columnNumber&lt;/code&gt;
+     *
+     * @param sb the StringBuilder to append to
+     */
+    public void renderV8Style(StringBuilder sb) {
+<span class="fc" id="L77">        sb.append(&quot;    at &quot;);</span>
+
+<span class="pc bpc" id="L79" title="1 of 4 branches missed.">        if ((functionName == null) || &quot;anonymous&quot;.equals(functionName) || &quot;undefined&quot;</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">            .equals(functionName)) {</span>
+            // Anonymous functions in V8 don't have names in the stack trace
+<span class="fc" id="L82">            appendV8Location(sb);</span>
+
+        } else {
+<span class="fc" id="L85">            sb.append(functionName).append(&quot; (&quot;);</span>
+<span class="fc" id="L86">            appendV8Location(sb);</span>
+<span class="fc" id="L87">            sb.append(')');</span>
+        }
+<span class="fc" id="L89">    }</span>
+
+    private void appendV8Location(StringBuilder sb) {
+<span class="fc" id="L92">        sb.append(fileName).append(':');</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        sb.append(lineNumber &gt; -1 ? lineNumber : 0).append(&quot;:0&quot;);</span>
+<span class="fc" id="L94">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

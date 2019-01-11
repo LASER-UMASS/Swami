@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HashSlotMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">HashSlotMap.java</span></div><h1>HashSlotMap.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import static org.mozilla.javascript.ScriptableObject.SlotAccess.*;
+
+/**
+ * This class implements the SlotMap interface using a java.util.HashMap. This class has more
+ * overhead than EmbeddedSlotMap, especially because it puts each &quot;Slot&quot; inside an intermediate
+ * object. However it is much more resistant to large number of hash collisions than
+ * EmbeddedSlotMap and therefore we use this implementation when an object gains a large
+ * number of properties.
+ */
+
+<span class="fc" id="L21">public class HashSlotMap</span>
+    implements SlotMap {
+
+<span class="fc" id="L24">    private final LinkedHashMap&lt;Object, ScriptableObject.Slot&gt; map =</span>
+        new LinkedHashMap&lt;Object, ScriptableObject.Slot&gt;();
+
+    @Override
+    public int size() {
+<span class="fc" id="L29">        return map.size();</span>
+    }
+
+    @Override
+    public boolean isEmpty() {
+<span class="fc" id="L34">        return map.isEmpty();</span>
+    }
+
+    @Override
+    public ScriptableObject.Slot query(Object key, int index)
+    {
+<span class="pc bpc" id="L40" title="1 of 2 branches missed.">        Object name = key == null ? String.valueOf(index) : key;</span>
+<span class="fc" id="L41">        return map.get(name);</span>
+    }
+
+    @Override
+    public ScriptableObject.Slot get(Object key, int index, ScriptableObject.SlotAccess accessType) {
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        Object name = key == null ? String.valueOf(index) : key;</span>
+<span class="fc" id="L47">        ScriptableObject.Slot slot = map.get(name);</span>
+<span class="pc bpc" id="L48" title="1 of 5 branches missed.">        switch (accessType) {</span>
+            case QUERY:
+<span class="fc" id="L50">                return slot;</span>
+            case MODIFY:
+            case MODIFY_CONST:
+<span class="fc bfc" id="L53" title="All 2 branches covered.">                if (slot != null)</span>
+<span class="fc" id="L54">                    return slot;</span>
+                break;
+            case MODIFY_GETTER_SETTER:
+<span class="fc bfc" id="L57" title="All 2 branches covered.">                if (slot instanceof ScriptableObject.GetterSlot)</span>
+<span class="fc" id="L58">                    return slot;</span>
+                break;
+            case CONVERT_ACCESSOR_TO_DATA:
+<span class="fc bfc" id="L61" title="All 2 branches covered.">                if ( !(slot instanceof ScriptableObject.GetterSlot) )</span>
+<span class="fc" id="L62">                    return slot;</span>
+                break;
+        }
+
+<span class="fc" id="L66">        return createSlot(key, index, name, accessType);</span>
+    }
+
+    private ScriptableObject.Slot createSlot(Object key, int index,
+        Object name, ScriptableObject.SlotAccess accessType) {
+<span class="fc" id="L71">        ScriptableObject.Slot slot = map.get(name);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (slot != null) {</span>
+            ScriptableObject.Slot newSlot;
+
+<span class="pc bpc" id="L75" title="1 of 4 branches missed.">            if (accessType == MODIFY_GETTER_SETTER</span>
+                    &amp;&amp; !(slot instanceof ScriptableObject.GetterSlot)) {
+<span class="fc" id="L77">                newSlot = new ScriptableObject.GetterSlot(name, slot.indexOrHash, slot.getAttributes());</span>
+<span class="pc bpc" id="L78" title="2 of 4 branches missed.">            } else if (accessType == CONVERT_ACCESSOR_TO_DATA</span>
+                    &amp;&amp; (slot instanceof ScriptableObject.GetterSlot)) {
+<span class="fc" id="L80">                newSlot = new ScriptableObject.Slot(name, slot.indexOrHash, slot.getAttributes());</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            } else if (accessType == MODIFY_CONST) {</span>
+<span class="nc" id="L82">                return null;</span>
+            } else {
+<span class="nc" id="L84">                return slot;</span>
+            }
+<span class="fc" id="L86">            newSlot.value = slot.value;</span>
+<span class="fc" id="L87">            map.put(name, newSlot);</span>
+<span class="fc" id="L88">            return newSlot;</span>
+        }
+
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        ScriptableObject.Slot newSlot = (accessType == MODIFY_GETTER_SETTER</span>
+                ? new ScriptableObject.GetterSlot(key, index, 0)
+                : new ScriptableObject.Slot(key, index, 0));
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        if (accessType == MODIFY_CONST) {</span>
+<span class="fc" id="L95">            newSlot.setAttributes(ScriptableObject.CONST);</span>
+        }
+<span class="fc" id="L97">        addSlot(newSlot);</span>
+<span class="fc" id="L98">        return newSlot;</span>
+    }
+
+    @Override
+    public void addSlot(ScriptableObject.Slot newSlot) {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        Object name = newSlot.name == null ? String.valueOf(newSlot.indexOrHash) : newSlot.name;</span>
+<span class="fc" id="L104">        map.put(name, newSlot);</span>
+<span class="fc" id="L105">    }</span>
+
+    @Override
+    public void remove(Object key, int index) {
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">        Object name = key == null ? String.valueOf(index) : key;</span>
+<span class="fc" id="L110">        ScriptableObject.Slot slot = map.get(name);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (slot != null) {</span>
+            // non-configurable
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            if ((slot.getAttributes() &amp; ScriptableObject.PERMANENT) != 0) {</span>
+<span class="nc" id="L114">                Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                if (cx.isStrictMode()) {</span>
+<span class="nc" id="L116">                    throw ScriptRuntime.typeError1(&quot;msg.delete.property.with.configurable.false&quot;, key);</span>
+                }
+<span class="nc" id="L118">                return;</span>
+            }
+<span class="fc" id="L120">            map.remove(name);</span>
+        }
+<span class="fc" id="L122">    }</span>
+
+    @Override
+    public Iterator&lt;ScriptableObject.Slot&gt; iterator() {
+<span class="fc" id="L126">        return map.values().iterator();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

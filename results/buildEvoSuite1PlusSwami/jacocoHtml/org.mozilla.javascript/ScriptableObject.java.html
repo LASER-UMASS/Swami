@@ -1,0 +1,3069 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScriptableObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ScriptableObject.java</span></div><h1>ScriptableObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+import org.mozilla.javascript.debug.DebuggableObject;
+import org.mozilla.javascript.annotations.JSConstructor;
+import org.mozilla.javascript.annotations.JSFunction;
+import org.mozilla.javascript.annotations.JSGetter;
+import org.mozilla.javascript.annotations.JSSetter;
+import org.mozilla.javascript.annotations.JSStaticFunction;
+
+/**
+ * This is the default implementation of the Scriptable interface. This
+ * class provides convenient default behavior that makes it easier to
+ * define host objects.
+ * &lt;p&gt;
+ * Various properties and methods of JavaScript objects can be conveniently
+ * defined using methods of ScriptableObject.
+ * &lt;p&gt;
+ * Classes extending ScriptableObject must define the getClassName method.
+ *
+ * @see org.mozilla.javascript.Scriptable
+ * @author Norris Boyd
+ */
+
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">public abstract class ScriptableObject implements Scriptable,</span>
+                                                  SymbolScriptable,
+                                                  Serializable,
+                                                  DebuggableObject,
+                                                  ConstProperties
+{
+
+    static final long serialVersionUID = 2829861078851942586L;
+    
+    /**
+     * The empty property attribute.
+     *
+     * Used by getAttributes() and setAttributes().
+     *
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int EMPTY =     0x00;
+
+    /**
+     * Property attribute indicating assignment to this property is ignored.
+     *
+     * @see org.mozilla.javascript.ScriptableObject
+     *      #put(String, Scriptable, Object)
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int READONLY =  0x01;
+
+    /**
+     * Property attribute indicating property is not enumerated.
+     *
+     * Only enumerated properties will be returned by getIds().
+     *
+     * @see org.mozilla.javascript.ScriptableObject#getIds()
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int DONTENUM =  0x02;
+
+    /**
+     * Property attribute indicating property cannot be deleted.
+     *
+     * @see org.mozilla.javascript.ScriptableObject#delete(String)
+     * @see org.mozilla.javascript.ScriptableObject#getAttributes(String)
+     * @see org.mozilla.javascript.ScriptableObject#setAttributes(String, int)
+     */
+    public static final int PERMANENT = 0x04;
+
+    /**
+     * Property attribute indicating that this is a const property that has not
+     * been assigned yet.  The first 'const' assignment to the property will
+     * clear this bit.
+     */
+    public static final int UNINITIALIZED_CONST = 0x08;
+
+    public static final int CONST = PERMANENT|READONLY|UNINITIALIZED_CONST;
+    /**
+     * The prototype of this object.
+     */
+    private Scriptable prototypeObject;
+
+    /**
+     * The parent scope of this object.
+     */
+    private Scriptable parentScopeObject;
+
+    /**
+     * This holds all the slots. It may or may not be thread-safe, and may expand itself to
+     * a different data structure depending on the size of the object.
+     */
+    private transient SlotMapContainer slotMap;
+
+    // Where external array data is stored.
+    private transient ExternalArrayData externalData;
+
+    private volatile Map&lt;Object,Object&gt; associatedValues;
+
+<span class="pc" id="L127">    enum SlotAccess {</span>
+<span class="fc" id="L128">        QUERY, MODIFY, MODIFY_CONST, MODIFY_GETTER_SETTER, CONVERT_ACCESSOR_TO_DATA</span>
+    }
+
+<span class="fc" id="L131">    private boolean isExtensible = true;</span>
+<span class="fc" id="L132">    private boolean isSealed = false;</span>
+
+    private static final Method GET_ARRAY_LENGTH;
+
+    static {
+        try {
+<span class="fc" id="L138">            GET_ARRAY_LENGTH = ScriptableObject.class.getMethod(&quot;getExternalArrayLength&quot;);</span>
+<span class="nc" id="L139">        } catch (NoSuchMethodException nsm) {</span>
+<span class="nc" id="L140">            throw new RuntimeException(nsm);</span>
+<span class="fc" id="L141">        }</span>
+    }
+
+    /**
+     * This is the object that is stored in the SlotMap. For historical reasons it remains
+     * inside this class. SlotMap references a number of members of this class directly.
+     */
+    static class Slot implements Serializable
+    {
+        private static final long serialVersionUID = -6090581677123995491L;
+        Object name; // This can change due to caching
+        int indexOrHash;
+        private short attributes;
+        Object value;
+        transient Slot next; // next in hash table bucket
+        transient Slot orderedNext; // next in linked list
+
+        Slot(Object name, int indexOrHash, int attributes)
+<span class="fc" id="L159">        {</span>
+<span class="fc" id="L160">            this.name = name;</span>
+<span class="fc" id="L161">            this.indexOrHash = indexOrHash;</span>
+<span class="fc" id="L162">            this.attributes = (short)attributes;</span>
+<span class="fc" id="L163">        }</span>
+
+        private void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException
+        {
+<span class="nc" id="L168">            in.defaultReadObject();</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">            if (name != null) {</span>
+<span class="nc" id="L170">                indexOrHash = name.hashCode();</span>
+            }
+<span class="nc" id="L172">        }</span>
+
+        boolean setValue(Object value, Scriptable owner, Scriptable start) {
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">            if ((attributes &amp; READONLY) != 0) {</span>
+<span class="nc" id="L176">                Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">                if (cx.isStrictMode()) {</span>
+<span class="nc" id="L178">                    throw ScriptRuntime.typeError1(&quot;msg.modify.readonly&quot;, name);</span>
+                }
+<span class="nc" id="L180">                return true;</span>
+            }
+<span class="fc bfc" id="L182" title="All 2 branches covered.">            if (owner == start) {</span>
+<span class="fc" id="L183">                this.value = value;</span>
+<span class="fc" id="L184">                return true;</span>
+            } else {
+<span class="fc" id="L186">                return false;</span>
+            }
+        }
+
+        Object getValue(Scriptable start) {
+<span class="fc" id="L191">            return value;</span>
+        }
+
+        int getAttributes()
+        {
+<span class="fc" id="L196">            return attributes;</span>
+        }
+
+        synchronized void setAttributes(int value)
+        {
+<span class="fc" id="L201">            checkValidAttributes(value);</span>
+<span class="fc" id="L202">            attributes = (short)value;</span>
+<span class="fc" id="L203">        }</span>
+
+        ScriptableObject getPropertyDescriptor(Context cx, Scriptable scope) {
+<span class="nc" id="L206">            return buildDataDescriptor(scope, value, attributes);</span>
+        }
+
+    }
+
+    protected static ScriptableObject buildDataDescriptor(Scriptable scope,
+                                                          Object value,
+                                                          int attributes) {
+<span class="nc" id="L214">        ScriptableObject desc = new NativeObject();</span>
+<span class="nc" id="L215">        ScriptRuntime.setBuiltinProtoAndParent(desc, scope, TopLevel.Builtins.Object);</span>
+<span class="nc" id="L216">        desc.defineProperty(&quot;value&quot;, value, EMPTY);</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        desc.defineProperty(&quot;writable&quot;, (attributes &amp; READONLY) == 0, EMPTY);</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        desc.defineProperty(&quot;enumerable&quot;, (attributes &amp; DONTENUM) == 0, EMPTY);</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        desc.defineProperty(&quot;configurable&quot;, (attributes &amp; PERMANENT) == 0, EMPTY);</span>
+<span class="nc" id="L220">        return desc;</span>
+    }
+
+    /**
+     * A GetterSlot is a specialication of a Slot for properties that are assigned functions
+     * via Object.defineProperty() and its friends instead of regular values.
+     */
+    static final class GetterSlot extends Slot
+    {
+        static final long serialVersionUID = -4900574849788797588L;
+
+        Object getter;
+        Object setter;
+
+        GetterSlot(Object name, int indexOrHash, int attributes)
+        {
+<span class="fc" id="L236">            super(name, indexOrHash, attributes);</span>
+<span class="fc" id="L237">        }</span>
+
+        @Override
+        ScriptableObject getPropertyDescriptor(Context cx, Scriptable scope) {
+<span class="nc" id="L241">            int attr = getAttributes();</span>
+<span class="nc" id="L242">            ScriptableObject desc = new NativeObject();</span>
+<span class="nc" id="L243">            ScriptRuntime.setBuiltinProtoAndParent(desc, scope, TopLevel.Builtins.Object);</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">            desc.defineProperty(&quot;enumerable&quot;, (attr &amp; DONTENUM) == 0, EMPTY);</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            desc.defineProperty(&quot;configurable&quot;, (attr &amp; PERMANENT) == 0, EMPTY);</span>
+<span class="nc bnc" id="L246" title="All 4 branches missed.">            if (getter == null &amp;&amp; setter == null) {</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                desc.defineProperty(&quot;writable&quot;, (attr &amp; READONLY) == 0, EMPTY);</span>
+            }
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (getter != null) {</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">                if( getter instanceof MemberBox ) {</span>
+<span class="nc" id="L251">                    desc.defineProperty(&quot;get&quot;, new FunctionObject(&quot;f&quot;, ((MemberBox)getter).member(),scope), EMPTY);</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                } else if( getter instanceof Member ) {</span>
+<span class="nc" id="L253">                    desc.defineProperty(&quot;get&quot;, new FunctionObject(&quot;f&quot;,(Member)getter,scope), EMPTY);</span>
+                } else {
+<span class="nc" id="L255">                    desc.defineProperty(&quot;get&quot;, getter, EMPTY);</span>
+                }
+            }
+<span class="nc bnc" id="L258" title="All 2 branches missed.">            if (setter != null) {</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                if( setter instanceof MemberBox ) {</span>
+<span class="nc" id="L260">                    desc.defineProperty(&quot;set&quot;, new FunctionObject(&quot;f&quot;, ((MemberBox)setter).member(),scope), EMPTY);</span>
+<span class="nc bnc" id="L261" title="All 2 branches missed.">                } else if( setter instanceof Member ) {</span>
+<span class="nc" id="L262">                    desc.defineProperty(&quot;set&quot;, new FunctionObject(&quot;f&quot;,(Member)setter,scope), EMPTY);</span>
+                } else {
+<span class="nc" id="L264">                    desc.defineProperty(&quot;set&quot;, setter, EMPTY);</span>
+                }
+            }
+<span class="nc" id="L267">            return desc;</span>
+        }
+
+        @Override
+        boolean setValue(Object value, Scriptable owner, Scriptable start) {
+<span class="pc bpc" id="L272" title="1 of 2 branches missed.">            if (setter == null) {</span>
+<span class="pc bpc" id="L273" title="1 of 2 branches missed.">                if (getter != null) {</span>
+<span class="nc" id="L274">                    Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">                    if (cx.isStrictMode() ||</span>
+                        // Based on TC39 ES3.1 Draft of 9-Feb-2009, 8.12.4, step 2,
+                        // we should throw a TypeError in this case.
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                        cx.hasFeature(Context.FEATURE_STRICT_MODE)) {</span>
+<span class="nc" id="L279">                        throw ScriptRuntime.typeError1(&quot;msg.set.prop.no.setter&quot;, name);</span>
+                    }
+                    // Assignment to a property with only a getter defined. The
+                    // assignment is ignored. See bug 478047.
+<span class="nc" id="L283">                    return true;</span>
+                }
+            } else {
+<span class="nc" id="L286">                Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                if (setter instanceof MemberBox) {</span>
+<span class="nc" id="L288">                    MemberBox nativeSetter = (MemberBox)setter;</span>
+<span class="nc" id="L289">                    Class&lt;?&gt; pTypes[] = nativeSetter.argTypes;</span>
+                    // XXX: cache tag since it is already calculated in
+                    // defineProperty ?
+<span class="nc" id="L292">                    Class&lt;?&gt; valueType = pTypes[pTypes.length - 1];</span>
+<span class="nc" id="L293">                    int tag = FunctionObject.getTypeTag(valueType);</span>
+<span class="nc" id="L294">                    Object actualArg = FunctionObject.convertArg(cx, start,</span>
+                                                                 value, tag);
+                    Object setterThis;
+                    Object[] args;
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                    if (nativeSetter.delegateTo == null) {</span>
+<span class="nc" id="L299">                        setterThis = start;</span>
+<span class="nc" id="L300">                        args = new Object[] { actualArg };</span>
+                    } else {
+<span class="nc" id="L302">                        setterThis = nativeSetter.delegateTo;</span>
+<span class="nc" id="L303">                        args = new Object[] { start, actualArg };</span>
+                    }
+<span class="nc" id="L305">                    nativeSetter.invoke(setterThis, args);</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">                } else if (setter instanceof Function) {</span>
+<span class="nc" id="L307">                    Function f = (Function)setter;</span>
+<span class="nc" id="L308">                    f.call(cx, f.getParentScope(), start,</span>
+                           new Object[] { value });
+                }
+<span class="nc" id="L311">                return true;</span>
+            }
+<span class="fc" id="L313">            return super.setValue(value, owner, start);</span>
+        }
+
+        @Override
+        Object getValue(Scriptable start) {
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (getter != null) {</span>
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">                if (getter instanceof MemberBox) {</span>
+<span class="fc" id="L320">                    MemberBox nativeGetter = (MemberBox)getter;</span>
+                    Object getterThis;
+                    Object[] args;
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">                    if (nativeGetter.delegateTo == null) {</span>
+<span class="nc" id="L324">                        getterThis = start;</span>
+<span class="nc" id="L325">                        args = ScriptRuntime.emptyArgs;</span>
+                    } else {
+<span class="fc" id="L327">                        getterThis = nativeGetter.delegateTo;</span>
+<span class="fc" id="L328">                        args = new Object[] { start };</span>
+                    }
+<span class="fc" id="L330">                    return nativeGetter.invoke(getterThis, args);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                } else if (getter instanceof Function) {</span>
+<span class="nc" id="L332">                    Function f = (Function)getter;</span>
+<span class="nc" id="L333">                    Context cx = Context.getContext();</span>
+<span class="nc" id="L334">                    return f.call(cx, f.getParentScope(), start,</span>
+                                  ScriptRuntime.emptyArgs);
+                }
+            }
+<span class="fc" id="L338">            Object val = this.value;</span>
+<span class="fc bfc" id="L339" title="All 2 branches covered.">            if (val instanceof LazilyLoadedCtor) {</span>
+<span class="fc" id="L340">                LazilyLoadedCtor initializer = (LazilyLoadedCtor)val;</span>
+                try {
+<span class="fc" id="L342">                    initializer.init();</span>
+                } finally {
+<span class="pc" id="L344">                    this.value = val = initializer.getValue();</span>
+<span class="pc" id="L345">                }</span>
+            }
+<span class="fc" id="L347">            return val;</span>
+        }
+    }
+
+    static void checkValidAttributes(int attributes)
+    {
+<span class="fc" id="L353">        final int mask = READONLY | DONTENUM | PERMANENT | UNINITIALIZED_CONST;</span>
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">        if ((attributes &amp; ~mask) != 0) {</span>
+<span class="nc" id="L355">            throw new IllegalArgumentException(String.valueOf(attributes));</span>
+        }
+<span class="fc" id="L357">    }</span>
+
+    private SlotMapContainer createSlotMap(int initialSize)
+    {
+<span class="fc" id="L361">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L362" title="1 of 4 branches missed.">        if ((cx != null) &amp;&amp; cx.hasFeature(Context.FEATURE_THREAD_SAFE_OBJECTS)) {</span>
+<span class="nc" id="L363">            return new ThreadSafeSlotMapContainer(initialSize);</span>
+        }
+<span class="fc" id="L365">        return new SlotMapContainer(initialSize);</span>
+    }
+
+    public ScriptableObject()
+<span class="fc" id="L369">    {</span>
+<span class="fc" id="L370">        slotMap = createSlotMap(0);</span>
+<span class="fc" id="L371">    }</span>
+
+    public ScriptableObject(Scriptable scope, Scriptable prototype)
+<span class="fc" id="L374">    {</span>
+<span class="pc bpc" id="L375" title="1 of 2 branches missed.">        if (scope == null)</span>
+<span class="nc" id="L376">            throw new IllegalArgumentException();</span>
+
+<span class="fc" id="L378">        parentScopeObject = scope;</span>
+<span class="fc" id="L379">        prototypeObject = prototype;</span>
+<span class="fc" id="L380">        slotMap = createSlotMap(0);</span>
+<span class="fc" id="L381">    }</span>
+
+    /**
+     * Gets the value that will be returned by calling the typeof operator on this object.
+     * @return default is &quot;object&quot; unless {@link #avoidObjectDetection()} is &lt;code&gt;true&lt;/code&gt; in which
+     * case it returns &quot;undefined&quot;
+     */
+    public String getTypeOf() {
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">        return avoidObjectDetection() ? &quot;undefined&quot; : &quot;object&quot;;</span>
+    }
+
+    /**
+     * Return the name of the class.
+     *
+     * This is typically the same name as the constructor.
+     * Classes extending ScriptableObject must implement this abstract
+     * method.
+     */
+    public abstract String getClassName();
+
+    /**
+     * Returns true if the named property is defined.
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the property was found in the object
+     */
+    public boolean has(String name, Scriptable start)
+    {
+<span class="fc bfc" id="L410" title="All 2 branches covered.">        return null != slotMap.query(name, 0);</span>
+    }
+
+    /**
+     * Returns true if the property index is defined.
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the property was found in the object
+     */
+    public boolean has(int index, Scriptable start)
+    {
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">        if (externalData != null) {</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">            return (index &lt; externalData.getArrayLength());</span>
+        }
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">        return null != slotMap.query(null, index);</span>
+    }
+
+    /**
+     * A version of &quot;has&quot; that supports symbols.
+     */
+    public boolean has(Symbol key, Scriptable start)
+    {
+<span class="nc bnc" id="L433" title="All 2 branches missed.">        return null != slotMap.query(key, 0);</span>
+    }
+
+    /**
+     * Returns the value of the named property or NOT_FOUND.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate getter method is called.
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     */
+    public Object get(String name, Scriptable start)
+    {
+<span class="fc" id="L448">        Slot slot = slotMap.query(name, 0);</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">        if (slot == null) {</span>
+<span class="fc" id="L450">            return Scriptable.NOT_FOUND;</span>
+        }
+<span class="fc" id="L452">        return slot.getValue(start);</span>
+    }
+
+    /**
+     * Returns the value of the indexed property or NOT_FOUND.
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     */
+    public Object get(int index, Scriptable start)
+    {
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">        if (externalData != null) {</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">            if (index &lt; externalData.getArrayLength()) {</span>
+<span class="nc" id="L466">                return externalData.getArrayElement(index);</span>
+            }
+<span class="nc" id="L468">            return Scriptable.NOT_FOUND;</span>
+        }
+
+<span class="fc" id="L471">        Slot slot = slotMap.query(null, index);</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">        if (slot == null) {</span>
+<span class="fc" id="L473">            return Scriptable.NOT_FOUND;</span>
+        }
+<span class="fc" id="L475">        return slot.getValue(start);</span>
+    }
+
+    /**
+     * Another version of Get that supports Symbol keyed properties.
+     */
+    public Object get(Symbol key, Scriptable start)
+    {
+<span class="fc" id="L483">        Slot slot = slotMap.query(key, 0);</span>
+<span class="pc bpc" id="L484" title="1 of 2 branches missed.">        if (slot == null) {</span>
+<span class="fc" id="L485">            return Scriptable.NOT_FOUND;</span>
+        }
+<span class="nc" id="L487">        return slot.getValue(start);</span>
+    }
+
+    /**
+     * Sets the value of the named property, creating it if need be.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate setter method is called. &lt;p&gt;
+     *
+     * If the property's attributes include READONLY, no action is
+     * taken.
+     * This method will actually set the property in the start
+     * object.
+     *
+     * @param name the name of the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class="fc bfc" id="L507" title="All 2 branches covered.">        if (putImpl(name, 0, start, value))</span>
+<span class="fc" id="L508">            return;</span>
+
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">        if (start == this) throw Kit.codeBug();</span>
+<span class="fc" id="L511">        start.put(name, start, value);</span>
+<span class="fc" id="L512">    }</span>
+
+    /**
+     * Sets the value of the indexed property, creating it if need be.
+     *
+     * @param index the numeric index for the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class="pc bpc" id="L523" title="1 of 2 branches missed.">        if (externalData != null) {</span>
+<span class="nc bnc" id="L524" title="All 2 branches missed.">            if (index &lt; externalData.getArrayLength()) {</span>
+<span class="nc" id="L525">                externalData.setArrayElement(index, value);</span>
+            } else {
+<span class="nc" id="L527">                throw new JavaScriptException(</span>
+<span class="nc" id="L528">                    ScriptRuntime.newNativeError(Context.getCurrentContext(), this,</span>
+                                                 TopLevel.NativeErrors.RangeError,
+                                                 new Object[] { &quot;External array index out of bounds &quot; }),
+                    null, 0);
+            }
+<span class="nc" id="L533">            return;</span>
+        }
+
+<span class="fc bfc" id="L536" title="All 2 branches covered.">        if (putImpl(null, index, start, value))</span>
+<span class="fc" id="L537">            return;</span>
+
+<span class="pc bpc" id="L539" title="1 of 2 branches missed.">        if (start == this) throw Kit.codeBug();</span>
+<span class="fc" id="L540">        start.put(index, start, value);</span>
+<span class="fc" id="L541">    }</span>
+
+    /**
+     * Implementation of put required by SymbolScriptable objects.
+     */
+    public void put(Symbol key, Scriptable start, Object value)
+    {
+<span class="fc bfc" id="L548" title="All 2 branches covered.">        if (putImpl(key, 0, start, value))</span>
+<span class="fc" id="L549">            return;</span>
+
+<span class="pc bpc" id="L551" title="1 of 2 branches missed.">        if (start == this) throw Kit.codeBug();</span>
+<span class="fc" id="L552">        ensureSymbolScriptable(start).put(key, start, value);</span>
+<span class="fc" id="L553">    }</span>
+
+    /**
+     * Removes a named property from the object.
+     *
+     * If the property is not found, or it has the PERMANENT attribute,
+     * no action is taken.
+     *
+     * @param name the name of the property
+     */
+    public void delete(String name)
+    {
+<span class="fc" id="L565">        checkNotSealed(name, 0);</span>
+<span class="fc" id="L566">        slotMap.remove(name, 0);</span>
+<span class="fc" id="L567">    }</span>
+
+    /**
+     * Removes the indexed property from the object.
+     *
+     * If the property is not found, or it has the PERMANENT attribute,
+     * no action is taken.
+     *
+     * @param index the numeric index for the property
+     */
+    public void delete(int index)
+    {
+<span class="fc" id="L579">        checkNotSealed(null, index);</span>
+<span class="fc" id="L580">        slotMap.remove(null, index);</span>
+<span class="fc" id="L581">    }</span>
+
+    /**
+     * Removes an object like the others, but using a Symbol as the key.
+     */
+    public void delete(Symbol key)
+    {
+<span class="fc" id="L588">        checkNotSealed(key, 0);</span>
+<span class="fc" id="L589">        slotMap.remove(key, 0);</span>
+<span class="fc" id="L590">    }</span>
+
+    /**
+     * Sets the value of the named const property, creating it if need be.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate setter method is called. &lt;p&gt;
+     *
+     * If the property's attributes include READONLY, no action is
+     * taken.
+     * This method will actually set the property in the start
+     * object.
+     *
+     * @param name the name of the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     */
+    public void putConst(String name, Scriptable start, Object value)
+    {
+<span class="pc bpc" id="L609" title="1 of 2 branches missed.">        if (putConstImpl(name, 0, start, value, READONLY))</span>
+<span class="fc" id="L610">            return;</span>
+
+<span class="nc bnc" id="L612" title="All 2 branches missed.">        if (start == this) throw Kit.codeBug();</span>
+<span class="nc bnc" id="L613" title="All 2 branches missed.">        if (start instanceof ConstProperties)</span>
+<span class="nc" id="L614">            ((ConstProperties)start).putConst(name, start, value);</span>
+        else
+<span class="nc" id="L616">            start.put(name, start, value);</span>
+<span class="nc" id="L617">    }</span>
+
+    public void defineConst(String name, Scriptable start)
+    {
+<span class="nc bnc" id="L621" title="All 2 branches missed.">        if (putConstImpl(name, 0, start, Undefined.instance, UNINITIALIZED_CONST))</span>
+<span class="nc" id="L622">            return;</span>
+
+<span class="nc bnc" id="L624" title="All 2 branches missed.">        if (start == this) throw Kit.codeBug();</span>
+<span class="nc bnc" id="L625" title="All 2 branches missed.">        if (start instanceof ConstProperties)</span>
+<span class="nc" id="L626">            ((ConstProperties)start).defineConst(name, start);</span>
+<span class="nc" id="L627">    }</span>
+
+    /**
+     * Returns true if the named property is defined as a const on this object.
+     * @param name
+     * @return true if the named property is defined as a const, false
+     * otherwise.
+     */
+    public boolean isConst(String name)
+    {
+<span class="nc" id="L637">        Slot slot = slotMap.query(name, 0);</span>
+<span class="nc bnc" id="L638" title="All 2 branches missed.">        if (slot == null) {</span>
+<span class="nc" id="L639">            return false;</span>
+        }
+<span class="nc bnc" id="L641" title="All 2 branches missed.">        return (slot.getAttributes() &amp; (PERMANENT|READONLY)) ==</span>
+                                       (PERMANENT|READONLY);
+
+    }
+
+    /**
+     * @deprecated Use {@link #getAttributes(String name)}. The engine always
+     * ignored the start argument.
+     */
+    @Deprecated
+    public final int getAttributes(String name, Scriptable start)
+    {
+<span class="nc" id="L653">        return getAttributes(name);</span>
+    }
+
+    /**
+     * @deprecated Use {@link #getAttributes(int index)}. The engine always
+     * ignored the start argument.
+     */
+    @Deprecated
+    public final int getAttributes(int index, Scriptable start)
+    {
+<span class="nc" id="L663">        return getAttributes(index);</span>
+    }
+
+    /**
+     * @deprecated Use {@link #setAttributes(String name, int attributes)}.
+     * The engine always ignored the start argument.
+     */
+    @Deprecated
+    public final void setAttributes(String name, Scriptable start,
+                                    int attributes)
+    {
+<span class="nc" id="L674">        setAttributes(name, attributes);</span>
+<span class="nc" id="L675">    }</span>
+
+    /**
+     * @deprecated Use {@link #setAttributes(int index, int attributes)}.
+     * The engine always ignored the start argument.
+     */
+    @Deprecated
+    public void setAttributes(int index, Scriptable start,
+                              int attributes)
+    {
+<span class="nc" id="L685">        setAttributes(index, attributes);</span>
+<span class="nc" id="L686">    }</span>
+
+    /**
+     * Get the attributes of a named property.
+     *
+     * The property is specified by &lt;code&gt;name&lt;/code&gt;
+     * as defined for &lt;code&gt;has&lt;/code&gt;.&lt;p&gt;
+     *
+     * @param name the identifier for the property
+     * @return the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.ScriptableObject#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public int getAttributes(String name)
+    {
+<span class="nc" id="L705">        return findAttributeSlot(name, 0, SlotAccess.QUERY).getAttributes();</span>
+    }
+
+    /**
+     * Get the attributes of an indexed property.
+     *
+     * @param index the numeric index for the property
+     * @exception EvaluatorException if the named property is not found
+     *            is not found
+     * @return the bitset of attributes
+     * @see org.mozilla.javascript.ScriptableObject#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public int getAttributes(int index)
+    {
+<span class="nc" id="L723">        return findAttributeSlot(null, index, SlotAccess.QUERY).getAttributes();</span>
+    }
+
+    public int getAttributes(Symbol sym)
+    {
+<span class="nc" id="L728">        return findAttributeSlot(sym, SlotAccess.QUERY).getAttributes();</span>
+    }
+
+
+    /**
+     * Set the attributes of a named property.
+     *
+     * The property is specified by &lt;code&gt;name&lt;/code&gt;
+     * as defined for &lt;code&gt;has&lt;/code&gt;.&lt;p&gt;
+     *
+     * The possible attributes are READONLY, DONTENUM,
+     * and PERMANENT. Combinations of attributes
+     * are expressed by the bitwise OR of attributes.
+     * EMPTY is the state of no attributes set. Any unused
+     * bits are reserved for future use.
+     *
+     * @param name the name of the property
+     * @param attributes the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public void setAttributes(String name, int attributes)
+    {
+<span class="fc" id="L755">        checkNotSealed(name, 0);</span>
+<span class="fc" id="L756">        findAttributeSlot(name, 0, SlotAccess.MODIFY).setAttributes(attributes);</span>
+<span class="fc" id="L757">    }</span>
+
+    /**
+     * Set the attributes of an indexed property.
+     *
+     * @param index the numeric index for the property
+     * @param attributes the bitset of attributes
+     * @exception EvaluatorException if the named property is not found
+     * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject#DONTENUM
+     * @see org.mozilla.javascript.ScriptableObject#PERMANENT
+     * @see org.mozilla.javascript.ScriptableObject#EMPTY
+     */
+    public void setAttributes(int index, int attributes)
+    {
+<span class="nc" id="L773">        checkNotSealed(null, index);</span>
+<span class="nc" id="L774">        findAttributeSlot(null, index, SlotAccess.MODIFY).setAttributes(attributes);</span>
+<span class="nc" id="L775">    }</span>
+
+    /**
+     * Set attributes of a Symbol-keyed property.
+     */
+    public void setAttributes(Symbol key, int attributes)
+    {
+<span class="fc" id="L782">        checkNotSealed(key, 0);</span>
+<span class="fc" id="L783">        findAttributeSlot(key, SlotAccess.MODIFY).setAttributes(attributes);</span>
+<span class="fc" id="L784">    }</span>
+
+    /**
+     * XXX: write docs.
+     */
+    public void setGetterOrSetter(String name, int index,
+                                  Callable getterOrSetter, boolean isSetter)
+    {
+<span class="nc" id="L792">        setGetterOrSetter(name, index, getterOrSetter, isSetter, false);</span>
+<span class="nc" id="L793">    }</span>
+
+    private void setGetterOrSetter(String name, int index, Callable getterOrSetter,
+                                   boolean isSetter, boolean force)
+    {
+<span class="nc bnc" id="L798" title="All 4 branches missed.">        if (name != null &amp;&amp; index != 0)</span>
+<span class="nc" id="L799">            throw new IllegalArgumentException(name);</span>
+
+<span class="nc bnc" id="L801" title="All 2 branches missed.">        if (!force) {</span>
+<span class="nc" id="L802">            checkNotSealed(name, index);</span>
+        }
+
+        final GetterSlot gslot;
+<span class="nc bnc" id="L806" title="All 2 branches missed.">        if (isExtensible()) {</span>
+<span class="nc" id="L807">            gslot = (GetterSlot)slotMap.get(name, index, SlotAccess.MODIFY_GETTER_SETTER);</span>
+        } else {
+<span class="nc" id="L809">            Slot slot = slotMap.query(name, index);</span>
+<span class="nc bnc" id="L810" title="All 2 branches missed.">            if (!(slot instanceof GetterSlot))</span>
+<span class="nc" id="L811">                return;</span>
+<span class="nc" id="L812">            gslot = (GetterSlot) slot;</span>
+        }
+
+<span class="nc bnc" id="L815" title="All 2 branches missed.">        if (!force) {</span>
+<span class="nc" id="L816">            int attributes = gslot.getAttributes();</span>
+<span class="nc bnc" id="L817" title="All 2 branches missed.">            if ((attributes &amp; READONLY) != 0) {</span>
+<span class="nc" id="L818">                throw Context.reportRuntimeError1(&quot;msg.modify.readonly&quot;, name);</span>
+            }
+        }
+<span class="nc bnc" id="L821" title="All 2 branches missed.">        if (isSetter) {</span>
+<span class="nc" id="L822">            gslot.setter = getterOrSetter;</span>
+        } else {
+<span class="nc" id="L824">            gslot.getter = getterOrSetter;</span>
+        }
+<span class="nc" id="L826">        gslot.value = Undefined.instance;</span>
+<span class="nc" id="L827">    }</span>
+
+    /**
+     * Get the getter or setter for a given property. Used by __lookupGetter__
+     * and __lookupSetter__.
+     *
+     * @param name Name of the object. If nonnull, index must be 0.
+     * @param index Index of the object. If nonzero, name must be null.
+     * @param isSetter If true, return the setter, otherwise return the getter.
+     * @exception IllegalArgumentException if both name and index are nonnull
+     *            and nonzero respectively.
+     * @return Null if the property does not exist. Otherwise returns either
+     *         the getter or the setter for the property, depending on
+     *         the value of isSetter (may be undefined if unset).
+     */
+    public Object getGetterOrSetter(String name, int index, boolean isSetter)
+    {
+<span class="nc bnc" id="L844" title="All 4 branches missed.">        if (name != null &amp;&amp; index != 0)</span>
+<span class="nc" id="L845">            throw new IllegalArgumentException(name);</span>
+<span class="nc" id="L846">        Slot slot = slotMap.query(name, index);</span>
+<span class="nc bnc" id="L847" title="All 2 branches missed.">        if (slot == null)</span>
+<span class="nc" id="L848">            return null;</span>
+<span class="nc bnc" id="L849" title="All 2 branches missed.">        if (slot instanceof GetterSlot) {</span>
+<span class="nc" id="L850">            GetterSlot gslot = (GetterSlot)slot;</span>
+<span class="nc bnc" id="L851" title="All 2 branches missed.">            Object result = isSetter ? gslot.setter : gslot.getter;</span>
+<span class="nc bnc" id="L852" title="All 2 branches missed.">            return result != null ? result : Undefined.instance;</span>
+        } else
+<span class="nc" id="L854">            return Undefined.instance;</span>
+    }
+
+    /**
+     * Returns whether a property is a getter or a setter
+     * @param name property name
+     * @param index property index
+     * @param setter true to check for a setter, false for a getter
+     * @return whether the property is a getter or a setter
+     */
+    protected boolean isGetterOrSetter(String name, int index, boolean setter) {
+<span class="nc" id="L865">        Slot slot = slotMap.query(name, index);</span>
+<span class="nc bnc" id="L866" title="All 2 branches missed.">        if (slot instanceof GetterSlot) {</span>
+<span class="nc bnc" id="L867" title="All 4 branches missed.">            if (setter &amp;&amp; ((GetterSlot)slot).setter != null) return true;</span>
+<span class="nc bnc" id="L868" title="All 4 branches missed.">            if (!setter &amp;&amp; ((GetterSlot)slot).getter != null) return true;</span>
+        }
+<span class="nc" id="L870">        return false;</span>
+    }
+
+    void addLazilyInitializedValue(String name, int index,
+                                   LazilyLoadedCtor init, int attributes)
+    {
+<span class="pc bpc" id="L876" title="2 of 4 branches missed.">        if (name != null &amp;&amp; index != 0)</span>
+<span class="nc" id="L877">            throw new IllegalArgumentException(name);</span>
+<span class="fc" id="L878">        checkNotSealed(name, index);</span>
+<span class="fc" id="L879">        GetterSlot gslot = (GetterSlot)slotMap.get(name, index,</span>
+            SlotAccess.MODIFY_GETTER_SETTER);
+<span class="fc" id="L881">        gslot.setAttributes(attributes);</span>
+<span class="fc" id="L882">        gslot.getter = null;</span>
+<span class="fc" id="L883">        gslot.setter = null;</span>
+<span class="fc" id="L884">        gslot.value = init;</span>
+<span class="fc" id="L885">    }</span>
+
+    /**
+     * Attach the specified object to this object, and delegate all indexed property lookups to it. In other words,
+     * if the object has 3 elements, then an attempt to look up or modify &quot;[0]&quot;, &quot;[1]&quot;, or &quot;[2]&quot; will be delegated
+     * to this object. Additional indexed properties outside the range specified, and additional non-indexed
+     * properties, may still be added. The object specified must implement the ExternalArrayData interface.
+     *
+     * @param array the List to use for delegated property access. Set this to null to revert back to regular
+     *              property access.
+     * @since 1.7.6
+     */
+    public void setExternalArrayData(ExternalArrayData array)
+    {
+<span class="nc" id="L899">        externalData = array;</span>
+
+<span class="nc bnc" id="L901" title="All 2 branches missed.">        if (array == null) {</span>
+<span class="nc" id="L902">            delete(&quot;length&quot;);</span>
+        } else {
+            // Define &quot;length&quot; to return whatever length the List gives us.
+<span class="nc" id="L905">            defineProperty(&quot;length&quot;, null,</span>
+                           GET_ARRAY_LENGTH, null, READONLY | DONTENUM);
+        }
+<span class="nc" id="L908">    }</span>
+
+    /**
+     * Return the array that was previously set by the call to &quot;setExternalArrayData&quot;.
+     *
+     * @return the array, or null if it was never set
+     * @since 1.7.6
+     */
+    public ExternalArrayData getExternalArrayData()
+    {
+<span class="nc" id="L918">        return externalData;</span>
+    }
+
+    /**
+     * This is a function used by setExternalArrayData to dynamically get the &quot;length&quot; property value.
+     */
+    public Object getExternalArrayLength()
+    {
+<span class="nc bnc" id="L926" title="All 2 branches missed.">        return (externalData == null ? 0 : externalData.getArrayLength());</span>
+    }
+
+    /**
+     * Returns the prototype of the object.
+     */
+    public Scriptable getPrototype()
+    {
+<span class="fc" id="L934">        return prototypeObject;</span>
+    }
+
+    /**
+     * Sets the prototype of the object.
+     */
+    public void setPrototype(Scriptable m)
+    {
+<span class="fc" id="L942">        prototypeObject = m;</span>
+<span class="fc" id="L943">    }</span>
+
+    /**
+     * Returns the parent (enclosing) scope of the object.
+     */
+    public Scriptable getParentScope()
+    {
+<span class="fc" id="L950">        return parentScopeObject;</span>
+    }
+
+    /**
+     * Sets the parent (enclosing) scope of the object.
+     */
+    public void setParentScope(Scriptable m)
+    {
+<span class="fc" id="L958">        parentScopeObject = m;</span>
+<span class="fc" id="L959">    }</span>
+
+    /**
+     * Returns an array of ids for the properties of the object.
+     *
+     * &lt;p&gt;Any properties with the attribute DONTENUM are not listed. &lt;p&gt;
+     *
+     * @return an array of java.lang.Objects with an entry for every
+     * listed property. Properties accessed via an integer index will
+     * have a corresponding
+     * Integer entry in the returned array. Properties accessed by
+     * a String will have a String entry in the returned array.
+     */
+    public Object[] getIds() {
+<span class="fc" id="L973">        return getIds(false, false);</span>
+    }
+
+    /**
+     * Returns an array of ids for the properties of the object.
+     *
+     * &lt;p&gt;All properties, even those with attribute DONTENUM, are listed. &lt;p&gt;
+     *
+     * @return an array of java.lang.Objects with an entry for every
+     * listed property. Properties accessed via an integer index will
+     * have a corresponding
+     * Integer entry in the returned array. Properties accessed by
+     * a String will have a String entry in the returned array.
+     */
+    public Object[] getAllIds() {
+<span class="fc" id="L988">        return getIds(true, false);</span>
+    }
+
+    /**
+     * Implements the [[DefaultValue]] internal method.
+     *
+     * &lt;p&gt;Note that the toPrimitive conversion is a no-op for
+     * every type other than Object, for which [[DefaultValue]]
+     * is called. See ECMA 9.1.&lt;p&gt;
+     *
+     * A &lt;code&gt;hint&lt;/code&gt; of null means &quot;no hint&quot;.
+     *
+     * @param typeHint the type hint
+     * @return the default value for the object
+     *
+     * See ECMA 8.6.2.6.
+     */
+    public Object getDefaultValue(Class&lt;?&gt; typeHint)
+    {
+<span class="fc" id="L1007">        return getDefaultValue(this, typeHint);</span>
+    }
+
+    public static Object getDefaultValue(Scriptable object, Class&lt;?&gt; typeHint)
+    {
+<span class="fc" id="L1012">        Context cx = null;</span>
+<span class="fc bfc" id="L1013" title="All 2 branches covered.">        for (int i=0; i &lt; 2; i++) {</span>
+            boolean tryToString;
+<span class="fc bfc" id="L1015" title="All 2 branches covered.">            if (typeHint == ScriptRuntime.StringClass) {</span>
+<span class="fc bfc" id="L1016" title="All 2 branches covered.">                tryToString = (i == 0);</span>
+            } else {
+<span class="fc bfc" id="L1018" title="All 2 branches covered.">                tryToString = (i == 1);</span>
+            }
+
+            String methodName;
+            Object[] args;
+<span class="fc bfc" id="L1023" title="All 2 branches covered.">            if (tryToString) {</span>
+<span class="fc" id="L1024">                methodName = &quot;toString&quot;;</span>
+<span class="fc" id="L1025">                args = ScriptRuntime.emptyArgs;</span>
+            } else {
+<span class="fc" id="L1027">                methodName = &quot;valueOf&quot;;</span>
+<span class="fc" id="L1028">                args = new Object[1];</span>
+                String hint;
+<span class="fc bfc" id="L1030" title="All 2 branches covered.">                if (typeHint == null) {</span>
+<span class="fc" id="L1031">                    hint = &quot;undefined&quot;;</span>
+<span class="fc bfc" id="L1032" title="All 2 branches covered.">                } else if (typeHint == ScriptRuntime.StringClass) {</span>
+<span class="fc" id="L1033">                    hint = &quot;string&quot;;</span>
+<span class="pc bpc" id="L1034" title="1 of 2 branches missed.">                } else if (typeHint == ScriptRuntime.ScriptableClass) {</span>
+<span class="nc" id="L1035">                    hint = &quot;object&quot;;</span>
+<span class="fc bfc" id="L1036" title="All 2 branches covered.">                } else if (typeHint == ScriptRuntime.FunctionClass) {</span>
+<span class="fc" id="L1037">                    hint = &quot;function&quot;;</span>
+<span class="pc bpc" id="L1038" title="2 of 4 branches missed.">                } else if (typeHint == ScriptRuntime.BooleanClass</span>
+                           || typeHint == Boolean.TYPE)
+                {
+<span class="nc" id="L1041">                    hint = &quot;boolean&quot;;</span>
+<span class="pc bpc" id="L1042" title="21 of 22 branches missed.">                } else if (typeHint == ScriptRuntime.NumberClass ||</span>
+                         typeHint == ScriptRuntime.ByteClass ||
+                         typeHint == Byte.TYPE ||
+                         typeHint == ScriptRuntime.ShortClass ||
+                         typeHint == Short.TYPE ||
+                         typeHint == ScriptRuntime.IntegerClass ||
+                         typeHint == Integer.TYPE ||
+                         typeHint == ScriptRuntime.FloatClass ||
+                         typeHint == Float.TYPE ||
+                         typeHint == ScriptRuntime.DoubleClass ||
+                         typeHint == Double.TYPE)
+                {
+<span class="fc" id="L1054">                    hint = &quot;number&quot;;</span>
+                } else {
+<span class="nc" id="L1056">                    throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L1057">                        &quot;msg.invalid.type&quot;, typeHint.toString());</span>
+                }
+<span class="fc" id="L1059">                args[0] = hint;</span>
+            }
+<span class="fc" id="L1061">            Object v = getProperty(object, methodName);</span>
+<span class="fc bfc" id="L1062" title="All 2 branches covered.">            if (!(v instanceof Function))</span>
+<span class="fc" id="L1063">                continue;</span>
+<span class="fc" id="L1064">            Function fun = (Function) v;</span>
+<span class="fc bfc" id="L1065" title="All 2 branches covered.">            if (cx == null)</span>
+<span class="fc" id="L1066">                cx = Context.getContext();</span>
+<span class="fc" id="L1067">            v = fun.call(cx, fun.getParentScope(), object, args);</span>
+<span class="pc bpc" id="L1068" title="1 of 2 branches missed.">            if (v != null) {</span>
+<span class="fc bfc" id="L1069" title="All 2 branches covered.">                if (!(v instanceof Scriptable)) {</span>
+<span class="fc" id="L1070">                    return v;</span>
+                }
+<span class="pc bpc" id="L1072" title="1 of 4 branches missed.">                if (typeHint == ScriptRuntime.ScriptableClass</span>
+                    || typeHint == ScriptRuntime.FunctionClass)
+                {
+<span class="fc" id="L1075">                    return v;</span>
+                }
+<span class="pc bpc" id="L1077" title="3 of 4 branches missed.">                if (tryToString &amp;&amp; v instanceof Wrapper) {</span>
+                    // Let a wrapped java.lang.String pass for a primitive
+                    // string.
+<span class="nc" id="L1080">                    Object u = ((Wrapper)v).unwrap();</span>
+<span class="nc bnc" id="L1081" title="All 2 branches missed.">                    if (u instanceof String)</span>
+<span class="nc" id="L1082">                        return u;</span>
+                }
+            }
+        }
+        // fall through to error
+<span class="fc bfc" id="L1087" title="All 2 branches covered.">        String arg = (typeHint == null) ? &quot;undefined&quot; : typeHint.getName();</span>
+<span class="fc" id="L1088">        throw ScriptRuntime.typeError1(&quot;msg.default.value&quot;, arg);</span>
+    }
+
+    /**
+     * Implements the instanceof operator.
+     *
+     * &lt;p&gt;This operator has been proposed to ECMA.
+     *
+     * @param instance The value that appeared on the LHS of the instanceof
+     *              operator
+     * @return true if &quot;this&quot; appears in value's prototype chain
+     *
+     */
+    public boolean hasInstance(Scriptable instance) {
+        // Default for JS objects (other than Function) is to do prototype
+        // chasing.  This will be overridden in NativeFunction and non-JS
+        // objects.
+
+<span class="fc" id="L1106">        return ScriptRuntime.jsDelegatesTo(instance, this);</span>
+    }
+
+    /**
+     * Emulate the SpiderMonkey (and Firefox) feature of allowing
+     * custom objects to avoid detection by normal &quot;object detection&quot;
+     * code patterns. This is used to implement document.all.
+     * See https://bugzilla.mozilla.org/show_bug.cgi?id=412247.
+     * This is an analog to JOF_DETECTING from SpiderMonkey; see
+     * https://bugzilla.mozilla.org/show_bug.cgi?id=248549.
+     * Other than this special case, embeddings should return false.
+     * @return true if this object should avoid object detection
+     * @since 1.7R1
+     */
+    public boolean avoidObjectDetection() {
+<span class="fc" id="L1121">        return false;</span>
+    }
+
+    /**
+     * Custom &lt;tt&gt;==&lt;/tt&gt; operator.
+     * Must return {@link Scriptable#NOT_FOUND} if this object does not
+     * have custom equality operator for the given value,
+     * &lt;tt&gt;Boolean.TRUE&lt;/tt&gt; if this object is equivalent to &lt;tt&gt;value&lt;/tt&gt;,
+     * &lt;tt&gt;Boolean.FALSE&lt;/tt&gt; if this object is not equivalent to
+     * &lt;tt&gt;value&lt;/tt&gt;.
+     * &lt;p&gt;
+     * The default implementation returns Boolean.TRUE
+     * if &lt;tt&gt;this == value&lt;/tt&gt; or {@link Scriptable#NOT_FOUND} otherwise.
+     * It indicates that by default custom equality is available only if
+     * &lt;tt&gt;value&lt;/tt&gt; is &lt;tt&gt;this&lt;/tt&gt; in which case true is returned.
+     */
+    protected Object equivalentValues(Object value)
+    {
+<span class="nc bnc" id="L1139" title="All 2 branches missed.">        return (this == value) ? Boolean.TRUE : Scriptable.NOT_FOUND;</span>
+    }
+
+    /**
+     * Defines JavaScript objects from a Java class that implements Scriptable.
+     *
+     * If the given class has a method
+     * &lt;pre&gt;
+     * static void init(Context cx, Scriptable scope, boolean sealed);&lt;/pre&gt;
+     *
+     * or its compatibility form
+     * &lt;pre&gt;
+     * static void init(Scriptable scope);&lt;/pre&gt;
+     *
+     * then it is invoked and no further initialization is done.&lt;p&gt;
+     *
+     * However, if no such a method is found, then the class's constructors and
+     * methods are used to initialize a class in the following manner.&lt;p&gt;
+     *
+     * First, the zero-parameter constructor of the class is called to
+     * create the prototype. If no such constructor exists,
+     * a {@link EvaluatorException} is thrown. &lt;p&gt;
+     *
+     * Next, all methods are scanned for special prefixes that indicate that they
+     * have special meaning for defining JavaScript objects.
+     * These special prefixes are
+     * &lt;ul&gt;
+     * &lt;li&gt;&lt;code&gt;jsFunction_&lt;/code&gt; for a JavaScript function
+     * &lt;li&gt;&lt;code&gt;jsStaticFunction_&lt;/code&gt; for a JavaScript function that
+     *           is a property of the constructor
+     * &lt;li&gt;&lt;code&gt;jsGet_&lt;/code&gt; for a getter of a JavaScript property
+     * &lt;li&gt;&lt;code&gt;jsSet_&lt;/code&gt; for a setter of a JavaScript property
+     * &lt;li&gt;&lt;code&gt;jsConstructor&lt;/code&gt; for a JavaScript function that
+     *           is the constructor
+     * &lt;/ul&gt;&lt;p&gt;
+     *
+     * If the method's name begins with &quot;jsFunction_&quot;, a JavaScript function
+     * is created with a name formed from the rest of the Java method name
+     * following &quot;jsFunction_&quot;. So a Java method named &quot;jsFunction_foo&quot; will
+     * define a JavaScript method &quot;foo&quot;. Calling this JavaScript function
+     * will cause the Java method to be called. The parameters of the method
+     * must be of number and types as defined by the FunctionObject class.
+     * The JavaScript function is then added as a property
+     * of the prototype. &lt;p&gt;
+     *
+     * If the method's name begins with &quot;jsStaticFunction_&quot;, it is handled
+     * similarly except that the resulting JavaScript function is added as a
+     * property of the constructor object. The Java method must be static.
+     *
+     * If the method's name begins with &quot;jsGet_&quot; or &quot;jsSet_&quot;, the method is
+     * considered to define a property. Accesses to the defined property
+     * will result in calls to these getter and setter methods. If no
+     * setter is defined, the property is defined as READONLY.&lt;p&gt;
+     *
+     * If the method's name is &quot;jsConstructor&quot;, the method is
+     * considered to define the body of the constructor. Only one
+     * method of this name may be defined. You may use the varargs forms
+     * for constructors documented in {@link FunctionObject#FunctionObject(String, Member, Scriptable)}
+     *
+     * If no method is found that can serve as constructor, a Java
+     * constructor will be selected to serve as the JavaScript
+     * constructor in the following manner. If the class has only one
+     * Java constructor, that constructor is used to define
+     * the JavaScript constructor. If the the class has two constructors,
+     * one must be the zero-argument constructor (otherwise an
+     * {@link EvaluatorException} would have already been thrown
+     * when the prototype was to be created). In this case
+     * the Java constructor with one or more parameters will be used
+     * to define the JavaScript constructor. If the class has three
+     * or more constructors, an {@link EvaluatorException}
+     * will be thrown.&lt;p&gt;
+     *
+     * Finally, if there is a method
+     * &lt;pre&gt;
+     * static void finishInit(Scriptable scope, FunctionObject constructor,
+     *                        Scriptable prototype)&lt;/pre&gt;
+     *
+     * it will be called to finish any initialization. The &lt;code&gt;scope&lt;/code&gt;
+     * argument will be passed, along with the newly created constructor and
+     * the newly created prototype.&lt;p&gt;
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties.
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @see org.mozilla.javascript.Function
+     * @see org.mozilla.javascript.FunctionObject
+     * @see org.mozilla.javascript.ScriptableObject#READONLY
+     * @see org.mozilla.javascript.ScriptableObject
+     *      #defineProperty(String, Class, int)
+     */
+    public static &lt;T extends Scriptable&gt; void defineClass(
+            Scriptable scope, Class&lt;T&gt; clazz)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class="fc" id="L1240">        defineClass(scope, clazz, false, false);</span>
+<span class="fc" id="L1241">    }</span>
+
+    /**
+     * Defines JavaScript objects from a Java class, optionally
+     * allowing sealing.
+     *
+     * Similar to &lt;code&gt;defineClass(Scriptable scope, Class clazz)&lt;/code&gt;
+     * except that sealing is allowed. An object that is sealed cannot have
+     * properties added or removed. Note that sealing is not allowed in
+     * the current ECMA/ISO language specification, but is likely for
+     * the next version.
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties. The class must implement Scriptable.
+     * @param sealed Whether or not to create sealed standard objects that
+     *               cannot be modified.
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @since 1.4R3
+     */
+    public static &lt;T extends Scriptable&gt; void defineClass(
+            Scriptable scope, Class&lt;T&gt; clazz, boolean sealed)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class="nc" id="L1271">        defineClass(scope, clazz, sealed, false);</span>
+<span class="nc" id="L1272">    }</span>
+
+    /**
+     * Defines JavaScript objects from a Java class, optionally
+     * allowing sealing and mapping of Java inheritance to JavaScript
+     * prototype-based inheritance.
+     *
+     * Similar to &lt;code&gt;defineClass(Scriptable scope, Class clazz)&lt;/code&gt;
+     * except that sealing and inheritance mapping are allowed. An object
+     * that is sealed cannot have properties added or removed. Note that
+     * sealing is not allowed in the current ECMA/ISO language specification,
+     * but is likely for the next version.
+     *
+     * @param scope The scope in which to define the constructor.
+     * @param clazz The Java class to use to define the JavaScript objects
+     *              and properties. The class must implement Scriptable.
+     * @param sealed Whether or not to create sealed standard objects that
+     *               cannot be modified.
+     * @param mapInheritance Whether or not to map Java inheritance to
+     *                       JavaScript prototype-based inheritance.
+     * @return the class name for the prototype of the specified class
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @since 1.6R2
+     */
+    public static &lt;T extends Scriptable&gt; String defineClass(
+            Scriptable scope, Class&lt;T&gt; clazz, boolean sealed,
+            boolean mapInheritance)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class="fc" id="L1307">        BaseFunction ctor = buildClassCtor(scope, clazz, sealed,</span>
+                                           mapInheritance);
+<span class="pc bpc" id="L1309" title="1 of 2 branches missed.">        if (ctor == null)</span>
+<span class="nc" id="L1310">            return null;</span>
+<span class="fc" id="L1311">        String name = ctor.getClassPrototype().getClassName();</span>
+<span class="fc" id="L1312">        defineProperty(scope, name, ctor, ScriptableObject.DONTENUM);</span>
+<span class="fc" id="L1313">        return name;</span>
+    }
+
+    static &lt;T extends Scriptable&gt; BaseFunction buildClassCtor(
+            Scriptable scope, Class&lt;T&gt; clazz,
+            boolean sealed,
+            boolean mapInheritance)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class="fc" id="L1323">        Method[] methods = FunctionObject.getMethodList(clazz);</span>
+<span class="fc bfc" id="L1324" title="All 2 branches covered.">        for (int i=0; i &lt; methods.length; i++) {</span>
+<span class="fc" id="L1325">            Method method = methods[i];</span>
+<span class="fc bfc" id="L1326" title="All 2 branches covered.">            if (!method.getName().equals(&quot;init&quot;))</span>
+<span class="fc" id="L1327">                continue;</span>
+<span class="fc" id="L1328">            Class&lt;?&gt;[] parmTypes = method.getParameterTypes();</span>
+<span class="pc bpc" id="L1329" title="4 of 8 branches missed.">            if (parmTypes.length == 3 &amp;&amp;</span>
+                parmTypes[0] == ScriptRuntime.ContextClass &amp;&amp;
+                parmTypes[1] == ScriptRuntime.ScriptableClass &amp;&amp;
+                parmTypes[2] == Boolean.TYPE &amp;&amp;
+<span class="pc bpc" id="L1333" title="1 of 2 branches missed.">                Modifier.isStatic(method.getModifiers()))</span>
+            {
+<span class="fc bfc" id="L1335" title="All 2 branches covered.">                Object args[] = { Context.getContext(), scope,</span>
+                                  sealed ? Boolean.TRUE : Boolean.FALSE };
+<span class="fc" id="L1337">                method.invoke(null, args);</span>
+<span class="fc" id="L1338">                return null;</span>
+            }
+<span class="nc bnc" id="L1340" title="All 4 branches missed.">            if (parmTypes.length == 1 &amp;&amp;</span>
+                parmTypes[0] == ScriptRuntime.ScriptableClass &amp;&amp;
+<span class="nc bnc" id="L1342" title="All 2 branches missed.">                Modifier.isStatic(method.getModifiers()))</span>
+            {
+<span class="nc" id="L1344">                Object args[] = { scope };</span>
+<span class="nc" id="L1345">                method.invoke(null, args);</span>
+<span class="nc" id="L1346">                return null;</span>
+            }
+
+        }
+
+        // If we got here, there isn't an &quot;init&quot; method with the right
+        // parameter types.
+
+<span class="fc" id="L1354">        Constructor&lt;?&gt;[] ctors = clazz.getConstructors();</span>
+<span class="fc" id="L1355">        Constructor&lt;?&gt; protoCtor = null;</span>
+<span class="fc bfc" id="L1356" title="All 2 branches covered.">        for (int i=0; i &lt; ctors.length; i++) {</span>
+<span class="fc bfc" id="L1357" title="All 2 branches covered.">            if (ctors[i].getParameterTypes().length == 0) {</span>
+<span class="fc" id="L1358">                protoCtor = ctors[i];</span>
+<span class="fc" id="L1359">                break;</span>
+            }
+        }
+<span class="fc bfc" id="L1362" title="All 2 branches covered.">        if (protoCtor == null) {</span>
+<span class="pc" id="L1363">            throw Context.reportRuntimeError1(</span>
+<span class="fc" id="L1364">                      &quot;msg.zero.arg.ctor&quot;, clazz.getName());</span>
+        }
+
+<span class="fc" id="L1367">        Scriptable proto = (Scriptable) protoCtor.newInstance(ScriptRuntime.emptyArgs);</span>
+<span class="fc" id="L1368">        String className = proto.getClassName();</span>
+
+        // check for possible redefinition
+<span class="fc" id="L1371">        Object existing = getProperty(getTopLevelScope(scope), className);</span>
+<span class="pc bpc" id="L1372" title="1 of 2 branches missed.">        if (existing instanceof BaseFunction) {</span>
+<span class="nc" id="L1373">            Object existingProto = ((BaseFunction)existing).getPrototypeProperty();</span>
+<span class="nc bnc" id="L1374" title="All 4 branches missed.">            if (existingProto != null &amp;&amp; clazz.equals(existingProto.getClass())) {</span>
+<span class="nc" id="L1375">                return (BaseFunction)existing;</span>
+            }
+        }
+
+        // Set the prototype's prototype, trying to map Java inheritance to JS
+        // prototype-based inheritance if requested to do so.
+<span class="fc" id="L1381">        Scriptable superProto = null;</span>
+<span class="pc bpc" id="L1382" title="1 of 2 branches missed.">        if (mapInheritance) {</span>
+<span class="nc" id="L1383">            Class&lt;? super T&gt; superClass = clazz.getSuperclass();</span>
+<span class="nc bnc" id="L1384" title="All 2 branches missed.">            if (ScriptRuntime.ScriptableClass.isAssignableFrom(superClass) &amp;&amp;</span>
+<span class="nc bnc" id="L1385" title="All 2 branches missed.">                !Modifier.isAbstract(superClass.getModifiers()))</span>
+            {
+<span class="nc" id="L1387">                Class&lt;? extends Scriptable&gt; superScriptable =</span>
+<span class="nc" id="L1388">                    extendsScriptable(superClass);</span>
+<span class="nc" id="L1389">                String name = ScriptableObject.defineClass(scope,</span>
+                        superScriptable, sealed, mapInheritance);
+<span class="nc bnc" id="L1391" title="All 2 branches missed.">                if (name != null) {</span>
+<span class="nc" id="L1392">                    superProto = ScriptableObject.getClassPrototype(scope, name);</span>
+                }
+            }
+        }
+<span class="pc bpc" id="L1396" title="1 of 2 branches missed.">        if (superProto == null) {</span>
+<span class="fc" id="L1397">            superProto = ScriptableObject.getObjectPrototype(scope);</span>
+        }
+<span class="fc" id="L1399">        proto.setPrototype(superProto);</span>
+
+        // Find out whether there are any methods that begin with
+        // &quot;js&quot;. If so, then only methods that begin with special
+        // prefixes will be defined as JavaScript entities.
+<span class="fc" id="L1404">        final String functionPrefix = &quot;jsFunction_&quot;;</span>
+<span class="fc" id="L1405">        final String staticFunctionPrefix = &quot;jsStaticFunction_&quot;;</span>
+<span class="fc" id="L1406">        final String getterPrefix = &quot;jsGet_&quot;;</span>
+<span class="fc" id="L1407">        final String setterPrefix = &quot;jsSet_&quot;;</span>
+<span class="fc" id="L1408">        final String ctorName = &quot;jsConstructor&quot;;</span>
+
+<span class="fc" id="L1410">        Member ctorMember = findAnnotatedMember(methods, JSConstructor.class);</span>
+<span class="pc bpc" id="L1411" title="1 of 2 branches missed.">        if (ctorMember == null) {</span>
+<span class="fc" id="L1412">            ctorMember = findAnnotatedMember(ctors, JSConstructor.class);</span>
+        }
+<span class="pc bpc" id="L1414" title="1 of 2 branches missed.">        if (ctorMember == null) {</span>
+<span class="fc" id="L1415">            ctorMember = FunctionObject.findSingleMethod(methods, ctorName);</span>
+        }
+<span class="pc bpc" id="L1417" title="1 of 2 branches missed.">        if (ctorMember == null) {</span>
+<span class="pc bpc" id="L1418" title="1 of 2 branches missed.">            if (ctors.length == 1) {</span>
+<span class="nc" id="L1419">                ctorMember = ctors[0];</span>
+<span class="pc bpc" id="L1420" title="1 of 2 branches missed.">            } else if (ctors.length == 2) {</span>
+<span class="fc bfc" id="L1421" title="All 2 branches covered.">                if (ctors[0].getParameterTypes().length == 0)</span>
+<span class="fc" id="L1422">                    ctorMember = ctors[1];</span>
+<span class="pc bpc" id="L1423" title="1 of 2 branches missed.">                else if (ctors[1].getParameterTypes().length == 0)</span>
+<span class="fc" id="L1424">                    ctorMember = ctors[0];</span>
+            }
+<span class="pc bpc" id="L1426" title="1 of 2 branches missed.">            if (ctorMember == null) {</span>
+<span class="nc" id="L1427">                throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L1428">                          &quot;msg.ctor.multiple.parms&quot;, clazz.getName());</span>
+            }
+        }
+
+<span class="fc" id="L1432">        FunctionObject ctor = new FunctionObject(className, ctorMember, scope);</span>
+<span class="pc bpc" id="L1433" title="1 of 2 branches missed.">        if (ctor.isVarArgsMethod()) {</span>
+<span class="nc" id="L1434">            throw Context.reportRuntimeError1</span>
+<span class="nc" id="L1435">                (&quot;msg.varargs.ctor&quot;, ctorMember.getName());</span>
+        }
+<span class="fc" id="L1437">        ctor.initAsConstructor(scope, proto);</span>
+
+<span class="fc" id="L1439">        Method finishInit = null;</span>
+<span class="fc" id="L1440">        HashSet&lt;String&gt; staticNames = new HashSet&lt;String&gt;(),</span>
+<span class="fc" id="L1441">                        instanceNames = new HashSet&lt;String&gt;();</span>
+<span class="fc bfc" id="L1442" title="All 2 branches covered.">        for (Method method : methods) {</span>
+<span class="pc bpc" id="L1443" title="1 of 2 branches missed.">            if (method == ctorMember) {</span>
+<span class="nc" id="L1444">                continue;</span>
+            }
+<span class="fc" id="L1446">            String name = method.getName();</span>
+<span class="pc bpc" id="L1447" title="1 of 2 branches missed.">            if (name.equals(&quot;finishInit&quot;)) {</span>
+<span class="nc" id="L1448">                Class&lt;?&gt;[] parmTypes = method.getParameterTypes();</span>
+<span class="nc bnc" id="L1449" title="All 8 branches missed.">                if (parmTypes.length == 3 &amp;&amp;</span>
+                    parmTypes[0] == ScriptRuntime.ScriptableClass &amp;&amp;
+                    parmTypes[1] == FunctionObject.class &amp;&amp;
+                    parmTypes[2] == ScriptRuntime.ScriptableClass &amp;&amp;
+<span class="nc bnc" id="L1453" title="All 2 branches missed.">                    Modifier.isStatic(method.getModifiers()))</span>
+                {
+<span class="nc" id="L1455">                    finishInit = method;</span>
+<span class="nc" id="L1456">                    continue;</span>
+                }
+            }
+            // ignore any compiler generated methods.
+<span class="pc bpc" id="L1460" title="1 of 2 branches missed.">            if (name.indexOf('$') != -1)</span>
+<span class="nc" id="L1461">                continue;</span>
+<span class="pc bpc" id="L1462" title="1 of 2 branches missed.">            if (name.equals(ctorName))</span>
+<span class="nc" id="L1463">                continue;</span>
+
+<span class="fc" id="L1465">            Annotation annotation = null;</span>
+<span class="fc" id="L1466">            String prefix = null;</span>
+<span class="pc bpc" id="L1467" title="1 of 2 branches missed.">            if (method.isAnnotationPresent(JSFunction.class)) {</span>
+<span class="nc" id="L1468">                annotation = method.getAnnotation(JSFunction.class);</span>
+<span class="pc bpc" id="L1469" title="1 of 2 branches missed.">            } else if (method.isAnnotationPresent(JSStaticFunction.class)) {</span>
+<span class="nc" id="L1470">                annotation = method.getAnnotation(JSStaticFunction.class);</span>
+<span class="pc bpc" id="L1471" title="1 of 2 branches missed.">            } else if (method.isAnnotationPresent(JSGetter.class)) {</span>
+<span class="nc" id="L1472">                annotation = method.getAnnotation(JSGetter.class);</span>
+<span class="pc bpc" id="L1473" title="1 of 2 branches missed.">            } else if (method.isAnnotationPresent(JSSetter.class)) {</span>
+<span class="nc" id="L1474">                continue;</span>
+            }
+
+<span class="pc bpc" id="L1477" title="1 of 2 branches missed.">            if (annotation == null) {</span>
+<span class="pc bpc" id="L1478" title="1 of 2 branches missed.">                if (name.startsWith(functionPrefix)) {</span>
+<span class="nc" id="L1479">                    prefix = functionPrefix;</span>
+<span class="pc bpc" id="L1480" title="1 of 2 branches missed.">                } else if (name.startsWith(staticFunctionPrefix)) {</span>
+<span class="nc" id="L1481">                    prefix = staticFunctionPrefix;</span>
+<span class="pc bpc" id="L1482" title="1 of 2 branches missed.">                } else if (name.startsWith(getterPrefix)) {</span>
+<span class="nc" id="L1483">                    prefix = getterPrefix;</span>
+<span class="pc bpc" id="L1484" title="1 of 2 branches missed.">                } else if (annotation == null) {</span>
+                    // note that setterPrefix is among the unhandled names here -
+                    // we deal with that when we see the getter
+<span class="fc" id="L1487">                    continue;</span>
+                }
+            }
+
+<span class="nc bnc" id="L1491" title="All 4 branches missed.">            boolean isStatic = annotation instanceof JSStaticFunction</span>
+                    || prefix == staticFunctionPrefix;
+<span class="nc bnc" id="L1493" title="All 2 branches missed.">            HashSet&lt;String&gt; names = isStatic ? staticNames : instanceNames;</span>
+<span class="nc" id="L1494">            String propName = getPropertyName(name, prefix, annotation);</span>
+<span class="nc bnc" id="L1495" title="All 2 branches missed.">            if (names.contains(propName)) {</span>
+<span class="nc" id="L1496">                throw Context.reportRuntimeError2(&quot;duplicate.defineClass.name&quot;,</span>
+                        name, propName);
+            }
+<span class="nc" id="L1499">            names.add(propName);</span>
+<span class="nc" id="L1500">            name = propName;</span>
+
+<span class="nc bnc" id="L1502" title="All 4 branches missed.">            if (annotation instanceof JSGetter || prefix == getterPrefix) {</span>
+<span class="nc bnc" id="L1503" title="All 2 branches missed.">                if (!(proto instanceof ScriptableObject)) {</span>
+<span class="nc" id="L1504">                    throw Context.reportRuntimeError2(</span>
+                        &quot;msg.extend.scriptable&quot;,
+<span class="nc" id="L1506">                        proto.getClass().toString(), name);</span>
+                }
+<span class="nc" id="L1508">                Method setter = findSetterMethod(methods, name, setterPrefix);</span>
+<span class="nc bnc" id="L1509" title="All 2 branches missed.">                int attr = ScriptableObject.PERMANENT |</span>
+                           ScriptableObject.DONTENUM  |
+                           (setter != null ? 0
+                                           : ScriptableObject.READONLY);
+<span class="nc" id="L1513">                ((ScriptableObject) proto).defineProperty(name, null,</span>
+                                                          method, setter,
+                                                          attr);
+<span class="nc" id="L1516">                continue;</span>
+            }
+
+<span class="nc bnc" id="L1519" title="All 4 branches missed.">            if (isStatic &amp;&amp; !Modifier.isStatic(method.getModifiers())) {</span>
+<span class="nc" id="L1520">                throw Context.reportRuntimeError(</span>
+                        &quot;jsStaticFunction must be used with static method.&quot;);
+            }
+
+<span class="nc" id="L1524">            FunctionObject f = new FunctionObject(name, method, proto);</span>
+<span class="nc bnc" id="L1525" title="All 2 branches missed.">            if (f.isVarArgsConstructor()) {</span>
+<span class="nc" id="L1526">                throw Context.reportRuntimeError1</span>
+<span class="nc" id="L1527">                    (&quot;msg.varargs.fun&quot;, ctorMember.getName());</span>
+            }
+<span class="nc bnc" id="L1529" title="All 2 branches missed.">            defineProperty(isStatic ? ctor : proto, name, f, DONTENUM);</span>
+<span class="nc bnc" id="L1530" title="All 2 branches missed.">            if (sealed) {</span>
+<span class="nc" id="L1531">                f.sealObject();</span>
+            }
+        }
+
+        // Call user code to complete initialization if necessary.
+<span class="pc bpc" id="L1536" title="1 of 2 branches missed.">        if (finishInit != null) {</span>
+<span class="nc" id="L1537">            Object[] finishArgs = { scope, ctor, proto };</span>
+<span class="nc" id="L1538">            finishInit.invoke(null, finishArgs);</span>
+        }
+
+        // Seal the object if necessary.
+<span class="fc bfc" id="L1542" title="All 2 branches covered.">        if (sealed) {</span>
+<span class="fc" id="L1543">            ctor.sealObject();</span>
+<span class="pc bpc" id="L1544" title="1 of 2 branches missed.">            if (proto instanceof ScriptableObject) {</span>
+<span class="fc" id="L1545">                ((ScriptableObject) proto).sealObject();</span>
+            }
+        }
+
+<span class="fc" id="L1549">        return ctor;</span>
+    }
+
+    private static Member findAnnotatedMember(AccessibleObject[] members,
+                                              Class&lt;? extends Annotation&gt; annotation) {
+<span class="fc bfc" id="L1554" title="All 2 branches covered.">        for (AccessibleObject member : members) {</span>
+<span class="pc bpc" id="L1555" title="1 of 2 branches missed.">            if (member.isAnnotationPresent(annotation)) {</span>
+<span class="nc" id="L1556">                return (Member) member;</span>
+            }
+        }
+<span class="fc" id="L1559">        return null;</span>
+    }
+
+    private static Method findSetterMethod(Method[] methods,
+                                           String name,
+                                           String prefix) {
+<span class="nc" id="L1565">        String newStyleName = &quot;set&quot;</span>
+<span class="nc" id="L1566">                + Character.toUpperCase(name.charAt(0))</span>
+<span class="nc" id="L1567">                + name.substring(1);</span>
+<span class="nc bnc" id="L1568" title="All 2 branches missed.">        for (Method method : methods) {</span>
+<span class="nc" id="L1569">            JSSetter annotation = method.getAnnotation(JSSetter.class);</span>
+<span class="nc bnc" id="L1570" title="All 2 branches missed.">            if (annotation != null) {</span>
+<span class="nc bnc" id="L1571" title="All 2 branches missed.">                if (name.equals(annotation.value()) ||</span>
+<span class="nc bnc" id="L1572" title="All 4 branches missed.">                        (&quot;&quot;.equals(annotation.value()) &amp;&amp; newStyleName.equals(method.getName()))) {</span>
+<span class="nc" id="L1573">                    return method;</span>
+                }
+            }
+        }
+<span class="nc" id="L1577">        String oldStyleName = prefix + name;</span>
+<span class="nc bnc" id="L1578" title="All 2 branches missed.">        for (Method method : methods) {</span>
+<span class="nc bnc" id="L1579" title="All 2 branches missed.">            if (oldStyleName.equals(method.getName())) {</span>
+<span class="nc" id="L1580">                return method;</span>
+            }
+        }
+<span class="nc" id="L1583">        return null;</span>
+    }
+
+    private static String getPropertyName(String methodName,
+                                          String prefix,
+                                          Annotation annotation) {
+<span class="nc bnc" id="L1589" title="All 2 branches missed.">        if (prefix != null) {</span>
+<span class="nc" id="L1590">            return methodName.substring(prefix.length());</span>
+        }
+<span class="nc" id="L1592">        String propName = null;</span>
+<span class="nc bnc" id="L1593" title="All 2 branches missed.">        if (annotation instanceof JSGetter) {</span>
+<span class="nc" id="L1594">            propName = ((JSGetter) annotation).value();</span>
+<span class="nc bnc" id="L1595" title="All 4 branches missed.">            if (propName == null || propName.length() == 0) {</span>
+<span class="nc bnc" id="L1596" title="All 4 branches missed.">                if (methodName.length() &gt; 3 &amp;&amp; methodName.startsWith(&quot;get&quot;)) {</span>
+<span class="nc" id="L1597">                    propName = methodName.substring(3);</span>
+<span class="nc bnc" id="L1598" title="All 2 branches missed.">                    if (Character.isUpperCase(propName.charAt(0))) {</span>
+<span class="nc bnc" id="L1599" title="All 2 branches missed.">                        if (propName.length() == 1) {</span>
+<span class="nc" id="L1600">                            propName = propName.toLowerCase();</span>
+<span class="nc bnc" id="L1601" title="All 2 branches missed.">                        } else if (!Character.isUpperCase(propName.charAt(1))){</span>
+<span class="nc" id="L1602">                            propName = Character.toLowerCase(propName.charAt(0))</span>
+<span class="nc" id="L1603">                                    + propName.substring(1);</span>
+                        }
+                    }
+                }
+            }
+<span class="nc bnc" id="L1608" title="All 2 branches missed.">        } else if (annotation instanceof JSFunction) {</span>
+<span class="nc" id="L1609">            propName = ((JSFunction) annotation).value();</span>
+<span class="nc bnc" id="L1610" title="All 2 branches missed.">        } else if (annotation instanceof JSStaticFunction) {</span>
+<span class="nc" id="L1611">            propName = ((JSStaticFunction) annotation).value();</span>
+        }
+<span class="nc bnc" id="L1613" title="All 4 branches missed.">        if (propName == null || propName.length() == 0) {</span>
+<span class="nc" id="L1614">            propName = methodName;</span>
+        }
+<span class="nc" id="L1616">        return propName;</span>
+    }
+
+    @SuppressWarnings({&quot;unchecked&quot;})
+    private static &lt;T extends Scriptable&gt; Class&lt;T&gt; extendsScriptable(Class&lt;?&gt; c)
+    {
+<span class="nc bnc" id="L1622" title="All 2 branches missed.">        if (ScriptRuntime.ScriptableClass.isAssignableFrom(c))</span>
+<span class="nc" id="L1623">            return (Class&lt;T&gt;) c;</span>
+<span class="nc" id="L1624">        return null;</span>
+    }
+
+    /**
+     * Define a JavaScript property.
+     *
+     * Creates the property with an initial value and sets its attributes.
+     *
+     * @param propertyName the name of the property to define.
+     * @param value the initial value of the property
+     * @param attributes the attributes of the JavaScript property
+     * @see org.mozilla.javascript.Scriptable#put(String, Scriptable, Object)
+     */
+    public void defineProperty(String propertyName, Object value,
+                               int attributes)
+    {
+<span class="fc" id="L1640">        checkNotSealed(propertyName, 0);</span>
+<span class="fc" id="L1641">        put(propertyName, this, value);</span>
+<span class="fc" id="L1642">        setAttributes(propertyName, attributes);</span>
+<span class="fc" id="L1643">    }</span>
+
+    /**
+     * A version of defineProperty that uses a Symbol key.
+     */
+    public void defineProperty(Symbol key, Object value,
+                               int attributes)
+    {
+<span class="fc" id="L1651">        checkNotSealed(key, 0);</span>
+<span class="fc" id="L1652">        put(key, this, value);</span>
+<span class="fc" id="L1653">        setAttributes(key, attributes);</span>
+<span class="fc" id="L1654">    }</span>
+
+    /**
+     * Utility method to add properties to arbitrary Scriptable object.
+     * If destination is instance of ScriptableObject, calls
+     * defineProperty there, otherwise calls put in destination
+     * ignoring attributes
+     */
+    public static void defineProperty(Scriptable destination,
+                                      String propertyName, Object value,
+                                      int attributes)
+    {
+<span class="pc bpc" id="L1666" title="1 of 2 branches missed.">        if (!(destination instanceof ScriptableObject)) {</span>
+<span class="nc" id="L1667">            destination.put(propertyName, destination, value);</span>
+<span class="nc" id="L1668">            return;</span>
+        }
+<span class="fc" id="L1670">        ScriptableObject so = (ScriptableObject)destination;</span>
+<span class="fc" id="L1671">        so.defineProperty(propertyName, value, attributes);</span>
+<span class="fc" id="L1672">    }</span>
+
+    /**
+     * Utility method to add properties to arbitrary Scriptable object.
+     * If destination is instance of ScriptableObject, calls
+     * defineProperty there, otherwise calls put in destination
+     * ignoring attributes
+     */
+    public static void defineConstProperty(Scriptable destination,
+                                           String propertyName)
+    {
+<span class="nc bnc" id="L1683" title="All 2 branches missed.">        if (destination instanceof ConstProperties) {</span>
+<span class="nc" id="L1684">            ConstProperties cp = (ConstProperties)destination;</span>
+<span class="nc" id="L1685">            cp.defineConst(propertyName, destination);</span>
+<span class="nc" id="L1686">        } else</span>
+<span class="nc" id="L1687">            defineProperty(destination, propertyName, Undefined.instance, CONST);</span>
+<span class="nc" id="L1688">    }</span>
+
+    /**
+     * Define a JavaScript property with getter and setter side effects.
+     *
+     * If the setter is not found, the attribute READONLY is added to
+     * the given attributes. &lt;p&gt;
+     *
+     * The getter must be a method with zero parameters, and the setter, if
+     * found, must be a method with one parameter.&lt;p&gt;
+     *
+     * @param propertyName the name of the property to define. This name
+     *                    also affects the name of the setter and getter
+     *                    to search for. If the propertyId is &quot;foo&quot;, then
+     *                    &lt;code&gt;clazz&lt;/code&gt; will be searched for &quot;getFoo&quot;
+     *                    and &quot;setFoo&quot; methods.
+     * @param clazz the Java class to search for the getter and setter
+     * @param attributes the attributes of the JavaScript property
+     * @see org.mozilla.javascript.Scriptable#put(String, Scriptable, Object)
+     */
+    public void defineProperty(String propertyName, Class&lt;?&gt; clazz,
+                               int attributes)
+    {
+<span class="nc" id="L1711">        int length = propertyName.length();</span>
+<span class="nc bnc" id="L1712" title="All 2 branches missed.">        if (length == 0) throw new IllegalArgumentException();</span>
+<span class="nc" id="L1713">        char[] buf = new char[3 + length];</span>
+<span class="nc" id="L1714">        propertyName.getChars(0, length, buf, 3);</span>
+<span class="nc" id="L1715">        buf[3] = Character.toUpperCase(buf[3]);</span>
+<span class="nc" id="L1716">        buf[0] = 'g';</span>
+<span class="nc" id="L1717">        buf[1] = 'e';</span>
+<span class="nc" id="L1718">        buf[2] = 't';</span>
+<span class="nc" id="L1719">        String getterName = new String(buf);</span>
+<span class="nc" id="L1720">        buf[0] = 's';</span>
+<span class="nc" id="L1721">        String setterName = new String(buf);</span>
+
+<span class="nc" id="L1723">        Method[] methods = FunctionObject.getMethodList(clazz);</span>
+<span class="nc" id="L1724">        Method getter = FunctionObject.findSingleMethod(methods, getterName);</span>
+<span class="nc" id="L1725">        Method setter = FunctionObject.findSingleMethod(methods, setterName);</span>
+<span class="nc bnc" id="L1726" title="All 2 branches missed.">        if (setter == null)</span>
+<span class="nc" id="L1727">            attributes |= ScriptableObject.READONLY;</span>
+<span class="nc bnc" id="L1728" title="All 2 branches missed.">        defineProperty(propertyName, null, getter,</span>
+                       setter == null ? null : setter, attributes);
+<span class="nc" id="L1730">    }</span>
+
+    /**
+     * Define a JavaScript property.
+     *
+     * Use this method only if you wish to define getters and setters for
+     * a given property in a ScriptableObject. To create a property without
+     * special getter or setter side effects, use
+     * &lt;code&gt;defineProperty(String,int)&lt;/code&gt;.
+     *
+     * If &lt;code&gt;setter&lt;/code&gt; is null, the attribute READONLY is added to
+     * the given attributes.&lt;p&gt;
+     *
+     * Several forms of getters or setters are allowed. In all cases the
+     * type of the value parameter can be any one of the following types:
+     * Object, String, boolean, Scriptable, byte, short, int, long, float,
+     * or double. The runtime will perform appropriate conversions based
+     * upon the type of the parameter (see description in FunctionObject).
+     * The first forms are nonstatic methods of the class referred to
+     * by 'this':
+     * &lt;pre&gt;
+     * Object getFoo();
+     * void setFoo(SomeType value);&lt;/pre&gt;
+     * Next are static methods that may be of any class; the object whose
+     * property is being accessed is passed in as an extra argument:
+     * &lt;pre&gt;
+     * static Object getFoo(Scriptable obj);
+     * static void setFoo(Scriptable obj, SomeType value);&lt;/pre&gt;
+     * Finally, it is possible to delegate to another object entirely using
+     * the &lt;code&gt;delegateTo&lt;/code&gt; parameter. In this case the methods are
+     * nonstatic methods of the class delegated to, and the object whose
+     * property is being accessed is passed in as an extra argument:
+     * &lt;pre&gt;
+     * Object getFoo(Scriptable obj);
+     * void setFoo(Scriptable obj, SomeType value);&lt;/pre&gt;
+     *
+     * @param propertyName the name of the property to define.
+     * @param delegateTo an object to call the getter and setter methods on,
+     *                   or null, depending on the form used above.
+     * @param getter the method to invoke to get the value of the property
+     * @param setter the method to invoke to set the value of the property
+     * @param attributes the attributes of the JavaScript property
+     */
+    public void defineProperty(String propertyName, Object delegateTo,
+                               Method getter, Method setter, int attributes)
+    {
+<span class="fc" id="L1776">        MemberBox getterBox = null;</span>
+<span class="pc bpc" id="L1777" title="1 of 2 branches missed.">        if (getter != null) {</span>
+<span class="fc" id="L1778">            getterBox = new MemberBox(getter);</span>
+
+            boolean delegatedForm;
+<span class="pc bpc" id="L1781" title="1 of 2 branches missed.">            if (!Modifier.isStatic(getter.getModifiers())) {</span>
+<span class="pc bpc" id="L1782" title="1 of 2 branches missed.">                delegatedForm = (delegateTo != null);</span>
+<span class="fc" id="L1783">                getterBox.delegateTo = delegateTo;</span>
+            } else {
+<span class="nc" id="L1785">                delegatedForm = true;</span>
+                // Ignore delegateTo for static getter but store
+                // non-null delegateTo indicator.
+<span class="nc" id="L1788">                getterBox.delegateTo = Void.TYPE;</span>
+            }
+
+<span class="fc" id="L1791">            String errorId = null;</span>
+<span class="fc" id="L1792">            Class&lt;?&gt;[] parmTypes = getter.getParameterTypes();</span>
+<span class="pc bpc" id="L1793" title="1 of 2 branches missed.">            if (parmTypes.length == 0) {</span>
+<span class="nc bnc" id="L1794" title="All 2 branches missed.">                if (delegatedForm) {</span>
+<span class="nc" id="L1795">                    errorId = &quot;msg.obj.getter.parms&quot;;</span>
+                }
+<span class="pc bpc" id="L1797" title="1 of 2 branches missed.">            } else if (parmTypes.length == 1) {</span>
+<span class="fc" id="L1798">                Object argType = parmTypes[0];</span>
+                // Allow ScriptableObject for compatibility
+<span class="pc bpc" id="L1800" title="3 of 4 branches missed.">                if (!(argType == ScriptRuntime.ScriptableClass ||</span>
+                      argType == ScriptRuntime.ScriptableObjectClass))
+                {
+<span class="nc" id="L1803">                    errorId = &quot;msg.bad.getter.parms&quot;;</span>
+<span class="pc bpc" id="L1804" title="1 of 2 branches missed.">                } else if (!delegatedForm) {</span>
+<span class="nc" id="L1805">                    errorId = &quot;msg.bad.getter.parms&quot;;</span>
+                }
+<span class="fc" id="L1807">            } else {</span>
+<span class="nc" id="L1808">                errorId = &quot;msg.bad.getter.parms&quot;;</span>
+            }
+<span class="pc bpc" id="L1810" title="1 of 2 branches missed.">            if (errorId != null) {</span>
+<span class="nc" id="L1811">                throw Context.reportRuntimeError1(errorId, getter.toString());</span>
+            }
+        }
+
+<span class="fc" id="L1815">        MemberBox setterBox = null;</span>
+<span class="pc bpc" id="L1816" title="1 of 2 branches missed.">        if (setter != null) {</span>
+<span class="pc bpc" id="L1817" title="1 of 2 branches missed.">            if (setter.getReturnType() != Void.TYPE)</span>
+<span class="nc" id="L1818">                throw Context.reportRuntimeError1(&quot;msg.setter.return&quot;,</span>
+<span class="nc" id="L1819">                                                  setter.toString());</span>
+
+<span class="fc" id="L1821">            setterBox = new MemberBox(setter);</span>
+
+            boolean delegatedForm;
+<span class="pc bpc" id="L1824" title="1 of 2 branches missed.">            if (!Modifier.isStatic(setter.getModifiers())) {</span>
+<span class="pc bpc" id="L1825" title="1 of 2 branches missed.">                delegatedForm = (delegateTo != null);</span>
+<span class="fc" id="L1826">                setterBox.delegateTo = delegateTo;</span>
+            } else {
+<span class="nc" id="L1828">                delegatedForm = true;</span>
+                // Ignore delegateTo for static setter but store
+                // non-null delegateTo indicator.
+<span class="nc" id="L1831">                setterBox.delegateTo = Void.TYPE;</span>
+            }
+
+<span class="fc" id="L1834">            String errorId = null;</span>
+<span class="fc" id="L1835">            Class&lt;?&gt;[] parmTypes = setter.getParameterTypes();</span>
+<span class="pc bpc" id="L1836" title="1 of 2 branches missed.">            if (parmTypes.length == 1) {</span>
+<span class="nc bnc" id="L1837" title="All 2 branches missed.">                if (delegatedForm) {</span>
+<span class="nc" id="L1838">                    errorId = &quot;msg.setter2.expected&quot;;</span>
+                }
+<span class="pc bpc" id="L1840" title="1 of 2 branches missed.">            } else if (parmTypes.length == 2) {</span>
+<span class="fc" id="L1841">                Object argType = parmTypes[0];</span>
+                // Allow ScriptableObject for compatibility
+<span class="pc bpc" id="L1843" title="3 of 4 branches missed.">                if (!(argType == ScriptRuntime.ScriptableClass ||</span>
+                      argType == ScriptRuntime.ScriptableObjectClass))
+                {
+<span class="nc" id="L1846">                    errorId = &quot;msg.setter2.parms&quot;;</span>
+<span class="pc bpc" id="L1847" title="1 of 2 branches missed.">                } else if (!delegatedForm) {</span>
+<span class="nc" id="L1848">                    errorId = &quot;msg.setter1.parms&quot;;</span>
+                }
+<span class="fc" id="L1850">            } else {</span>
+<span class="nc" id="L1851">                errorId = &quot;msg.setter.parms&quot;;</span>
+            }
+<span class="pc bpc" id="L1853" title="1 of 2 branches missed.">            if (errorId != null) {</span>
+<span class="nc" id="L1854">                throw Context.reportRuntimeError1(errorId, setter.toString());</span>
+            }
+        }
+
+<span class="fc" id="L1858">        GetterSlot gslot = (GetterSlot)slotMap.get(propertyName, 0,</span>
+            SlotAccess.MODIFY_GETTER_SETTER);
+<span class="fc" id="L1860">        gslot.setAttributes(attributes);</span>
+<span class="fc" id="L1861">        gslot.getter = getterBox;</span>
+<span class="fc" id="L1862">        gslot.setter = setterBox;</span>
+<span class="fc" id="L1863">    }</span>
+
+    /**
+     * Defines one or more properties on this object.
+     *
+     * @param cx the current Context
+     * @param props a map of property ids to property descriptors
+     */
+    public void defineOwnProperties(Context cx, ScriptableObject props) {
+<span class="fc" id="L1872">        Object[] ids = props.getIds(false, true);</span>
+<span class="fc" id="L1873">        ScriptableObject[] descs = new ScriptableObject[ids.length];</span>
+<span class="pc bpc" id="L1874" title="1 of 2 branches missed.">        for (int i = 0, len = ids.length; i &lt; len; ++i) {</span>
+<span class="fc" id="L1875">            Object descObj = ScriptRuntime.getObjectElem(props, ids[i], cx);</span>
+<span class="nc" id="L1876">            ScriptableObject desc = ensureScriptableObject(descObj);</span>
+<span class="nc" id="L1877">            checkPropertyDefinition(desc);</span>
+<span class="nc" id="L1878">            descs[i] = desc;</span>
+        }
+<span class="nc bnc" id="L1880" title="All 2 branches missed.">        for (int i = 0, len = ids.length; i &lt; len; ++i) {</span>
+<span class="nc" id="L1881">            defineOwnProperty(cx, ids[i], descs[i]);</span>
+        }
+<span class="nc" id="L1883">    }</span>
+
+    /**
+     * Defines a property on an object.
+     *
+     * @param cx the current Context
+     * @param id the name/index of the property
+     * @param desc the new property descriptor, as described in 8.6.1
+     */
+    public void defineOwnProperty(Context cx, Object id, ScriptableObject desc) {
+<span class="fc" id="L1893">        checkPropertyDefinition(desc);</span>
+<span class="fc" id="L1894">        defineOwnProperty(cx, id, desc, true);</span>
+<span class="fc" id="L1895">    }</span>
+
+    /**
+     * Defines a property on an object.
+     *
+     * Based on [[DefineOwnProperty]] from 8.12.10 of the spec.
+     *
+     * @param cx the current Context
+     * @param id the name/index of the property
+     * @param desc the new property descriptor, as described in 8.6.1
+     * @param checkValid whether to perform validity checks
+     */
+    protected void defineOwnProperty(Context cx, Object id, ScriptableObject desc,
+                                     boolean checkValid) {
+
+<span class="fc" id="L1910">        Slot slot = getSlot(cx, id, SlotAccess.QUERY);</span>
+<span class="pc bpc" id="L1911" title="1 of 2 branches missed.">        boolean isNew = slot == null;</span>
+
+<span class="pc bpc" id="L1913" title="1 of 2 branches missed.">        if (checkValid) {</span>
+<span class="pc bpc" id="L1914" title="1 of 2 branches missed.">            ScriptableObject current = slot == null ?</span>
+<span class="pc" id="L1915">                    null : slot.getPropertyDescriptor(cx, this);</span>
+<span class="fc" id="L1916">            checkPropertyChange(id, current, desc);</span>
+        }
+
+<span class="fc" id="L1919">        boolean isAccessor = isAccessorDescriptor(desc);</span>
+        final int attributes;
+
+<span class="pc bpc" id="L1922" title="1 of 2 branches missed.">        if (slot == null) { // new slot</span>
+<span class="pc bpc" id="L1923" title="1 of 2 branches missed.">            slot = getSlot(cx, id, isAccessor ? SlotAccess.MODIFY_GETTER_SETTER : SlotAccess.MODIFY);</span>
+<span class="fc" id="L1924">            attributes = applyDescriptorToAttributeBitset(DONTENUM|READONLY|PERMANENT, desc);</span>
+        } else {
+<span class="nc" id="L1926">            attributes = applyDescriptorToAttributeBitset(slot.getAttributes(), desc);</span>
+        }
+
+<span class="pc bpc" id="L1929" title="1 of 2 branches missed.">        if (isAccessor) {</span>
+<span class="nc bnc" id="L1930" title="All 2 branches missed.">            if ( !(slot instanceof GetterSlot) ) {</span>
+<span class="nc" id="L1931">                slot = getSlot(cx, id, SlotAccess.MODIFY_GETTER_SETTER);</span>
+            }
+
+<span class="nc" id="L1934">            GetterSlot gslot = (GetterSlot) slot;</span>
+
+<span class="nc" id="L1936">            Object getter = getProperty(desc, &quot;get&quot;);</span>
+<span class="nc bnc" id="L1937" title="All 2 branches missed.">            if (getter != NOT_FOUND) {</span>
+<span class="nc" id="L1938">                gslot.getter = getter;</span>
+            }
+<span class="nc" id="L1940">            Object setter = getProperty(desc, &quot;set&quot;);</span>
+<span class="nc bnc" id="L1941" title="All 2 branches missed.">            if (setter != NOT_FOUND) {</span>
+<span class="nc" id="L1942">                gslot.setter = setter;</span>
+            }
+
+<span class="nc" id="L1945">            gslot.value = Undefined.instance;</span>
+<span class="nc" id="L1946">            gslot.setAttributes(attributes);</span>
+<span class="nc" id="L1947">        } else {</span>
+<span class="pc bpc" id="L1948" title="3 of 4 branches missed.">            if (slot instanceof GetterSlot &amp;&amp; isDataDescriptor(desc)) {</span>
+<span class="nc" id="L1949">                slot = getSlot(cx, id, SlotAccess.CONVERT_ACCESSOR_TO_DATA);</span>
+            }
+
+<span class="fc" id="L1952">            Object value = getProperty(desc, &quot;value&quot;);</span>
+<span class="pc bpc" id="L1953" title="1 of 2 branches missed.">            if (value != NOT_FOUND) {</span>
+<span class="nc" id="L1954">                slot.value = value;</span>
+<span class="pc bpc" id="L1955" title="1 of 2 branches missed.">            } else if (isNew) {</span>
+<span class="fc" id="L1956">                slot.value = Undefined.instance;</span>
+            }
+<span class="fc" id="L1958">            slot.setAttributes(attributes);</span>
+        }
+<span class="fc" id="L1960">    }</span>
+
+    protected void checkPropertyDefinition(ScriptableObject desc) {
+<span class="fc" id="L1963">        Object getter = getProperty(desc, &quot;get&quot;);</span>
+<span class="pc bpc" id="L1964" title="5 of 6 branches missed.">        if (getter != NOT_FOUND &amp;&amp; getter != Undefined.instance</span>
+                &amp;&amp; !(getter instanceof Callable)) {
+<span class="nc" id="L1966">            throw ScriptRuntime.notFunctionError(getter);</span>
+        }
+<span class="fc" id="L1968">        Object setter = getProperty(desc, &quot;set&quot;);</span>
+<span class="pc bpc" id="L1969" title="5 of 6 branches missed.">        if (setter != NOT_FOUND &amp;&amp; setter != Undefined.instance</span>
+                &amp;&amp; !(setter instanceof Callable)) {
+<span class="nc" id="L1971">            throw ScriptRuntime.notFunctionError(setter);</span>
+        }
+<span class="pc bpc" id="L1973" title="3 of 4 branches missed.">        if (isDataDescriptor(desc) &amp;&amp; isAccessorDescriptor(desc)) {</span>
+<span class="nc" id="L1974">            throw ScriptRuntime.typeError0(&quot;msg.both.data.and.accessor.desc&quot;);</span>
+        }
+<span class="fc" id="L1976">    }</span>
+
+    protected void checkPropertyChange(Object id, ScriptableObject current,
+                                       ScriptableObject desc) {
+<span class="pc bpc" id="L1980" title="1 of 2 branches missed.">        if (current == null) { // new property</span>
+<span class="pc bpc" id="L1981" title="1 of 2 branches missed.">            if (!isExtensible()) throw ScriptRuntime.typeError0(&quot;msg.not.extensible&quot;);</span>
+        } else {
+<span class="nc bnc" id="L1983" title="All 2 branches missed.">            if (isFalse(current.get(&quot;configurable&quot;, current))) {</span>
+<span class="nc bnc" id="L1984" title="All 2 branches missed.">                if (isTrue(getProperty(desc, &quot;configurable&quot;)))</span>
+<span class="nc" id="L1985">                    throw ScriptRuntime.typeError1(</span>
+                        &quot;msg.change.configurable.false.to.true&quot;, id);
+<span class="nc bnc" id="L1987" title="All 2 branches missed.">                if (isTrue(current.get(&quot;enumerable&quot;, current)) != isTrue(getProperty(desc, &quot;enumerable&quot;)))</span>
+<span class="nc" id="L1988">                    throw ScriptRuntime.typeError1(</span>
+                        &quot;msg.change.enumerable.with.configurable.false&quot;, id);
+<span class="nc" id="L1990">                boolean isData = isDataDescriptor(desc);</span>
+<span class="nc" id="L1991">                boolean isAccessor = isAccessorDescriptor(desc);</span>
+<span class="nc bnc" id="L1992" title="All 4 branches missed.">                if (!isData &amp;&amp; !isAccessor) {</span>
+                    // no further validation required for generic descriptor
+<span class="nc bnc" id="L1994" title="All 4 branches missed.">                } else if (isData &amp;&amp; isDataDescriptor(current)) {</span>
+<span class="nc bnc" id="L1995" title="All 2 branches missed.">                    if (isFalse(current.get(&quot;writable&quot;, current))) {</span>
+<span class="nc bnc" id="L1996" title="All 2 branches missed.">                        if (isTrue(getProperty(desc, &quot;writable&quot;)))</span>
+<span class="nc" id="L1997">                            throw ScriptRuntime.typeError1(</span>
+                                &quot;msg.change.writable.false.to.true.with.configurable.false&quot;, id);
+
+<span class="nc bnc" id="L2000" title="All 2 branches missed.">                        if (!sameValue(getProperty(desc, &quot;value&quot;), current.get(&quot;value&quot;, current)))</span>
+<span class="nc" id="L2001">                            throw ScriptRuntime.typeError1(</span>
+                                &quot;msg.change.value.with.writable.false&quot;, id);
+                    }
+<span class="nc bnc" id="L2004" title="All 4 branches missed.">                } else if (isAccessor &amp;&amp; isAccessorDescriptor(current)) {</span>
+<span class="nc bnc" id="L2005" title="All 2 branches missed.">                    if (!sameValue(getProperty(desc, &quot;set&quot;), current.get(&quot;set&quot;, current)))</span>
+<span class="nc" id="L2006">                        throw ScriptRuntime.typeError1(</span>
+                            &quot;msg.change.setter.with.configurable.false&quot;, id);
+
+<span class="nc bnc" id="L2009" title="All 2 branches missed.">                    if (!sameValue(getProperty(desc, &quot;get&quot;), current.get(&quot;get&quot;, current)))</span>
+<span class="nc" id="L2010">                        throw ScriptRuntime.typeError1(</span>
+                            &quot;msg.change.getter.with.configurable.false&quot;, id);
+                } else {
+<span class="nc bnc" id="L2013" title="All 2 branches missed.">                    if (isDataDescriptor(current))</span>
+<span class="nc" id="L2014">                        throw ScriptRuntime.typeError1(</span>
+                            &quot;msg.change.property.data.to.accessor.with.configurable.false&quot;, id);
+                    else
+<span class="nc" id="L2017">                        throw ScriptRuntime.typeError1(</span>
+                            &quot;msg.change.property.accessor.to.data.with.configurable.false&quot;, id);
+                }
+            }
+        }
+<span class="fc" id="L2022">    }</span>
+
+    protected static boolean isTrue(Object value) {
+<span class="pc bpc" id="L2025" title="2 of 4 branches missed.">        return (value != NOT_FOUND) &amp;&amp; ScriptRuntime.toBoolean(value);</span>
+    }
+
+    protected static boolean isFalse(Object value) {
+<span class="nc bnc" id="L2029" title="All 2 branches missed.">        return !isTrue(value);</span>
+    }
+
+    /**
+     * Implements SameValue as described in ES5 9.12, additionally checking
+     * if new value is defined.
+     * @param newValue the new value
+     * @param currentValue the current value
+     * @return true if values are the same as defined by ES5 9.12
+     */
+    protected boolean sameValue(Object newValue, Object currentValue) {
+<span class="nc bnc" id="L2040" title="All 2 branches missed.">        if (newValue == NOT_FOUND) {</span>
+<span class="nc" id="L2041">            return true;</span>
+        }
+<span class="nc bnc" id="L2043" title="All 2 branches missed.">        if (currentValue == NOT_FOUND) {</span>
+<span class="nc" id="L2044">            currentValue = Undefined.instance;</span>
+        }
+        // Special rules for numbers: NaN is considered the same value,
+        // while zeroes with different signs are considered different.
+<span class="nc bnc" id="L2048" title="All 4 branches missed.">        if (currentValue instanceof Number &amp;&amp; newValue instanceof Number) {</span>
+<span class="nc" id="L2049">            double d1 = ((Number)currentValue).doubleValue();</span>
+<span class="nc" id="L2050">            double d2 = ((Number)newValue).doubleValue();</span>
+<span class="nc bnc" id="L2051" title="All 4 branches missed.">            if (Double.isNaN(d1) &amp;&amp; Double.isNaN(d2)) {</span>
+<span class="nc" id="L2052">                return true;</span>
+            }
+<span class="nc bnc" id="L2054" title="All 4 branches missed.">            if (d1 == 0.0 &amp;&amp; Double.doubleToLongBits(d1) != Double.doubleToLongBits(d2)) {</span>
+<span class="nc" id="L2055">                return false;</span>
+            }
+        }
+<span class="nc" id="L2058">        return ScriptRuntime.shallowEq(currentValue, newValue);</span>
+    }
+
+    protected int applyDescriptorToAttributeBitset(int attributes,
+                                                   ScriptableObject desc)
+    {
+<span class="fc" id="L2064">        Object enumerable = getProperty(desc, &quot;enumerable&quot;);</span>
+<span class="pc bpc" id="L2065" title="1 of 2 branches missed.">        if (enumerable != NOT_FOUND) {</span>
+<span class="nc bnc" id="L2066" title="All 2 branches missed.">            attributes = ScriptRuntime.toBoolean(enumerable)</span>
+                    ? attributes &amp; ~DONTENUM : attributes | DONTENUM;
+        }
+
+<span class="fc" id="L2070">        Object writable = getProperty(desc, &quot;writable&quot;);</span>
+<span class="pc bpc" id="L2071" title="1 of 2 branches missed.">        if (writable != NOT_FOUND) {</span>
+<span class="nc bnc" id="L2072" title="All 2 branches missed.">            attributes = ScriptRuntime.toBoolean(writable)</span>
+                    ? attributes &amp; ~READONLY : attributes | READONLY;
+        }
+
+<span class="fc" id="L2076">        Object configurable = getProperty(desc, &quot;configurable&quot;);</span>
+<span class="pc bpc" id="L2077" title="1 of 2 branches missed.">        if (configurable != NOT_FOUND) {</span>
+<span class="nc bnc" id="L2078" title="All 2 branches missed.">            attributes = ScriptRuntime.toBoolean(configurable)</span>
+                    ? attributes &amp; ~PERMANENT : attributes | PERMANENT;
+        }
+
+<span class="fc" id="L2082">        return attributes;</span>
+    }
+
+    /**
+     * Implements IsDataDescriptor as described in ES5 8.10.2
+     * @param desc a property descriptor
+     * @return true if this is a data descriptor.
+     */
+    protected boolean isDataDescriptor(ScriptableObject desc) {
+<span class="pc bpc" id="L2091" title="2 of 4 branches missed.">        return hasProperty(desc, &quot;value&quot;) || hasProperty(desc, &quot;writable&quot;);</span>
+    }
+
+    /**
+     * Implements IsAccessorDescriptor as described in ES5 8.10.1
+     * @param desc a property descriptor
+     * @return true if this is an accessor descriptor.
+     */
+    protected boolean isAccessorDescriptor(ScriptableObject desc) {
+<span class="pc bpc" id="L2100" title="2 of 4 branches missed.">        return hasProperty(desc, &quot;get&quot;) || hasProperty(desc, &quot;set&quot;);</span>
+    }
+
+    /**
+     * Implements IsGenericDescriptor as described in ES5 8.10.3
+     * @param desc a property descriptor
+     * @return true if this is a generic descriptor.
+     */
+    protected boolean isGenericDescriptor(ScriptableObject desc) {
+<span class="nc bnc" id="L2109" title="All 4 branches missed.">        return !isDataDescriptor(desc) &amp;&amp; !isAccessorDescriptor(desc);</span>
+    }
+
+    protected static Scriptable ensureScriptable(Object arg) {
+<span class="nc bnc" id="L2113" title="All 2 branches missed.">        if ( !(arg instanceof Scriptable) )</span>
+<span class="nc" id="L2114">            throw ScriptRuntime.typeError1(&quot;msg.arg.not.object&quot;, ScriptRuntime.typeof(arg));</span>
+<span class="nc" id="L2115">        return (Scriptable) arg;</span>
+    }
+
+    protected static SymbolScriptable ensureSymbolScriptable(Object arg) {
+<span class="pc bpc" id="L2119" title="1 of 2 branches missed.">        if ( !(arg instanceof SymbolScriptable) )</span>
+<span class="nc" id="L2120">            throw ScriptRuntime.typeError1(&quot;msg.object.not.symbolscriptable&quot;, ScriptRuntime.typeof(arg));</span>
+<span class="fc" id="L2121">        return (SymbolScriptable) arg;</span>
+    }
+
+    protected static ScriptableObject ensureScriptableObject(Object arg) {
+<span class="pc bpc" id="L2125" title="1 of 2 branches missed.">        if ( !(arg instanceof ScriptableObject) )</span>
+<span class="fc" id="L2126">            throw ScriptRuntime.typeError1(&quot;msg.arg.not.object&quot;, ScriptRuntime.typeof(arg));</span>
+<span class="nc" id="L2127">        return (ScriptableObject) arg;</span>
+    }
+
+    /**
+     * Search for names in a class, adding the resulting methods
+     * as properties.
+     *
+     * &lt;p&gt; Uses reflection to find the methods of the given names. Then
+     * FunctionObjects are constructed from the methods found, and
+     * are added to this object as properties with the given names.
+     *
+     * @param names the names of the Methods to add as function properties
+     * @param clazz the class to search for the Methods
+     * @param attributes the attributes of the new properties
+     * @see org.mozilla.javascript.FunctionObject
+     */
+    public void defineFunctionProperties(String[] names, Class&lt;?&gt; clazz,
+                                         int attributes)
+    {
+<span class="fc" id="L2146">        Method[] methods = FunctionObject.getMethodList(clazz);</span>
+<span class="fc bfc" id="L2147" title="All 2 branches covered.">        for (int i=0; i &lt; names.length; i++) {</span>
+<span class="fc" id="L2148">            String name = names[i];</span>
+<span class="fc" id="L2149">            Method m = FunctionObject.findSingleMethod(methods, name);</span>
+<span class="pc bpc" id="L2150" title="1 of 2 branches missed.">            if (m == null) {</span>
+<span class="nc" id="L2151">                throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L2152">                    &quot;msg.method.not.found&quot;, name, clazz.getName());</span>
+            }
+<span class="fc" id="L2154">            FunctionObject f = new FunctionObject(name, m, this);</span>
+<span class="fc" id="L2155">            defineProperty(name, f, attributes);</span>
+        }
+<span class="fc" id="L2157">    }</span>
+
+    /**
+     * Get the Object.prototype property.
+     * See ECMA 15.2.4.
+     */
+    public static Scriptable getObjectPrototype(Scriptable scope) {
+<span class="fc" id="L2164">        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),</span>
+                TopLevel.Builtins.Object);
+    }
+
+    /**
+     * Get the Function.prototype property.
+     * See ECMA 15.3.4.
+     */
+    public static Scriptable getFunctionPrototype(Scriptable scope) {
+<span class="fc" id="L2173">        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),</span>
+                TopLevel.Builtins.Function);
+    }
+
+    public static Scriptable getArrayPrototype(Scriptable scope) {
+<span class="nc" id="L2178">        return TopLevel.getBuiltinPrototype(getTopLevelScope(scope),</span>
+                TopLevel.Builtins.Array);
+    }
+
+    /**
+     * Get the prototype for the named class.
+     *
+     * For example, &lt;code&gt;getClassPrototype(s, &quot;Date&quot;)&lt;/code&gt; will first
+     * walk up the parent chain to find the outermost scope, then will
+     * search that scope for the Date constructor, and then will
+     * return Date.prototype. If any of the lookups fail, or
+     * the prototype is not a JavaScript object, then null will
+     * be returned.
+     *
+     * @param scope an object in the scope chain
+     * @param className the name of the constructor
+     * @return the prototype for the named class, or null if it
+     *         cannot be found.
+     */
+    public static Scriptable getClassPrototype(Scriptable scope,
+                                               String className)
+    {
+<span class="fc" id="L2200">        scope = getTopLevelScope(scope);</span>
+<span class="fc" id="L2201">        Object ctor = getProperty(scope, className);</span>
+        Object proto;
+<span class="fc bfc" id="L2203" title="All 2 branches covered.">        if (ctor instanceof BaseFunction) {</span>
+<span class="fc" id="L2204">            proto = ((BaseFunction)ctor).getPrototypeProperty();</span>
+<span class="pc bpc" id="L2205" title="1 of 2 branches missed.">        } else if (ctor instanceof Scriptable) {</span>
+<span class="nc" id="L2206">            Scriptable ctorObj = (Scriptable)ctor;</span>
+<span class="nc" id="L2207">            proto = ctorObj.get(&quot;prototype&quot;, ctorObj);</span>
+<span class="nc" id="L2208">        } else {</span>
+<span class="fc" id="L2209">            return null;</span>
+        }
+<span class="pc bpc" id="L2211" title="1 of 2 branches missed.">        if (proto instanceof Scriptable) {</span>
+<span class="fc" id="L2212">            return (Scriptable)proto;</span>
+        }
+<span class="nc" id="L2214">        return null;</span>
+    }
+
+    /**
+     * Get the global scope.
+     *
+     * &lt;p&gt;Walks the parent scope chain to find an object with a null
+     * parent scope (the global object).
+     *
+     * @param obj a JavaScript object
+     * @return the corresponding global scope
+     */
+    public static Scriptable getTopLevelScope(Scriptable obj)
+    {
+        for (;;) {
+<span class="fc" id="L2229">            Scriptable parent = obj.getParentScope();</span>
+<span class="fc bfc" id="L2230" title="All 2 branches covered.">            if (parent == null) {</span>
+<span class="fc" id="L2231">                return obj;</span>
+            }
+<span class="fc" id="L2233">            obj = parent;</span>
+<span class="fc" id="L2234">        }</span>
+    }
+
+    public boolean isExtensible() {
+<span class="fc" id="L2238">      return isExtensible;</span>
+    }
+
+    public void preventExtensions() {
+<span class="nc" id="L2242">      isExtensible = false;</span>
+<span class="nc" id="L2243">    }</span>
+
+    /**
+     * Seal this object.
+     *
+     * It is an error to add properties to or delete properties from
+     * a sealed object. It is possible to change the value of an
+     * existing property. Once an object is sealed it may not be unsealed.
+     *
+     * @since 1.4R3
+     */
+    public void sealObject() {
+<span class="pc bpc" id="L2255" title="1 of 2 branches missed.">        if (!isSealed) {</span>
+<span class="fc" id="L2256">            final long stamp = slotMap.readLock();</span>
+            try {
+<span class="fc bfc" id="L2258" title="All 2 branches covered.">                for (Slot slot : slotMap) {</span>
+<span class="fc" id="L2259">                    Object value = slot.value;</span>
+<span class="pc bpc" id="L2260" title="1 of 2 branches missed.">                    if (value instanceof LazilyLoadedCtor) {</span>
+<span class="nc" id="L2261">                        LazilyLoadedCtor initializer = (LazilyLoadedCtor) value;</span>
+                        try {
+<span class="nc" id="L2263">                            initializer.init();</span>
+                        } finally {
+<span class="nc" id="L2265">                            slot.value = initializer.getValue();</span>
+<span class="nc" id="L2266">                        }</span>
+                    }
+<span class="fc" id="L2268">                }</span>
+<span class="fc" id="L2269">                isSealed = true;</span>
+            } finally {
+<span class="pc" id="L2271">                slotMap.unlockRead(stamp);</span>
+<span class="pc" id="L2272">            }</span>
+        }
+<span class="fc" id="L2274">    }</span>
+
+    /**
+     * Return true if this object is sealed.
+     *
+     * @return true if sealed, false otherwise.
+     * @since 1.4R3
+     * @see #sealObject()
+     */
+    public final boolean isSealed() {
+<span class="fc" id="L2284">        return isSealed;</span>
+    }
+
+    private void checkNotSealed(Object key, int index)
+    {
+<span class="pc bpc" id="L2289" title="1 of 2 branches missed.">        if (!isSealed())</span>
+<span class="fc" id="L2290">            return;</span>
+
+<span class="nc bnc" id="L2292" title="All 2 branches missed.">        String str = (key != null) ? key.toString() : Integer.toString(index);</span>
+<span class="nc" id="L2293">        throw Context.reportRuntimeError1(&quot;msg.modify.sealed&quot;, str);</span>
+    }
+
+    /**
+     * Gets a named property from an object or any object in its prototype chain.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property named &lt;code&gt;name&lt;/code&gt;.
+     * &lt;p&gt;
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return the value of a property with name &lt;code&gt;name&lt;/code&gt; found in
+     *         &lt;code&gt;obj&lt;/code&gt; or any object in its prototype chain, or
+     *         &lt;code&gt;Scriptable.NOT_FOUND&lt;/code&gt; if not found
+     * @since 1.5R2
+     */
+    public static Object getProperty(Scriptable obj, String name)
+    {
+<span class="fc" id="L2310">        Scriptable start = obj;</span>
+        Object result;
+        do {
+<span class="fc" id="L2313">            result = obj.get(name, start);</span>
+<span class="fc bfc" id="L2314" title="All 2 branches covered.">            if (result != Scriptable.NOT_FOUND)</span>
+<span class="fc" id="L2315">                break;</span>
+<span class="fc" id="L2316">            obj = obj.getPrototype();</span>
+<span class="fc bfc" id="L2317" title="All 2 branches covered.">        } while (obj != null);</span>
+<span class="fc" id="L2318">        return result;</span>
+    }
+
+    /**
+     * This is a version of getProperty that works with Symbols.
+     */
+    public static Object getProperty(Scriptable obj, Symbol key)
+    {
+<span class="fc" id="L2326">        Scriptable start = obj;</span>
+        Object result;
+        do {
+<span class="fc" id="L2329">            result = ensureSymbolScriptable(obj).get(key, start);</span>
+<span class="pc bpc" id="L2330" title="1 of 2 branches missed.">            if (result != Scriptable.NOT_FOUND)</span>
+<span class="nc" id="L2331">                break;</span>
+<span class="fc" id="L2332">            obj = obj.getPrototype();</span>
+<span class="pc bpc" id="L2333" title="1 of 2 branches missed.">        } while (obj != null);</span>
+<span class="fc" id="L2334">        return result;</span>
+    }
+
+    /**
+     * Gets an indexed property from an object or any object in its prototype
+     * chain and coerces it to the requested Java type.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property with integral index
+     * &lt;code&gt;index&lt;/code&gt;. Note that if you wish to look for properties with numerical
+     * but non-integral indicies, you should use getProperty(Scriptable,String) with
+     * the string value of the index.
+     * &lt;p&gt;
+     * @param s a JavaScript object
+     * @param index an integral index
+     * @param type the required Java type of the result
+     * @return the value of a property with name &lt;code&gt;name&lt;/code&gt; found in
+     *         &lt;code&gt;obj&lt;/code&gt; or any object in its prototype chain, or
+     *         null if not found. Note that it does not return
+     *         {@link Scriptable#NOT_FOUND} as it can ordinarily not be
+     *         converted to most of the types.
+     * @since 1.7R3
+     */
+    public static &lt;T&gt; T getTypedProperty(Scriptable s, int index, Class&lt;T&gt; type) {
+<span class="fc" id="L2357">        Object val = getProperty(s, index);</span>
+<span class="pc bpc" id="L2358" title="1 of 2 branches missed.">        if(val == Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L2359">            val = null;</span>
+        }
+<span class="fc" id="L2361">        return type.cast(Context.jsToJava(val, type));</span>
+    }
+
+    /**
+     * Gets an indexed property from an object or any object in its prototype chain.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property with integral index
+     * &lt;code&gt;index&lt;/code&gt;. Note that if you wish to look for properties with numerical
+     * but non-integral indicies, you should use getProperty(Scriptable,String) with
+     * the string value of the index.
+     * &lt;p&gt;
+     * @param obj a JavaScript object
+     * @param index an integral index
+     * @return the value of a property with index &lt;code&gt;index&lt;/code&gt; found in
+     *         &lt;code&gt;obj&lt;/code&gt; or any object in its prototype chain, or
+     *         &lt;code&gt;Scriptable.NOT_FOUND&lt;/code&gt; if not found
+     * @since 1.5R2
+     */
+    public static Object getProperty(Scriptable obj, int index)
+    {
+<span class="fc" id="L2381">        Scriptable start = obj;</span>
+        Object result;
+        do {
+<span class="fc" id="L2384">            result = obj.get(index, start);</span>
+<span class="fc bfc" id="L2385" title="All 2 branches covered.">            if (result != Scriptable.NOT_FOUND)</span>
+<span class="fc" id="L2386">                break;</span>
+<span class="fc" id="L2387">            obj = obj.getPrototype();</span>
+<span class="fc bfc" id="L2388" title="All 2 branches covered.">        } while (obj != null);</span>
+<span class="fc" id="L2389">        return result;</span>
+    }
+
+    /**
+     * Gets a named property from an object or any object in its prototype chain
+     * and coerces it to the requested Java type.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property named &lt;code&gt;name&lt;/code&gt;.
+     * &lt;p&gt;
+     * @param s a JavaScript object
+     * @param name a property name
+     * @param type the required Java type of the result
+     * @return the value of a property with name &lt;code&gt;name&lt;/code&gt; found in
+     *         &lt;code&gt;obj&lt;/code&gt; or any object in its prototype chain, or
+     *         null if not found. Note that it does not return
+     *         {@link Scriptable#NOT_FOUND} as it can ordinarily not be
+     *         converted to most of the types.
+     * @since 1.7R3
+     */
+    public static &lt;T&gt; T getTypedProperty(Scriptable s, String name, Class&lt;T&gt; type) {
+<span class="nc" id="L2409">        Object val = getProperty(s, name);</span>
+<span class="nc bnc" id="L2410" title="All 2 branches missed.">        if(val == Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L2411">            val = null;</span>
+        }
+<span class="nc" id="L2413">        return type.cast(Context.jsToJava(val, type));</span>
+    }
+
+    /**
+     * Returns whether a named property is defined in an object or any object
+     * in its prototype chain.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property named &lt;code&gt;name&lt;/code&gt;.
+     * &lt;p&gt;
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return the true if property was found
+     * @since 1.5R2
+     */
+    public static boolean hasProperty(Scriptable obj, String name)
+    {
+<span class="fc bfc" id="L2429" title="All 2 branches covered.">        return null != getBase(obj, name);</span>
+    }
+
+    /**
+     * If hasProperty(obj, name) would return true, then if the property that
+     * was found is compatible with the new property, this method just returns.
+     * If the property is not compatible, then an exception is thrown.
+     *
+     * A property redefinition is incompatible if the first definition was a
+     * const declaration or if this one is.  They are compatible only if neither
+     * was const.
+     */
+    public static void redefineProperty(Scriptable obj, String name,
+                                        boolean isConst)
+    {
+<span class="nc" id="L2444">        Scriptable base = getBase(obj, name);</span>
+<span class="nc bnc" id="L2445" title="All 2 branches missed.">        if (base == null)</span>
+<span class="nc" id="L2446">            return;</span>
+<span class="nc bnc" id="L2447" title="All 2 branches missed.">        if (base instanceof ConstProperties) {</span>
+<span class="nc" id="L2448">            ConstProperties cp = (ConstProperties)base;</span>
+
+<span class="nc bnc" id="L2450" title="All 2 branches missed.">            if (cp.isConst(name))</span>
+<span class="nc" id="L2451">                throw ScriptRuntime.typeError1(&quot;msg.const.redecl&quot;, name);</span>
+        }
+<span class="nc bnc" id="L2453" title="All 2 branches missed.">        if (isConst)</span>
+<span class="nc" id="L2454">            throw ScriptRuntime.typeError1(&quot;msg.var.redecl&quot;, name);</span>
+<span class="nc" id="L2455">    }</span>
+    /**
+     * Returns whether an indexed property is defined in an object or any object
+     * in its prototype chain.
+     * &lt;p&gt;
+     * Searches the prototype chain for a property with index &lt;code&gt;index&lt;/code&gt;.
+     * &lt;p&gt;
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @return the true if property was found
+     * @since 1.5R2
+     */
+    public static boolean hasProperty(Scriptable obj, int index)
+    {
+<span class="nc bnc" id="L2469" title="All 2 branches missed.">        return null != getBase(obj, index);</span>
+    }
+
+    /**
+     * A version of hasProperty for properties with Symbol keys.
+     */
+    public static boolean hasProperty(Scriptable obj, Symbol key)
+    {
+<span class="nc bnc" id="L2477" title="All 2 branches missed.">        return null != getBase(obj, key);</span>
+    }
+
+    /**
+     * Puts a named property in an object or in an object in its prototype chain.
+     * &lt;p&gt;
+     * Searches for the named property in the prototype chain. If it is found,
+     * the value of the property in &lt;code&gt;obj&lt;/code&gt; is changed through a call
+     * to {@link Scriptable#put(String, Scriptable, Object)} on the
+     * prototype passing &lt;code&gt;obj&lt;/code&gt; as the &lt;code&gt;start&lt;/code&gt; argument.
+     * This allows the prototype to veto the property setting in case the
+     * prototype defines the property with [[ReadOnly]] attribute. If the
+     * property is not found, it is added in &lt;code&gt;obj&lt;/code&gt;.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putProperty(Scriptable obj, String name, Object value)
+    {
+<span class="fc" id="L2497">        Scriptable base = getBase(obj, name);</span>
+<span class="fc bfc" id="L2498" title="All 2 branches covered.">        if (base == null)</span>
+<span class="fc" id="L2499">            base = obj;</span>
+<span class="fc" id="L2500">        base.put(name, obj, value);</span>
+<span class="fc" id="L2501">    }</span>
+
+    /**
+     * This is a version of putProperty for Symbol keys.
+     */
+    public static void putProperty(Scriptable obj, Symbol key, Object value)
+    {
+<span class="nc" id="L2508">        Scriptable base = getBase(obj, key);</span>
+<span class="nc bnc" id="L2509" title="All 2 branches missed.">        if (base == null)</span>
+<span class="nc" id="L2510">            base = obj;</span>
+<span class="nc" id="L2511">        ensureSymbolScriptable(base).put(key, obj, value);</span>
+<span class="nc" id="L2512">    }</span>
+
+    /**
+     * Puts a named property in an object or in an object in its prototype chain.
+     * &lt;p&gt;
+     * Searches for the named property in the prototype chain. If it is found,
+     * the value of the property in &lt;code&gt;obj&lt;/code&gt; is changed through a call
+     * to {@link Scriptable#put(String, Scriptable, Object)} on the
+     * prototype passing &lt;code&gt;obj&lt;/code&gt; as the &lt;code&gt;start&lt;/code&gt; argument.
+     * This allows the prototype to veto the property setting in case the
+     * prototype defines the property with [[ReadOnly]] attribute. If the
+     * property is not found, it is added in &lt;code&gt;obj&lt;/code&gt;.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putConstProperty(Scriptable obj, String name, Object value)
+    {
+<span class="fc" id="L2531">        Scriptable base = getBase(obj, name);</span>
+<span class="pc bpc" id="L2532" title="1 of 2 branches missed.">        if (base == null)</span>
+<span class="nc" id="L2533">            base = obj;</span>
+<span class="pc bpc" id="L2534" title="1 of 2 branches missed.">        if (base instanceof ConstProperties)</span>
+<span class="fc" id="L2535">            ((ConstProperties)base).putConst(name, obj, value);</span>
+<span class="fc" id="L2536">    }</span>
+
+    /**
+     * Puts an indexed property in an object or in an object in its prototype chain.
+     * &lt;p&gt;
+     * Searches for the indexed property in the prototype chain. If it is found,
+     * the value of the property in &lt;code&gt;obj&lt;/code&gt; is changed through a call
+     * to {@link Scriptable#put(int, Scriptable, Object)} on the prototype
+     * passing &lt;code&gt;obj&lt;/code&gt; as the &lt;code&gt;start&lt;/code&gt; argument. This allows
+     * the prototype to veto the property setting in case the prototype defines
+     * the property with [[ReadOnly]] attribute. If the property is not found,
+     * it is added in &lt;code&gt;obj&lt;/code&gt;.
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @param value any JavaScript value accepted by Scriptable.put
+     * @since 1.5R2
+     */
+    public static void putProperty(Scriptable obj, int index, Object value)
+    {
+<span class="fc" id="L2555">        Scriptable base = getBase(obj, index);</span>
+<span class="pc bpc" id="L2556" title="1 of 2 branches missed.">        if (base == null)</span>
+<span class="fc" id="L2557">            base = obj;</span>
+<span class="fc" id="L2558">        base.put(index, obj, value);</span>
+<span class="fc" id="L2559">    }</span>
+
+    /**
+     * Removes the property from an object or its prototype chain.
+     * &lt;p&gt;
+     * Searches for a property with &lt;code&gt;name&lt;/code&gt; in obj or
+     * its prototype chain. If it is found, the object's delete
+     * method is called.
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return true if the property doesn't exist or was successfully removed
+     * @since 1.5R2
+     */
+    public static boolean deleteProperty(Scriptable obj, String name)
+    {
+<span class="nc" id="L2574">        Scriptable base = getBase(obj, name);</span>
+<span class="nc bnc" id="L2575" title="All 2 branches missed.">        if (base == null)</span>
+<span class="nc" id="L2576">            return true;</span>
+<span class="nc" id="L2577">        base.delete(name);</span>
+<span class="nc bnc" id="L2578" title="All 2 branches missed.">        return !base.has(name, obj);</span>
+    }
+
+    /**
+     * Removes the property from an object or its prototype chain.
+     * &lt;p&gt;
+     * Searches for a property with &lt;code&gt;index&lt;/code&gt; in obj or
+     * its prototype chain. If it is found, the object's delete
+     * method is called.
+     * @param obj a JavaScript object
+     * @param index a property index
+     * @return true if the property doesn't exist or was successfully removed
+     * @since 1.5R2
+     */
+    public static boolean deleteProperty(Scriptable obj, int index)
+    {
+<span class="fc" id="L2594">        Scriptable base = getBase(obj, index);</span>
+<span class="pc bpc" id="L2595" title="1 of 2 branches missed.">        if (base == null)</span>
+<span class="nc" id="L2596">            return true;</span>
+<span class="fc" id="L2597">        base.delete(index);</span>
+<span class="pc bpc" id="L2598" title="1 of 2 branches missed.">        return !base.has(index, obj);</span>
+    }
+
+    /**
+     * Returns an array of all ids from an object and its prototypes.
+     * &lt;p&gt;
+     * @param obj a JavaScript object
+     * @return an array of all ids from all object in the prototype chain.
+     *         If a given id occurs multiple times in the prototype chain,
+     *         it will occur only once in this list.
+     * @since 1.5R2
+     */
+    public static Object[] getPropertyIds(Scriptable obj)
+    {
+<span class="pc bpc" id="L2612" title="1 of 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L2613">            return ScriptRuntime.emptyArgs;</span>
+        }
+<span class="fc" id="L2615">        Object[] result = obj.getIds();</span>
+<span class="fc" id="L2616">        ObjToIntMap map = null;</span>
+        for (;;) {
+<span class="fc" id="L2618">            obj = obj.getPrototype();</span>
+<span class="fc bfc" id="L2619" title="All 2 branches covered.">            if (obj == null) {</span>
+<span class="fc" id="L2620">                break;</span>
+            }
+<span class="fc" id="L2622">            Object[] ids = obj.getIds();</span>
+<span class="pc bpc" id="L2623" title="1 of 2 branches missed.">            if (ids.length == 0) {</span>
+<span class="fc" id="L2624">                continue;</span>
+            }
+<span class="nc bnc" id="L2626" title="All 2 branches missed.">            if (map == null) {</span>
+<span class="nc bnc" id="L2627" title="All 2 branches missed.">                if (result.length == 0) {</span>
+<span class="nc" id="L2628">                    result = ids;</span>
+<span class="nc" id="L2629">                    continue;</span>
+                }
+<span class="nc" id="L2631">                map = new ObjToIntMap(result.length + ids.length);</span>
+<span class="nc bnc" id="L2632" title="All 2 branches missed.">                for (int i = 0; i != result.length; ++i) {</span>
+<span class="nc" id="L2633">                    map.intern(result[i]);</span>
+                }
+<span class="nc" id="L2635">                result = null; // Allow to GC the result</span>
+            }
+<span class="nc bnc" id="L2637" title="All 2 branches missed.">            for (int i = 0; i != ids.length; ++i) {</span>
+<span class="nc" id="L2638">                map.intern(ids[i]);</span>
+            }
+<span class="nc" id="L2640">        }</span>
+<span class="pc bpc" id="L2641" title="1 of 2 branches missed.">        if (map != null) {</span>
+<span class="nc" id="L2642">            result = map.getKeys();</span>
+        }
+<span class="fc" id="L2644">        return result;</span>
+    }
+
+    /**
+     * Call a method of an object.
+     * @param obj the JavaScript object
+     * @param methodName the name of the function property
+     * @param args the arguments for the call
+     *
+     * @see Context#getCurrentContext()
+     */
+    public static Object callMethod(Scriptable obj, String methodName,
+                                    Object[] args)
+    {
+<span class="nc" id="L2658">        return callMethod(null, obj, methodName, args);</span>
+    }
+
+    /**
+     * Call a method of an object.
+     * @param cx the Context object associated with the current thread.
+     * @param obj the JavaScript object
+     * @param methodName the name of the function property
+     * @param args the arguments for the call
+     */
+    public static Object callMethod(Context cx, Scriptable obj,
+                                    String methodName,
+                                    Object[] args)
+    {
+<span class="nc" id="L2672">        Object funObj = getProperty(obj, methodName);</span>
+<span class="nc bnc" id="L2673" title="All 2 branches missed.">        if (!(funObj instanceof Function)) {</span>
+<span class="nc" id="L2674">            throw ScriptRuntime.notFunctionError(obj, methodName);</span>
+        }
+<span class="nc" id="L2676">        Function fun = (Function)funObj;</span>
+        // XXX: What should be the scope when calling funObj?
+        // The following favor scope stored in the object on the assumption
+        // that is more useful especially under dynamic scope setup.
+        // An alternative is to check for dynamic scope flag
+        // and use ScriptableObject.getTopLevelScope(fun) if the flag is not
+        // set. But that require access to Context and messy code
+        // so for now it is not checked.
+<span class="nc" id="L2684">        Scriptable scope = ScriptableObject.getTopLevelScope(obj);</span>
+<span class="nc bnc" id="L2685" title="All 2 branches missed.">        if (cx != null) {</span>
+<span class="nc" id="L2686">            return fun.call(cx, scope, obj, args);</span>
+        } else {
+<span class="nc" id="L2688">            return Context.call(null, fun, scope, obj, args);</span>
+        }
+    }
+
+    private static Scriptable getBase(Scriptable obj, String name)
+    {
+        do {
+<span class="fc bfc" id="L2695" title="All 2 branches covered.">            if (obj.has(name, obj))</span>
+<span class="fc" id="L2696">                break;</span>
+<span class="fc" id="L2697">            obj = obj.getPrototype();</span>
+<span class="fc bfc" id="L2698" title="All 2 branches covered.">        } while(obj != null);</span>
+<span class="fc" id="L2699">        return obj;</span>
+    }
+
+    private static Scriptable getBase(Scriptable obj, int index)
+    {
+        do {
+<span class="fc bfc" id="L2705" title="All 2 branches covered.">            if (obj.has(index, obj))</span>
+<span class="fc" id="L2706">                break;</span>
+<span class="fc" id="L2707">            obj = obj.getPrototype();</span>
+<span class="fc bfc" id="L2708" title="All 2 branches covered.">        } while(obj != null);</span>
+<span class="fc" id="L2709">        return obj;</span>
+    }
+
+    private static Scriptable getBase(Scriptable obj, Symbol key)
+    {
+        do {
+<span class="nc bnc" id="L2715" title="All 2 branches missed.">            if (ensureSymbolScriptable(obj).has(key, obj))</span>
+<span class="nc" id="L2716">                break;</span>
+<span class="nc" id="L2717">            obj = obj.getPrototype();</span>
+<span class="nc bnc" id="L2718" title="All 2 branches missed.">        } while(obj != null);</span>
+<span class="nc" id="L2719">        return obj;</span>
+    }
+
+    /**
+     * Get arbitrary application-specific value associated with this object.
+     * @param key key object to select particular value.
+     * @see #associateValue(Object key, Object value)
+     */
+    public final Object getAssociatedValue(Object key)
+    {
+<span class="fc" id="L2729">        Map&lt;Object,Object&gt; h = associatedValues;</span>
+<span class="fc bfc" id="L2730" title="All 2 branches covered.">        if (h == null)</span>
+<span class="fc" id="L2731">            return null;</span>
+<span class="fc" id="L2732">        return h.get(key);</span>
+    }
+
+    /**
+     * Get arbitrary application-specific value associated with the top scope
+     * of the given scope.
+     * The method first calls {@link #getTopLevelScope(Scriptable scope)}
+     * and then searches the prototype chain of the top scope for the first
+     * object containing the associated value with the given key.
+     *
+     * @param scope the starting scope.
+     * @param key key object to select particular value.
+     * @see #getAssociatedValue(Object key)
+     */
+    public static Object getTopScopeValue(Scriptable scope, Object key)
+    {
+<span class="fc" id="L2748">        scope = ScriptableObject.getTopLevelScope(scope);</span>
+        for (;;) {
+<span class="fc bfc" id="L2750" title="All 2 branches covered.">            if (scope instanceof ScriptableObject) {</span>
+<span class="fc" id="L2751">                ScriptableObject so = (ScriptableObject)scope;</span>
+<span class="fc" id="L2752">                Object value = so.getAssociatedValue(key);</span>
+<span class="fc bfc" id="L2753" title="All 2 branches covered.">                if (value != null) {</span>
+<span class="fc" id="L2754">                    return value;</span>
+                }
+            }
+<span class="fc" id="L2757">            scope = scope.getPrototype();</span>
+<span class="pc bpc" id="L2758" title="1 of 2 branches missed.">            if (scope == null) {</span>
+<span class="fc" id="L2759">                return null;</span>
+            }
+        }
+    }
+
+    /**
+     * Associate arbitrary application-specific value with this object.
+     * Value can only be associated with the given object and key only once.
+     * The method ignores any subsequent attempts to change the already
+     * associated value.
+     * &lt;p&gt; The associated values are not serialized.
+     * @param key key object to select particular value.
+     * @param value the value to associate
+     * @return the passed value if the method is called first time for the
+     * given key or old value for any subsequent calls.
+     * @see #getAssociatedValue(Object key)
+     */
+    public synchronized final Object associateValue(Object key, Object value)
+    {
+<span class="pc bpc" id="L2778" title="1 of 2 branches missed.">        if (value == null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L2779">        Map&lt;Object,Object&gt; h = associatedValues;</span>
+<span class="fc bfc" id="L2780" title="All 2 branches covered.">        if (h == null) {</span>
+<span class="fc" id="L2781">            h = new HashMap&lt;Object,Object&gt;();</span>
+<span class="fc" id="L2782">            associatedValues = h;</span>
+        }
+<span class="fc" id="L2784">        return Kit.initHash(h, key, value);</span>
+    }
+
+    /**
+     *
+     * @param key
+     * @param index
+     * @param start
+     * @param value
+     * @return false if this != start and no slot was found.  true if this == start
+     * or this != start and a READONLY slot was found.
+     */
+    private boolean putImpl(Object key, int index, Scriptable start,
+                            Object value)
+    {
+        // This method is very hot (basically called on each assignment)
+        // so we inline the extensible/sealed checks below.
+<span class="pc bpc" id="L2801" title="1 of 2 branches missed.">        if (!isExtensible) {</span>
+<span class="nc" id="L2802">            Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L2803" title="All 2 branches missed.">            if (cx.isStrictMode()) {</span>
+<span class="nc" id="L2804">                throw ScriptRuntime.typeError0(&quot;msg.not.extensible&quot;);</span>
+            }
+        }
+        Slot slot;
+<span class="fc bfc" id="L2808" title="All 2 branches covered.">        if (this != start) {</span>
+<span class="fc" id="L2809">            slot = slotMap.query(key, index);</span>
+<span class="fc bfc" id="L2810" title="All 2 branches covered.">            if (slot == null) {</span>
+<span class="fc" id="L2811">                return false;</span>
+            }
+<span class="pc bpc" id="L2813" title="1 of 2 branches missed.">        } else if (!isExtensible) {</span>
+<span class="nc" id="L2814">            slot = slotMap.query(key, index);</span>
+<span class="nc bnc" id="L2815" title="All 2 branches missed.">            if (slot == null) {</span>
+<span class="nc" id="L2816">                return true;</span>
+            }
+        } else {
+<span class="pc bpc" id="L2819" title="1 of 2 branches missed.">            if (isSealed) checkNotSealed(key, index);</span>
+<span class="fc" id="L2820">            slot = slotMap.get(key, index, SlotAccess.MODIFY);</span>
+        }
+<span class="fc" id="L2822">        return slot.setValue(value, this, start);</span>
+    }
+
+
+    /**
+     *
+     * @param name
+     * @param index
+     * @param start
+     * @param value
+     * @param constFlag EMPTY means normal put.  UNINITIALIZED_CONST means
+     * defineConstProperty.  READONLY means const initialization expression.
+     * @return false if this != start and no slot was found.  true if this == start
+     * or this != start and a READONLY slot was found.
+     */
+    private boolean putConstImpl(String name, int index, Scriptable start,
+                                 Object value, int constFlag)
+    {
+<span class="pc bpc" id="L2840" title="2 of 4 branches missed.">        assert (constFlag != EMPTY);</span>
+<span class="pc bpc" id="L2841" title="1 of 2 branches missed.">        if (!isExtensible) {</span>
+<span class="nc" id="L2842">            Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L2843" title="All 2 branches missed.">            if (cx.isStrictMode()) {</span>
+<span class="nc" id="L2844">                throw ScriptRuntime.typeError0(&quot;msg.not.extensible&quot;);</span>
+            }
+        }
+        Slot slot;
+<span class="pc bpc" id="L2848" title="1 of 2 branches missed.">        if (this != start) {</span>
+<span class="nc" id="L2849">            slot = slotMap.query(name, index);</span>
+<span class="nc bnc" id="L2850" title="All 2 branches missed.">            if (slot == null) {</span>
+<span class="nc" id="L2851">                return false;</span>
+            }
+<span class="pc bpc" id="L2853" title="1 of 2 branches missed.">        } else if (!isExtensible()) {</span>
+<span class="nc" id="L2854">            slot = slotMap.query(name, index);</span>
+<span class="nc bnc" id="L2855" title="All 2 branches missed.">            if (slot == null) {</span>
+<span class="nc" id="L2856">                return true;</span>
+            }
+        } else {
+<span class="fc" id="L2859">            checkNotSealed(name, index);</span>
+            // either const hoisted declaration or initialization
+<span class="fc" id="L2861">            slot = slotMap.get(name, index, SlotAccess.MODIFY_CONST);</span>
+<span class="fc" id="L2862">            int attr = slot.getAttributes();</span>
+<span class="pc bpc" id="L2863" title="1 of 2 branches missed.">            if ((attr &amp; READONLY) == 0)</span>
+<span class="nc" id="L2864">                throw Context.reportRuntimeError1(&quot;msg.var.redecl&quot;, name);</span>
+<span class="pc bpc" id="L2865" title="1 of 2 branches missed.">            if ((attr &amp; UNINITIALIZED_CONST) != 0) {</span>
+<span class="fc" id="L2866">                slot.value = value;</span>
+                // clear the bit on const initialization
+<span class="pc bpc" id="L2868" title="1 of 2 branches missed.">                if (constFlag != UNINITIALIZED_CONST)</span>
+<span class="fc" id="L2869">                    slot.setAttributes(attr &amp; ~UNINITIALIZED_CONST);</span>
+            }
+<span class="fc" id="L2871">            return true;</span>
+        }
+<span class="nc" id="L2873">        return slot.setValue(value, this, start);</span>
+    }
+
+    private Slot findAttributeSlot(String name, int index, SlotAccess accessType)
+    {
+<span class="fc" id="L2878">        Slot slot = slotMap.get(name, index, accessType);</span>
+<span class="pc bpc" id="L2879" title="1 of 2 branches missed.">        if (slot == null) {</span>
+<span class="nc bnc" id="L2880" title="All 2 branches missed.">            String str = (name != null ? name : Integer.toString(index));</span>
+<span class="nc" id="L2881">            throw Context.reportRuntimeError1(&quot;msg.prop.not.found&quot;, str);</span>
+        }
+<span class="fc" id="L2883">        return slot;</span>
+    }
+
+    private Slot findAttributeSlot(Symbol key, SlotAccess accessType)
+    {
+<span class="fc" id="L2888">        Slot slot = slotMap.get(key, 0, accessType);</span>
+<span class="pc bpc" id="L2889" title="1 of 2 branches missed.">        if (slot == null) {</span>
+<span class="nc" id="L2890">            throw Context.reportRuntimeError1(&quot;msg.prop.not.found&quot;, key);</span>
+        }
+<span class="fc" id="L2892">        return slot;</span>
+    }
+
+    Object[] getIds(boolean getNonEnumerable, boolean getSymbols) {
+        Object[] a;
+<span class="pc bpc" id="L2897" title="1 of 2 branches missed.">        int externalLen = (externalData == null ? 0 : externalData.getArrayLength());</span>
+
+<span class="pc bpc" id="L2899" title="1 of 2 branches missed.">        if (externalLen == 0) {</span>
+<span class="fc" id="L2900">            a = ScriptRuntime.emptyArgs;</span>
+        } else {
+<span class="nc" id="L2902">            a = new Object[externalLen];</span>
+<span class="nc bnc" id="L2903" title="All 2 branches missed.">            for (int i = 0; i &lt; externalLen; i++) {</span>
+<span class="nc" id="L2904">                a[i] = Integer.valueOf(i);</span>
+            }
+        }
+<span class="fc bfc" id="L2907" title="All 2 branches covered.">        if (slotMap.isEmpty()) {</span>
+<span class="fc" id="L2908">            return a;</span>
+        }
+
+<span class="fc" id="L2911">        int c = externalLen;</span>
+<span class="fc" id="L2912">        final long stamp = slotMap.readLock();</span>
+        try {
+<span class="fc bfc" id="L2914" title="All 2 branches covered.">            for (Slot slot : slotMap) {</span>
+<span class="pc bpc" id="L2915" title="1 of 8 branches missed.">                if ((getNonEnumerable || (slot.getAttributes() &amp; DONTENUM) == 0) &amp;&amp;</span>
+                    (getSymbols || !(slot.name instanceof Symbol))) {
+<span class="fc bfc" id="L2917" title="All 2 branches covered.">                    if (c == externalLen) {</span>
+                        // Special handling to combine external array with additional properties
+<span class="fc" id="L2919">                        Object[] oldA = a;</span>
+<span class="fc" id="L2920">                        a = new Object[slotMap.dirtySize() + externalLen];</span>
+<span class="pc bpc" id="L2921" title="1 of 2 branches missed.">                        if (oldA != null) {</span>
+<span class="fc" id="L2922">                            System.arraycopy(oldA, 0, a, 0, externalLen);</span>
+                        }
+                    }
+<span class="fc bfc" id="L2925" title="All 2 branches covered.">                    a[c++] = slot.name != null</span>
+                        ? slot.name
+<span class="fc" id="L2927">                        : Integer.valueOf(slot.indexOrHash);</span>
+                }
+<span class="fc" id="L2929">            }</span>
+        } finally {
+<span class="pc" id="L2931">            slotMap.unlockRead(stamp);</span>
+<span class="pc" id="L2932">        }</span>
+
+        Object[] result;
+<span class="fc bfc" id="L2935" title="All 2 branches covered.">        if (c == (a.length + externalLen)) {</span>
+<span class="fc" id="L2936">            result = a;</span>
+        } else {
+<span class="fc" id="L2938">            result = new Object[c];</span>
+<span class="fc" id="L2939">            System.arraycopy(a, 0, result, 0, c);</span>
+        }
+
+<span class="fc" id="L2942">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L2943" title="1 of 4 branches missed.">        if ((cx != null) &amp;&amp; cx.hasFeature(Context.FEATURE_ENUMERATE_IDS_FIRST)) {</span>
+            // Move all the numeric IDs to the front in numeric order
+<span class="nc" id="L2945">            Arrays.sort(result, KEY_COMPARATOR);</span>
+        }
+
+<span class="fc" id="L2948">        return result;</span>
+    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class="nc" id="L2954">        out.defaultWriteObject();</span>
+<span class="nc" id="L2955">        final long stamp = slotMap.readLock();</span>
+        try {
+<span class="nc" id="L2957">            int objectsCount = slotMap.dirtySize();</span>
+<span class="nc bnc" id="L2958" title="All 2 branches missed.">            if (objectsCount == 0) {</span>
+<span class="nc" id="L2959">                out.writeInt(0);</span>
+            } else {
+<span class="nc" id="L2961">                out.writeInt(objectsCount);</span>
+<span class="nc bnc" id="L2962" title="All 2 branches missed.">                for (Slot slot : slotMap) {</span>
+<span class="nc" id="L2963">                    out.writeObject(slot);</span>
+<span class="nc" id="L2964">                }</span>
+            }
+        } finally {
+<span class="nc" id="L2967">            slotMap.unlockRead(stamp);</span>
+<span class="nc" id="L2968">        }</span>
+<span class="nc" id="L2969">    }</span>
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc" id="L2974">        in.defaultReadObject();</span>
+
+<span class="nc" id="L2976">        int tableSize = in.readInt();</span>
+<span class="nc" id="L2977">        slotMap = createSlotMap(tableSize);</span>
+<span class="nc bnc" id="L2978" title="All 2 branches missed.">        for (int i = 0; i &lt; tableSize; i++) {</span>
+<span class="nc" id="L2979">            Slot slot = (Slot)in.readObject();</span>
+<span class="nc" id="L2980">            slotMap.addSlot(slot);</span>
+        }
+<span class="nc" id="L2982">    }</span>
+
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class="fc" id="L2985">        Slot slot = getSlot(cx, id, SlotAccess.QUERY);</span>
+<span class="pc bpc" id="L2986" title="1 of 2 branches missed.">        if (slot == null) return null;</span>
+<span class="nc" id="L2987">        Scriptable scope = getParentScope();</span>
+<span class="nc bnc" id="L2988" title="All 2 branches missed.">        return slot.getPropertyDescriptor(cx, (scope == null ? this : scope));</span>
+    }
+
+    protected Slot getSlot(Context cx, Object id, SlotAccess accessType) {
+<span class="pc bpc" id="L2992" title="1 of 2 branches missed.">        if (id instanceof Symbol) {</span>
+<span class="nc" id="L2993">            return slotMap.get(id, 0, accessType);</span>
+        }
+<span class="fc" id="L2995">        String name = ScriptRuntime.toStringIdOrIndex(cx, id);</span>
+<span class="pc bpc" id="L2996" title="1 of 2 branches missed.">        if (name == null) {</span>
+<span class="nc" id="L2997">            return slotMap.get(null, ScriptRuntime.lastIndexResult(cx), accessType);</span>
+        } else {
+<span class="fc" id="L2999">            return slotMap.get(name, 0, accessType);</span>
+        }
+    }
+
+    // Partial implementation of java.util.Map. See NativeObject for
+    // a subclass that implements java.util.Map.
+
+    public int size() {
+<span class="fc" id="L3007">        return slotMap.size();</span>
+    }
+
+    public boolean isEmpty() {
+<span class="nc" id="L3011">        return slotMap.isEmpty();</span>
+    }
+
+
+    public Object get(Object key) {
+<span class="fc" id="L3016">        Object value = null;</span>
+<span class="fc bfc" id="L3017" title="All 2 branches covered.">        if (key instanceof String) {</span>
+<span class="fc" id="L3018">            value = get((String) key, this);</span>
+<span class="pc bpc" id="L3019" title="1 of 2 branches missed.">        } else if (key instanceof Symbol) {</span>
+<span class="nc" id="L3020">            value = get((Symbol) key, this);</span>
+<span class="fc bfc" id="L3021" title="All 2 branches covered.">        } else if (key instanceof Number) {</span>
+<span class="fc" id="L3022">            value = get(((Number) key).intValue(), this);</span>
+        }
+<span class="pc bpc" id="L3024" title="1 of 4 branches missed.">        if (value == Scriptable.NOT_FOUND || value == Undefined.instance) {</span>
+<span class="fc" id="L3025">            return null;</span>
+<span class="pc bpc" id="L3026" title="1 of 2 branches missed.">        } else if (value instanceof Wrapper) {</span>
+<span class="nc" id="L3027">            return ((Wrapper) value).unwrap();</span>
+        } else {
+<span class="fc" id="L3029">            return value;</span>
+        }
+    }
+
+<span class="fc" id="L3033">    private static final Comparator&lt;Object&gt; KEY_COMPARATOR = new KeyComparator();</span>
+
+    /**
+     * This comparator sorts property fields in spec-compliant order. Numeric ids first, in numeric
+     * order, followed by string ids, in insertion order. Since this class already keeps string keys
+     * in insertion-time order, we treat all as equal. The &quot;Arrays.sort&quot; method will then not
+     * change their order, but simply move all the numeric properties to the front, since this
+     * method is defined to be stable.
+     */
+<span class="fc" id="L3042">    public static final class KeyComparator</span>
+        implements Comparator&lt;Object&gt;
+    {
+        @Override
+        public int compare(Object o1, Object o2)
+        {
+<span class="nc bnc" id="L3048" title="All 2 branches missed.">            if (o1 instanceof Integer) {</span>
+<span class="nc bnc" id="L3049" title="All 2 branches missed.">                if (o2 instanceof Integer) {</span>
+<span class="nc" id="L3050">                    int i1 = (Integer) o1;</span>
+<span class="nc" id="L3051">                    int i2 = (Integer) o2;</span>
+<span class="nc bnc" id="L3052" title="All 2 branches missed.">                    if (i1 &lt; i2) {</span>
+<span class="nc" id="L3053">                        return -1;</span>
+                    }
+<span class="nc bnc" id="L3055" title="All 2 branches missed.">                    if (i1 &gt; i2) {</span>
+<span class="nc" id="L3056">                        return 1;</span>
+                    }
+<span class="nc" id="L3058">                    return 0;</span>
+                }
+<span class="nc" id="L3060">                return -1;</span>
+            }
+<span class="nc bnc" id="L3062" title="All 2 branches missed.">            if (o2 instanceof Integer) {</span>
+<span class="nc" id="L3063">                return 1;</span>
+            }
+<span class="nc" id="L3065">            return 0;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConsString.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ConsString.java</span></div><h1>ConsString.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.util.ArrayDeque;
+
+/**
+ * &lt;p&gt;This class represents a string composed of two components, each of which
+ * may be a &lt;code&gt;java.lang.String&lt;/code&gt; or another ConsString.&lt;/p&gt;
+ *
+ * &lt;p&gt;This string representation is optimized for concatenation using the &quot;+&quot;
+ * operator. Instead of immediately copying both components to a new character
+ * array, ConsString keeps references to the original components and only
+ * converts them to a String if either toString() is called or a certain depth
+ * level is reached.&lt;/p&gt;
+ *
+ * &lt;p&gt;Note that instances of this class are only immutable if both parts are
+ * immutable, i.e. either Strings or ConsStrings that are ultimately composed
+ * of Strings.&lt;/p&gt;
+ *
+ * &lt;p&gt;Both the name and the concept are borrowed from V8.&lt;/p&gt;
+ */
+public class ConsString implements CharSequence, Serializable {
+
+    private static final long serialVersionUID = -8432806714471372570L;
+
+    private CharSequence left, right;
+    private final int length;
+    private boolean isFlat;
+
+<span class="fc" id="L36">    public ConsString(CharSequence str1, CharSequence str2) {</span>
+<span class="fc" id="L37">        left = str1;</span>
+<span class="fc" id="L38">        right = str2;</span>
+<span class="fc" id="L39">        length = left.length() + right.length();</span>
+<span class="fc" id="L40">        isFlat = false;</span>
+<span class="fc" id="L41">    }</span>
+
+    // Replace with string representation when serializing
+    private Object writeReplace() {
+<span class="nc" id="L45">        return this.toString();</span>
+    }
+    
+    @Override
+    public String toString() {
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        return isFlat ? (String)left : flatten();</span>
+    }
+
+    private synchronized String flatten() {
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (!isFlat) {</span>
+<span class="fc" id="L55">            final char[] chars = new char[length];</span>
+<span class="fc" id="L56">            int charPos = length;</span>
+
+<span class="fc" id="L58">            ArrayDeque&lt;CharSequence&gt; stack = new ArrayDeque&lt;CharSequence&gt;();</span>
+<span class="fc" id="L59">            stack.addFirst(left);</span>
+
+<span class="fc" id="L61">            CharSequence next = right;</span>
+            do {
+<span class="fc bfc" id="L63" title="All 2 branches covered.">                if (next instanceof ConsString) {</span>
+<span class="fc" id="L64">                    ConsString casted = (ConsString) next;</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">                    if (casted.isFlat) {</span>
+<span class="nc" id="L66">                        next = casted.left;</span>
+                    } else {
+<span class="fc" id="L68">                        stack.addFirst(casted.left);</span>
+<span class="fc" id="L69">                        next = casted.right;</span>
+<span class="fc" id="L70">                        continue;</span>
+                    }
+                }
+
+<span class="fc" id="L74">                final String str = (String) next;</span>
+<span class="fc" id="L75">                charPos -= str.length();</span>
+<span class="fc" id="L76">                str.getChars(0, str.length(), chars, charPos);</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">                next = stack.isEmpty() ? null : stack.removeFirst();</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            } while (next != null);</span>
+
+<span class="fc" id="L80">            left = new String(chars);</span>
+<span class="fc" id="L81">            right = &quot;&quot;;</span>
+<span class="fc" id="L82">            isFlat = true;</span>
+        }
+<span class="fc" id="L84">        return (String)left;</span>
+    }
+
+    public int length() {
+<span class="fc" id="L88">        return length;</span>
+    }
+
+    public char charAt(int index) {
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        String str = isFlat ? (String)left : flatten();</span>
+<span class="fc" id="L93">        return str.charAt(index);</span>
+    }
+
+    public CharSequence subSequence(int start, int end) {
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">        String str = isFlat ? (String)left : flatten();</span>
+<span class="fc" id="L98">        return str.substring(start, end);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

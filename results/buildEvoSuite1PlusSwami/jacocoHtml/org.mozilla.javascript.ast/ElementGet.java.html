@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ElementGet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ElementGet.java</span></div><h1>ElementGet.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for an indexed property reference, such as {@code foo['bar']} or
+ * {@code foo[2]}.  This is sometimes called an &quot;element-get&quot; operation, hence
+ * the name of the node.&lt;p&gt;
+ *
+ * Node type is {@link Token#GETELEM}.&lt;p&gt;
+ *
+ * The node bounds extend from the beginning position of the target through the
+ * closing right-bracket.  In the presence of a syntax error, the right bracket
+ * position is -1, and the node ends at the end of the element expression.
+ */
+public class ElementGet extends AstNode {
+
+    private AstNode target;
+    private AstNode element;
+<span class="fc" id="L26">    private int lb = -1;</span>
+<span class="fc" id="L27">    private int rb = -1;</span>
+
+    {
+<span class="fc" id="L30">        type = Token.GETELEM;</span>
+    }
+
+<span class="fc" id="L33">    public ElementGet() {</span>
+<span class="fc" id="L34">    }</span>
+
+    public ElementGet(int pos) {
+<span class="fc" id="L37">        super(pos);</span>
+<span class="fc" id="L38">    }</span>
+
+    public ElementGet(int pos, int len) {
+<span class="fc" id="L41">        super(pos, len);</span>
+<span class="fc" id="L42">    }</span>
+
+<span class="fc" id="L44">    public ElementGet(AstNode target, AstNode element) {</span>
+<span class="fc" id="L45">        setTarget(target);</span>
+<span class="fc" id="L46">        setElement(element);</span>
+<span class="fc" id="L47">    }</span>
+
+    /**
+     * Returns the object on which the element is being fetched.
+     */
+    public AstNode getTarget() {
+<span class="fc" id="L53">        return target;</span>
+    }
+
+    /**
+     * Sets target object, and sets its parent to this node.
+     * @param target expression evaluating to the object upon which
+     * to do the element lookup
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setTarget(AstNode target) {
+<span class="fc" id="L63">        assertNotNull(target);</span>
+<span class="fc" id="L64">        this.target = target;</span>
+<span class="fc" id="L65">        target.setParent(this);</span>
+<span class="fc" id="L66">    }</span>
+
+    /**
+     * Returns the element being accessed
+     */
+    public AstNode getElement() {
+<span class="fc" id="L72">        return element;</span>
+    }
+
+    /**
+     * Sets the element being accessed, and sets its parent to this node.
+     * @throws IllegalArgumentException if element is {@code null}
+     */
+    public void setElement(AstNode element) {
+<span class="fc" id="L80">        assertNotNull(element);</span>
+<span class="fc" id="L81">        this.element = element;</span>
+<span class="fc" id="L82">        element.setParent(this);</span>
+<span class="fc" id="L83">    }</span>
+
+    /**
+     * Returns left bracket position
+     */
+    public int getLb() {
+<span class="fc" id="L89">        return lb;</span>
+    }
+
+    /**
+     * Sets left bracket position
+     */
+    public void setLb(int lb) {
+<span class="fc" id="L96">        this.lb = lb;</span>
+<span class="fc" id="L97">    }</span>
+
+    /**
+     * Returns right bracket position, -1 if missing
+     */
+    public int getRb() {
+<span class="fc" id="L103">        return rb;</span>
+    }
+
+    /**
+     * Sets right bracket position, -1 if not present
+     */
+    public void setRb(int rb) {
+<span class="fc" id="L110">        this.rb = rb;</span>
+<span class="fc" id="L111">    }</span>
+
+    public void setParens(int lb, int rb) {
+<span class="fc" id="L114">        this.lb = lb;</span>
+<span class="fc" id="L115">        this.rb = rb;</span>
+<span class="fc" id="L116">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L120">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L121">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L122">        sb.append(target.toSource(0));</span>
+<span class="fc" id="L123">        sb.append(&quot;[&quot;);</span>
+<span class="fc" id="L124">        sb.append(element.toSource(0));</span>
+<span class="fc" id="L125">        sb.append(&quot;]&quot;);</span>
+<span class="fc" id="L126">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the target, and the index expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc" id="L135">            target.visit(v);</span>
+<span class="fc" id="L136">            element.visit(v);</span>
+        }
+<span class="fc" id="L138">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

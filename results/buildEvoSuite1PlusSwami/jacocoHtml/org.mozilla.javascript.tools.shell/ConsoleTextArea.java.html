@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConsoleTextArea.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.shell</a> &gt; <span class="el_source">ConsoleTextArea.java</span></div><h1>ConsoleTextArea.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.shell;
+import java.io.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
+import javax.swing.text.Document;
+import javax.swing.text.Segment;
+
+class ConsoleWrite implements Runnable {
+    private ConsoleTextArea textArea;
+    private String str;
+
+<span class="fc" id="L19">    public ConsoleWrite(ConsoleTextArea textArea, String str) {</span>
+<span class="fc" id="L20">        this.textArea = textArea;</span>
+<span class="fc" id="L21">        this.str = str;</span>
+<span class="fc" id="L22">    }</span>
+
+    public void run() {
+<span class="fc" id="L25">        textArea.write(str);</span>
+<span class="fc" id="L26">    }</span>
+}
+
+class ConsoleWriter extends java.io.OutputStream {
+
+    private ConsoleTextArea textArea;
+    private StringBuffer buffer;
+
+<span class="fc" id="L34">    public ConsoleWriter(ConsoleTextArea textArea) {</span>
+<span class="fc" id="L35">        this.textArea = textArea;</span>
+<span class="fc" id="L36">        buffer = new StringBuffer();</span>
+<span class="fc" id="L37">    }</span>
+
+    @Override
+    public synchronized void write(int ch) {
+<span class="fc" id="L41">        buffer.append((char)ch);</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if(ch == '\n') {</span>
+<span class="fc" id="L43">            flushBuffer();</span>
+        }
+<span class="fc" id="L45">    }</span>
+
+    public synchronized void write (char[] data, int off, int len) {
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        for(int i = off; i &lt; len; i++) {</span>
+<span class="fc" id="L49">            buffer.append(data[i]);</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            if(data[i] == '\n') {</span>
+<span class="fc" id="L51">                flushBuffer();</span>
+            }
+        }
+<span class="fc" id="L54">    }</span>
+
+    @Override
+    public synchronized void flush() {
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (buffer.length() &gt; 0) {</span>
+<span class="fc" id="L59">            flushBuffer();</span>
+        }
+<span class="fc" id="L61">    }</span>
+
+    @Override
+    public void close () {
+<span class="fc" id="L65">        flush();</span>
+<span class="fc" id="L66">    }</span>
+
+    private void flushBuffer() {
+<span class="fc" id="L69">        String str = buffer.toString();</span>
+<span class="fc" id="L70">        buffer.setLength(0);</span>
+<span class="fc" id="L71">        SwingUtilities.invokeLater(new ConsoleWrite(textArea, str));</span>
+<span class="fc" id="L72">    }</span>
+}
+
+public class ConsoleTextArea
+    extends JTextArea implements KeyListener, DocumentListener
+{
+    static final long serialVersionUID = 8557083244830872961L;
+
+    private ConsoleWriter console1;
+    private ConsoleWriter console2;
+    private PrintStream out;
+    private PrintStream err;
+    private PrintWriter inPipe;
+    private PipedInputStream in;
+    private java.util.List&lt;String&gt; history;
+<span class="fc" id="L87">    private int historyIndex = -1;</span>
+<span class="fc" id="L88">    private int outputMark = 0;</span>
+
+    @Override
+    public void select(int start, int end) {
+<span class="fc" id="L92">        requestFocus();</span>
+<span class="fc" id="L93">        super.select(start, end);</span>
+<span class="fc" id="L94">    }</span>
+
+    public ConsoleTextArea(String[] argv) {
+<span class="fc" id="L97">        super();</span>
+<span class="fc" id="L98">        history = new java.util.ArrayList&lt;String&gt;();</span>
+<span class="fc" id="L99">        console1 = new ConsoleWriter(this);</span>
+<span class="fc" id="L100">        console2 = new ConsoleWriter(this);</span>
+<span class="fc" id="L101">        out = new PrintStream(console1, true);</span>
+<span class="fc" id="L102">        err = new PrintStream(console2, true);</span>
+<span class="fc" id="L103">        PipedOutputStream outPipe = new PipedOutputStream();</span>
+<span class="fc" id="L104">        inPipe = new PrintWriter(outPipe);</span>
+<span class="fc" id="L105">        in = new PipedInputStream();</span>
+        try {
+<span class="fc" id="L107">            outPipe.connect(in);</span>
+<span class="nc" id="L108">        } catch(IOException exc) {</span>
+<span class="nc" id="L109">            exc.printStackTrace();</span>
+<span class="fc" id="L110">        }</span>
+<span class="fc" id="L111">        getDocument().addDocumentListener(this);</span>
+<span class="fc" id="L112">        addKeyListener(this);</span>
+<span class="fc" id="L113">        setLineWrap(true);</span>
+<span class="fc" id="L114">        setFont(new Font(&quot;Monospaced&quot;, 0, 12));</span>
+<span class="fc" id="L115">    }</span>
+
+
+    synchronized void returnPressed() {
+<span class="fc" id="L119">        Document doc = getDocument();</span>
+<span class="fc" id="L120">        int len = doc.getLength();</span>
+<span class="fc" id="L121">        Segment segment = new Segment();</span>
+        try {
+<span class="fc" id="L123">            doc.getText(outputMark, len - outputMark, segment);</span>
+<span class="fc" id="L124">        } catch(javax.swing.text.BadLocationException ignored) {</span>
+<span class="fc" id="L125">            ignored.printStackTrace();</span>
+<span class="fc" id="L126">        }</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        if(segment.count &gt; 0) {</span>
+<span class="fc" id="L128">            history.add(segment.toString());</span>
+        }
+<span class="fc" id="L130">        historyIndex = history.size();</span>
+<span class="fc" id="L131">        inPipe.write(segment.array, segment.offset, segment.count);</span>
+<span class="fc" id="L132">        append(&quot;\n&quot;);</span>
+<span class="fc" id="L133">        outputMark = doc.getLength();</span>
+<span class="fc" id="L134">        inPipe.write(&quot;\n&quot;);</span>
+<span class="fc" id="L135">        inPipe.flush();</span>
+<span class="fc" id="L136">        console1.flush();</span>
+<span class="fc" id="L137">    }</span>
+
+    public void eval(String str) {
+<span class="fc" id="L140">        inPipe.write(str);</span>
+<span class="fc" id="L141">        inPipe.write(&quot;\n&quot;);</span>
+<span class="fc" id="L142">        inPipe.flush();</span>
+<span class="fc" id="L143">        console1.flush();</span>
+<span class="fc" id="L144">    }</span>
+
+    public void keyPressed(KeyEvent e) {
+<span class="fc" id="L147">        int code = e.getKeyCode();</span>
+<span class="pc bpc" id="L148" title="1 of 4 branches missed.">        if(code == KeyEvent.VK_BACK_SPACE || code == KeyEvent.VK_LEFT) {</span>
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">            if(outputMark == getCaretPosition()) {</span>
+<span class="fc" id="L150">                e.consume();</span>
+            }
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        } else if(code == KeyEvent.VK_HOME) {</span>
+<span class="fc" id="L153">           int caretPos = getCaretPosition();</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">           if(caretPos == outputMark) {</span>
+<span class="fc" id="L155">               e.consume();</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">           } else if(caretPos &gt; outputMark) {</span>
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">               if(!e.isControlDown()) {</span>
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">                   if(e.isShiftDown()) {</span>
+<span class="nc" id="L159">                       moveCaretPosition(outputMark);</span>
+                   } else {
+<span class="nc" id="L161">                       setCaretPosition(outputMark);</span>
+                   }
+<span class="nc" id="L163">                   e.consume();</span>
+               }
+           }
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        } else if(code == KeyEvent.VK_ENTER) {</span>
+<span class="fc" id="L167">            returnPressed();</span>
+<span class="fc" id="L168">            e.consume();</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        } else if(code == KeyEvent.VK_UP) {</span>
+<span class="fc" id="L170">            historyIndex--;</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">            if(historyIndex &gt;= 0) {</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">                if(historyIndex &gt;= history.size()) {</span>
+<span class="nc" id="L173">                    historyIndex = history.size() -1;</span>
+                }
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">                if(historyIndex &gt;= 0) {</span>
+<span class="fc" id="L176">                    String str = history.get(historyIndex);</span>
+<span class="fc" id="L177">                    int len = getDocument().getLength();</span>
+<span class="fc" id="L178">                    replaceRange(str, outputMark, len);</span>
+<span class="fc" id="L179">                    int caretPos = outputMark + str.length();</span>
+<span class="fc" id="L180">                    select(caretPos, caretPos);</span>
+<span class="fc" id="L181">                } else {</span>
+<span class="nc" id="L182">                    historyIndex++;</span>
+                }
+            } else {
+<span class="fc" id="L185">                historyIndex++;</span>
+            }
+<span class="fc" id="L187">            e.consume();</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        } else if(code == KeyEvent.VK_DOWN) {</span>
+<span class="fc" id="L189">            int caretPos = outputMark;</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">            if(history.size() &gt; 0) {</span>
+<span class="fc" id="L191">                historyIndex++;</span>
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                if(historyIndex &lt; 0) {historyIndex = 0;}</span>
+<span class="fc" id="L193">                int len = getDocument().getLength();</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">                if (historyIndex &lt; history.size()) {</span>
+<span class="nc" id="L195">                    String str = history.get(historyIndex);</span>
+<span class="nc" id="L196">                    replaceRange(str, outputMark, len);</span>
+<span class="nc" id="L197">                    caretPos = outputMark + str.length();</span>
+<span class="nc" id="L198">                } else {</span>
+<span class="fc" id="L199">                    historyIndex = history.size();</span>
+<span class="fc" id="L200">                    replaceRange(&quot;&quot;, outputMark, len);</span>
+                }
+            }
+<span class="fc" id="L203">            select(caretPos, caretPos);</span>
+<span class="fc" id="L204">            e.consume();</span>
+        }
+<span class="fc" id="L206">    }</span>
+
+    public void keyTyped(KeyEvent e) {
+<span class="fc" id="L209">        int keyChar = e.getKeyChar();</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">        if(keyChar == 0x8 /* KeyEvent.VK_BACK_SPACE */) {</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">            if(outputMark == getCaretPosition()) {</span>
+<span class="nc" id="L212">                e.consume();</span>
+            }
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">        } else if(getCaretPosition() &lt; outputMark) {</span>
+<span class="fc" id="L215">            setCaretPosition(outputMark);</span>
+        }
+<span class="fc" id="L217">    }</span>
+
+    public synchronized void keyReleased(KeyEvent e) {
+<span class="fc" id="L220">    }</span>
+
+    public synchronized void write(String str) {
+<span class="fc" id="L223">        insert(str, outputMark);</span>
+<span class="fc" id="L224">        int len = str.length();</span>
+<span class="fc" id="L225">        outputMark += len;</span>
+<span class="fc" id="L226">        select(outputMark, outputMark);</span>
+<span class="fc" id="L227">    }</span>
+
+    public synchronized void insertUpdate(DocumentEvent e) {
+<span class="fc" id="L230">        int len = e.getLength();</span>
+<span class="fc" id="L231">        int off = e.getOffset();</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">        if(outputMark &gt; off) {</span>
+<span class="fc" id="L233">            outputMark += len;</span>
+        }
+<span class="fc" id="L235">    }</span>
+
+    public synchronized void removeUpdate(DocumentEvent e) {
+<span class="fc" id="L238">        int len = e.getLength();</span>
+<span class="fc" id="L239">        int off = e.getOffset();</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if(outputMark &gt; off) {</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">            if(outputMark &gt;= off + len) {</span>
+<span class="fc" id="L242">                outputMark -= len;</span>
+            } else {
+<span class="fc" id="L244">                outputMark = off;</span>
+            }
+        }
+<span class="fc" id="L247">    }</span>
+
+    public synchronized void postUpdateUI() {
+        // this attempts to cleanup the damage done by updateComponentTreeUI
+<span class="fc" id="L251">        requestFocus();</span>
+<span class="fc" id="L252">        setCaret(getCaret());</span>
+<span class="fc" id="L253">        select(outputMark, outputMark);</span>
+<span class="fc" id="L254">    }</span>
+
+    public synchronized void changedUpdate(DocumentEvent e) {
+<span class="fc" id="L257">    }</span>
+
+
+    public InputStream getIn() {
+<span class="fc" id="L261">        return in;</span>
+    }
+
+    public PrintStream getOut() {
+<span class="fc" id="L265">        return out;</span>
+    }
+
+    public PrintStream getErr() {
+<span class="fc" id="L269">        return err;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

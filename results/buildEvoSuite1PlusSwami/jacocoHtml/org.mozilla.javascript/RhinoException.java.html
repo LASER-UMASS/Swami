@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RhinoException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">RhinoException.java</span></div><h1>RhinoException.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript;
+
+import java.io.CharArrayWriter;
+import java.io.FilenameFilter;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * The class of exceptions thrown by the JavaScript engine.
+ */
+public abstract class RhinoException extends RuntimeException
+{
+<span class="fc" id="L24">    private static final Pattern JAVA_STACK_PATTERN = Pattern.compile(&quot;_c_(.*)_\\d+&quot;);</span>
+
+    RhinoException()
+<span class="fc" id="L27">    {</span>
+<span class="fc" id="L28">        Evaluator e = Context.createInterpreter();</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">        if (e != null)</span>
+<span class="fc" id="L30">            e.captureStackInfo(this);</span>
+<span class="fc" id="L31">    }</span>
+
+    RhinoException(String details)
+    {
+<span class="fc" id="L35">        super(details);</span>
+<span class="fc" id="L36">        Evaluator e = Context.createInterpreter();</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">        if (e != null)</span>
+<span class="fc" id="L38">            e.captureStackInfo(this);</span>
+<span class="fc" id="L39">    }</span>
+
+    @Override
+    public final String getMessage()
+    {
+<span class="fc" id="L44">        String details = details();</span>
+<span class="pc bpc" id="L45" title="2 of 4 branches missed.">        if (sourceName == null || lineNumber &lt;= 0) {</span>
+<span class="nc" id="L46">            return details;</span>
+        }
+<span class="fc" id="L48">        StringBuilder buf = new StringBuilder(details);</span>
+<span class="fc" id="L49">        buf.append(&quot; (&quot;);</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        if (sourceName != null) {</span>
+<span class="fc" id="L51">            buf.append(sourceName);</span>
+        }
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (lineNumber &gt; 0) {</span>
+<span class="fc" id="L54">            buf.append('#');</span>
+<span class="fc" id="L55">            buf.append(lineNumber);</span>
+        }
+<span class="fc" id="L57">        buf.append(')');</span>
+<span class="fc" id="L58">        return buf.toString();</span>
+    }
+
+    public String details()
+    {
+<span class="fc" id="L63">        return super.getMessage();</span>
+    }
+
+    /**
+     * Get the uri of the script source containing the error, or null
+     * if that information is not available.
+     */
+    public final String sourceName()
+    {
+<span class="fc" id="L72">        return sourceName;</span>
+    }
+
+    /**
+     * Initialize the uri of the script source containing the error.
+     *
+     * @param sourceName the uri of the script source responsible for the error.
+     *                   It should not be &lt;tt&gt;null&lt;/tt&gt;.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initSourceName(String sourceName)
+    {
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">        if (sourceName == null) throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (this.sourceName != null) throw new IllegalStateException();</span>
+<span class="fc" id="L87">        this.sourceName = sourceName;</span>
+<span class="fc" id="L88">    }</span>
+
+    /**
+     * Returns the line number of the statement causing the error,
+     * or zero if not available.
+     */
+    public final int lineNumber()
+    {
+<span class="fc" id="L96">        return lineNumber;</span>
+    }
+
+    /**
+     * Initialize the line number of the script statement causing the error.
+     *
+     * @param lineNumber the line number in the script source.
+     *                   It should be positive number.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initLineNumber(int lineNumber)
+    {
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (lineNumber &lt;= 0) throw new IllegalArgumentException(String.valueOf(lineNumber));</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        if (this.lineNumber &gt; 0) throw new IllegalStateException();</span>
+<span class="fc" id="L111">        this.lineNumber = lineNumber;</span>
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * The column number of the location of the error, or zero if unknown.
+     */
+    public final int columnNumber()
+    {
+<span class="fc" id="L119">        return columnNumber;</span>
+    }
+
+    /**
+     * Initialize the column number of the script statement causing the error.
+     *
+     * @param columnNumber the column number in the script source.
+     *                     It should be positive number.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initColumnNumber(int columnNumber)
+    {
+<span class="fc bfc" id="L132" title="All 2 branches covered.">        if (columnNumber &lt;= 0) throw new IllegalArgumentException(String.valueOf(columnNumber));</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">        if (this.columnNumber &gt; 0) throw new IllegalStateException();</span>
+<span class="fc" id="L134">        this.columnNumber = columnNumber;</span>
+<span class="fc" id="L135">    }</span>
+
+    /**
+     * The source text of the line causing the error, or null if unknown.
+     */
+    public final String lineSource()
+    {
+<span class="fc" id="L142">        return lineSource;</span>
+    }
+
+    /**
+     * Initialize the text of the source line containing the error.
+     *
+     * @param lineSource the text of the source line responsible for the error.
+     *                   It should not be &lt;tt&gt;null&lt;/tt&gt;.
+     *
+     * @throws IllegalStateException if the method is called more then once.
+     */
+    public final void initLineSource(String lineSource)
+    {
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">        if (lineSource == null) throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        if (this.lineSource != null) throw new IllegalStateException();</span>
+<span class="fc" id="L157">        this.lineSource = lineSource;</span>
+<span class="fc" id="L158">    }</span>
+
+    final void recordErrorOrigin(String sourceName, int lineNumber,
+                                 String lineSource, int columnNumber)
+    {
+        // XXX: for compatibility allow for now -1 to mean 0
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        if (lineNumber == -1) {</span>
+<span class="fc" id="L165">            lineNumber = 0;</span>
+        }
+
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        if (sourceName != null) {</span>
+<span class="fc" id="L169">            initSourceName(sourceName);</span>
+        }
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (lineNumber != 0) {</span>
+<span class="fc" id="L172">            initLineNumber(lineNumber);</span>
+        }
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (lineSource != null) {</span>
+<span class="fc" id="L175">            initLineSource(lineSource);</span>
+        }
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        if (columnNumber != 0) {</span>
+<span class="fc" id="L178">            initColumnNumber(columnNumber);</span>
+        }
+<span class="fc" id="L180">    }</span>
+
+    private String generateStackTrace()
+    {
+        // Get stable reference to work properly with concurrent access
+<span class="fc" id="L185">        CharArrayWriter writer = new CharArrayWriter();</span>
+<span class="fc" id="L186">        super.printStackTrace(new PrintWriter(writer));</span>
+<span class="fc" id="L187">        String origStackTrace = writer.toString();</span>
+<span class="fc" id="L188">        Evaluator e = Context.createInterpreter();</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (e != null)</span>
+<span class="nc" id="L190">            return e.getPatchedStack(this, origStackTrace);</span>
+<span class="nc" id="L191">        return null;</span>
+    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * @return a script stack dump
+     * @since 1.6R6
+     */
+    public String getScriptStackTrace()
+    {
+<span class="fc" id="L204">        return getScriptStackTrace(NativeError.DEFAULT_STACK_LIMIT, null);</span>
+    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * The optional &quot;limit&quot; parameter limits the number of stack frames returned.
+     * The &quot;functionName&quot; parameter will exclude any stack frames &quot;below&quot; the
+     * specified function on the stack.
+     *
+     * @param limit the number of stack frames returned
+     * @param functionName the name of a function on the stack -- frames below it will be ignored
+     * @return a script stack dump
+     * @since 1.8.0
+     */
+    public String getScriptStackTrace(int limit, String functionName)
+    {
+<span class="fc" id="L223">        ScriptStackElement[] stack = getScriptStack(limit, functionName);</span>
+<span class="fc" id="L224">        return formatStackTrace(stack, details());</span>
+    }
+
+    static String formatStackTrace(ScriptStackElement[] stack, String message)
+    {
+<span class="fc" id="L229">        StringBuilder buffer = new StringBuilder();</span>
+<span class="fc" id="L230">        String lineSeparator = SecurityUtilities.getSystemProperty(&quot;line.separator&quot;);</span>
+
+<span class="pc bpc" id="L232" title="1 of 4 branches missed.">        if ((stackStyle == StackStyle.V8) &amp;&amp; !&quot;null&quot;.equals(message)) {</span>
+            // V8 Actually puts the error message at the top of &quot;stack.&quot;
+<span class="fc" id="L234">            buffer.append(message);</span>
+<span class="fc" id="L235">            buffer.append(lineSeparator);</span>
+        }
+
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        for (ScriptStackElement elem : stack) {</span>
+<span class="pc bpc" id="L239" title="2 of 4 branches missed.">            switch (stackStyle) {</span>
+            case MOZILLA:
+<span class="fc" id="L241">                elem.renderMozillaStyle(buffer);</span>
+<span class="fc" id="L242">                break;</span>
+            case V8:
+<span class="fc" id="L244">                elem.renderV8Style(buffer);</span>
+<span class="fc" id="L245">                break;</span>
+            case RHINO:
+<span class="nc" id="L247">                elem.renderJavaStyle(buffer);</span>
+                break;
+            }
+<span class="fc" id="L250">            buffer.append(lineSeparator);</span>
+        }
+<span class="fc" id="L252">        return buffer.toString();</span>
+    }
+
+    /**
+     * Get a string representing the script stack of this exception.
+     * @deprecated the filter argument is ignored as we are able to
+     * recognize script stack elements by our own. Use
+     * #getScriptStackTrace() instead.
+     * @param filter ignored
+     * @return a script stack dump
+     * @since 1.6R6
+     */
+    @Deprecated
+    public String getScriptStackTrace(FilenameFilter filter)
+    {
+<span class="fc" id="L267">        return getScriptStackTrace();</span>
+    }
+
+    /**
+     * Get the script stack of this exception as an array of
+     * {@link ScriptStackElement}s.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     * @return the script stack for this exception
+     * @since 1.7R3
+     */
+    public ScriptStackElement[] getScriptStack() {
+<span class="fc" id="L280">        return getScriptStack(-1, null);</span>
+    }
+
+    /**
+     * Get the script stack of this exception as an array of
+     * {@link ScriptStackElement}s.
+     * If optimization is enabled, this includes java stack elements
+     * whose source and method names suggest they have been generated
+     * by the Rhino script compiler.
+     *
+     * @param limit the number of stack frames returned, or -1 for unlimited
+     * @param hideFunction the name of a function on the stack -- frames below it will be ignored, or null
+     * @return the script stack for this exception
+     * @since 1.8.0
+     */
+    public ScriptStackElement[] getScriptStack(int limit, String hideFunction) {
+<span class="fc" id="L296">        List&lt;ScriptStackElement&gt; list = new ArrayList&lt;ScriptStackElement&gt;();</span>
+<span class="fc" id="L297">        ScriptStackElement[][] interpreterStack = null;</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">        if (interpreterStackInfo != null) {</span>
+<span class="fc" id="L299">            Evaluator interpreter = Context.createInterpreter();</span>
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">            if (interpreter instanceof Interpreter)</span>
+<span class="nc" id="L301">                interpreterStack = ((Interpreter) interpreter).getScriptStackElements(this);</span>
+        }
+
+<span class="fc" id="L304">        int interpreterStackIndex = 0;</span>
+<span class="fc" id="L305">        StackTraceElement[] stack = getStackTrace();</span>
+<span class="fc" id="L306">        int count = 0;</span>
+<span class="fc bfc" id="L307" title="All 2 branches covered.">        boolean printStarted = (hideFunction == null);</span>
+
+        // Pattern to recover function name from java method name -
+        // see Codegen.getBodyMethodName()
+        // kudos to Marc Guillemot for coming up with this
+<span class="fc bfc" id="L312" title="All 2 branches covered.">        for (StackTraceElement e : stack) {</span>
+<span class="fc" id="L313">            String fileName = e.getFileName();</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">            if (e.getMethodName().startsWith(&quot;_c_&quot;)</span>
+<span class="pc bpc" id="L315" title="2 of 4 branches missed.">                    &amp;&amp; e.getLineNumber() &gt; -1</span>
+                    &amp;&amp; fileName != null
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">                    &amp;&amp; !fileName.endsWith(&quot;.java&quot;)) {</span>
+<span class="fc" id="L318">                String methodName = e.getMethodName();</span>
+<span class="fc" id="L319">                Matcher match = JAVA_STACK_PATTERN.matcher(methodName);</span>
+                // the method representing the main script is always &quot;_c_script_0&quot; -
+                // at least we hope so
+<span class="pc bpc" id="L322" title="2 of 4 branches missed.">                methodName = !&quot;_c_script_0&quot;.equals(methodName) &amp;&amp; match.find() ?</span>
+<span class="pc" id="L323">                        match.group(1) : null;</span>
+
+<span class="pc bpc" id="L325" title="1 of 4 branches missed.">                if (!printStarted &amp;&amp; hideFunction.equals(methodName)) {</span>
+<span class="fc" id="L326">                    printStarted = true;</span>
+<span class="pc bpc" id="L327" title="3 of 6 branches missed.">                } else if (printStarted &amp;&amp; ((limit &lt; 0) || (count &lt; limit))) {</span>
+<span class="fc" id="L328">                    list.add(new ScriptStackElement(fileName, methodName, e.getLineNumber()));</span>
+<span class="fc" id="L329">                    count++;</span>
+                }
+
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">            } else if (&quot;org.mozilla.javascript.Interpreter&quot;.equals(e.getClassName())</span>
+<span class="nc bnc" id="L333" title="All 6 branches missed.">                    &amp;&amp; &quot;interpretLoop&quot;.equals(e.getMethodName())</span>
+                    &amp;&amp; interpreterStack != null
+                    &amp;&amp; interpreterStack.length &gt; interpreterStackIndex) {
+
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                for (ScriptStackElement elem : interpreterStack[interpreterStackIndex++]) {</span>
+<span class="nc bnc" id="L338" title="All 4 branches missed.">                    if (!printStarted &amp;&amp; hideFunction.equals(elem.functionName)) {</span>
+<span class="nc" id="L339">                        printStarted = true;</span>
+<span class="nc bnc" id="L340" title="All 6 branches missed.">                    } else if (printStarted &amp;&amp; ((limit &lt; 0) || (count &lt; limit))) {</span>
+<span class="nc" id="L341">                        list.add(elem);</span>
+<span class="nc" id="L342">                        count++;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L347">        return list.toArray(new ScriptStackElement[list.size()]);</span>
+    }
+
+
+    @Override
+    public void printStackTrace(PrintWriter s)
+    {
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">        if (interpreterStackInfo == null) {</span>
+<span class="fc" id="L355">            super.printStackTrace(s);</span>
+        } else {
+<span class="nc" id="L357">            s.print(generateStackTrace());</span>
+        }
+<span class="fc" id="L359">    }</span>
+
+    @Override
+    public void printStackTrace(PrintStream s)
+    {
+<span class="pc bpc" id="L364" title="1 of 2 branches missed.">        if (interpreterStackInfo == null) {</span>
+<span class="fc" id="L365">            super.printStackTrace(s);</span>
+        } else {
+<span class="nc" id="L367">            s.print(generateStackTrace());</span>
+        }
+<span class="fc" id="L369">    }</span>
+
+    /**
+     * Returns true if subclasses of &lt;code&gt;RhinoException&lt;/code&gt;
+     * use the Mozilla/Firefox style of rendering script stacks
+     * (&lt;code&gt;functionName()@fileName:lineNumber&lt;/code&gt;)
+     * instead of Rhino's own Java-inspired format
+     * (&lt;code&gt;    at fileName:lineNumber (functionName)&lt;/code&gt;).
+     * @return true if stack is rendered in Mozilla/Firefox style
+     * @see ScriptStackElement
+     * @since 1.7R3
+     */
+    public static boolean usesMozillaStackStyle() {
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        return (stackStyle == StackStyle.MOZILLA);</span>
+    }
+
+    /**
+     * Tell subclasses of &lt;code&gt;RhinoException&lt;/code&gt; whether to
+     * use the Mozilla/Firefox style of rendering script stacks
+     * (&lt;code&gt;functionName()@fileName:lineNumber&lt;/code&gt;)
+     * instead of Rhino's own Java-inspired format
+     * (&lt;code&gt;    at fileName:lineNumber (functionName)&lt;/code&gt;).
+     * Use &quot;setStackStyle&quot; to select between more than just the &quot;Mozilla&quot; and &quot;Rhino&quot; formats.
+     * @param flag whether to render stacks in Mozilla/Firefox style
+     * @see ScriptStackElement
+     * @since 1.7R3
+     */
+    public static void useMozillaStackStyle(boolean flag) {
+<span class="pc bpc" id="L397" title="1 of 2 branches missed.">        stackStyle = (flag ? StackStyle.MOZILLA : StackStyle.RHINO);</span>
+<span class="fc" id="L398">    }</span>
+
+    /**
+     * Specify the stack style to use from between three different formats: &quot;Rhino&quot; (the default),
+     * &quot;Mozilla&quot;, and &quot;V8.&quot; See StackStyle for information about each.
+     * @param style the style to select -- an instance of the StackStyle class
+     * @see StackStyle
+     * @since 1.8.0
+     */
+    public static void setStackStyle(StackStyle style) {
+<span class="fc" id="L408">        stackStyle = style;</span>
+<span class="fc" id="L409">    }</span>
+
+    /**
+     * Return the current stack style in use.
+     * Return the current stack style in use.
+     */
+    public static StackStyle getStackStyle() {
+<span class="fc" id="L416">        return stackStyle;</span>
+    }
+
+    static final long serialVersionUID = 1883500631321581169L;
+
+    // Just for testing!
+<span class="fc" id="L422">    private static StackStyle stackStyle = StackStyle.RHINO;</span>
+
+    private String sourceName;
+    private int lineNumber;
+    private String lineSource;
+    private int columnNumber;
+
+    Object interpreterStackInfo;
+    int[] interpreterLineData;
+
+    // Allow us to override default stack style for debugging.
+    static {
+<span class="fc" id="L434">        String style = System.getProperty(&quot;rhino.stack.style&quot;);</span>
+<span class="pc bpc" id="L435" title="1 of 2 branches missed.">        if (style != null) {</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">            if (&quot;Rhino&quot;.equalsIgnoreCase(style)) {</span>
+<span class="nc" id="L437">                stackStyle = StackStyle.RHINO;</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">            } else if (&quot;Mozilla&quot;.equalsIgnoreCase(style)) {</span>
+<span class="nc" id="L439">                stackStyle = StackStyle.MOZILLA;</span>
+<span class="nc bnc" id="L440" title="All 2 branches missed.">            } else if (&quot;V8&quot;.equalsIgnoreCase(style)) {</span>
+<span class="nc" id="L441">                stackStyle = StackStyle.V8;</span>
+            }
+        }
+<span class="fc" id="L444">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
