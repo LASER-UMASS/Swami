@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mozilla.javascript.tests.ToNumberConversionsTest" tests="552" skipped="0" failures="0" errors="0" timestamp="2019-01-10T05:24:24" hostname="swami-VirtualBox" time="7.066">
+  <properties/>
+  <testcase name="test_coercion[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.956"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0b100  &quot;) == 4 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0b100  &quot;) == 4 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0b100  &quot;) == 4 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0b100  &quot;) == 4 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_coercion[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.021"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0b100&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.021"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;1b1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1b1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1b1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1b1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0o10  &quot;) == 8 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0o10  &quot;) == 8 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0o10  &quot;) == 8 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0o10  &quot;) == 8 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0O000012  &quot;) == 10 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0O000012  &quot;) == 10 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0O000012  &quot;) == 10 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0O000012  &quot;) == 10 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.043"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.008"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0o10&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10.1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.035"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;1o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1o9&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;21e1  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;21e1  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;21e1  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;21e1  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.021"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210 d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210 d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210 d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210 d2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.015"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.018"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.024"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.008"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.015"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_coercion[ToNumber(&quot;+1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+1xd2&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.0"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0x&quot;) == NaN (opt=-1)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.136"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.02"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.034"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0b100  &quot;) == 4 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0b100  &quot;) == 4 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.032"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0b100  &quot;) == 4 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0b100  &quot;) == 4 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.04"/>
+  <testcase name="test_coercion[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.022"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.041"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.029"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0b100&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.036"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.008"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.015"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.03"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.032"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.044"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.039"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_coercion[ToNumber(&quot;1b1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1b1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1b1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.025"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1b1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0o10  &quot;) == 8 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0o10  &quot;) == 8 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0o10  &quot;) == 8 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0o10  &quot;) == 8 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0O000012  &quot;) == 10 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0O000012  &quot;) == 10 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0O000012  &quot;) == 10 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0O000012  &quot;) == 10 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.008"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.025"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0o10&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10.1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.02"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.027"/>
+  <testcase name="test_coercion[ToNumber(&quot;1o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1o9&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.026"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.023"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.02"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_coercion[ToNumber(&quot;21e1  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.022"/>
+  <testcase name="test_isFinite[ToNumber(&quot;21e1  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;21e1  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.023"/>
+  <testcase name="test_isNaN[ToNumber(&quot;21e1  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.015"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210 d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210 d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210 d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210 d2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.038"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.023"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.033"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.016"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.016"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.009"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;+1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+1xd2&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.022"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0x&quot;) == NaN (opt=0)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -Infinity  &quot;) == -Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +Infinity  &quot;) == +Infinity (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0b100  &quot;) == 4 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0b100  &quot;) == 4 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.016"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0b100  &quot;) == 4 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0b100  &quot;) == 4 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_coercion[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0B0000101  &quot;) == 5 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.018"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0b100&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.021"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.025"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.029"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b100e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0b&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0b&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.031"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0b&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0b&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;1b1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1b1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1b1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.018"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1b1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0o10  &quot;) == 8 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0o10  &quot;) == 8 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0o10  &quot;) == 8 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0o10  &quot;) == 8 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0O000012  &quot;) == 10 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0O000012  &quot;) == 10 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0O000012  &quot;) == 10 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0O000012  &quot;) == 10 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.027"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0o10&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10.1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.023"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.024"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.026"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o10e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.025"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.029"/>
+  <testcase name="test_coercion[ToNumber(&quot;1o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.011"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1o9&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_coercion[ToNumber(&quot;0o&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0o&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.029"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0o&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.013"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0o&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.007"/>
+  <testcase name="test_coercion[ToNumber(&quot;21e1  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;21e1  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;21e1  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;21e1  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.029"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.014"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  -0021.00e+1  &quot;) == -210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.019"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  +02100.00e-1&quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;  210 d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  210 d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  210 d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  210 d2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00d2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0x00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_coercion[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;  0X00D2  &quot;) == 210 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e1&quot;) == 53985 (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;+0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.018"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.017"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+0xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.018"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2.00&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.01"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e+1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.043"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2e-1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.012"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0xd2 g&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.008"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x7f.0x0.0x0.0x1&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_coercion[ToNumber(&quot;0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.005"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.003"/>
+  <testcase name="test_isNaN[ToNumber(&quot;0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_coercion[ToNumber(&quot;1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isFinite[ToNumber(&quot;1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;+1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_isFinite[ToNumber(&quot;+1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;+1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_isNaN[ToNumber(&quot;+1xd2&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.001"/>
+  <testcase name="test_coercion[ToNumber(&quot;-0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.006"/>
+  <testcase name="test_isFinite[ToNumber(&quot;-0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <testcase name="test_NumberConstructor[ToNumber(&quot;-0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.004"/>
+  <testcase name="test_isNaN[ToNumber(&quot;-0x&quot;) == NaN (opt=9)]" classname="org.mozilla.javascript.tests.ToNumberConversionsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

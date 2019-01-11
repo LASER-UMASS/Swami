@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeUint8Array.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeUint8Array.java</span></div><h1>NativeUint8Array.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * An array view that stores 8-bit quantities and implements the JavaScript &quot;Uint8Array&quot; interface.
+ * It also implements List&lt;Integer&gt; for direct manipulation in Java.
+ */
+
+public class NativeUint8Array
+    extends NativeTypedArrayView&lt;Integer&gt;
+{
+    private static final long serialVersionUID = -3349419704390398895L;
+
+    private static final String CLASS_NAME = &quot;Uint8Array&quot;;
+
+    public NativeUint8Array()
+<span class="fc" id="L27">    {</span>
+<span class="fc" id="L28">    }</span>
+
+    public NativeUint8Array(NativeArrayBuffer ab, int off, int len)
+    {
+<span class="fc" id="L32">        super(ab, off, len, len);</span>
+<span class="fc" id="L33">    }</span>
+
+    public NativeUint8Array(int len)
+    {
+<span class="fc" id="L37">        this(new NativeArrayBuffer(len), 0, len);</span>
+<span class="fc" id="L38">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L43">        return CLASS_NAME;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L48">        NativeUint8Array a = new NativeUint8Array();</span>
+<span class="fc" id="L49">        a.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L50">    }</span>
+
+    @Override
+    protected NativeTypedArrayView construct(NativeArrayBuffer ab, int off, int len)
+    {
+<span class="fc" id="L55">        return new NativeUint8Array(ab, off, len);</span>
+    }
+
+    @Override
+    public int getBytesPerElement()
+    {
+<span class="fc" id="L61">        return 1;</span>
+    }
+
+    @Override
+    protected NativeTypedArrayView realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (!(thisObj instanceof NativeUint8Array)) {</span>
+<span class="nc" id="L68">            throw incompatibleCallError(f);</span>
+        }
+<span class="fc" id="L70">        return (NativeUint8Array)thisObj;</span>
+    }
+
+    @Override
+    protected Object js_get(int index)
+    {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (checkIndex(index)) {</span>
+<span class="fc" id="L77">            return Undefined.instance;</span>
+        }
+<span class="fc" id="L79">        return ByteIo.readUint8(arrayBuffer.buffer, index + offset);</span>
+    }
+
+    @Override
+    protected Object js_set(int index, Object c)
+    {
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (checkIndex(index)) {</span>
+<span class="fc" id="L86">            return Undefined.instance;</span>
+        }
+<span class="fc" id="L88">        int val = Conversions.toUint8(c);</span>
+<span class="fc" id="L89">        ByteIo.writeUint8(arrayBuffer.buffer, index + offset, val);</span>
+<span class="fc" id="L90">        return null;</span>
+    }
+
+    @Override
+    public Integer get(int i)
+    {
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        if (checkIndex(i)) {</span>
+<span class="fc" id="L97">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L99">        return (Integer)js_get(i);</span>
+    }
+
+    @Override
+    public Integer set(int i, Integer aByte)
+    {
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (checkIndex(i)) {</span>
+<span class="fc" id="L106">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L108">        return (Integer)js_set(i, aByte);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

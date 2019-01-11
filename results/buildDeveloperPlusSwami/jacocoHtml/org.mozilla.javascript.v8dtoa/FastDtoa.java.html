@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FastDtoa.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.v8dtoa</a> &gt; <span class="el_source">FastDtoa.java</span></div><h1>FastDtoa.java</h1><pre class="source lang-java linenums">// Copyright 2010 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Ported to Java from Mozilla's version of V8-dtoa by Hannes Wallnoefer.
+// The original revision was 67d1049b0bf9 from the mozilla-central tree.
+
+package org.mozilla.javascript.v8dtoa;
+
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">public class FastDtoa {</span>
+
+    // FastDtoa will produce at most kFastDtoaMaximalLength digits.
+    static final int kFastDtoaMaximalLength = 17;
+
+
+    // The minimal and maximal target exponent define the range of w's binary
+    // exponent, where 'w' is the result of multiplying the input by a cached power
+    // of ten.
+    //
+    // A different range might be chosen on a different platform, to optimize digit
+    // generation, but a smaller range requires more powers of ten to be cached.
+    static final int minimal_target_exponent = -60;
+    static final int maximal_target_exponent = -32;
+
+
+    // Adjusts the last digit of the generated number, and screens out generated
+    // solutions that may be inaccurate. A solution may be inaccurate if it is
+    // outside the safe interval, or if we ctannot prove that it is closer to the
+    // input than a neighboring representation of the same length.
+    //
+    // Input: * buffer containing the digits of too_high / 10^kappa
+    //        * distance_too_high_w == (too_high - w).f() * unit
+    //        * unsafe_interval == (too_high - too_low).f() * unit
+    //        * rest = (too_high - buffer * 10^kappa).f() * unit
+    //        * ten_kappa = 10^kappa * unit
+    //        * unit = the common multiplier
+    // Output: returns true if the buffer is guaranteed to contain the closest
+    //    representable number to the input.
+    //  Modifies the generated digits in the buffer to approach (round towards) w.
+    static boolean roundWeed(FastDtoaBuilder buffer,
+                             long distance_too_high_w,
+                             long unsafe_interval,
+                             long rest,
+                             long ten_kappa,
+                             long unit) {
+<span class="fc" id="L69">        long small_distance = distance_too_high_w - unit;</span>
+<span class="fc" id="L70">        long big_distance = distance_too_high_w + unit;</span>
+        // Let w_low  = too_high - big_distance, and
+        //     w_high = too_high - small_distance.
+        // Note: w_low &lt; w &lt; w_high
+        //
+        // The real w (* unit) must lie somewhere inside the interval
+        // ]w_low; w_low[ (often written as &quot;(w_low; w_low)&quot;)
+
+        // Basically the buffer currently contains a number in the unsafe interval
+        // ]too_low; too_high[ with too_low &lt; w &lt; too_high
+        //
+        //  too_high - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //                     ^v 1 unit            ^      ^                 ^      ^
+        //  boundary_high ---------------------     .      .                 .      .
+        //                     ^v 1 unit            .      .                 .      .
+        //   - - - - - - - - - - - - - - - - - - -  +  - - + - - - - - -     .      .
+        //                                          .      .         ^       .      .
+        //                                          .  big_distance  .       .      .
+        //                                          .      .         .       .    rest
+        //                              small_distance     .         .       .      .
+        //                                          v      .         .       .      .
+        //  w_high - - - - - - - - - - - - - - - - - -     .         .       .      .
+        //                     ^v 1 unit                   .         .       .      .
+        //  w ----------------------------------------     .         .       .      .
+        //                     ^v 1 unit                   v         .       .      .
+        //  w_low  - - - - - - - - - - - - - - - - - - - - -         .       .      .
+        //                                                           .       .      v
+        //  buffer --------------------------------------------------+-------+--------
+        //                                                           .       .
+        //                                                  safe_interval    .
+        //                                                           v       .
+        //   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -     .
+        //                     ^v 1 unit                                     .
+        //  boundary_low -------------------------                     unsafe_interval
+        //                     ^v 1 unit                                     v
+        //  too_low  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //
+        //
+        // Note that the value of buffer could lie anywhere inside the range too_low
+        // to too_high.
+        //
+        // boundary_low, boundary_high and w are approximations of the real boundaries
+        // and v (the input number). They are guaranteed to be precise up to one unit.
+        // In fact the error is guaranteed to be strictly less than one unit.
+        //
+        // Anything that lies outside the unsafe interval is guaranteed not to round
+        // to v when read again.
+        // Anything that lies inside the safe interval is guaranteed to round to v
+        // when read again.
+        // If the number inside the buffer lies inside the unsafe interval but not
+        // inside the safe interval then we simply do not know and bail out (returning
+        // false).
+        //
+        // Similarly we have to take into account the imprecision of 'w' when rounding
+        // the buffer. If we have two potential representations we need to make sure
+        // that the chosen one is closer to w_low and w_high since v can be anywhere
+        // between them.
+        //
+        // By generating the digits of too_high we got the largest (closest to
+        // too_high) buffer that is still in the unsafe interval. In the case where
+        // w_high &lt; buffer &lt; too_high we try to decrement the buffer.
+        // This way the buffer approaches (rounds towards) w.
+        // There are 3 conditions that stop the decrementation process:
+        //   1) the buffer is already below w_high
+        //   2) decrementing the buffer would make it leave the unsafe interval
+        //   3) decrementing the buffer would yield a number below w_high and farther
+        //      away than the current number. In other words:
+        //              (buffer{-1} &lt; w_high) &amp;&amp; w_high - buffer{-1} &gt; buffer - w_high
+        // Instead of using the buffer directly we use its distance to too_high.
+        // Conceptually rest ~= too_high - buffer
+<span class="fc bfc" id="L140" title="All 8 branches covered.">        while (rest &lt; small_distance &amp;&amp;  // Negated condition 1</span>
+                unsafe_interval - rest &gt;= ten_kappa &amp;&amp;  // Negated condition 2
+                (rest + ten_kappa &lt; small_distance ||  // buffer{-1} &gt; w_high
+                        small_distance - rest &gt;= rest + ten_kappa - small_distance)) {
+<span class="fc" id="L144">            buffer.decreaseLast();</span>
+<span class="fc" id="L145">            rest += ten_kappa;</span>
+        }
+
+        // We have approached w+ as much as possible. We now test if approaching w-
+        // would require changing the buffer. If yes, then we have two possible
+        // representations close to w, but we cannot decide which one is closer.
+<span class="fc bfc" id="L151" title="All 8 branches covered.">        if (rest &lt; big_distance &amp;&amp;</span>
+                unsafe_interval - rest &gt;= ten_kappa &amp;&amp;
+                (rest + ten_kappa &lt; big_distance ||
+                        big_distance - rest &gt; rest + ten_kappa - big_distance)) {
+<span class="fc" id="L155">            return false;</span>
+        }
+
+        // Weeding test.
+        //   The safe interval is [too_low + 2 ulp; too_high - 2 ulp]
+        //   Since too_low = too_high - unsafe_interval this is equivalent to
+        //      [too_high - unsafe_interval + 4 ulp; too_high - 2 ulp]
+        //   Conceptually we have: rest ~= too_high - buffer
+<span class="fc bfc" id="L163" title="All 4 branches covered.">        return (2 * unit &lt;= rest) &amp;&amp; (rest &lt;= unsafe_interval - 4 * unit);</span>
+    }
+
+
+
+    static final int kTen4 = 10000;
+    static final int kTen5 = 100000;
+    static final int kTen6 = 1000000;
+    static final int kTen7 = 10000000;
+    static final int kTen8 = 100000000;
+    static final int kTen9 = 1000000000;
+
+    // Returns the biggest power of ten that is less than or equal than the given
+    // number. We furthermore receive the maximum number of bits 'number' has.
+    // If number_bits == 0 then 0^-1 is returned
+    // The number of bits must be &lt;= 32.
+    // Precondition: (1 &lt;&lt; number_bits) &lt;= number &lt; (1 &lt;&lt; (number_bits + 1)).
+    static long biggestPowerTen(int number,
+                                int number_bits) {
+        int power, exponent;
+<span class="pc bpc" id="L183" title="3 of 12 branches missed.">        switch (number_bits) {</span>
+            case 32:
+            case 31:
+            case 30:
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">                if (kTen9 &lt;= number) {</span>
+<span class="nc" id="L188">                    power = kTen9;</span>
+<span class="nc" id="L189">                    exponent = 9;</span>
+<span class="nc" id="L190">                    break;</span>
+                }  // else fallthrough
+            case 29:
+            case 28:
+            case 27:
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                if (kTen8 &lt;= number) {</span>
+<span class="fc" id="L196">                    power = kTen8;</span>
+<span class="fc" id="L197">                    exponent = 8;</span>
+<span class="fc" id="L198">                    break;</span>
+                }  // else fallthrough
+            case 26:
+            case 25:
+            case 24:
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                if (kTen7 &lt;= number) {</span>
+<span class="fc" id="L204">                    power = kTen7;</span>
+<span class="fc" id="L205">                    exponent = 7;</span>
+<span class="fc" id="L206">                    break;</span>
+                }  // else fallthrough
+            case 23:
+            case 22:
+            case 21:
+            case 20:
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                if (kTen6 &lt;= number) {</span>
+<span class="fc" id="L213">                    power = kTen6;</span>
+<span class="fc" id="L214">                    exponent = 6;</span>
+<span class="fc" id="L215">                    break;</span>
+                }  // else fallthrough
+            case 19:
+            case 18:
+            case 17:
+<span class="fc bfc" id="L220" title="All 2 branches covered.">                if (kTen5 &lt;= number) {</span>
+<span class="fc" id="L221">                    power = kTen5;</span>
+<span class="fc" id="L222">                    exponent = 5;</span>
+<span class="fc" id="L223">                    break;</span>
+                }  // else fallthrough
+            case 16:
+            case 15:
+            case 14:
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                if (kTen4 &lt;= number) {</span>
+<span class="fc" id="L229">                    power = kTen4;</span>
+<span class="fc" id="L230">                    exponent = 4;</span>
+<span class="fc" id="L231">                    break;</span>
+                }  // else fallthrough
+            case 13:
+            case 12:
+            case 11:
+            case 10:
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                if (1000 &lt;= number) {</span>
+<span class="fc" id="L238">                    power = 1000;</span>
+<span class="fc" id="L239">                    exponent = 3;</span>
+<span class="fc" id="L240">                    break;</span>
+                }  // else fallthrough
+            case 9:
+            case 8:
+            case 7:
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                if (100 &lt;= number) {</span>
+<span class="fc" id="L246">                    power = 100;</span>
+<span class="fc" id="L247">                    exponent = 2;</span>
+<span class="fc" id="L248">                    break;</span>
+                }  // else fallthrough
+            case 6:
+            case 5:
+            case 4:
+<span class="fc bfc" id="L253" title="All 2 branches covered.">                if (10 &lt;= number) {</span>
+<span class="fc" id="L254">                    power = 10;</span>
+<span class="fc" id="L255">                    exponent = 1;</span>
+<span class="fc" id="L256">                    break;</span>
+                }  // else fallthrough
+            case 3:
+            case 2:
+            case 1:
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">                if (1 &lt;= number) {</span>
+<span class="fc" id="L262">                    power = 1;</span>
+<span class="fc" id="L263">                    exponent = 0;</span>
+<span class="fc" id="L264">                    break;</span>
+                }  // else fallthrough
+            case 0:
+<span class="nc" id="L267">                power = 0;</span>
+<span class="nc" id="L268">                exponent = -1;</span>
+<span class="nc" id="L269">                break;</span>
+            default:
+                // Following assignments are here to silence compiler warnings.
+<span class="nc" id="L272">                power = 0;</span>
+<span class="nc" id="L273">                exponent = 0;</span>
+                // UNREACHABLE();
+        }
+<span class="fc" id="L276">        return ((long)power &lt;&lt; 32) | (0xffffffffL &amp; exponent);</span>
+    }
+
+    private static boolean uint64_lte(long a, long b) {
+        // less-or-equal for unsigned int64 in java-style...
+<span class="pc bpc" id="L281" title="2 of 10 branches missed.">        return (a == b) || ((a &lt; b) ^ (a &lt; 0) ^ (b &lt; 0));</span>
+    }
+
+    // Generates the digits of input number w.
+    // w is a floating-point number (DiyFp), consisting of a significand and an
+    // exponent. Its exponent is bounded by minimal_target_exponent and
+    // maximal_target_exponent.
+    //       Hence -60 &lt;= w.e() &lt;= -32.
+    //
+    // Returns false if it fails, in which case the generated digits in the buffer
+    // should not be used.
+    // Preconditions:
+    //  * low, w and high are correct up to 1 ulp (unit in the last place). That
+    //    is, their error must be less that a unit of their last digits.
+    //  * low.e() == w.e() == high.e()
+    //  * low &lt; w &lt; high, and taking into account their error: low~ &lt;= high~
+    //  * minimal_target_exponent &lt;= w.e() &lt;= maximal_target_exponent
+    // Postconditions: returns false if procedure fails.
+    //   otherwise:
+    //     * buffer is not null-terminated, but len contains the number of digits.
+    //     * buffer contains the shortest possible decimal digit-sequence
+    //       such that LOW &lt; buffer * 10^kappa &lt; HIGH, where LOW and HIGH are the
+    //       correct values of low and high (without their error).
+    //     * if more than one decimal representation gives the minimal number of
+    //       decimal digits then the one closest to W (where W is the correct value
+    //       of w) is chosen.
+    // Remark: this procedure takes into account the imprecision of its input
+    //   numbers. If the precision is not enough to guarantee all the postconditions
+    //   then false is returned. This usually happens rarely (~0.5%).
+    //
+    // Say, for the sake of example, that
+    //   w.e() == -48, and w.f() == 0x1234567890abcdef
+    // w's value can be computed by w.f() * 2^w.e()
+    // We can obtain w's integral digits by simply shifting w.f() by -w.e().
+    //  -&gt; w's integral part is 0x1234
+    //  w's fractional part is therefore 0x567890abcdef.
+    // Printing w's integral part is easy (simply print 0x1234 in decimal).
+    // In order to print its fraction we repeatedly multiply the fraction by 10 and
+    // get each digit. Example the first digit after the point would be computed by
+    //   (0x567890abcdef * 10) &gt;&gt; 48. -&gt; 3
+    // The whole thing becomes slightly more complicated because we want to stop
+    // once we have enough digits. That is, once the digits inside the buffer
+    // represent 'w' we can stop. Everything inside the interval low - high
+    // represents w. However we have to pay attention to low, high and w's
+    // imprecision.
+    static boolean digitGen(DiyFp low,
+                     DiyFp w,
+                     DiyFp high,
+                     FastDtoaBuilder buffer,
+                     int mk) {
+<span class="pc bpc" id="L331" title="3 of 6 branches missed.">        assert(low.e() == w.e() &amp;&amp; w.e() == high.e());</span>
+<span class="pc bpc" id="L332" title="2 of 4 branches missed.">        assert uint64_lte(low.f() + 1, high.f() - 1);</span>
+<span class="pc bpc" id="L333" title="3 of 6 branches missed.">        assert(minimal_target_exponent &lt;= w.e() &amp;&amp; w.e() &lt;= maximal_target_exponent);</span>
+        // low, w and high are imprecise, but by less than one ulp (unit in the last
+        // place).
+        // If we remove (resp. add) 1 ulp from low (resp. high) we are certain that
+        // the new numbers are outside of the interval we want the final
+        // representation to lie in.
+        // Inversely adding (resp. removing) 1 ulp from low (resp. high) would yield
+        // numbers that are certain to lie in the interval. We will use this fact
+        // later on.
+        // We will now start by generating the digits within the uncertain
+        // interval. Later we will weed out representations that lie outside the safe
+        // interval and thus _might_ lie outside the correct interval.
+<span class="fc" id="L345">        long unit = 1;</span>
+<span class="fc" id="L346">        DiyFp too_low = new DiyFp(low.f() - unit, low.e());</span>
+<span class="fc" id="L347">        DiyFp too_high = new DiyFp(high.f() + unit, high.e());</span>
+        // too_low and too_high are guaranteed to lie outside the interval we want the
+        // generated number in.
+<span class="fc" id="L350">        DiyFp unsafe_interval = DiyFp.minus(too_high, too_low);</span>
+        // We now cut the input number into two parts: the integral digits and the
+        // fractionals. We will not write any decimal separator though, but adapt
+        // kappa instead.
+        // Reminder: we are currently computing the digits (stored inside the buffer)
+        // such that:   too_low &lt; buffer * 10^kappa &lt; too_high
+        // We use too_high for the digit_generation and stop as soon as possible.
+        // If we stop early we effectively round down.
+<span class="fc" id="L358">        DiyFp one = new DiyFp(1L &lt;&lt; -w.e(), w.e());</span>
+        // Division by one is a shift.
+<span class="fc" id="L360">        int integrals = (int)((too_high.f() &gt;&gt;&gt; -one.e()) &amp; 0xffffffffL);</span>
+        // Modulo by one is an and.
+<span class="fc" id="L362">        long fractionals = too_high.f() &amp; (one.f() - 1);</span>
+<span class="fc" id="L363">        long result = biggestPowerTen(integrals, DiyFp.kSignificandSize - (-one.e()));</span>
+<span class="fc" id="L364">        int divider = (int) ((result &gt;&gt;&gt; 32) &amp; 0xffffffffL);</span>
+<span class="fc" id="L365">        int divider_exponent = (int) (result &amp; 0xffffffffL);</span>
+<span class="fc" id="L366">        int kappa = divider_exponent + 1;</span>
+        // Loop invariant: buffer = too_high / 10^kappa  (integer division)
+        // The invariant holds for the first iteration: kappa has been initialized
+        // with the divider exponent + 1. And the divider is the biggest power of ten
+        // that is smaller than integrals.
+<span class="fc bfc" id="L371" title="All 2 branches covered.">        while (kappa &gt; 0) {</span>
+<span class="fc" id="L372">            int digit = integrals / divider;</span>
+<span class="fc" id="L373">            buffer.append((char) ('0' + digit));</span>
+<span class="fc" id="L374">            integrals %= divider;</span>
+<span class="fc" id="L375">            kappa--;</span>
+            // Note that kappa now equals the exponent of the divider and that the
+            // invariant thus holds again.
+<span class="fc" id="L378">            long rest =</span>
+<span class="fc" id="L379">                    ((long)integrals &lt;&lt; -one.e()) + fractionals;</span>
+            // Invariant: too_high = buffer * 10^kappa + DiyFp(rest, one.e())
+            // Reminder: unsafe_interval.e() == one.e()
+<span class="fc bfc" id="L382" title="All 2 branches covered.">            if (rest &lt; unsafe_interval.f()) {</span>
+                // Rounding down (by not emitting the remaining digits) yields a number
+                // that lies within the unsafe interval.
+<span class="fc" id="L385">                buffer.point = buffer.end - mk + kappa;</span>
+<span class="fc" id="L386">                return roundWeed(buffer, DiyFp.minus(too_high, w).f(),</span>
+<span class="fc" id="L387">                        unsafe_interval.f(), rest,</span>
+<span class="fc" id="L388">                        (long)divider &lt;&lt; -one.e(), unit);</span>
+            }
+<span class="fc" id="L390">            divider /= 10;</span>
+<span class="fc" id="L391">        }</span>
+
+        // The integrals have been generated. We are at the point of the decimal
+        // separator. In the following loop we simply multiply the remaining digits by
+        // 10 and divide by one. We just need to pay attention to multiply associated
+        // data (like the interval or 'unit'), too.
+        // Instead of multiplying by 10 we multiply by 5 (cheaper operation) and
+        // increase its (imaginary) exponent. At the same time we decrease the
+        // divider's (one's) exponent and shift its significand.
+        // Basically, if fractionals was a DiyFp (with fractionals.e == one.e):
+        //      fractionals.f *= 10;
+        //      fractionals.f &gt;&gt;= 1; fractionals.e++; // value remains unchanged.
+        //      one.f &gt;&gt;= 1; one.e++;                 // value remains unchanged.
+        //      and we have again fractionals.e == one.e which allows us to divide
+        //           fractionals.f() by one.f()
+        // We simply combine the *= 10 and the &gt;&gt;= 1.
+        while (true) {
+<span class="fc" id="L408">            fractionals *= 5;</span>
+<span class="fc" id="L409">            unit *= 5;</span>
+<span class="fc" id="L410">            unsafe_interval.setF(unsafe_interval.f() * 5);</span>
+<span class="fc" id="L411">            unsafe_interval.setE(unsafe_interval.e() + 1);  // Will be optimized out.</span>
+<span class="fc" id="L412">            one.setF(one.f() &gt;&gt;&gt; 1);</span>
+<span class="fc" id="L413">            one.setE(one.e() + 1);</span>
+            // Integer division by one.
+<span class="fc" id="L415">            int digit = (int)((fractionals &gt;&gt;&gt; -one.e()) &amp; 0xffffffffL);</span>
+<span class="fc" id="L416">            buffer.append((char) ('0' + digit));</span>
+<span class="fc" id="L417">            fractionals &amp;= one.f() - 1;  // Modulo by one.</span>
+<span class="fc" id="L418">            kappa--;</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">            if (fractionals &lt; unsafe_interval.f()) {</span>
+<span class="fc" id="L420">                buffer.point = buffer.end - mk + kappa;</span>
+<span class="fc" id="L421">                return roundWeed(buffer, DiyFp.minus(too_high, w).f() * unit,</span>
+<span class="fc" id="L422">                        unsafe_interval.f(), fractionals, one.f(), unit);</span>
+            }
+<span class="fc" id="L424">        }</span>
+    }
+
+
+    // Provides a decimal representation of v.
+    // Returns true if it succeeds, otherwise the result cannot be trusted.
+    // There will be *length digits inside the buffer (not null-terminated).
+    // If the function returns true then
+    //        v == (double) (buffer * 10^decimal_exponent).
+    // The digits in the buffer are the shortest representation possible: no
+    // 0.09999999999999999 instead of 0.1. The shorter representation will even be
+    // chosen even if the longer one would be closer to v.
+    // The last digit will be closest to the actual v. That is, even if several
+    // digits might correctly yield 'v' when read again, the closest will be
+    // computed.
+    static boolean grisu3(double v, FastDtoaBuilder buffer) {
+<span class="fc" id="L440">        long bits = Double.doubleToLongBits(v);</span>
+<span class="fc" id="L441">        DiyFp w = DoubleHelper.asNormalizedDiyFp(bits);</span>
+        // boundary_minus and boundary_plus are the boundaries between v and its
+        // closest floating-point neighbors. Any number strictly between
+        // boundary_minus and boundary_plus will round to v when convert to a double.
+        // Grisu3 will never output representations that lie exactly on a boundary.
+<span class="fc" id="L446">        DiyFp boundary_minus = new DiyFp(), boundary_plus = new DiyFp();</span>
+<span class="fc" id="L447">        DoubleHelper.normalizedBoundaries(bits, boundary_minus, boundary_plus);</span>
+<span class="pc bpc" id="L448" title="2 of 4 branches missed.">        assert(boundary_plus.e() == w.e());</span>
+<span class="fc" id="L449">        DiyFp ten_mk = new DiyFp();  // Cached power of ten: 10^-k</span>
+<span class="fc" id="L450">        int mk =  CachedPowers.getCachedPower(w.e() + DiyFp.kSignificandSize,</span>
+                minimal_target_exponent, maximal_target_exponent, ten_mk);
+<span class="pc bpc" id="L452" title="2 of 4 branches missed.">        assert(minimal_target_exponent &lt;= w.e() + ten_mk.e() +</span>
+                DiyFp.kSignificandSize &amp;&amp;
+<span class="pc bpc" id="L454" title="1 of 2 branches missed.">                maximal_target_exponent &gt;= w.e() + ten_mk.e() +</span>
+                        DiyFp.kSignificandSize);
+        // Note that ten_mk is only an approximation of 10^-k. A DiyFp only contains a
+        // 64 bit significand and ten_mk is thus only precise up to 64 bits.
+
+        // The DiyFp::Times procedure rounds its result, and ten_mk is approximated
+        // too. The variable scaled_w (as well as scaled_boundary_minus/plus) are now
+        // off by a small amount.
+        // In fact: scaled_w - w*10^k &lt; 1ulp (unit in the last place) of scaled_w.
+        // In other words: let f = scaled_w.f() and e = scaled_w.e(), then
+        //           (f-1) * 2^e &lt; w*10^k &lt; (f+1) * 2^e
+<span class="fc" id="L465">        DiyFp scaled_w = DiyFp.times(w, ten_mk);</span>
+<span class="pc bpc" id="L466" title="1 of 2 branches missed.">        assert(scaled_w.e() ==</span>
+<span class="pc bpc" id="L467" title="1 of 2 branches missed.">                boundary_plus.e() + ten_mk.e() + DiyFp.kSignificandSize);</span>
+        // In theory it would be possible to avoid some recomputations by computing
+        // the difference between w and boundary_minus/plus (a power of 2) and to
+        // compute scaled_boundary_minus/plus by subtracting/adding from
+        // scaled_w. However the code becomes much less readable and the speed
+        // enhancements are not terriffic.
+<span class="fc" id="L473">        DiyFp scaled_boundary_minus = DiyFp.times(boundary_minus, ten_mk);</span>
+<span class="fc" id="L474">        DiyFp scaled_boundary_plus  = DiyFp.times(boundary_plus,  ten_mk);</span>
+
+        // DigitGen will generate the digits of scaled_w. Therefore we have
+        // v == (double) (scaled_w * 10^-mk).
+        // Set decimal_exponent == -mk and pass it to DigitGen. If scaled_w is not an
+        // integer than it will be updated. For instance if scaled_w == 1.23 then
+        // the buffer will be filled with &quot;123&quot; und the decimal_exponent will be
+        // decreased by 2.
+<span class="fc" id="L482">        return digitGen(scaled_boundary_minus, scaled_w, scaled_boundary_plus,</span>
+                buffer, mk);
+    }
+
+
+    public static boolean dtoa(double v, FastDtoaBuilder buffer) {
+<span class="pc bpc" id="L488" title="2 of 4 branches missed.">        assert(v &gt; 0);</span>
+<span class="pc bpc" id="L489" title="2 of 4 branches missed.">        assert(!Double.isNaN(v));</span>
+<span class="pc bpc" id="L490" title="2 of 4 branches missed.">        assert(!Double.isInfinite(v));</span>
+
+<span class="fc" id="L492">        return grisu3(v, buffer);</span>
+    }
+
+    public static String numberToString(double v) {
+<span class="fc" id="L496">        FastDtoaBuilder buffer = new FastDtoaBuilder();</span>
+<span class="fc bfc" id="L497" title="All 2 branches covered.">        return numberToString(v, buffer) ? buffer.format() : null;</span>
+    }
+
+    public static boolean numberToString(double v, FastDtoaBuilder buffer) {
+<span class="fc" id="L501">        buffer.reset();</span>
+<span class="fc bfc" id="L502" title="All 2 branches covered.">        if (v &lt; 0) {</span>
+<span class="fc" id="L503">            buffer.append('-');</span>
+<span class="fc" id="L504">            v = -v;</span>
+        }
+<span class="fc" id="L506">        return dtoa(v, buffer);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

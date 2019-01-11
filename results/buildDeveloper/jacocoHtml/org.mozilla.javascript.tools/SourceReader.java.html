@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SourceReader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools</a> &gt; <span class="el_source">SourceReader.java</span></div><h1>SourceReader.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
+import org.mozilla.javascript.Kit;
+import org.mozilla.javascript.commonjs.module.provider.ParsedContentType;
+
+/**
+ * @author Attila Szegedi
+ * @version $Id: SourceReader.java,v 1.2 2010/02/15 19:31:17 szegedia%freemail.hu Exp $
+ */
+<span class="nc" id="L22">public class SourceReader</span>
+{
+    public static URL toUrl(String path) {
+        // Assume path is URL if it contains a colon and there are at least
+        // 2 characters in the protocol part. The later allows under Windows
+        // to interpret paths with driver letter as file, not URL.
+<span class="pc bpc" id="L28" title="1 of 2 branches missed.">        if (path.indexOf(':') &gt;= 2) {</span>
+            try {
+<span class="nc" id="L30">                return new URL(path);</span>
+<span class="nc" id="L31">            } catch (MalformedURLException ex) {</span>
+                // not a URL
+            }
+        }
+<span class="fc" id="L35">        return null;</span>
+    }
+
+    public static Object readFileOrUrl(String path, boolean convertToString,
+            String defaultEncoding) throws IOException
+    {
+<span class="fc" id="L41">        URL url = toUrl(path);</span>
+<span class="fc" id="L42">        InputStream is = null;</span>
+<span class="fc" id="L43">        int capacityHint = 0;</span>
+        String encoding;
+        final String contentType;
+        byte[] data;
+        try {
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">            if (url == null) {</span>
+<span class="fc" id="L49">                File file = new File(path);</span>
+<span class="fc" id="L50">                contentType = encoding = null;</span>
+<span class="fc" id="L51">                capacityHint = (int)file.length();</span>
+<span class="fc" id="L52">                is = new FileInputStream(file);</span>
+<span class="fc" id="L53">            } else {</span>
+<span class="nc" id="L54">                URLConnection uc = url.openConnection();</span>
+<span class="nc" id="L55">                is = uc.getInputStream();</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                if(convertToString) {</span>
+<span class="nc" id="L57">                    ParsedContentType pct = new ParsedContentType(uc.getContentType());</span>
+<span class="nc" id="L58">                    contentType = pct.getContentType();</span>
+<span class="nc" id="L59">                    encoding = pct.getEncoding();</span>
+<span class="nc" id="L60">                }</span>
+                else {
+<span class="nc" id="L62">                    contentType = encoding = null;</span>
+                }
+<span class="nc" id="L64">                capacityHint = uc.getContentLength();</span>
+                // Ignore insane values for Content-Length
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                if (capacityHint &gt; (1 &lt;&lt; 20)) {</span>
+<span class="nc" id="L67">                    capacityHint = -1;</span>
+                }
+            }
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">            if (capacityHint &lt;= 0) {</span>
+<span class="nc" id="L71">                capacityHint = 4096;</span>
+            }
+
+<span class="fc" id="L74">            data = Kit.readStream(is, capacityHint);</span>
+        } finally {
+<span class="pc bpc" id="L76" title="2 of 4 branches missed.">            if(is != null) {</span>
+<span class="pc" id="L77">                is.close();</span>
+            }
+<span class="fc" id="L79">        }</span>
+
+        Object result;
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        if (!convertToString) {</span>
+<span class="nc" id="L83">            result = data;</span>
+        } else {
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">            if(encoding == null) {</span>
+                // None explicitly specified in Content-type header. Use RFC-4329
+                // 4.2.2 section to autodetect
+<span class="pc bpc" id="L88" title="8 of 10 branches missed.">                if(data.length &gt; 3 &amp;&amp; data[0] == -1 &amp;&amp; data[1] == -2 &amp;&amp; data[2] == 0 &amp;&amp; data[3] == 0) {</span>
+<span class="nc" id="L89">                    encoding = &quot;UTF-32LE&quot;;</span>
+                }
+<span class="pc bpc" id="L91" title="8 of 10 branches missed.">                else if(data.length &gt; 3 &amp;&amp; data[0] == 0 &amp;&amp; data[1] == 0 &amp;&amp; data[2] == -2 &amp;&amp; data[3] == -1) {</span>
+<span class="nc" id="L92">                    encoding = &quot;UTF-32BE&quot;;</span>
+                }
+<span class="pc bpc" id="L94" title="6 of 8 branches missed.">                else if(data.length &gt; 2 &amp;&amp; data[0] == -17 &amp;&amp; data[1] == -69 &amp;&amp; data[2] == -65) {</span>
+<span class="nc" id="L95">                    encoding = &quot;UTF-8&quot;;</span>
+                }
+<span class="pc bpc" id="L97" title="4 of 6 branches missed.">                else if(data.length &gt; 1 &amp;&amp; data[0] == -1 &amp;&amp; data[1] == -2) {</span>
+<span class="nc" id="L98">                    encoding = &quot;UTF-16LE&quot;;</span>
+                }
+<span class="pc bpc" id="L100" title="4 of 6 branches missed.">                else if(data.length &gt; 1 &amp;&amp; data[0] == -2 &amp;&amp; data[1] == -1) {</span>
+<span class="nc" id="L101">                    encoding = &quot;UTF-16BE&quot;;</span>
+                }
+                else {
+                    // No autodetect. See if we have explicit value on command line
+<span class="fc" id="L105">                    encoding = defaultEncoding;</span>
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">                    if(encoding == null) {</span>
+                        // No explicit encoding specification
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">                        if(url == null) {</span>
+                            // Local files default to system encoding
+<span class="fc" id="L110">                            encoding = System.getProperty(&quot;file.encoding&quot;);</span>
+                        }
+<span class="nc bnc" id="L112" title="All 4 branches missed.">                        else if(contentType != null &amp;&amp; contentType.startsWith(&quot;application/&quot;)) {</span>
+                            // application/* types default to UTF-8
+<span class="nc" id="L114">                            encoding = &quot;UTF-8&quot;;</span>
+                        }
+                        else {
+                            // text/* MIME types default to US-ASCII
+<span class="nc" id="L118">                            encoding = &quot;US-ASCII&quot;;</span>
+                        }
+                    }
+                }
+            }
+<span class="fc" id="L123">            String strResult = new String(data, encoding);</span>
+            // Skip BOM
+<span class="pc bpc" id="L125" title="2 of 4 branches missed.">            if(strResult.length() &gt; 0 &amp;&amp; strResult.charAt(0) == '\uFEFF')</span>
+            {
+<span class="nc" id="L127">                strResult = strResult.substring(1);</span>
+            }
+<span class="fc" id="L129">            result = strResult;</span>
+        }
+<span class="fc" id="L131">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

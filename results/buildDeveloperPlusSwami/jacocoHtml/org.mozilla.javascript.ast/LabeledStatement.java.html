@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LabeledStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">LabeledStatement.java</span></div><h1>LabeledStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A labeled statement.  A statement can have more than one label.  In
+ * this AST representation, all labels for a statement are collapsed into
+ * the &quot;labels&quot; list of a single {@link LabeledStatement} node. &lt;p&gt;
+ *
+ * Node type is {@link Token#EXPR_VOID}. &lt;p&gt;
+ */
+public class LabeledStatement extends AstNode {
+
+<span class="pc" id="L23">    private List&lt;Label&gt; labels = new ArrayList&lt;Label&gt;();  // always at least 1</span>
+    private AstNode statement;
+
+    {
+<span class="pc" id="L27">        type = Token.EXPR_VOID;</span>
+    }
+
+<span class="nc" id="L30">    public LabeledStatement() {</span>
+<span class="nc" id="L31">    }</span>
+
+    public LabeledStatement(int pos) {
+<span class="fc" id="L34">        super(pos);</span>
+<span class="fc" id="L35">    }</span>
+
+    public LabeledStatement(int pos, int len) {
+<span class="nc" id="L38">        super(pos, len);</span>
+<span class="nc" id="L39">    }</span>
+
+    /**
+     * Returns label list
+     */
+    public List&lt;Label&gt; getLabels() {
+<span class="fc" id="L45">        return labels;</span>
+    }
+
+    /**
+     * Sets label list, setting the parent of each label
+     * in the list.  Replaces any existing labels.
+     * @throws IllegalArgumentException} if labels is {@code null}
+     */
+    public void setLabels(List&lt;Label&gt; labels) {
+<span class="nc" id="L54">        assertNotNull(labels);</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (this.labels != null)</span>
+<span class="nc" id="L56">            this.labels.clear();</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        for (Label l : labels) {</span>
+<span class="nc" id="L58">            addLabel(l);</span>
+<span class="nc" id="L59">        }</span>
+<span class="nc" id="L60">    }</span>
+
+    /**
+     * Adds a label and sets its parent to this node.
+     * @throws IllegalArgumentException} if label is {@code null}
+     */
+    public void addLabel(Label label) {
+<span class="fc" id="L67">        assertNotNull(label);</span>
+<span class="fc" id="L68">        labels.add(label);</span>
+<span class="fc" id="L69">        label.setParent(this);</span>
+<span class="fc" id="L70">    }</span>
+
+    /**
+     * Returns the labeled statement
+     */
+    public AstNode getStatement() {
+<span class="fc" id="L76">        return statement;</span>
+    }
+
+    /**
+     * Returns label with specified name from the label list for
+     * this labeled statement.  Returns {@code null} if there is no
+     * label with that name in the list.
+     */
+    public Label getLabelByName(String name) {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        for (Label label : labels) {</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            if (name.equals(label.getName())) {</span>
+<span class="nc" id="L87">                return label;</span>
+            }
+<span class="nc" id="L89">        }</span>
+<span class="nc" id="L90">        return null;</span>
+    }
+
+    /**
+     * Sets the labeled statement, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code statement} is {@code null}
+     */
+    public void setStatement(AstNode statement) {
+<span class="fc" id="L98">        assertNotNull(statement);</span>
+<span class="fc" id="L99">        this.statement = statement;</span>
+<span class="fc" id="L100">        statement.setParent(this);</span>
+<span class="fc" id="L101">    }</span>
+
+    public Label getFirstLabel() {
+<span class="fc" id="L104">        return labels.get(0);</span>
+    }
+
+    @Override
+    public boolean hasSideEffects() {
+        // just to avoid the default case for EXPR_VOID in AstNode
+<span class="fc" id="L110">        return true;</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L115">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        for (Label label : labels) {</span>
+<span class="fc" id="L117">            sb.append(label.toSource(depth));  // prints newline</span>
+<span class="fc" id="L118">        }</span>
+<span class="fc" id="L119">        sb.append(statement.toSource(depth + 1));</span>
+<span class="fc" id="L120">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then each label in the label-list, and finally the
+     * statement.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            for (AstNode label : labels) {</span>
+<span class="nc" id="L131">                label.visit(v);</span>
+<span class="nc" id="L132">            }</span>
+<span class="nc" id="L133">            statement.visit(v);</span>
+        }
+<span class="nc" id="L135">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DoLoop.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">DoLoop.java</span></div><h1>DoLoop.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * Do statement.  Node type is {@link Token#DO}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;DoLoop&lt;/i&gt;:
+ * &lt;b&gt;do&lt;/b&gt; Statement &lt;b&gt;while&lt;/b&gt; &lt;b&gt;(&lt;/b&gt; Expression &lt;b&gt;)&lt;/b&gt; &lt;b&gt;;&lt;/b&gt;&lt;/pre&gt;
+ */
+public class DoLoop extends Loop {
+
+    private AstNode condition;
+<span class="pc" id="L20">    private int whilePosition = -1;</span>
+
+    {
+<span class="pc" id="L23">        type = Token.DO;</span>
+    }
+
+<span class="nc" id="L26">    public DoLoop() {</span>
+<span class="nc" id="L27">    }</span>
+
+    public DoLoop(int pos) {
+<span class="fc" id="L30">        super(pos);</span>
+<span class="fc" id="L31">    }</span>
+
+    public DoLoop(int pos, int len) {
+<span class="nc" id="L34">        super(pos, len);</span>
+<span class="nc" id="L35">    }</span>
+
+    /**
+     * Returns loop condition
+     */
+    public AstNode getCondition() {
+<span class="fc" id="L41">        return condition;</span>
+    }
+
+    /**
+     * Sets loop condition, and sets its parent to this node.
+     * @throws IllegalArgumentException if condition is null
+     */
+    public void setCondition(AstNode condition) {
+<span class="fc" id="L49">        assertNotNull(condition);</span>
+<span class="fc" id="L50">        this.condition = condition;</span>
+<span class="fc" id="L51">        condition.setParent(this);</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Returns source position of &quot;while&quot; keyword
+     */
+    public int getWhilePosition() {
+<span class="nc" id="L58">        return whilePosition;</span>
+    }
+
+    /**
+     * Sets source position of &quot;while&quot; keyword
+     */
+    public void setWhilePosition(int whilePosition) {
+<span class="fc" id="L65">        this.whilePosition = whilePosition;</span>
+<span class="fc" id="L66">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L70">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L71">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L72">        sb.append(&quot;do &quot;);</span>
+<span class="nc" id="L73">        sb.append(body.toSource(depth).trim());</span>
+<span class="nc" id="L74">        sb.append(&quot; while (&quot;);</span>
+<span class="nc" id="L75">        sb.append(condition.toSource(0));</span>
+<span class="nc" id="L76">        sb.append(&quot;);\n&quot;);</span>
+<span class="nc" id="L77">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the body, and then the while-expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L86">            body.visit(v);</span>
+<span class="nc" id="L87">            condition.visit(v);</span>
+        }
+<span class="nc" id="L89">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlElemRef.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">XmlElemRef.java</span></div><h1>XmlElemRef.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for an E4X XML {@code [expr]} member-ref expression.
+ * The node type is {@link Token#REF_MEMBER}.&lt;p&gt;
+ *
+ * Syntax:&lt;p&gt;
+ *
+ * &lt;pre&gt; @&lt;i&gt;&lt;sub&gt;opt&lt;/sub&gt;&lt;/i&gt; ns:: &lt;i&gt;&lt;sub&gt;opt&lt;/sub&gt;&lt;/i&gt; [ expr ]&lt;/pre&gt;
+ *
+ * Examples include {@code ns::[expr]}, {@code @ns::[expr]}, {@code @[expr]},
+ * {@code *::[expr]} and {@code @*::[expr]}.&lt;p&gt;
+ *
+ * Note that the form {@code [expr]} (i.e. no namespace or
+ * attribute-qualifier) is not a legal {@code XmlElemRef} expression,
+ * since it's already used for standard JavaScript {@link ElementGet}
+ * array-indexing.  Hence, an {@code XmlElemRef} node always has
+ * either the attribute-qualifier, a non-{@code null} namespace node,
+ * or both.&lt;p&gt;
+ *
+ * The node starts at the {@code @} token, if present.  Otherwise it starts
+ * at the namespace name.  The node bounds extend through the closing
+ * right-bracket, or if it is missing due to a syntax error, through the
+ * end of the index expression.&lt;p&gt;
+ */
+public class XmlElemRef extends XmlRef {
+
+    private AstNode indexExpr;
+<span class="pc" id="L37">    private int lb = -1;</span>
+<span class="pc" id="L38">    private int rb = -1;</span>
+
+    {
+<span class="pc" id="L41">        type = Token.REF_MEMBER;</span>
+    }
+
+<span class="nc" id="L44">    public XmlElemRef() {</span>
+<span class="nc" id="L45">    }</span>
+
+    public XmlElemRef(int pos) {
+<span class="nc" id="L48">        super(pos);</span>
+<span class="nc" id="L49">    }</span>
+
+    public XmlElemRef(int pos, int len) {
+<span class="fc" id="L52">        super(pos, len);</span>
+<span class="fc" id="L53">    }</span>
+
+    /**
+     * Returns index expression: the 'expr' in {@code @[expr]}
+     * or {@code @*::[expr]}.
+     */
+    public AstNode getExpression() {
+<span class="fc" id="L60">        return indexExpr;</span>
+    }
+
+    /**
+     * Sets index expression, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code expr} is {@code null}
+     */
+    public void setExpression(AstNode expr) {
+<span class="fc" id="L68">        assertNotNull(expr);</span>
+<span class="fc" id="L69">        indexExpr = expr;</span>
+<span class="fc" id="L70">        expr.setParent(this);</span>
+<span class="fc" id="L71">    }</span>
+
+    /**
+     * Returns left bracket position, or -1 if missing.
+     */
+    public int getLb() {
+<span class="nc" id="L77">        return lb;</span>
+    }
+
+    /**
+     * Sets left bracket position, or -1 if missing.
+     */
+    public void setLb(int lb) {
+<span class="nc" id="L84">        this.lb = lb;</span>
+<span class="nc" id="L85">    }</span>
+
+    /**
+     * Returns left bracket position, or -1 if missing.
+     */
+    public int getRb() {
+<span class="nc" id="L91">        return rb;</span>
+    }
+
+    /**
+     * Sets right bracket position, -1 if missing.
+     */
+    public void setRb(int rb) {
+<span class="nc" id="L98">        this.rb = rb;</span>
+<span class="nc" id="L99">    }</span>
+
+    /**
+     * Sets both bracket positions.
+     */
+    public void setBrackets(int lb, int rb) {
+<span class="fc" id="L105">        this.lb = lb;</span>
+<span class="fc" id="L106">        this.rb = rb;</span>
+<span class="fc" id="L107">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L111">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L112">        sb.append(makeIndent(depth));</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (isAttributeAccess()) {</span>
+<span class="nc" id="L114">            sb.append(&quot;@&quot;);</span>
+        }
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (namespace != null) {</span>
+<span class="nc" id="L117">            sb.append(namespace.toSource(0));</span>
+<span class="nc" id="L118">            sb.append(&quot;::&quot;);</span>
+        }
+<span class="nc" id="L120">        sb.append(&quot;[&quot;);</span>
+<span class="nc" id="L121">        sb.append(indexExpr.toSource(0));</span>
+<span class="nc" id="L122">        sb.append(&quot;]&quot;);</span>
+<span class="nc" id="L123">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the namespace if provided, then the
+     * index expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if (namespace != null) {</span>
+<span class="nc" id="L134">                namespace.visit(v);</span>
+            }
+<span class="nc" id="L136">            indexExpr.visit(v);</span>
+        }
+<span class="nc" id="L138">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

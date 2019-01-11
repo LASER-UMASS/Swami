@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ByteIo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">ByteIo.java</span></div><h1>ByteIo.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+<span class="nc" id="L9">public class ByteIo</span>
+{
+    public static Object readInt8(byte[] buf, int offset)
+    {
+<span class="fc" id="L13">        return buf[offset];</span>
+    }
+
+    public static void writeInt8(byte[] buf, int offset, int val)
+    {
+<span class="fc" id="L18">        buf[offset] = (byte)val;</span>
+<span class="fc" id="L19">    }</span>
+
+    public static Object readUint8(byte[] buf, int offset)
+    {
+<span class="fc" id="L23">        return buf[offset] &amp; 0xff;</span>
+    }
+
+    public static void writeUint8(byte[] buf, int offset, int val)
+    {
+<span class="fc" id="L28">        buf[offset] = (byte)(val &amp; 0xff);</span>
+<span class="fc" id="L29">    }</span>
+
+    private static short doReadInt16(byte[] buf, int offset, boolean littleEndian)
+    {
+        // Need to coalesce to short here so that we stay in range
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L35">            return</span>
+                (short)((buf[offset]      &amp; 0xff) |
+                       ((buf[offset + 1] &amp; 0xff) &lt;&lt; 8));
+        }
+<span class="fc" id="L39">        return</span>
+            (short)(((buf[offset]    &amp; 0xff) &lt;&lt; 8) |
+                    (buf[offset + 1] &amp; 0xff));
+    }
+
+    private static void doWriteInt16(byte[] buf, int offset, int val, boolean littleEndian)
+    {
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L47">            buf[offset] =     (byte)(val &amp; 0xff);</span>
+<span class="fc" id="L48">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 8) &amp; 0xff);</span>
+        } else {
+<span class="fc" id="L50">            buf[offset]         =     (byte)((val &gt;&gt;&gt; 8) &amp; 0xff);</span>
+<span class="fc" id="L51">            buf[offset + 1]     =     (byte)(val &amp; 0xff);</span>
+        }
+<span class="fc" id="L53">    }</span>
+
+    public static Object readInt16(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc" id="L57">        return doReadInt16(buf, offset, littleEndian);</span>
+    }
+
+    public static void writeInt16(byte[] buf, int offset, int val, boolean littleEndian)
+    {
+<span class="fc" id="L62">        doWriteInt16(buf, offset, val, littleEndian);</span>
+<span class="fc" id="L63">    }</span>
+
+    public static Object readUint16(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc" id="L67">        return doReadInt16(buf, offset, littleEndian) &amp; 0xffff;</span>
+    }
+
+    public static void writeUint16(byte[] buf, int offset, int val, boolean littleEndian)
+    {
+<span class="fc" id="L72">        doWriteInt16(buf, offset, val &amp; 0xffff, littleEndian);</span>
+<span class="fc" id="L73">    }</span>
+
+    public static Object readInt32(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L78">            return</span>
+<span class="fc" id="L79">                (buf[offset]      &amp; 0xff) |</span>
+                ((buf[offset + 1] &amp; 0xff) &lt;&lt; 8) |
+                ((buf[offset + 2] &amp; 0xff) &lt;&lt; 16) |
+                ((buf[offset + 3] &amp; 0xff) &lt;&lt; 24);
+        }
+<span class="fc" id="L84">        return</span>
+<span class="fc" id="L85">            ((buf[offset]     &amp; 0xff) &lt;&lt; 24) |</span>
+            ((buf[offset + 1] &amp; 0xff) &lt;&lt; 16) |
+            ((buf[offset + 2] &amp; 0xff) &lt;&lt; 8) |
+            (buf[offset + 3]  &amp; 0xff);
+    }
+
+    public static void writeInt32(byte[] buf, int offset, int val, boolean littleEndian)
+    {
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L94">            buf[offset] =     (byte)(val &amp; 0xff);</span>
+<span class="fc" id="L95">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 8)  &amp; 0xff);</span>
+<span class="fc" id="L96">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L97">            buf[offset + 3] = (byte)((val &gt;&gt;&gt; 24) &amp; 0xff);</span>
+        } else {
+<span class="fc" id="L99">            buf[offset] =     (byte)((val &gt;&gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L100">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L101">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 8) &amp; 0xff);</span>
+<span class="fc" id="L102">            buf[offset + 3] = (byte)(val &amp; 0xff);</span>
+        }
+<span class="fc" id="L104">    }</span>
+
+    public static long readUint32Primitive(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L109">            return</span>
+                ((buf[offset]      &amp; 0xffL) |
+                 ((buf[offset + 1] &amp; 0xffL) &lt;&lt; 8L) |
+                 ((buf[offset + 2] &amp; 0xffL) &lt;&lt; 16L) |
+                 ((buf[offset + 3] &amp; 0xffL) &lt;&lt; 24L)) &amp;
+                0xffffffffL;
+        }
+<span class="fc" id="L116">        return</span>
+            (((buf[offset]     &amp; 0xffL) &lt;&lt; 24L) |
+             ((buf[offset + 1] &amp; 0xffL) &lt;&lt; 16L) |
+             ((buf[offset + 2] &amp; 0xffL) &lt;&lt; 8L) |
+             (buf[offset + 3]  &amp; 0xffL)) &amp;
+             0xffffffffL;
+    }
+
+    public static void writeUint32(byte[] buf, int offset, long val, boolean littleEndian)
+    {
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        if (littleEndian) {</span>
+<span class="fc" id="L127">            buf[offset] =     (byte)(val &amp; 0xffL);</span>
+<span class="fc" id="L128">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 8L)  &amp; 0xffL);</span>
+<span class="fc" id="L129">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 16L) &amp; 0xffL);</span>
+<span class="fc" id="L130">            buf[offset + 3] = (byte)((val &gt;&gt;&gt; 24L) &amp; 0xffL);</span>
+        } else {
+<span class="fc" id="L132">            buf[offset] =     (byte)((val &gt;&gt;&gt; 24L) &amp; 0xffL);</span>
+<span class="fc" id="L133">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 16L) &amp; 0xffL);</span>
+<span class="fc" id="L134">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 8L)  &amp; 0xffL);</span>
+<span class="fc" id="L135">            buf[offset + 3] = (byte)(val &amp; 0xffL);</span>
+        }
+<span class="fc" id="L137">    }</span>
+
+    public static Object readUint32(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc" id="L141">        return readUint32Primitive(buf, offset, littleEndian);</span>
+    }
+
+    public static long readUint64Primitive(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">        if (littleEndian) {</span>
+<span class="nc" id="L147">            return</span>
+                   ((buf[offset]     &amp; 0xffL) |
+                    ((buf[offset + 1] &amp; 0xffL) &lt;&lt; 8L) |
+                    ((buf[offset + 2] &amp; 0xffL) &lt;&lt; 16L) |
+                    ((buf[offset + 3] &amp; 0xffL) &lt;&lt; 24L) |
+                    ((buf[offset + 4] &amp; 0xffL) &lt;&lt; 32L) |
+                    ((buf[offset + 5] &amp; 0xffL) &lt;&lt; 40L) |
+                    ((buf[offset + 6] &amp; 0xffL) &lt;&lt; 48L) |
+                    ((buf[offset + 7] &amp; 0xffL) &lt;&lt; 56L));
+        }
+<span class="fc" id="L157">        return</span>
+            (((buf[offset]     &amp; 0xffL) &lt;&lt; 56L) |
+             ((buf[offset + 1] &amp; 0xffL) &lt;&lt; 48L) |
+             ((buf[offset + 2] &amp; 0xffL) &lt;&lt; 40L) |
+             ((buf[offset + 3] &amp; 0xffL) &lt;&lt; 32L) |
+             ((buf[offset + 4] &amp; 0xffL) &lt;&lt; 24L) |
+             ((buf[offset + 5] &amp; 0xffL) &lt;&lt; 16L) |
+             ((buf[offset + 6] &amp; 0xffL) &lt;&lt; 8L) |
+             ((buf[offset + 7] &amp; 0xffL) &lt;&lt; 0L));
+    }
+
+    public static void writeUint64(byte[] buf, int offset, long val, boolean littleEndian)
+    {
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (littleEndian) {</span>
+<span class="nc" id="L171">            buf[offset] =     (byte)(val &amp; 0xffL);</span>
+<span class="nc" id="L172">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 8L)  &amp; 0xffL);</span>
+<span class="nc" id="L173">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 16L) &amp; 0xffL);</span>
+<span class="nc" id="L174">            buf[offset + 3] = (byte)((val &gt;&gt;&gt; 24L) &amp; 0xffL);</span>
+<span class="nc" id="L175">            buf[offset + 4] = (byte)((val &gt;&gt;&gt; 32L)  &amp; 0xffL);</span>
+<span class="nc" id="L176">            buf[offset + 5] = (byte)((val &gt;&gt;&gt; 40L)  &amp; 0xffL);</span>
+<span class="nc" id="L177">            buf[offset + 6] = (byte)((val &gt;&gt;&gt; 48L) &amp; 0xffL);</span>
+<span class="nc" id="L178">            buf[offset + 7] = (byte)((val &gt;&gt;&gt; 56L) &amp; 0xffL);</span>
+        } else {
+<span class="fc" id="L180">            buf[offset] =     (byte)((val &gt;&gt;&gt; 56L) &amp; 0xffL);</span>
+<span class="fc" id="L181">            buf[offset + 1] = (byte)((val &gt;&gt;&gt; 48L) &amp; 0xffL);</span>
+<span class="fc" id="L182">            buf[offset + 2] = (byte)((val &gt;&gt;&gt; 40L) &amp; 0xffL);</span>
+<span class="fc" id="L183">            buf[offset + 3] = (byte)((val &gt;&gt;&gt; 32L) &amp; 0xffL);</span>
+<span class="fc" id="L184">            buf[offset + 4] = (byte)((val &gt;&gt;&gt; 24L) &amp; 0xffL);</span>
+<span class="fc" id="L185">            buf[offset + 5] = (byte)((val &gt;&gt;&gt; 16L) &amp; 0xffL);</span>
+<span class="fc" id="L186">            buf[offset + 6] = (byte)((val &gt;&gt;&gt; 8L)  &amp; 0xffL);</span>
+<span class="fc" id="L187">            buf[offset + 7] = (byte)(val &amp; 0xffL);</span>
+        }
+<span class="fc" id="L189">    }</span>
+
+    public static Object readFloat32(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc" id="L193">        long base = readUint32Primitive(buf, offset, littleEndian);</span>
+<span class="fc" id="L194">        return Float.intBitsToFloat((int)base);</span>
+    }
+
+    public static void writeFloat32(byte[] buf, int offset, double val, boolean littleEndian)
+    {
+<span class="fc" id="L199">        long base = Float.floatToIntBits((float)val);</span>
+<span class="fc" id="L200">        writeUint32(buf, offset, base, littleEndian);</span>
+<span class="fc" id="L201">    }</span>
+
+    public static Object readFloat64(byte[] buf, int offset, boolean littleEndian)
+    {
+<span class="fc" id="L205">        long base = readUint64Primitive(buf, offset, littleEndian);</span>
+<span class="fc" id="L206">        return Double.longBitsToDouble(base);</span>
+    }
+
+    public static void writeFloat64(byte[] buf, int offset, double val, boolean littleEndian)
+    {
+<span class="fc" id="L211">        long base = Double.doubleToLongBits(val);</span>
+<span class="fc" id="L212">        writeUint64(buf, offset, base, littleEndian);</span>
+<span class="fc" id="L213">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

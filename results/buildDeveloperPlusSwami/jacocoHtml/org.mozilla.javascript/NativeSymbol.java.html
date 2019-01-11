@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeSymbol.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeSymbol.java</span></div><h1>NativeSymbol.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * This is an implementation of the standard &quot;Symbol&quot; type that implements
+ * all of its weird properties. One of them is that some objects can have
+ * an &quot;internal data slot&quot; that makes them a Symbol and others cannot.
+ */
+
+public class NativeSymbol
+    extends IdScriptableObject
+    implements Symbol
+{
+    private static final long serialVersionUID = -589539749749830003L;
+
+    public static final String CLASS_NAME = &quot;Symbol&quot;;
+    public static final String TYPE_NAME = &quot;symbol&quot;;
+
+<span class="fc" id="L27">    private static final Object GLOBAL_TABLE_KEY = new Object();</span>
+<span class="fc" id="L28">    private static final Object CONSTRUCTOR_SLOT = new Object();</span>
+
+    private final SymbolKey key;
+    private final NativeSymbol symbolData;
+
+    public static void init(Context cx, Scriptable scope, boolean sealed) {
+<span class="fc" id="L34">        NativeSymbol obj = new NativeSymbol(&quot;&quot;);</span>
+<span class="fc" id="L35">        ScriptableObject ctor = obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, false);</span>
+
+<span class="fc" id="L37">        cx.putThreadLocal(CONSTRUCTOR_SLOT, Boolean.TRUE);</span>
+        try {
+<span class="fc" id="L39">            createStandardSymbol(cx, scope, ctor, &quot;iterator&quot;, SymbolKey.ITERATOR);</span>
+<span class="fc" id="L40">            createStandardSymbol(cx, scope, ctor, &quot;species&quot;, SymbolKey.SPECIES);</span>
+<span class="fc" id="L41">            createStandardSymbol(cx, scope, ctor, &quot;toStringTag&quot;, SymbolKey.TO_STRING_TAG);</span>
+<span class="fc" id="L42">            createStandardSymbol(cx, scope, ctor, &quot;hasInstance&quot;, SymbolKey.HAS_INSTANCE);</span>
+<span class="fc" id="L43">            createStandardSymbol(cx, scope, ctor, &quot;isConcatSpreadable&quot;, SymbolKey.IS_CONCAT_SPREADABLE);</span>
+<span class="fc" id="L44">            createStandardSymbol(cx, scope, ctor, &quot;isRegExp&quot;, SymbolKey.IS_REGEXP);</span>
+<span class="fc" id="L45">            createStandardSymbol(cx, scope, ctor, &quot;toPrimitive&quot;, SymbolKey.TO_PRIMITIVE);</span>
+<span class="fc" id="L46">            createStandardSymbol(cx, scope, ctor, &quot;match&quot;, SymbolKey.MATCH);</span>
+<span class="fc" id="L47">            createStandardSymbol(cx, scope, ctor, &quot;replace&quot;, SymbolKey.REPLACE);</span>
+<span class="fc" id="L48">            createStandardSymbol(cx, scope, ctor, &quot;search&quot;, SymbolKey.SEARCH);</span>
+<span class="fc" id="L49">            createStandardSymbol(cx, scope, ctor, &quot;split&quot;, SymbolKey.SPLIT);</span>
+<span class="fc" id="L50">            createStandardSymbol(cx, scope, ctor, &quot;unscopables&quot;, SymbolKey.UNSCOPABLES);</span>
+
+        } finally {
+<span class="pc" id="L53">            cx.removeThreadLocal(CONSTRUCTOR_SLOT);</span>
+<span class="pc" id="L54">        }</span>
+
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (sealed) {</span>
+            // Can't seal until we have created all the stuff above!
+<span class="fc" id="L58">            ctor.sealObject();</span>
+        }
+<span class="fc" id="L60">    }</span>
+
+<span class="fc" id="L62">    private NativeSymbol(String desc) {</span>
+<span class="fc" id="L63">        this.key = new SymbolKey(desc);</span>
+<span class="fc" id="L64">        this.symbolData = this;</span>
+<span class="fc" id="L65">    }</span>
+
+<span class="fc" id="L67">    private NativeSymbol(SymbolKey key) {</span>
+<span class="fc" id="L68">        this.key = key;</span>
+<span class="fc" id="L69">        this.symbolData = this;</span>
+<span class="fc" id="L70">    }</span>
+
+<span class="fc" id="L72">    public NativeSymbol(NativeSymbol s) {</span>
+<span class="fc" id="L73">        this.key = s.key;</span>
+<span class="fc" id="L74">        this.symbolData = s.symbolData;</span>
+<span class="fc" id="L75">    }</span>
+
+    /**
+     * Use this when we need to create symbols internally because of the convoluted way we have to
+     * construct them.
+     */
+    public static NativeSymbol construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="fc" id="L83">        cx.putThreadLocal(CONSTRUCTOR_SLOT, Boolean.TRUE);</span>
+        try {
+<span class="fc" id="L85">            return (NativeSymbol)cx.newObject(scope, CLASS_NAME, args);</span>
+        } finally {
+<span class="fc" id="L87">            cx.removeThreadLocal(CONSTRUCTOR_SLOT);</span>
+<span class="fc" id="L88">        }</span>
+    }
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L93">        return CLASS_NAME;</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor) {
+<span class="fc" id="L98">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L99">        addIdFunctionProperty(ctor, CLASS_NAME, ConstructorId_for, &quot;for&quot;, 1);</span>
+<span class="fc" id="L100">        addIdFunctionProperty(ctor, CLASS_NAME, ConstructorId_keyFor, &quot;keyFor&quot;, 1);</span>
+<span class="fc" id="L101">    }</span>
+
+    private static void createStandardSymbol(Context cx, Scriptable scope,
+                                             ScriptableObject ctor,
+                                             String name, SymbolKey key)
+    {
+<span class="fc" id="L107">        Scriptable sym = cx.newObject(scope, CLASS_NAME, new Object[] { name, key });</span>
+<span class="fc" id="L108">        ctor.defineProperty(name, sym, DONTENUM | READONLY | PERMANENT);</span>
+<span class="fc" id="L109">    }</span>
+
+    // #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s) {
+<span class="fc" id="L115">        int id = 0;</span>
+//  #generated# Last update: 2016-01-26 16:39:41 PST
+<span class="fc" id="L117">        L0: { id = 0; String X = null;</span>
+<span class="fc" id="L118">            int s_length = s.length();</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">            if (s_length==7) { X=&quot;valueOf&quot;;id=Id_valueOf; }</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">            else if (s_length==8) { X=&quot;toString&quot;;id=Id_toString; }</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L122" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+//  #/generated#
+<span class="fc" id="L126">        return id;</span>
+    }
+
+    @Override
+    protected int findPrototypeId(Symbol key) {
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">        if (SymbolKey.TO_STRING_TAG.equals(key)) {</span>
+<span class="fc" id="L132">            return SymbolId_toStringTag;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        } else if (SymbolKey.TO_PRIMITIVE.equals(key)) {</span>
+<span class="nc" id="L134">            return SymbolId_toPrimitive;</span>
+        }
+<span class="nc" id="L136">        return 0;</span>
+    }
+
+    private static final int
+        ConstructorId_keyFor    = -2,
+        ConstructorId_for       = -1,
+        Id_constructor          = 1,
+        Id_toString             = 2,
+        Id_valueOf              = 4,
+        SymbolId_toStringTag    = 3,
+        SymbolId_toPrimitive    = 5,
+        MAX_PROTOTYPE_ID        = SymbolId_toPrimitive;
+
+    // #/string_id_map#
+
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L155" title="2 of 6 branches missed.">        switch (id) {</span>
+        case Id_constructor:
+<span class="fc" id="L157">            initPrototypeMethod(CLASS_NAME, id, &quot;constructor&quot;, 1);</span>
+<span class="fc" id="L158">            break;</span>
+        case Id_toString:
+<span class="fc" id="L160">            initPrototypeMethod(CLASS_NAME, id, &quot;toString&quot;, 0);</span>
+<span class="fc" id="L161">            break;</span>
+        case Id_valueOf:
+<span class="fc" id="L163">            initPrototypeMethod(CLASS_NAME, id, &quot;valueOf&quot;, 0);</span>
+<span class="fc" id="L164">            break;</span>
+        case SymbolId_toStringTag:
+<span class="fc" id="L166">            initPrototypeValue(id, SymbolKey.TO_STRING_TAG, CLASS_NAME, DONTENUM | READONLY);</span>
+<span class="fc" id="L167">            break;</span>
+        case SymbolId_toPrimitive:
+<span class="nc" id="L169">            initPrototypeMethod(CLASS_NAME, id, SymbolKey.TO_PRIMITIVE, &quot;Symbol.toPrimitive&quot;, 1);</span>
+<span class="nc" id="L170">            break;</span>
+        default:
+<span class="nc" id="L172">            super.initPrototypeId(id);</span>
+            break;
+        }
+<span class="fc" id="L175">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        if (!f.hasTag(CLASS_NAME)) {</span>
+<span class="nc" id="L180">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L182">        int id = f.methodId();</span>
+<span class="pc bpc" id="L183" title="1 of 6 branches missed.">        switch (id) {</span>
+        case ConstructorId_for:
+<span class="fc" id="L185">            return js_for(cx, scope, args);</span>
+        case ConstructorId_keyFor:
+<span class="fc" id="L187">            return js_keyFor(cx, scope, args);</span>
+
+        case Id_constructor:
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            if (thisObj == null) {</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">                if (cx.getThreadLocal(CONSTRUCTOR_SLOT) == null) {</span>
+                    // We should never get to this via &quot;new&quot;.
+<span class="fc" id="L193">                    throw ScriptRuntime.typeError0(&quot;msg.no.symbol.new&quot;);</span>
+                } else {
+                    // Unless we are being called by our own internal &quot;new&quot;
+<span class="fc" id="L196">                    return js_constructor(args);</span>
+                }
+            } else {
+<span class="fc" id="L199">                return construct(cx, scope, args);</span>
+            }
+
+        case Id_toString:
+<span class="fc" id="L203">            return getSelf(thisObj).toString();</span>
+        case Id_valueOf:
+        case SymbolId_toPrimitive:
+<span class="fc" id="L206">            return getSelf(thisObj).js_valueOf();</span>
+        default:
+<span class="nc" id="L208">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+    }
+
+    private NativeSymbol getSelf(Object thisObj) {
+        try {
+<span class="fc" id="L214">            return (NativeSymbol)thisObj;</span>
+<span class="nc" id="L215">        } catch (ClassCastException cce) {</span>
+<span class="nc" id="L216">            throw ScriptRuntime.typeError1(&quot;msg.invalid.type&quot;, thisObj.getClass().getName());</span>
+        }
+    }
+
+    private static NativeSymbol js_constructor(Object[] args) {
+        String desc;
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (args.length &gt; 0) {</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">            if (Undefined.instance.equals(args[0])) {</span>
+<span class="fc" id="L224">                desc = &quot;&quot;;</span>
+            } else {
+<span class="fc" id="L226">                desc = ScriptRuntime.toString(args[0]);</span>
+            }
+        } else {
+<span class="fc" id="L229">            desc = &quot;&quot;;</span>
+        }
+
+<span class="fc bfc" id="L232" title="All 2 branches covered.">        if (args.length &gt; 1) {</span>
+<span class="fc" id="L233">            return new NativeSymbol((SymbolKey) args[1]);</span>
+        }
+
+<span class="fc" id="L236">        return new NativeSymbol(desc);</span>
+    }
+
+    private Object js_valueOf() {
+        // In the case that &quot;Object()&quot; was called we actually have a different &quot;internal slot&quot;
+<span class="fc" id="L241">        return symbolData;</span>
+    }
+
+    private Object js_for(Context cx, Scriptable scope, Object[] args) {
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        String name = (args.length &gt; 0 ? ScriptRuntime.toString(args[0]) : ScriptRuntime.toString(Undefined.instance));</span>
+
+<span class="fc" id="L247">        Map&lt;String, NativeSymbol&gt; table = getGlobalMap();</span>
+<span class="fc" id="L248">        NativeSymbol ret = table.get(name);</span>
+
+<span class="fc bfc" id="L250" title="All 2 branches covered.">        if (ret == null) {</span>
+<span class="fc" id="L251">            ret = construct(cx, scope, new Object[]{name});</span>
+<span class="fc" id="L252">            table.put(name, ret);</span>
+        }
+<span class="fc" id="L254">        return ret;</span>
+    }
+
+    private Object js_keyFor(Context cx, Scriptable scope, Object[] args) {
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">        Object s = (args.length &gt; 0 ? args[0] : Undefined.instance);</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (!(s instanceof NativeSymbol)) {</span>
+<span class="fc" id="L260">            throw ScriptRuntime.throwCustomError(cx, scope, &quot;TypeError&quot;, &quot;Not a Symbol&quot;);</span>
+        }
+<span class="fc" id="L262">        NativeSymbol sym = (NativeSymbol)s;</span>
+
+<span class="fc" id="L264">        Map&lt;String, NativeSymbol&gt; table = getGlobalMap();</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        for (Map.Entry&lt;String, NativeSymbol&gt; e : table.entrySet()) {</span>
+<span class="fc bfc" id="L266" title="All 2 branches covered.">            if (e.getValue().key == sym.key) {</span>
+<span class="fc" id="L267">                return e.getKey();</span>
+            }
+<span class="fc" id="L269">        }</span>
+<span class="fc" id="L270">        return Undefined.instance;</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L275">        return key.toString();</span>
+    }
+
+    // Symbol objects have a special property that one cannot add properties.
+
+    @Override
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        if (!isSymbol()) {</span>
+<span class="fc" id="L284">            super.put(name, start, value);</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        } else if (Context.getCurrentContext().isStrictMode()) {</span>
+<span class="nc" id="L286">            throw ScriptRuntime.typeError0(&quot;msg.no.assign.symbol.strict&quot;);</span>
+        }
+<span class="fc" id="L288">    }</span>
+
+    @Override
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        if (!isSymbol()) {</span>
+<span class="nc" id="L294">            super.put(index, start, value);</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        } else if (Context.getCurrentContext().isStrictMode()) {</span>
+<span class="nc" id="L296">            throw ScriptRuntime.typeError0(&quot;msg.no.assign.symbol.strict&quot;);</span>
+        }
+<span class="fc" id="L298">    }</span>
+
+    @Override
+    public void put(Symbol key, Scriptable start, Object value)
+    {
+<span class="nc bnc" id="L303" title="All 2 branches missed.">        if (!isSymbol()) {</span>
+<span class="nc" id="L304">            super.put(key, start, value);</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        } else if (Context.getCurrentContext().isStrictMode()) {</span>
+<span class="nc" id="L306">            throw ScriptRuntime.typeError0(&quot;msg.no.assign.symbol.strict&quot;);</span>
+        }
+<span class="nc" id="L308">    }</span>
+
+    /**
+     * Object() on a Symbol constructs an object which is NOT a symbol, but which has an &quot;internal data slot&quot;
+     * that is. Furthermore, such an object has the Symbol prototype so this particular object is still used.
+     * Account for that here: an &quot;Object&quot; that was created from a Symbol has a different value of the slot.
+     */
+    public boolean isSymbol()
+    {
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        return (symbolData == this);</span>
+    }
+
+    @Override
+    public String getTypeOf()
+    {
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">        return (isSymbol() ? TYPE_NAME : super.getTypeOf());</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="fc" id="L328">        return key.hashCode();</span>
+    }
+
+    @Override
+    public boolean equals(Object x) {
+<span class="fc" id="L333">        return key.equals(x);</span>
+    }
+
+    SymbolKey getKey() {
+<span class="fc" id="L337">        return key;</span>
+    }
+
+    private Map&lt;String, NativeSymbol&gt; getGlobalMap() {
+<span class="fc" id="L341">        ScriptableObject top = (ScriptableObject)getTopLevelScope(this);</span>
+<span class="fc" id="L342">        Map&lt;String, NativeSymbol&gt; map = (Map&lt;String, NativeSymbol&gt;)top.getAssociatedValue(GLOBAL_TABLE_KEY);</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">        if (map == null) {</span>
+<span class="fc" id="L344">            map = new HashMap&lt;String, NativeSymbol&gt;();</span>
+<span class="fc" id="L345">            top.associateValue(GLOBAL_TABLE_KEY, map);</span>
+        }
+<span class="fc" id="L347">        return map;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

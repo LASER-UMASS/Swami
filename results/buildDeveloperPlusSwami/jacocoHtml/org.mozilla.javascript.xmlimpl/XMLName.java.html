@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLName.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLName.java</span></div><h1>XMLName.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+
+class XMLName extends Ref {
+    static final long serialVersionUID = 3832176310755686977L;
+
+    private static boolean isNCNameStartChar(int c) {
+<span class="pc bpc" id="L15" title="1 of 2 branches missed.">        if ((c &amp; ~0x7F) == 0) {</span>
+            // Optimize for ASCII and use A..Z &lt; _ &lt; a..z
+<span class="pc bpc" id="L17" title="1 of 2 branches missed.">            if (c &gt;= 'a') {</span>
+<span class="pc bpc" id="L18" title="1 of 2 branches missed.">                return c &lt;= 'z';</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">            } else if (c &gt;= 'A') {</span>
+<span class="nc bnc" id="L20" title="All 2 branches missed.">                if (c &lt;= 'Z') {</span>
+<span class="nc" id="L21">                    return true;</span>
+                }
+<span class="nc bnc" id="L23" title="All 2 branches missed.">                return c == '_';</span>
+            }
+<span class="nc bnc" id="L25" title="All 2 branches missed.">        } else if ((c &amp; ~0x1FFF) == 0) {</span>
+<span class="nc bnc" id="L26" title="All 18 branches missed.">            return (0xC0 &lt;= c &amp;&amp; c &lt;= 0xD6)</span>
+            || (0xD8 &lt;= c &amp;&amp; c &lt;= 0xF6)
+            || (0xF8 &lt;= c &amp;&amp; c &lt;= 0x2FF)
+            || (0x370 &lt;= c &amp;&amp; c &lt;= 0x37D)
+            || 0x37F &lt;= c;
+        }
+<span class="nc bnc" id="L32" title="All 28 branches missed.">        return (0x200C &lt;= c &amp;&amp; c &lt;= 0x200D)</span>
+        || (0x2070 &lt;= c &amp;&amp; c &lt;= 0x218F)
+        || (0x2C00 &lt;= c &amp;&amp; c &lt;= 0x2FEF)
+        || (0x3001 &lt;= c &amp;&amp; c &lt;= 0xD7FF)
+        || (0xF900 &lt;= c &amp;&amp; c &lt;= 0xFDCF)
+        || (0xFDF0 &lt;= c &amp;&amp; c &lt;= 0xFFFD)
+        || (0x10000 &lt;= c &amp;&amp; c &lt;= 0xEFFFF);
+    }
+
+    private static boolean isNCNameChar(int c) {
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if ((c &amp; ~0x7F) == 0) {</span>
+            // Optimize for ASCII and use - &lt; . &lt; 0..9 &lt; A..Z &lt; _ &lt; a..z
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">            if (c &gt;= 'a') {</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">                return c &lt;= 'z';</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">            } else if (c &gt;= 'A') {</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                if (c &lt;= 'Z') {</span>
+<span class="nc" id="L48">                    return true;</span>
+                }
+<span class="nc bnc" id="L50" title="All 2 branches missed.">                return c == '_';</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">            } else if (c &gt;= '0') {</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">                return c &lt;= '9';</span>
+            } else {
+<span class="nc bnc" id="L54" title="All 4 branches missed.">                return c == '-' || c == '.';</span>
+            }
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        } else if ((c &amp; ~0x1FFF) == 0) {</span>
+<span class="nc bnc" id="L57" title="All 8 branches missed.">            return isNCNameStartChar(c) || c == 0xB7</span>
+                || (0x300 &lt;= c &amp;&amp; c &lt;= 0x36F);
+        }
+<span class="nc bnc" id="L60" title="All 6 branches missed.">        return isNCNameStartChar(c) || (0x203F &lt;= c &amp;&amp; c &lt;= 0x2040);</span>
+    }
+
+    //    This means &quot;accept&quot; in the parsing sense
+    //    See ECMA357 13.1.2.1
+    static boolean accept(Object nameObj) {
+        String name;
+        try {
+<span class="fc" id="L68">            name = ScriptRuntime.toString(nameObj);</span>
+<span class="nc" id="L69">        } catch (EcmaError ee) {</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (&quot;TypeError&quot;.equals(ee.getName())) {</span>
+<span class="nc" id="L71">                return false;</span>
+            }
+<span class="nc" id="L73">            throw ee;</span>
+<span class="fc" id="L74">        }</span>
+
+        // See http://w3.org/TR/xml-names11/#NT-NCName
+<span class="fc" id="L77">        int length = name.length();</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (length != 0) {</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">            if (isNCNameStartChar(name.charAt(0))) {</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                for (int i = 1; i != length; ++i) {</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">                    if (!isNCNameChar(name.charAt(i))) {</span>
+<span class="nc" id="L82">                        return false;</span>
+                    }
+                }
+<span class="fc" id="L85">                return true;</span>
+            }
+        }
+
+<span class="nc" id="L89">        return false;</span>
+    }
+
+    private XmlNode.QName qname;
+    private boolean isAttributeName;
+    private boolean isDescendants;
+    private XMLObjectImpl xmlObject;
+
+<span class="fc" id="L97">    private XMLName() {</span>
+<span class="fc" id="L98">    }</span>
+
+    static XMLName formStar() {
+<span class="fc" id="L101">        XMLName rv = new XMLName();</span>
+<span class="fc" id="L102">        rv.qname = XmlNode.QName.create(null, null);</span>
+<span class="fc" id="L103">        return rv;</span>
+    }
+
+    /** @deprecated */
+    @Deprecated
+    static XMLName formProperty(XmlNode.Namespace namespace, String localName) {
+<span class="pc bpc" id="L109" title="2 of 4 branches missed.">        if (localName != null &amp;&amp; localName.equals(&quot;*&quot;)) localName = null;</span>
+<span class="fc" id="L110">        XMLName rv = new XMLName();</span>
+<span class="fc" id="L111">        rv.qname = XmlNode.QName.create(namespace, localName);</span>
+<span class="fc" id="L112">        return rv;</span>
+    }
+
+    /** TODO: marked deprecated by original author */
+    static XMLName formProperty(String uri, String localName) {
+<span class="fc" id="L117">        return formProperty(XmlNode.Namespace.create(uri), localName);</span>
+    }
+
+    /** TODO: marked deprecated by original implementor */
+    static XMLName create(String defaultNamespaceUri, String name) {
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        if (name == null)</span>
+<span class="nc" id="L123">            throw new IllegalArgumentException();</span>
+
+<span class="fc" id="L125">        int l = name.length();</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        if (l != 0) {</span>
+<span class="fc" id="L127">            char firstChar = name.charAt(0);</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (firstChar == '*') {</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">                if (l == 1) {</span>
+<span class="fc" id="L130">                    return XMLName.formStar();</span>
+                }
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            } else if (firstChar == '@') {</span>
+<span class="fc" id="L133">                XMLName xmlName = XMLName.formProperty(&quot;&quot;, name.substring(1));</span>
+<span class="fc" id="L134">                xmlName.setAttributeName();</span>
+<span class="fc" id="L135">                return xmlName;</span>
+            }
+        }
+
+<span class="fc" id="L139">        return XMLName.formProperty(defaultNamespaceUri, name);</span>
+    }
+
+    static XMLName create(XmlNode.QName qname, boolean attribute, boolean descendants) {
+<span class="fc" id="L143">        XMLName rv = new XMLName();</span>
+<span class="fc" id="L144">        rv.qname = qname;</span>
+<span class="fc" id="L145">        rv.isAttributeName = attribute;</span>
+<span class="fc" id="L146">        rv.isDescendants = descendants;</span>
+<span class="fc" id="L147">        return rv;</span>
+    }
+
+    /** @deprecated */
+    @Deprecated
+    static XMLName create(XmlNode.QName qname) {
+<span class="nc" id="L153">        return create(qname, false, false);</span>
+    }
+
+    void initXMLObject(XMLObjectImpl xmlObject) {
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">        if (xmlObject == null) throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        if (this.xmlObject != null) throw new IllegalStateException();</span>
+<span class="fc" id="L159">        this.xmlObject = xmlObject;</span>
+<span class="fc" id="L160">    }</span>
+
+    String uri() {
+<span class="fc bfc" id="L163" title="All 2 branches covered.">        if (qname.getNamespace() == null) return null;</span>
+<span class="fc" id="L164">        return qname.getNamespace().getUri();</span>
+    }
+
+    String localName() {
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        if (qname.getLocalName() == null) return &quot;*&quot;;</span>
+<span class="fc" id="L169">        return qname.getLocalName();</span>
+    }
+
+    private void addDescendantChildren(XMLList list, XML target) {
+<span class="fc" id="L173">        XMLName xmlName = this;</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (target.isElement()) {</span>
+<span class="fc" id="L175">            XML[] children = target.getChildren();</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">            for (int i=0; i&lt;children.length; i++) {</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                if (xmlName.matches( children[i] )) {</span>
+<span class="fc" id="L178">                    list.addToList( children[i] );</span>
+                }
+<span class="fc" id="L180">                addDescendantChildren(list, children[i]);</span>
+            }
+        }
+<span class="fc" id="L183">    }</span>
+
+    void addMatchingAttributes(XMLList list, XML target) {
+<span class="fc" id="L186">        XMLName name = this;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (target.isElement()) {</span>
+<span class="fc" id="L188">            XML[] attributes = target.getAttributes();</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            for (int i=0; i&lt;attributes.length; i++) {</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">                if (name.matches( attributes[i]) ) {</span>
+<span class="fc" id="L191">                    list.addToList( attributes[i] );</span>
+                }
+            }
+        }
+<span class="fc" id="L195">    }</span>
+
+    private void addDescendantAttributes(XMLList list, XML target) {
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        if (target.isElement()) {</span>
+<span class="fc" id="L199">            addMatchingAttributes(list, target);</span>
+<span class="fc" id="L200">            XML[] children = target.getChildren();</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">            for (int i=0; i&lt;children.length; i++) {</span>
+<span class="fc" id="L202">                addDescendantAttributes(list, children[i]);</span>
+            }
+        }
+<span class="fc" id="L205">    }</span>
+
+    XMLList matchDescendantAttributes(XMLList rv, XML target) {
+<span class="fc" id="L208">        rv.setTargets(target, null);</span>
+<span class="fc" id="L209">        addDescendantAttributes(rv, target);</span>
+<span class="fc" id="L210">        return rv;</span>
+    }
+
+    XMLList matchDescendantChildren(XMLList rv, XML target) {
+<span class="fc" id="L214">        rv.setTargets(target, null);</span>
+<span class="fc" id="L215">        addDescendantChildren(rv, target);</span>
+<span class="fc" id="L216">        return rv;</span>
+    }
+
+    void addDescendants(XMLList rv, XML target) {
+<span class="fc" id="L220">        XMLName xmlName = this;</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        if (xmlName.isAttributeName()) {</span>
+<span class="fc" id="L222">            matchDescendantAttributes(rv, target);</span>
+        } else {
+<span class="fc" id="L224">            matchDescendantChildren(rv, target);</span>
+        }
+<span class="fc" id="L226">    }</span>
+
+    private void addAttributes(XMLList rv, XML target) {
+<span class="fc" id="L229">        addMatchingAttributes(rv, target);</span>
+<span class="fc" id="L230">    }</span>
+
+    void addMatches(XMLList rv, XML target) {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (isDescendants()) {</span>
+<span class="fc" id="L234">            addDescendants(rv, target);</span>
+<span class="fc bfc" id="L235" title="All 2 branches covered.">        } else if (isAttributeName()) {</span>
+<span class="fc" id="L236">            addAttributes(rv, target);</span>
+        } else {
+<span class="fc" id="L238">            XML[] children = target.getChildren();</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">            if (children != null) {</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">                for (int i=0; i&lt;children.length; i++) {</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">                    if (this.matches(children[i])) {</span>
+<span class="fc" id="L242">                        rv.addToList( children[i] );</span>
+                    }
+                }
+            }
+<span class="fc" id="L246">            rv.setTargets(target, this.toQname());</span>
+        }
+<span class="fc" id="L248">    }</span>
+
+    XMLList getMyValueOn(XML target) {
+<span class="fc" id="L251">        XMLList rv = target.newXMLList();</span>
+<span class="fc" id="L252">        addMatches(rv, target);</span>
+<span class="fc" id="L253">        return rv;</span>
+    }
+
+    void setMyValueOn(XML target, Object value) {
+        // Special-case checks for undefined and null
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L259">            value = &quot;null&quot;;</span>
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">        } else if (value instanceof Undefined) {</span>
+<span class="nc" id="L261">            value = &quot;undefined&quot;;</span>
+        }
+
+<span class="fc" id="L264">        XMLName xmlName = this;</span>
+        // Get the named property
+<span class="fc bfc" id="L266" title="All 2 branches covered.">        if (xmlName.isAttributeName()) {</span>
+<span class="fc" id="L267">            target.setAttribute(xmlName, value);</span>
+<span class="pc bpc" id="L268" title="1 of 4 branches missed.">        } else if (xmlName.uri() == null &amp;&amp; xmlName.localName().equals(&quot;*&quot;)) {</span>
+<span class="fc" id="L269">            target.setChildren(value);</span>
+        } else {
+            // Convert text into XML if needed.
+<span class="fc" id="L272">            XMLObjectImpl xmlValue = null;</span>
+
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            if (value instanceof XMLObjectImpl) {</span>
+<span class="fc" id="L275">                xmlValue = (XMLObjectImpl)value;</span>
+
+                // Check for attribute type and convert to textNode
+<span class="fc bfc" id="L278" title="All 2 branches covered.">                if (xmlValue instanceof XML) {</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">                    if (((XML)xmlValue).isAttribute()) {</span>
+<span class="nc" id="L280">                        xmlValue = target.makeXmlFromString(xmlName,</span>
+<span class="nc" id="L281">                                xmlValue.toString());</span>
+                    }
+                }
+
+<span class="fc bfc" id="L285" title="All 2 branches covered.">                if (xmlValue instanceof XMLList) {</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">                    for (int i = 0; i &lt; xmlValue.length(); i++) {</span>
+<span class="fc" id="L287">                        XML xml = ((XMLList) xmlValue).item(i);</span>
+
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                        if (xml.isAttribute()) {</span>
+<span class="nc" id="L290">                            ((XMLList)xmlValue).replace(i, target.makeXmlFromString(xmlName, xml.toString()));</span>
+                        }
+                    }
+                }
+            } else {
+<span class="fc" id="L295">                xmlValue = target.makeXmlFromString(xmlName, ScriptRuntime.toString(value));</span>
+            }
+
+<span class="fc" id="L298">            XMLList matches = target.getPropertyList(xmlName);</span>
+
+<span class="fc bfc" id="L300" title="All 2 branches covered.">            if (matches.length() == 0) {</span>
+<span class="fc" id="L301">                target.appendChild(xmlValue);</span>
+            } else {
+                // Remove all other matches
+<span class="fc bfc" id="L304" title="All 2 branches covered.">                for (int i = 1; i &lt; matches.length(); i++) {</span>
+<span class="fc" id="L305">                    target.removeChild(matches.item(i).childIndex());</span>
+                }
+
+                // Replace first match with new value.
+<span class="fc" id="L309">                XML firstMatch = matches.item(0);</span>
+<span class="fc" id="L310">                target.replace(firstMatch.childIndex(), xmlValue);</span>
+            }
+        }
+<span class="fc" id="L313">    }</span>
+
+    @Override
+    public boolean has(Context cx) {
+<span class="nc bnc" id="L317" title="All 2 branches missed.">        if (xmlObject == null) {</span>
+<span class="nc" id="L318">            return false;</span>
+        }
+<span class="nc" id="L320">        return xmlObject.hasXMLProperty(this);</span>
+    }
+
+    @Override
+    public Object get(Context cx) {
+<span class="pc bpc" id="L325" title="1 of 2 branches missed.">        if (xmlObject == null) {</span>
+<span class="nc" id="L326">            throw ScriptRuntime.undefReadError(Undefined.instance,</span>
+<span class="nc" id="L327">                toString());</span>
+        }
+<span class="fc" id="L329">        return xmlObject.getXMLProperty(this);</span>
+    }
+
+    @Override
+    public Object set(Context cx, Object value) {
+<span class="pc bpc" id="L334" title="1 of 2 branches missed.">        if (xmlObject == null) {</span>
+<span class="nc" id="L335">            throw ScriptRuntime.undefWriteError(Undefined.instance,</span>
+<span class="nc" id="L336">                toString(),</span>
+                value);
+        }
+        // Assignment to descendants causes parse error on bad reference
+        // and this should not be called
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        if (isDescendants) throw Kit.codeBug();</span>
+<span class="fc" id="L342">        xmlObject.putXMLProperty(this, value);</span>
+<span class="fc" id="L343">        return value;</span>
+    }
+
+    @Override
+    public boolean delete(Context cx) {
+<span class="pc bpc" id="L348" title="1 of 2 branches missed.">        if (xmlObject == null) {</span>
+<span class="nc" id="L349">            return true;</span>
+        }
+<span class="fc" id="L351">        xmlObject.deleteXMLProperty(this);</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        return !xmlObject.hasXMLProperty(this);</span>
+    }
+
+    @Override
+    public String toString() {
+        //return qname.localName();
+<span class="nc" id="L358">        StringBuilder buff = new StringBuilder();</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        if (isDescendants) buff.append(&quot;..&quot;);</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">        if (isAttributeName) buff.append('@');</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">        if (uri() == null) {</span>
+<span class="nc" id="L362">            buff.append('*');</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">            if(localName().equals(&quot;*&quot;)) {</span>
+<span class="nc" id="L364">                return buff.toString();</span>
+            }
+        } else {
+<span class="nc" id="L367">            buff.append('&quot;').append(uri()).append('&quot;');</span>
+        }
+<span class="nc" id="L369">        buff.append(':').append(localName());</span>
+<span class="nc" id="L370">        return buff.toString();</span>
+    }
+
+    final XmlNode.QName toQname() {
+<span class="fc" id="L374">        return this.qname;</span>
+    }
+
+    final boolean matchesLocalName(String localName) {
+<span class="nc bnc" id="L378" title="All 4 branches missed.">        return localName().equals(&quot;*&quot;) || localName().equals(localName);</span>
+    }
+
+    final boolean matchesElement(XmlNode.QName qname) {
+<span class="pc bpc" id="L382" title="2 of 4 branches missed.">        if (this.uri() == null || this.uri().equals(qname.getNamespace().getUri())) {</span>
+<span class="pc bpc" id="L383" title="1 of 4 branches missed.">            if (this.localName().equals(&quot;*&quot;) || this.localName().equals(qname.getLocalName())) {</span>
+<span class="fc" id="L384">                return true;</span>
+            }
+        }
+<span class="fc" id="L387">        return false;</span>
+    }
+
+    final boolean matches(XML node) {
+<span class="fc" id="L391">        XmlNode.QName qname = node.getNodeQname();</span>
+<span class="fc" id="L392">        String nodeUri = null;</span>
+<span class="pc bpc" id="L393" title="1 of 2 branches missed.">        if (qname.getNamespace() != null) {</span>
+<span class="fc" id="L394">            nodeUri = qname.getNamespace().getUri();</span>
+        }
+<span class="fc bfc" id="L396" title="All 2 branches covered.">        if (isAttributeName) {</span>
+<span class="pc bpc" id="L397" title="1 of 2 branches missed.">            if (node.isAttribute()) {</span>
+<span class="fc bfc" id="L398" title="All 4 branches covered.">                if (this.uri() == null || this.uri().equals(nodeUri)) {</span>
+<span class="fc bfc" id="L399" title="All 4 branches covered.">                    if (this.localName().equals(&quot;*&quot;) || this.localName().equals(qname.getLocalName())) {</span>
+<span class="fc" id="L400">                        return true;</span>
+                    }
+                }
+<span class="fc" id="L403">                return false;</span>
+            } else {
+                //    TODO    Could throw exception maybe, should not call this method on attribute name with arbitrary node type
+                //            unless we traverse all attributes and children habitually
+<span class="nc" id="L407">                return false;</span>
+            }
+        } else {
+<span class="fc bfc" id="L410" title="All 6 branches covered.">            if ( this.uri() == null || ((node.isElement()) &amp;&amp; this.uri().equals(nodeUri)) ) {</span>
+<span class="fc bfc" id="L411" title="All 2 branches covered.">                if (localName().equals(&quot;*&quot;)) return true;</span>
+<span class="pc bpc" id="L412" title="1 of 2 branches missed.">                if (node.isElement()) {</span>
+<span class="fc bfc" id="L413" title="All 2 branches covered.">                    if (localName().equals(qname.getLocalName())) return true;</span>
+                }
+            }
+<span class="fc" id="L416">            return false;</span>
+        }
+    }
+
+    /* TODO: marked deprecated by original author */
+    boolean isAttributeName() {
+<span class="fc" id="L422">        return isAttributeName;</span>
+    }
+
+    // TODO Fix whether this is an attribute XMLName at construction?
+    // Marked deprecated by original author
+    void setAttributeName() {
+//        if (isAttributeName) throw new IllegalStateException();
+<span class="fc" id="L429">        isAttributeName = true;</span>
+<span class="fc" id="L430">    }</span>
+
+    /* TODO: was marked deprecated by original author */
+    boolean isDescendants() {
+<span class="fc" id="L434">        return isDescendants;</span>
+    }
+
+    //    TODO    Fix whether this is an descendant XMLName at construction?
+    /** @deprecated */
+    @Deprecated
+    void setIsDescendants() {
+//        if (isDescendants) throw new IllegalStateException();
+<span class="nc" id="L442">        isDescendants = true;</span>
+<span class="nc" id="L443">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

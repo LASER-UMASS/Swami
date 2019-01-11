@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeNumber.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeNumber.java</span></div><h1>NativeNumber.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the Number native object.
+ *
+ * See ECMA 15.7.
+ *
+ * @author Norris Boyd
+ */
+final class NativeNumber extends IdScriptableObject
+{
+    static final long serialVersionUID = 3504516769741512101L;
+
+<span class="fc" id="L20">    private static final Object NUMBER_TAG = &quot;Number&quot;;</span>
+
+    private static final int MAX_PRECISION = 100;
+<span class="fc" id="L23">    private static final double MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;</span>
+<span class="fc" id="L24">    private static final double MIN_SAFE_INTEGER = -MAX_SAFE_INTEGER;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L28">        NativeNumber obj = new NativeNumber(0.0);</span>
+<span class="fc" id="L29">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L30">    }</span>
+
+    NativeNumber(double number)
+<span class="fc" id="L33">    {</span>
+<span class="fc" id="L34">        doubleValue = number;</span>
+<span class="fc" id="L35">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L40">        return &quot;Number&quot;;</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L46">        final int attr = ScriptableObject.DONTENUM |</span>
+                         ScriptableObject.PERMANENT |
+                         ScriptableObject.READONLY;
+
+<span class="fc" id="L50">        ctor.defineProperty(&quot;NaN&quot;, ScriptRuntime.NaNobj, attr);</span>
+<span class="fc" id="L51">        ctor.defineProperty(&quot;POSITIVE_INFINITY&quot;,</span>
+<span class="fc" id="L52">                            ScriptRuntime.wrapNumber(Double.POSITIVE_INFINITY),</span>
+                            attr);
+<span class="fc" id="L54">        ctor.defineProperty(&quot;NEGATIVE_INFINITY&quot;,</span>
+<span class="fc" id="L55">                            ScriptRuntime.wrapNumber(Double.NEGATIVE_INFINITY),</span>
+                            attr);
+<span class="fc" id="L57">        ctor.defineProperty(&quot;MAX_VALUE&quot;,</span>
+<span class="fc" id="L58">                            ScriptRuntime.wrapNumber(Double.MAX_VALUE),</span>
+                            attr);
+<span class="fc" id="L60">        ctor.defineProperty(&quot;MIN_VALUE&quot;,</span>
+<span class="fc" id="L61">                            ScriptRuntime.wrapNumber(Double.MIN_VALUE),</span>
+                            attr);
+<span class="fc" id="L63">        ctor.defineProperty(&quot;MAX_SAFE_INTEGER&quot;,</span>
+<span class="fc" id="L64">                            ScriptRuntime.wrapNumber(MAX_SAFE_INTEGER),</span>
+                            attr);
+<span class="fc" id="L66">        ctor.defineProperty(&quot;MIN_SAFE_INTEGER&quot;,</span>
+<span class="fc" id="L67">                            ScriptRuntime.wrapNumber(MIN_SAFE_INTEGER),</span>
+                            attr);
+
+<span class="fc" id="L70">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isFinite, &quot;isFinite&quot;, 1);</span>
+<span class="fc" id="L71">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isNaN, &quot;isNaN&quot;, 1);</span>
+<span class="fc" id="L72">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isInteger, &quot;isInteger&quot;, 1);</span>
+<span class="fc" id="L73">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_isSafeInteger, &quot;isSafeInteger&quot;, 1);</span>
+<span class="fc" id="L74">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_parseFloat, &quot;parseFloat&quot;, 1);</span>
+<span class="fc" id="L75">        addIdFunctionProperty(ctor, NUMBER_TAG, ConstructorId_parseInt, &quot;parseInt&quot;, 1);</span>
+
+<span class="fc" id="L77">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L78">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L85" title="1 of 9 branches missed.">        switch (id) {</span>
+<span class="fc" id="L86">          case Id_constructor:    arity=1; s=&quot;constructor&quot;;    break;</span>
+<span class="fc" id="L87">          case Id_toString:       arity=1; s=&quot;toString&quot;;       break;</span>
+<span class="fc" id="L88">          case Id_toLocaleString: arity=1; s=&quot;toLocaleString&quot;; break;</span>
+<span class="fc" id="L89">          case Id_toSource:       arity=0; s=&quot;toSource&quot;;       break;</span>
+<span class="fc" id="L90">          case Id_valueOf:        arity=0; s=&quot;valueOf&quot;;        break;</span>
+<span class="fc" id="L91">          case Id_toFixed:        arity=1; s=&quot;toFixed&quot;;        break;</span>
+<span class="fc" id="L92">          case Id_toExponential:  arity=1; s=&quot;toExponential&quot;;  break;</span>
+<span class="fc" id="L93">          case Id_toPrecision:    arity=1; s=&quot;toPrecision&quot;;    break;</span>
+<span class="nc" id="L94">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L96">        initPrototypeMethod(NUMBER_TAG, id, s, arity);</span>
+<span class="fc" id="L97">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (!f.hasTag(NUMBER_TAG)) {</span>
+<span class="nc" id="L104">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L106">        int id = f.methodId();</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (id == Id_constructor) {</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            double val = (args.length &gt;= 1)</span>
+<span class="fc" id="L109">                ? ScriptRuntime.toNumber(args[0]) : 0.0;</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            if (thisObj == null) {</span>
+                // new Number(val) creates a new Number object.
+<span class="fc" id="L112">                return new NativeNumber(val);</span>
+            }
+            // Number(val) converts val to a number value.
+<span class="fc" id="L115">            return ScriptRuntime.wrapNumber(val);</span>
+
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        } else if (id &lt; Id_constructor) {</span>
+<span class="fc" id="L118">            return execConstructorCall(id, args);</span>
+        }
+
+        // The rest of Number.prototype methods require thisObj to be Number
+
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (!(thisObj instanceof NativeNumber))</span>
+<span class="nc" id="L124">            throw incompatibleCallError(f);</span>
+<span class="fc" id="L125">        double value = ((NativeNumber)thisObj).doubleValue;</span>
+
+<span class="pc bpc" id="L127" title="1 of 7 branches missed.">        switch (id) {</span>
+
+          case Id_toString:
+          case Id_toLocaleString:
+            {
+                // toLocaleString is just an alias for toString for now
+<span class="fc bfc" id="L133" title="All 4 branches covered.">                int base = (args.length == 0 || args[0] == Undefined.instance)</span>
+<span class="fc" id="L134">                    ? 10 : ScriptRuntime.toInt32(args[0]);</span>
+<span class="fc" id="L135">                return ScriptRuntime.numberToString(value, base);</span>
+            }
+
+          case Id_toSource:
+<span class="fc" id="L139">            return &quot;(new Number(&quot;+ScriptRuntime.toString(value)+&quot;))&quot;;</span>
+
+          case Id_valueOf:
+<span class="fc" id="L142">            return ScriptRuntime.wrapNumber(value);</span>
+
+          case Id_toFixed:
+<span class="fc" id="L145">            return num_to(value, args, DToA.DTOSTR_FIXED,</span>
+                          DToA.DTOSTR_FIXED, -20, 0);
+
+          case Id_toExponential: {
+              // Handle special values before range check
+<span class="fc bfc" id="L150" title="All 2 branches covered.">              if(Double.isNaN(value)) {</span>
+<span class="fc" id="L151">                  return &quot;NaN&quot;;</span>
+              }
+<span class="fc bfc" id="L153" title="All 2 branches covered.">              if(Double.isInfinite(value)) {</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">                  if(value &gt;= 0) {</span>
+<span class="fc" id="L155">                      return &quot;Infinity&quot;;</span>
+                  }
+                  else {
+<span class="fc" id="L158">                      return &quot;-Infinity&quot;;</span>
+                  }
+              }
+              // General case
+<span class="fc" id="L162">              return num_to(value, args, DToA.DTOSTR_STANDARD_EXPONENTIAL,</span>
+                      DToA.DTOSTR_EXPONENTIAL, 0, 1);
+          }
+
+          case Id_toPrecision: {
+              // Undefined precision, fall back to ToString()
+<span class="pc bpc" id="L168" title="1 of 4 branches missed.">              if(args.length == 0 || args[0] == Undefined.instance) {</span>
+<span class="fc" id="L169">                  return ScriptRuntime.numberToString(value, 10);</span>
+              }
+              // Handle special values before range check
+<span class="fc bfc" id="L172" title="All 2 branches covered.">              if(Double.isNaN(value)) {</span>
+<span class="fc" id="L173">                  return &quot;NaN&quot;;</span>
+              }
+<span class="fc bfc" id="L175" title="All 2 branches covered.">              if(Double.isInfinite(value)) {</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                  if(value &gt;= 0) {</span>
+<span class="fc" id="L177">                      return &quot;Infinity&quot;;</span>
+                  }
+                  else {
+<span class="fc" id="L180">                      return &quot;-Infinity&quot;;</span>
+                  }
+              }
+<span class="fc" id="L183">              return num_to(value, args, DToA.DTOSTR_STANDARD,</span>
+                      DToA.DTOSTR_PRECISION, 1, 0);
+          }
+
+<span class="nc" id="L187">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    private Object execConstructorCall(int id, Object[] args)
+    {
+<span class="pc bpc" id="L193" title="1 of 7 branches missed.">        switch (id) {</span>
+        case ConstructorId_isFinite:
+<span class="pc bpc" id="L195" title="1 of 4 branches missed.">            if ((args.length == 0) || (Undefined.instance == args[0])) {</span>
+<span class="fc" id="L196">                return false;</span>
+            }
+<span class="fc bfc" id="L198" title="All 2 branches covered.">            if (args[0] instanceof Number) {</span>
+                // Match ES6 polyfill, which only works for &quot;number&quot; types
+<span class="fc" id="L200">                return isFinite(args[0]);</span>
+            }
+<span class="fc" id="L202">            return false;</span>
+
+        case ConstructorId_isNaN:
+<span class="pc bpc" id="L205" title="1 of 4 branches missed.">            if ((args.length == 0) || (Undefined.instance == args[0])) {</span>
+<span class="fc" id="L206">                return false;</span>
+            }
+<span class="fc bfc" id="L208" title="All 2 branches covered.">            if (args[0] instanceof Number) {</span>
+<span class="fc" id="L209">                return isNaN((Number)args[0]);</span>
+            }
+<span class="fc" id="L211">            return false;</span>
+
+        case ConstructorId_isInteger:
+<span class="pc bpc" id="L214" title="1 of 4 branches missed.">            if ((args.length == 0) || (Undefined.instance == args[0])) {</span>
+<span class="fc" id="L215">                return false;</span>
+            }
+<span class="fc bfc" id="L217" title="All 2 branches covered.">            if (args[0] instanceof Number) {</span>
+<span class="fc" id="L218">                return isInteger((Number)args[0]);</span>
+            }
+<span class="fc" id="L220">            return false;</span>
+
+        case ConstructorId_isSafeInteger:
+<span class="pc bpc" id="L223" title="1 of 4 branches missed.">            if ((args.length == 0) || (Undefined.instance == args[0])) {</span>
+<span class="fc" id="L224">                return false;</span>
+            }
+<span class="fc bfc" id="L226" title="All 2 branches covered.">            if (args[0] instanceof Number) {</span>
+<span class="fc" id="L227">                return isSafeInteger((Number)args[0]);</span>
+            }
+<span class="fc" id="L229">            return false;</span>
+
+        case ConstructorId_parseFloat:
+<span class="fc" id="L232">            return NativeGlobal.js_parseFloat(args);</span>
+
+        case ConstructorId_parseInt:
+<span class="fc" id="L235">            return NativeGlobal.js_parseInt(args);</span>
+
+        default:
+<span class="nc" id="L238">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L244">        return ScriptRuntime.numberToString(doubleValue, 10);</span>
+    }
+
+    private static String num_to(double val,
+                                 Object[] args,
+                                 int zeroArgMode, int oneArgMode,
+                                 int precisionMin, int precisionOffset)
+    {
+        int precision;
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        if (args.length == 0) {</span>
+<span class="fc" id="L254">            precision = 0;</span>
+<span class="fc" id="L255">            oneArgMode = zeroArgMode;</span>
+        } else {
+            /* We allow a larger range of precision than
+               ECMA requires; this is permitted by ECMA. */
+<span class="fc" id="L259">            double p = ScriptRuntime.toInteger(args[0]);</span>
+<span class="pc bpc" id="L260" title="2 of 4 branches missed.">            if (p &lt; precisionMin || p &gt; MAX_PRECISION) {</span>
+<span class="nc" id="L261">                String msg = ScriptRuntime.getMessage1(</span>
+<span class="nc" id="L262">                    &quot;msg.bad.precision&quot;, ScriptRuntime.toString(args[0]));</span>
+<span class="nc" id="L263">                throw ScriptRuntime.constructError(&quot;RangeError&quot;, msg);</span>
+            }
+<span class="fc" id="L265">            precision = ScriptRuntime.toInt32(p);</span>
+        }
+<span class="fc" id="L267">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L268">        DToA.JS_dtostr(sb, oneArgMode, precision + precisionOffset, val);</span>
+<span class="fc" id="L269">        return sb.toString();</span>
+    }
+
+    static Object isFinite(Object val)
+    {
+<span class="fc" id="L274">        double d = ScriptRuntime.toNumber(val);</span>
+<span class="fc" id="L275">        Double nd = Double.valueOf(d);</span>
+<span class="fc bfc" id="L276" title="All 4 branches covered.">        return ScriptRuntime.wrapBoolean(!nd.isInfinite() &amp;&amp; !nd.isNaN());</span>
+    }
+
+    private Object isNaN(Number val)
+    {
+<span class="fc" id="L281">        Double nd = doubleVal(val);</span>
+<span class="fc" id="L282">        return ScriptRuntime.toBoolean(isDoubleNan(nd));</span>
+    }
+
+    private boolean isDoubleNan(Double d)
+    {
+<span class="fc" id="L287">        return d.isNaN();</span>
+    }
+
+    private boolean isInteger(Number val)
+    {
+<span class="fc" id="L292">        Double nd = doubleVal(val);</span>
+<span class="fc" id="L293">        return ScriptRuntime.toBoolean(isDoubleInteger(nd));</span>
+    }
+
+    private boolean isDoubleInteger(Double d)
+    {
+<span class="fc bfc" id="L298" title="All 4 branches covered.">        return (!d.isInfinite() &amp;&amp; !d.isNaN() &amp;&amp;</span>
+<span class="fc bfc" id="L299" title="All 2 branches covered.">                (Math.floor(d.doubleValue()) == d.doubleValue()));</span>
+    }
+
+    private boolean isSafeInteger(Number val)
+    {
+<span class="fc" id="L304">        Double nd = doubleVal(val);</span>
+<span class="fc" id="L305">        return ScriptRuntime.toBoolean(isDoubleSafeInteger(nd));</span>
+    }
+
+    private boolean isDoubleSafeInteger(Double d)
+    {
+<span class="fc bfc" id="L310" title="All 2 branches covered.">        return (isDoubleInteger(d) &amp;&amp;</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">                (d.doubleValue() &lt;= MAX_SAFE_INTEGER) &amp;&amp;</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">                (d.doubleValue() &gt;= MIN_SAFE_INTEGER));</span>
+    }
+
+    private Double doubleVal(Number val)
+    {
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        if (val instanceof Double) {</span>
+<span class="fc" id="L318">            return (Double)val;</span>
+        } else {
+<span class="fc" id="L320">            double d = val.doubleValue();</span>
+<span class="fc" id="L321">            return Double.valueOf(d);</span>
+        }
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:50 EDT
+<span class="fc" id="L332">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc bfc" id="L333" title="All 6 branches covered.">            L: switch (s.length()) {</span>
+<span class="fc" id="L334">            case 7: c=s.charAt(0);</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">                if (c=='t') { X=&quot;toFixed&quot;;id=Id_toFixed; }</span>
+<span class="fc bfc" id="L336" title="All 2 branches covered.">                else if (c=='v') { X=&quot;valueOf&quot;;id=Id_valueOf; }</span>
+                break L;
+<span class="fc" id="L338">            case 8: c=s.charAt(3);</span>
+<span class="fc bfc" id="L339" title="All 2 branches covered.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+<span class="fc" id="L342">            case 11: c=s.charAt(0);</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">                if (c=='c') { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">                else if (c=='t') { X=&quot;toPrecision&quot;;id=Id_toPrecision; }</span>
+                break L;
+<span class="fc" id="L346">            case 13: X=&quot;toExponential&quot;;id=Id_toExponential; break L;</span>
+<span class="fc" id="L347">            case 14: X=&quot;toLocaleString&quot;;id=Id_toLocaleString; break L;</span>
+            }
+<span class="fc bfc" id="L349" title="All 6 branches covered.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L353">        return id;</span>
+    }
+
+    private static final int
+        ConstructorId_isFinite       = -1,
+        ConstructorId_isNaN          = -2,
+        ConstructorId_isInteger      = -3,
+        ConstructorId_isSafeInteger  = -4,
+        ConstructorId_parseFloat     = -5,
+        ConstructorId_parseInt       = -6,
+
+        Id_constructor           = 1,
+        Id_toString              = 2,
+        Id_toLocaleString        = 3,
+        Id_toSource              = 4,
+        Id_valueOf               = 5,
+        Id_toFixed               = 6,
+        Id_toExponential         = 7,
+        Id_toPrecision           = 8,
+        MAX_PROTOTYPE_ID         = 8;
+
+// #/string_id_map#
+
+    private double doubleValue;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

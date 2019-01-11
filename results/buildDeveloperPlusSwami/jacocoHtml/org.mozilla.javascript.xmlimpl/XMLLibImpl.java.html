@@ -1,0 +1,640 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLLibImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLLibImpl.java</span></div><h1>XMLLibImpl.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import java.io.Serializable;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.xml.*;
+import org.xml.sax.SAXException;
+
+public final class XMLLibImpl extends XMLLib implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    //
+    //    EXPERIMENTAL Java interface
+    //
+
+    /**
+        This experimental interface is undocumented.
+     */
+    public static org.w3c.dom.Node toDomNode(Object xmlObject) {
+        //    Could return DocumentFragment for XMLList
+        //    Probably a single node for XMLList with one element
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        if (xmlObject instanceof XML) {</span>
+<span class="nc" id="L29">            return ((XML)xmlObject).toDomNode();</span>
+        } else {
+<span class="nc" id="L31">            throw new IllegalArgumentException(</span>
+                    &quot;xmlObject is not an XML object in JavaScript.&quot;);
+        }
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed) {
+<span class="fc" id="L37">        XMLLibImpl lib = new XMLLibImpl(scope);</span>
+<span class="fc" id="L38">        XMLLib bound = lib.bindToScope(scope);</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        if (bound == lib) {</span>
+<span class="fc" id="L40">            lib.exportToScope(sealed);</span>
+        }
+<span class="fc" id="L42">    }</span>
+
+    @Override
+    public void setIgnoreComments(boolean b) {
+<span class="nc" id="L46">        options.setIgnoreComments(b);</span>
+<span class="nc" id="L47">    }</span>
+
+    @Override
+    public void setIgnoreWhitespace(boolean b) {
+<span class="nc" id="L51">        options.setIgnoreWhitespace(b);</span>
+<span class="nc" id="L52">    }</span>
+
+    @Override
+    public void setIgnoreProcessingInstructions(boolean b) {
+<span class="nc" id="L56">        options.setIgnoreProcessingInstructions(b);</span>
+<span class="nc" id="L57">    }</span>
+
+    @Override
+    public void setPrettyPrinting(boolean b) {
+<span class="fc" id="L61">        options.setPrettyPrinting(b);</span>
+<span class="fc" id="L62">    }</span>
+
+    @Override
+    public void setPrettyIndent(int i) {
+<span class="nc" id="L66">        options.setPrettyIndent(i);</span>
+<span class="nc" id="L67">    }</span>
+
+    @Override
+    public boolean isIgnoreComments() {
+<span class="nc" id="L71">        return options.isIgnoreComments();</span>
+    }
+
+    @Override
+    public boolean isIgnoreProcessingInstructions() {
+<span class="nc" id="L76">        return options.isIgnoreProcessingInstructions();</span>
+    }
+
+    @Override
+    public boolean isIgnoreWhitespace() {
+<span class="nc" id="L81">        return options.isIgnoreWhitespace();</span>
+    }
+
+    @Override
+    public  boolean isPrettyPrinting() {
+<span class="fc" id="L86">        return options.isPrettyPrinting();</span>
+    }
+
+    @Override
+    public int getPrettyIndent() {
+<span class="nc" id="L91">        return options.getPrettyIndent();</span>
+    }
+
+
+    private Scriptable globalScope;
+
+    private XML xmlPrototype;
+    private XMLList xmlListPrototype;
+    private Namespace namespacePrototype;
+    private QName qnamePrototype;
+
+<span class="fc" id="L102">    private XmlProcessor options = new XmlProcessor();</span>
+
+<span class="fc" id="L104">    private XMLLibImpl(Scriptable globalScope) {</span>
+<span class="fc" id="L105">        this.globalScope = globalScope;</span>
+<span class="fc" id="L106">    }</span>
+
+    /** @deprecated */
+    @Deprecated
+    QName qnamePrototype() {
+<span class="nc" id="L111">        return qnamePrototype;</span>
+    }
+
+    /** @deprecated */
+    @Deprecated
+    Scriptable globalScope() {
+<span class="nc" id="L117">        return globalScope;</span>
+    }
+
+    XmlProcessor getProcessor() {
+<span class="fc" id="L121">        return options;</span>
+    }
+
+    private void exportToScope(boolean sealed) {
+<span class="fc" id="L125">        xmlPrototype = newXML(XmlNode.createText(options, &quot;&quot;));</span>
+<span class="fc" id="L126">        xmlListPrototype = newXMLList();</span>
+<span class="fc" id="L127">        namespacePrototype = Namespace.create(this.globalScope, null,</span>
+                XmlNode.Namespace.GLOBAL);
+<span class="fc" id="L129">        qnamePrototype = QName.create(this, this.globalScope, null,</span>
+<span class="fc" id="L130">                XmlNode.QName.create(XmlNode.Namespace.create(&quot;&quot;), &quot;&quot;));</span>
+
+<span class="fc" id="L132">        xmlPrototype.exportAsJSClass(sealed);</span>
+<span class="fc" id="L133">        xmlListPrototype.exportAsJSClass(sealed);</span>
+<span class="fc" id="L134">        namespacePrototype.exportAsJSClass(sealed);</span>
+<span class="fc" id="L135">        qnamePrototype.exportAsJSClass(sealed);</span>
+<span class="fc" id="L136">    }</span>
+
+    /** @deprecated */
+    @Deprecated
+    XMLName toAttributeName(Context cx, Object nameValue) {
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        if (nameValue instanceof XMLName) {</span>
+            //    TODO    Will this always be an XMLName of type attribute name?
+<span class="nc" id="L143">            return (XMLName)nameValue;</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        } else if (nameValue instanceof QName) {</span>
+<span class="nc" id="L145">            return XMLName.create( ((QName)nameValue).getDelegate(), true, false );</span>
+<span class="pc bpc" id="L146" title="4 of 8 branches missed.">        } else if (nameValue instanceof Boolean</span>
+            || nameValue instanceof Number
+            || nameValue == Undefined.instance
+            || nameValue == null) {
+<span class="nc" id="L150">            throw badXMLName(nameValue);</span>
+        } else {
+            //    TODO    Not 100% sure that putting these in global namespace is the right thing to do
+<span class="fc" id="L153">            String localName = null;</span>
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">            if (nameValue instanceof String) {</span>
+<span class="fc" id="L155">                localName = (String)nameValue;</span>
+            } else {
+<span class="nc" id="L157">                localName = ScriptRuntime.toString(nameValue);</span>
+            }
+<span class="pc bpc" id="L159" title="2 of 4 branches missed.">            if (localName != null &amp;&amp; localName.equals(&quot;*&quot;)) localName = null;</span>
+<span class="fc" id="L160">            return XMLName.create(XmlNode.QName.create(</span>
+<span class="fc" id="L161">                    XmlNode.Namespace.create(&quot;&quot;), localName), true, false);</span>
+        }
+    }
+
+    private static RuntimeException badXMLName(Object value)
+    {
+        String msg;
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        if (value instanceof Number) {</span>
+<span class="nc" id="L169">            msg = &quot;Can not construct XML name from number: &quot;;</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        } else if (value instanceof Boolean) {</span>
+<span class="nc" id="L171">            msg = &quot;Can not construct XML name from boolean: &quot;;</span>
+<span class="pc bpc" id="L172" title="1 of 4 branches missed.">        } else if (value == Undefined.instance || value == null) {</span>
+<span class="fc" id="L173">            msg = &quot;Can not construct XML name from &quot;;</span>
+        } else {
+<span class="nc" id="L175">            throw new IllegalArgumentException(value.toString());</span>
+        }
+<span class="fc" id="L177">        return ScriptRuntime.typeError(msg+ScriptRuntime.toString(value));</span>
+    }
+
+    XMLName toXMLNameFromString(Context cx, String name) {
+<span class="fc" id="L181">        return XMLName.create(getDefaultNamespaceURI(cx), name);</span>
+    }
+
+    /* TODO: Marked deprecated by original author */
+    XMLName toXMLName(Context cx, Object nameValue) {
+        XMLName result;
+
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        if (nameValue instanceof XMLName) {</span>
+<span class="nc" id="L189">            result = (XMLName)nameValue;</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">        } else if (nameValue instanceof QName) {</span>
+<span class="nc" id="L191">            QName qname = (QName)nameValue;</span>
+<span class="nc" id="L192">            result = XMLName.formProperty(qname.uri(), qname.localName());</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        } else if (nameValue instanceof String) {</span>
+<span class="fc" id="L194">            result = toXMLNameFromString(cx, (String)nameValue);</span>
+<span class="nc bnc" id="L195" title="All 8 branches missed.">        } else if (nameValue instanceof Boolean</span>
+            || nameValue instanceof Number
+            || nameValue == Undefined.instance
+            || nameValue == null) {
+<span class="nc" id="L199">            throw badXMLName(nameValue);</span>
+        } else {
+<span class="nc" id="L201">            String name = ScriptRuntime.toString(nameValue);</span>
+<span class="nc" id="L202">            result = toXMLNameFromString(cx, name);</span>
+        }
+
+<span class="fc" id="L205">        return result;</span>
+    }
+
+    /**
+     * If value represents Uint32 index, make it available through
+     * ScriptRuntime.lastUint32Result(cx) and return null.
+     * Otherwise return the same value as toXMLName(cx, value).
+     */
+    XMLName toXMLNameOrIndex(Context cx, Object value)
+    {
+        XMLName result;
+
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">        if (value instanceof XMLName) {</span>
+<span class="nc" id="L218">            result = (XMLName)value;</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        } else if (value instanceof String) {</span>
+<span class="fc" id="L220">            String str = (String)value;</span>
+<span class="fc" id="L221">            long test = ScriptRuntime.testUint32String(str);</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">            if (test &gt;= 0) {</span>
+<span class="nc" id="L223">                ScriptRuntime.storeUint32Result(cx, test);</span>
+<span class="nc" id="L224">                result = null;</span>
+            } else {
+<span class="fc" id="L226">                result = toXMLNameFromString(cx, str);</span>
+            }
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        } else if (value instanceof Number) {</span>
+<span class="fc" id="L229">            double d = ((Number)value).doubleValue();</span>
+<span class="fc" id="L230">            long l = (long)d;</span>
+<span class="pc bpc" id="L231" title="3 of 6 branches missed.">            if (l == d &amp;&amp; 0 &lt;= l &amp;&amp; l &lt;= 0xFFFFFFFFL) {</span>
+<span class="fc" id="L232">                ScriptRuntime.storeUint32Result(cx, l);</span>
+<span class="fc" id="L233">                result = null;</span>
+            } else {
+<span class="nc" id="L235">                throw badXMLName(value);</span>
+            }
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        } else if (value instanceof QName) {</span>
+<span class="fc" id="L238">            QName qname = (QName)value;</span>
+<span class="fc" id="L239">            String uri = qname.uri();</span>
+<span class="fc" id="L240">            boolean number = false;</span>
+<span class="fc" id="L241">            result = null;</span>
+<span class="pc bpc" id="L242" title="2 of 4 branches missed.">            if (uri != null &amp;&amp; uri.length() == 0) {</span>
+                // Only in this case qname.toString() can resemble uint32
+<span class="nc" id="L244">                long test = ScriptRuntime.testUint32String(uri);</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">                if (test &gt;= 0) {</span>
+<span class="nc" id="L246">                    ScriptRuntime.storeUint32Result(cx, test);</span>
+<span class="nc" id="L247">                    number = true;</span>
+                }
+            }
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">            if (!number) {</span>
+<span class="fc" id="L251">                result = XMLName.formProperty(uri, qname.localName());</span>
+            }
+<span class="pc bpc" id="L253" title="2 of 6 branches missed.">        } else if (value instanceof Boolean</span>
+                   || value == Undefined.instance
+                   || value == null)
+        {
+<span class="fc" id="L257">            throw badXMLName(value);</span>
+        } else {
+<span class="fc" id="L259">            String str = ScriptRuntime.toString(value);</span>
+<span class="fc" id="L260">            long test = ScriptRuntime.testUint32String(str);</span>
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">            if (test &gt;= 0) {</span>
+<span class="nc" id="L262">                ScriptRuntime.storeUint32Result(cx, test);</span>
+<span class="nc" id="L263">                result = null;</span>
+            } else {
+<span class="fc" id="L265">                result = toXMLNameFromString(cx, str);</span>
+            }
+        }
+
+<span class="fc" id="L269">        return result;</span>
+    }
+
+    Object addXMLObjects(Context cx, XMLObject obj1, XMLObject obj2)
+    {
+<span class="fc" id="L274">        XMLList listToAdd = newXMLList();</span>
+
+<span class="fc bfc" id="L276" title="All 2 branches covered.">        if (obj1 instanceof XMLList) {</span>
+<span class="fc" id="L277">            XMLList list1 = (XMLList)obj1;</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            if (list1.length() == 1) {</span>
+<span class="fc" id="L279">                listToAdd.addToList(list1.item(0));</span>
+            } else {
+                // Might be xmlFragment + xmlFragment + xmlFragment + ...;
+                // then the result will be an XMLList which we want to be an
+                // rValue and allow it to be assigned to an lvalue.
+<span class="fc" id="L284">                listToAdd = newXMLListFrom(obj1);</span>
+            }
+<span class="fc" id="L286">        } else {</span>
+<span class="fc" id="L287">            listToAdd.addToList(obj1);</span>
+        }
+
+<span class="fc bfc" id="L290" title="All 2 branches covered.">        if (obj2 instanceof XMLList) {</span>
+<span class="fc" id="L291">            XMLList list2 = (XMLList)obj2;</span>
+<span class="fc bfc" id="L292" title="All 2 branches covered.">            for (int i = 0; i &lt; list2.length(); i++) {</span>
+<span class="fc" id="L293">                listToAdd.addToList(list2.item(i));</span>
+            }
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        } else if (obj2 instanceof XML) {</span>
+<span class="fc" id="L296">            listToAdd.addToList(obj2);</span>
+        }
+
+<span class="fc" id="L299">        return listToAdd;</span>
+    }
+
+    private Ref xmlPrimaryReference(Context cx, XMLName xmlName, Scriptable scope) {
+        XMLObjectImpl xmlObj;
+<span class="fc" id="L304">        XMLObjectImpl firstXml = null;</span>
+        for (;;) {
+            // XML object can only present on scope chain as a wrapper
+            // of XMLWithScope
+<span class="fc bfc" id="L308" title="All 2 branches covered.">            if (scope instanceof XMLWithScope) {</span>
+<span class="fc" id="L309">                xmlObj = (XMLObjectImpl)scope.getPrototype();</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                if (xmlObj.hasXMLProperty(xmlName)) {</span>
+<span class="fc" id="L311">                    break;</span>
+                }
+<span class="pc bpc" id="L313" title="1 of 2 branches missed.">                if (firstXml == null) {</span>
+<span class="fc" id="L314">                    firstXml = xmlObj;</span>
+                }
+            }
+<span class="fc" id="L317">            scope = scope.getParentScope();</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (scope == null) {</span>
+<span class="fc" id="L319">                xmlObj = firstXml;</span>
+<span class="fc" id="L320">                break;</span>
+            }
+        }
+
+        // xmlObj == null corresponds to undefined as the target of
+        // the reference
+<span class="pc bpc" id="L326" title="1 of 2 branches missed.">        if (xmlObj != null) {</span>
+<span class="fc" id="L327">            xmlName.initXMLObject(xmlObj);</span>
+        }
+<span class="fc" id="L329">        return xmlName;</span>
+    }
+
+    Namespace castToNamespace(Context cx, Object namespaceObj) {
+<span class="fc" id="L333">        return this.namespacePrototype.castToNamespace(namespaceObj);</span>
+    }
+
+    private String getDefaultNamespaceURI(Context cx) {
+<span class="fc" id="L337">        return getDefaultNamespace(cx).uri();</span>
+    }
+
+    Namespace newNamespace(String uri) {
+<span class="fc" id="L341">        return this.namespacePrototype.newNamespace(uri);</span>
+    }
+
+    Namespace getDefaultNamespace(Context cx) {
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">        if (cx == null) {</span>
+<span class="nc" id="L346">            cx = Context.getCurrentContext();</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">            if (cx == null) {</span>
+<span class="nc" id="L348">                return namespacePrototype;</span>
+            }
+        }
+
+<span class="fc" id="L352">        Object ns = ScriptRuntime.searchDefaultNamespace(cx);</span>
+<span class="fc bfc" id="L353" title="All 2 branches covered.">        if (ns == null) {</span>
+<span class="fc" id="L354">            return namespacePrototype;</span>
+        } else {
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">            if (ns instanceof Namespace) {</span>
+<span class="fc" id="L357">                return (Namespace)ns;</span>
+            } else {
+                //    TODO    Clarify or remove the following comment
+                // Should not happen but for now it could
+                // due to bad searchDefaultNamespace implementation.
+<span class="nc" id="L362">                return namespacePrototype;</span>
+            }
+        }
+    }
+
+    Namespace[] createNamespaces(XmlNode.Namespace[] declarations) {
+<span class="fc" id="L368">        Namespace[] rv = new Namespace[declarations.length];</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        for (int i=0; i&lt;declarations.length; i++) {</span>
+<span class="fc" id="L370">            rv[i] = this.namespacePrototype.newNamespace(</span>
+<span class="fc" id="L371">                    declarations[i].getPrefix(), declarations[i].getUri());</span>
+        }
+<span class="fc" id="L373">        return rv;</span>
+    }
+
+    //    See ECMA357 13.3.2
+    QName constructQName(Context cx, Object namespace, Object name) {
+<span class="nc" id="L378">        return this.qnamePrototype.constructQName(this, cx, namespace, name);</span>
+    }
+
+    QName newQName(String uri, String localName, String prefix) {
+<span class="fc" id="L382">        return this.qnamePrototype.newQName(this, uri, localName, prefix);</span>
+    }
+
+    QName constructQName(Context cx, Object nameValue) {
+//        return constructQName(cx, Undefined.instance, nameValue);
+<span class="fc" id="L387">        return this.qnamePrototype.constructQName(this, cx, nameValue);</span>
+    }
+
+    QName castToQName(Context cx, Object qnameValue) {
+<span class="nc" id="L391">        return this.qnamePrototype.castToQName(this, cx, qnameValue);</span>
+    }
+
+    QName newQName(XmlNode.QName qname) {
+<span class="fc" id="L395">        return QName.create(this, this.globalScope, this.qnamePrototype, qname);</span>
+    }
+
+    XML newXML(XmlNode node) {
+<span class="fc" id="L399">        return new XML(this, this.globalScope, this.xmlPrototype, node);</span>
+    }
+
+    /* TODO: Can this can be replaced by ecmaToXml below?
+     */
+    final XML newXMLFromJs(Object inputObject) {
+        String frag;
+
+<span class="pc bpc" id="L407" title="2 of 4 branches missed.">        if (inputObject == null || inputObject == Undefined.instance) {</span>
+<span class="nc" id="L408">            frag = &quot;&quot;;</span>
+<span class="pc bpc" id="L409" title="1 of 2 branches missed.">        } else if (inputObject instanceof XMLObjectImpl) {</span>
+            // todo: faster way for XMLObjects?
+<span class="nc" id="L411">            frag = ((XMLObjectImpl) inputObject).toXMLString();</span>
+        } else {
+<span class="fc" id="L413">            frag = ScriptRuntime.toString(inputObject);</span>
+        }
+
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">        if (frag.trim().startsWith(&quot;&lt;&gt;&quot;)) {</span>
+<span class="nc" id="L417">            throw ScriptRuntime.typeError(&quot;Invalid use of XML object anonymous tags &lt;&gt;&lt;/&gt;.&quot;);</span>
+        }
+
+<span class="fc bfc" id="L420" title="All 2 branches covered.">        if (frag.indexOf(&quot;&lt;&quot;) == -1) {</span>
+            //    Solo text node
+<span class="fc" id="L422">            return newXML(XmlNode.createText(options, frag));</span>
+        }
+<span class="fc" id="L424">        return parse(frag);</span>
+    }
+
+    private XML parse(String frag) {
+        try {
+<span class="fc" id="L429">            return newXML(XmlNode.createElement(options,</span>
+<span class="fc" id="L430">                    getDefaultNamespaceURI(Context.getCurrentContext()), frag));</span>
+<span class="nc" id="L431">        } catch (SAXException e) {</span>
+<span class="nc" id="L432">            throw ScriptRuntime.typeError(&quot;Cannot parse XML: &quot; + e.getMessage());</span>
+        }
+    }
+
+    final XML ecmaToXml(Object object) {
+        //    See ECMA357 10.3
+<span class="pc bpc" id="L438" title="2 of 4 branches missed.">        if (object == null || object == Undefined.instance) {</span>
+<span class="nc" id="L439">            throw ScriptRuntime.typeError(&quot;Cannot convert &quot; + object + &quot; to XML&quot;);</span>
+        }
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        if (object instanceof XML) return (XML)object;</span>
+<span class="fc bfc" id="L442" title="All 2 branches covered.">        if (object instanceof XMLList) {</span>
+<span class="fc" id="L443">            XMLList list = (XMLList)object;</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">            if (list.getXML() != null) {</span>
+<span class="fc" id="L445">                return list.getXML();</span>
+            } else {
+<span class="fc" id="L447">                throw ScriptRuntime.typeError(&quot;Cannot convert list of &gt;1 element to XML&quot;);</span>
+            }
+        }
+        //    TODO    Technically we should fail on anything except a String, Number or Boolean
+        //            See ECMA357 10.3
+        // Extension: if object is a DOM node, use that to construct the XML
+        // object.
+<span class="pc bpc" id="L454" title="1 of 2 branches missed.">        if (object instanceof Wrapper) {</span>
+<span class="nc" id="L455">            object = ((Wrapper) object).unwrap();</span>
+        }
+<span class="pc bpc" id="L457" title="1 of 2 branches missed.">        if (object instanceof org.w3c.dom.Node) {</span>
+<span class="nc" id="L458">            org.w3c.dom.Node node = (org.w3c.dom.Node) object;</span>
+<span class="nc" id="L459">            return newXML(XmlNode.createElementFromNode(node));</span>
+        }
+        //    Instead we just blindly cast to a String and let them convert anything.
+<span class="fc" id="L462">        String s = ScriptRuntime.toString(object);</span>
+        //    TODO    Could this get any uglier?
+<span class="fc bfc" id="L464" title="All 4 branches covered.">        if (s.length() &gt; 0 &amp;&amp; s.charAt(0) == '&lt;') {</span>
+<span class="fc" id="L465">            return parse(s);</span>
+        } else {
+<span class="fc" id="L467">            return newXML(XmlNode.createText(options, s));</span>
+        }
+    }
+
+    final XML newTextElementXML(XmlNode reference, XmlNode.QName qname, String value) {
+<span class="fc" id="L472">        return newXML(XmlNode.newElementWithText(options, reference, qname, value));</span>
+    }
+
+    XMLList newXMLList() {
+<span class="fc" id="L476">        return new XMLList(this, this.globalScope, this.xmlListPrototype);</span>
+    }
+
+    final XMLList newXMLListFrom(Object inputObject) {
+<span class="fc" id="L480">        XMLList rv = newXMLList();</span>
+
+<span class="fc bfc" id="L482" title="All 4 branches covered.">        if (inputObject == null || inputObject instanceof Undefined) {</span>
+<span class="fc" id="L483">            return rv;</span>
+<span class="fc bfc" id="L484" title="All 2 branches covered.">        } else if (inputObject instanceof XML) {</span>
+<span class="fc" id="L485">            XML xml = (XML) inputObject;</span>
+<span class="fc" id="L486">            rv.getNodeList().add(xml);</span>
+<span class="fc" id="L487">            return rv;</span>
+<span class="fc bfc" id="L488" title="All 2 branches covered.">        } else if (inputObject instanceof XMLList) {</span>
+<span class="fc" id="L489">            XMLList xmll = (XMLList) inputObject;</span>
+<span class="fc" id="L490">            rv.getNodeList().add(xmll.getNodeList());</span>
+<span class="fc" id="L491">            return rv;</span>
+        } else {
+<span class="fc" id="L493">            String frag = ScriptRuntime.toString(inputObject).trim();</span>
+
+<span class="fc bfc" id="L495" title="All 2 branches covered.">            if (!frag.startsWith(&quot;&lt;&gt;&quot;)) {</span>
+<span class="fc" id="L496">                frag = &quot;&lt;&gt;&quot; + frag + &quot;&lt;/&gt;&quot;;</span>
+            }
+
+<span class="fc" id="L499">            frag = &quot;&lt;fragment&gt;&quot; + frag.substring(2);</span>
+<span class="pc bpc" id="L500" title="1 of 2 branches missed.">            if (!frag.endsWith(&quot;&lt;/&gt;&quot;)) {</span>
+<span class="nc" id="L501">                throw ScriptRuntime.typeError(&quot;XML with anonymous tag missing end anonymous tag&quot;);</span>
+            }
+
+<span class="fc" id="L504">            frag = frag.substring(0, frag.length() - 3) + &quot;&lt;/fragment&gt;&quot;;</span>
+
+<span class="fc" id="L506">            XML orgXML = newXMLFromJs(frag);</span>
+
+            // Now orphan the children and add them to our XMLList.
+<span class="fc" id="L509">            XMLList children = orgXML.children();</span>
+
+<span class="fc bfc" id="L511" title="All 2 branches covered.">            for (int i = 0; i &lt; children.getNodeList().length(); i++) {</span>
+                // Copy here is so that they'll be orphaned (parent() will be undefined)
+<span class="fc" id="L513">                rv.getNodeList().add(((XML) children.item(i).copy()));</span>
+            }
+<span class="fc" id="L515">            return rv;</span>
+        }
+    }
+
+    XmlNode.QName toNodeQName(Context cx, Object namespaceValue, Object nameValue) {
+        // This is duplication of constructQName(cx, namespaceValue, nameValue)
+        // but for XMLName
+
+        String localName;
+
+<span class="pc bpc" id="L525" title="1 of 2 branches missed.">        if (nameValue instanceof QName) {</span>
+<span class="nc" id="L526">            QName qname = (QName)nameValue;</span>
+<span class="nc" id="L527">            localName = qname.localName();</span>
+<span class="nc" id="L528">        } else {</span>
+<span class="fc" id="L529">            localName = ScriptRuntime.toString(nameValue);</span>
+        }
+
+        XmlNode.Namespace ns;
+<span class="pc bpc" id="L533" title="1 of 2 branches missed.">        if (namespaceValue == Undefined.instance) {</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">            if (&quot;*&quot;.equals(localName)) {</span>
+<span class="nc" id="L535">                ns = null;</span>
+            } else {
+<span class="nc" id="L537">                ns = getDefaultNamespace(cx).getDelegate();</span>
+            }
+<span class="fc bfc" id="L539" title="All 2 branches covered.">        } else if (namespaceValue == null) {</span>
+<span class="fc" id="L540">            ns = null;</span>
+<span class="pc bpc" id="L541" title="1 of 2 branches missed.">        } else if (namespaceValue instanceof Namespace) {</span>
+<span class="fc" id="L542">            ns = ((Namespace)namespaceValue).getDelegate();</span>
+        } else {
+<span class="nc" id="L544">            ns = this.namespacePrototype.constructNamespace(namespaceValue).getDelegate();</span>
+        }
+
+<span class="pc bpc" id="L547" title="1 of 4 branches missed.">        if (localName != null &amp;&amp; localName.equals(&quot;*&quot;)) localName = null;</span>
+<span class="fc" id="L548">        return XmlNode.QName.create(ns, localName);</span>
+    }
+
+    XmlNode.QName toNodeQName(Context cx, String name, boolean attribute) {
+<span class="fc" id="L552">        XmlNode.Namespace defaultNamespace = getDefaultNamespace(cx).getDelegate();</span>
+<span class="pc bpc" id="L553" title="1 of 4 branches missed.">        if (name != null &amp;&amp; name.equals(&quot;*&quot;)) {</span>
+<span class="fc" id="L554">            return XmlNode.QName.create(null, null);</span>
+        } else {
+<span class="fc bfc" id="L556" title="All 2 branches covered.">            if (attribute) {</span>
+<span class="fc" id="L557">                return XmlNode.QName.create(XmlNode.Namespace.GLOBAL, name);</span>
+            } else {
+<span class="fc" id="L559">                return XmlNode.QName.create(defaultNamespace, name);</span>
+            }
+        }
+    }
+
+    /*
+        TODO: Too general; this should be split into overloaded methods.
+        Is that possible?
+     */
+    XmlNode.QName toNodeQName(Context cx, Object nameValue, boolean attribute) {
+<span class="pc bpc" id="L569" title="1 of 2 branches missed.">        if (nameValue instanceof XMLName) {</span>
+<span class="nc" id="L570">            return ((XMLName)nameValue).toQname();</span>
+<span class="fc bfc" id="L571" title="All 2 branches covered.">        } else if (nameValue instanceof QName) {</span>
+<span class="fc" id="L572">            QName qname = (QName)nameValue;</span>
+<span class="fc" id="L573">            return qname.getDelegate();</span>
+<span class="pc bpc" id="L574" title="2 of 8 branches missed.">        } else if (</span>
+            nameValue instanceof Boolean
+            || nameValue instanceof Number
+            || nameValue == Undefined.instance
+            || nameValue == null
+        ) {
+<span class="fc" id="L580">            throw badXMLName(nameValue);</span>
+        } else {
+<span class="fc" id="L582">            String local = null;</span>
+<span class="pc bpc" id="L583" title="1 of 2 branches missed.">            if (nameValue instanceof String) {</span>
+<span class="fc" id="L584">                local = (String)nameValue;</span>
+            } else {
+<span class="nc" id="L586">                local = ScriptRuntime.toString(nameValue);</span>
+            }
+<span class="fc" id="L588">            return toNodeQName(cx, local, attribute);</span>
+        }
+    }
+
+    //
+    //    Override methods from XMLLib
+    //
+
+    @Override
+    public boolean isXMLName(Context _cx, Object nameObj) {
+<span class="nc" id="L598">        return XMLName.accept(nameObj);</span>
+    }
+
+    @Override
+    public Object toDefaultXmlNamespace(Context cx, Object uriValue) {
+<span class="fc" id="L603">        return this.namespacePrototype.constructNamespace(uriValue);</span>
+    }
+
+    @Override
+    public String escapeTextValue(Object o) {
+<span class="fc" id="L608">        return options.escapeTextValue(o);</span>
+    }
+
+    @Override
+    public String escapeAttributeValue(Object o) {
+<span class="fc" id="L613">        return options.escapeAttributeValue(o);</span>
+    }
+
+    @Override
+    public Ref nameRef(Context cx, Object name, Scriptable scope, int memberTypeFlags) {
+<span class="pc bpc" id="L618" title="1 of 2 branches missed.">        if ((memberTypeFlags &amp; Node.ATTRIBUTE_FLAG) == 0) {</span>
+            // should only be called for cases like @name or @[expr]
+<span class="nc" id="L620">            throw Kit.codeBug();</span>
+        }
+<span class="fc" id="L622">        XMLName xmlName = toAttributeName(cx, name);</span>
+<span class="fc" id="L623">        return xmlPrimaryReference(cx, xmlName, scope);</span>
+    }
+
+    @Override
+    public Ref nameRef(Context cx, Object namespace, Object name, Scriptable scope, int memberTypeFlags) {
+<span class="fc" id="L628">        XMLName xmlName = XMLName.create(toNodeQName(cx, namespace, name), false, false);</span>
+
+        //    No idea what is coming in from the parser in this case; is it detecting the &quot;@&quot;?
+<span class="pc bpc" id="L631" title="1 of 2 branches missed.">        if ((memberTypeFlags &amp; Node.ATTRIBUTE_FLAG) != 0) {</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">            if (!xmlName.isAttributeName()) {</span>
+<span class="nc" id="L633">                xmlName.setAttributeName();</span>
+            }
+        }
+
+<span class="fc" id="L637">        return xmlPrimaryReference(cx, xmlName, scope);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

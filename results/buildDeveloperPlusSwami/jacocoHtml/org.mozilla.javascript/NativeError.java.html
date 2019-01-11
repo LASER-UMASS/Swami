@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeError.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeError.java</span></div><h1>NativeError.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
+
+/**
+ *
+ * The class of error objects
+ *
+ *  ECMA 15.11
+ */
+<span class="fc" id="L18">final class NativeError extends IdScriptableObject</span>
+{
+    static final long serialVersionUID = -5338413581437645187L;
+
+<span class="fc" id="L22">    private static final Object ERROR_TAG = &quot;Error&quot;;</span>
+
+    private static final Method ERROR_DELEGATE_GET_STACK;
+    private static final Method ERROR_DELEGATE_SET_STACK;
+
+    static {
+        try {
+            // Pre-cache methods to be called via reflection
+<span class="fc" id="L30">            ERROR_DELEGATE_GET_STACK = NativeError.class.getMethod(&quot;getStackDelegated&quot;, Scriptable.class);</span>
+<span class="fc" id="L31">            ERROR_DELEGATE_SET_STACK = NativeError.class.getMethod(&quot;setStackDelegated&quot;, Scriptable.class, Object.class);</span>
+<span class="nc" id="L32">        } catch (NoSuchMethodException nsm) {</span>
+<span class="nc" id="L33">            throw new RuntimeException(nsm);</span>
+<span class="fc" id="L34">        }</span>
+<span class="fc" id="L35">    }</span>
+
+    /** Default stack limit is set to &quot;Infinity&quot;, here represented as a negative int */
+    public static final int DEFAULT_STACK_LIMIT = -1;
+
+    // This is used by &quot;captureStackTrace&quot;
+    private static final String STACK_HIDE_KEY = &quot;_stackHide&quot;;
+
+    private RhinoException stackProvider;
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L47">        NativeError obj = new NativeError();</span>
+<span class="fc" id="L48">        ScriptableObject.putProperty(obj, &quot;name&quot;, &quot;Error&quot;);</span>
+<span class="fc" id="L49">        ScriptableObject.putProperty(obj, &quot;message&quot;, &quot;&quot;);</span>
+<span class="fc" id="L50">        ScriptableObject.putProperty(obj, &quot;fileName&quot;, &quot;&quot;);</span>
+<span class="fc" id="L51">        ScriptableObject.putProperty(obj, &quot;lineNumber&quot;, Integer.valueOf(0));</span>
+<span class="fc" id="L52">        obj.setAttributes(&quot;name&quot;, ScriptableObject.DONTENUM);</span>
+<span class="fc" id="L53">        obj.setAttributes(&quot;message&quot;, ScriptableObject.DONTENUM);</span>
+<span class="fc" id="L54">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L55">        NativeCallSite.init(obj, sealed);</span>
+<span class="fc" id="L56">    }</span>
+
+    static NativeError make(Context cx, Scriptable scope,
+                            IdFunctionObject ctorObj, Object[] args)
+    {
+<span class="fc" id="L61">        Scriptable proto = (Scriptable)(ctorObj.get(&quot;prototype&quot;, ctorObj));</span>
+
+<span class="fc" id="L63">        NativeError obj = new NativeError();</span>
+<span class="fc" id="L64">        obj.setPrototype(proto);</span>
+<span class="fc" id="L65">        obj.setParentScope(scope);</span>
+
+<span class="fc" id="L67">        int arglen = args.length;</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (arglen &gt;= 1) {</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            if (args[0] != Undefined.instance) {</span>
+<span class="fc" id="L70">                ScriptableObject.putProperty(obj, &quot;message&quot;,</span>
+<span class="fc" id="L71">                        ScriptRuntime.toString(args[0]));</span>
+            }
+<span class="fc bfc" id="L73" title="All 2 branches covered.">            if (arglen &gt;= 2) {</span>
+<span class="fc" id="L74">                ScriptableObject.putProperty(obj, &quot;fileName&quot;, args[1]);</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">                if (arglen &gt;= 3) {</span>
+<span class="fc" id="L76">                    int line = ScriptRuntime.toInt32(args[2]);</span>
+<span class="fc" id="L77">                    ScriptableObject.putProperty(obj, &quot;lineNumber&quot;,</span>
+<span class="fc" id="L78">                            Integer.valueOf(line));</span>
+                }
+            }
+        }
+<span class="fc" id="L82">        return obj;</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L88">        addIdFunctionProperty(ctor, ERROR_TAG, ConstructorId_captureStackTrace,</span>
+                                  &quot;captureStackTrace&quot;, 2);
+
+        // This is running on the global &quot;Error&quot; object. Associate an object there that can store
+        // default stack trace, etc.
+        // This prevents us from having to add two additional fields to every Error object.
+<span class="fc" id="L94">        ProtoProps protoProps = new ProtoProps();</span>
+<span class="fc" id="L95">        associateValue(ProtoProps.KEY, protoProps);</span>
+
+        // Define constructor properties that delegate to the ProtoProps object.
+<span class="fc" id="L98">        ctor.defineProperty(&quot;stackTraceLimit&quot;, protoProps,</span>
+                            ProtoProps.GET_STACK_LIMIT, ProtoProps.SET_STACK_LIMIT, 0);
+<span class="fc" id="L100">        ctor.defineProperty(&quot;prepareStackTrace&quot;, protoProps,</span>
+                            ProtoProps.GET_PREPARE_STACK, ProtoProps.SET_PREPARE_STACK, 0);
+
+<span class="fc" id="L103">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L104">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L109">        return &quot;Error&quot;;</span>
+    }
+
+    @Override
+    public String toString()
+    {
+        // According to spec, Error.prototype.toString() may return undefined.
+<span class="fc" id="L116">        Object toString = js_toString(this);</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        return toString instanceof String ? (String) toString : super.toString();</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L125" title="1 of 4 branches missed.">        switch (id) {</span>
+<span class="fc" id="L126">          case Id_constructor: arity=1; s=&quot;constructor&quot;; break;</span>
+<span class="fc" id="L127">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="fc" id="L128">          case Id_toSource:    arity=0; s=&quot;toSource&quot;;    break;</span>
+<span class="nc" id="L129">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L131">        initPrototypeMethod(ERROR_TAG, id, s, arity);</span>
+<span class="fc" id="L132">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        if (!f.hasTag(ERROR_TAG)) {</span>
+<span class="nc" id="L139">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L141">        int id = f.methodId();</span>
+<span class="pc bpc" id="L142" title="1 of 5 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="fc" id="L144">            return make(cx, scope, f, args);</span>
+
+          case Id_toString:
+<span class="fc" id="L147">            return js_toString(thisObj);</span>
+
+          case Id_toSource:
+<span class="fc" id="L150">            return js_toSource(cx, scope, thisObj);</span>
+
+          case ConstructorId_captureStackTrace:
+<span class="fc" id="L153">            js_captureStackTrace(cx, thisObj, args);</span>
+<span class="fc" id="L154">            return Undefined.instance;</span>
+        }
+<span class="nc" id="L156">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    public void setStackProvider(RhinoException re) {
+        // We go some extra miles to make sure the stack property is only
+        // generated on demand, is cached after the first access, and is
+        // overwritable like an ordinary property. Hence this setup with
+        // the getter and setter below.
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">        if (stackProvider == null) {</span>
+<span class="fc" id="L165">            stackProvider = re;</span>
+<span class="fc" id="L166">            defineProperty(&quot;stack&quot;, this,</span>
+                           ERROR_DELEGATE_GET_STACK, ERROR_DELEGATE_SET_STACK,
+                           DONTENUM);
+        }
+<span class="fc" id="L170">    }</span>
+
+    public Object getStackDelegated(Scriptable target) {
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        if (stackProvider == null) {</span>
+<span class="nc" id="L174">            return NOT_FOUND;</span>
+        }
+
+        // Get the object where prototype stuff is stored.
+<span class="fc" id="L178">        int limit = DEFAULT_STACK_LIMIT;</span>
+<span class="fc" id="L179">        Function prepare = null;</span>
+<span class="fc" id="L180">        NativeError cons = (NativeError)getPrototype();</span>
+<span class="fc" id="L181">        ProtoProps pp = (ProtoProps)cons.getAssociatedValue(ProtoProps.KEY);</span>
+
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (pp != null) {</span>
+<span class="fc" id="L184">            limit = pp.getStackTraceLimit();</span>
+<span class="fc" id="L185">            prepare = pp.getPrepareStackTrace();</span>
+        }
+
+        // This key is only set by captureStackTrace
+<span class="fc" id="L189">        String hideFunc = (String)getAssociatedValue(STACK_HIDE_KEY);</span>
+<span class="fc" id="L190">        ScriptStackElement[] stack = stackProvider.getScriptStack(limit, hideFunc);</span>
+
+        // Determine whether to format the stack trace ourselves, or call the user's code to do it
+        Object value;
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        if (prepare == null) {</span>
+<span class="fc" id="L195">            value = RhinoException.formatStackTrace(stack, stackProvider.details());</span>
+        } else {
+<span class="fc" id="L197">            value = callPrepareStack(prepare, stack);</span>
+        }
+
+        // We store the stack as local property both to cache it
+        // and to make the property writable
+<span class="fc" id="L202">        setStackDelegated(target, value);</span>
+<span class="fc" id="L203">        return value;</span>
+    }
+
+    public void setStackDelegated(Scriptable target, Object value) {
+<span class="fc" id="L207">        target.delete(&quot;stack&quot;);</span>
+<span class="fc" id="L208">        stackProvider = null;</span>
+<span class="fc" id="L209">        target.put(&quot;stack&quot;, target, value);</span>
+<span class="fc" id="L210">    }</span>
+
+    private Object callPrepareStack(Function prepare, ScriptStackElement[] stack)
+    {
+<span class="fc" id="L214">        Context cx = Context.getCurrentContext();</span>
+<span class="fc" id="L215">        Object[] elts = new Object[stack.length];</span>
+
+        // The &quot;prepareStackTrace&quot; function takes an array of CallSite objects.
+<span class="fc bfc" id="L218" title="All 2 branches covered.">        for (int i = 0; i &lt; stack.length; i++) {</span>
+<span class="fc" id="L219">            NativeCallSite site = (NativeCallSite)cx.newObject(this, &quot;CallSite&quot;);</span>
+<span class="fc" id="L220">            site.setElement(stack[i]);</span>
+<span class="fc" id="L221">            elts[i] = site;</span>
+        }
+
+<span class="fc" id="L224">        Scriptable eltArray = cx.newArray(this, elts);</span>
+<span class="fc" id="L225">        return prepare.call(cx, prepare, this, new Object[] { this, eltArray });</span>
+    }
+
+    private static Object js_toString(Scriptable thisObj) {
+<span class="fc" id="L229">        Object name = ScriptableObject.getProperty(thisObj, &quot;name&quot;);</span>
+<span class="fc bfc" id="L230" title="All 4 branches covered.">        if (name == NOT_FOUND || name == Undefined.instance) {</span>
+<span class="fc" id="L231">            name = &quot;Error&quot;;</span>
+        } else {
+<span class="fc" id="L233">            name = ScriptRuntime.toString(name);</span>
+        }
+<span class="fc" id="L235">        Object msg = ScriptableObject.getProperty(thisObj, &quot;message&quot;);</span>
+<span class="fc bfc" id="L236" title="All 4 branches covered.">        if (msg == NOT_FOUND || msg == Undefined.instance) {</span>
+<span class="fc" id="L237">            msg = &quot;&quot;;</span>
+        } else {
+<span class="fc" id="L239">            msg = ScriptRuntime.toString(msg);</span>
+        }
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">        if (name.toString().length() == 0) {</span>
+<span class="nc" id="L242">            return msg;</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">        } else if (msg.toString().length() == 0) {</span>
+<span class="fc" id="L244">            return name;</span>
+        } else {
+<span class="fc" id="L246">            return ((String) name) + &quot;: &quot; + ((String) msg);</span>
+        }
+    }
+
+    private static String js_toSource(Context cx, Scriptable scope,
+                                      Scriptable thisObj)
+    {
+        // Emulation of SpiderMonkey behavior
+<span class="fc" id="L254">        Object name = ScriptableObject.getProperty(thisObj, &quot;name&quot;);</span>
+<span class="fc" id="L255">        Object message = ScriptableObject.getProperty(thisObj, &quot;message&quot;);</span>
+<span class="fc" id="L256">        Object fileName = ScriptableObject.getProperty(thisObj, &quot;fileName&quot;);</span>
+<span class="fc" id="L257">        Object lineNumber = ScriptableObject.getProperty(thisObj, &quot;lineNumber&quot;);</span>
+
+<span class="fc" id="L259">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L260">        sb.append(&quot;(new &quot;);</span>
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">        if (name == NOT_FOUND) {</span>
+<span class="nc" id="L262">            name = Undefined.instance;</span>
+        }
+<span class="fc" id="L264">        sb.append(ScriptRuntime.toString(name));</span>
+<span class="fc" id="L265">        sb.append(&quot;(&quot;);</span>
+<span class="pc bpc" id="L266" title="5 of 6 branches missed.">        if (message != NOT_FOUND</span>
+            || fileName != NOT_FOUND
+            || lineNumber != NOT_FOUND)
+        {
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">            if (message == NOT_FOUND) {</span>
+<span class="nc" id="L271">                message = &quot;&quot;;</span>
+            }
+<span class="fc" id="L273">            sb.append(ScriptRuntime.uneval(cx, scope, message));</span>
+<span class="pc bpc" id="L274" title="3 of 4 branches missed.">            if (fileName != NOT_FOUND || lineNumber != NOT_FOUND) {</span>
+<span class="fc" id="L275">                sb.append(&quot;, &quot;);</span>
+<span class="pc bpc" id="L276" title="1 of 2 branches missed.">                if (fileName == NOT_FOUND) {</span>
+<span class="nc" id="L277">                    fileName = &quot;&quot;;</span>
+                }
+<span class="fc" id="L279">                sb.append(ScriptRuntime.uneval(cx, scope, fileName));</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">                if (lineNumber != NOT_FOUND) {</span>
+<span class="fc" id="L281">                    int line = ScriptRuntime.toInt32(lineNumber);</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                    if (line != 0) {</span>
+<span class="fc" id="L283">                        sb.append(&quot;, &quot;);</span>
+<span class="fc" id="L284">                        sb.append(ScriptRuntime.toString(line));</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L289">        sb.append(&quot;))&quot;);</span>
+<span class="fc" id="L290">        return sb.toString();</span>
+    }
+
+    private static void js_captureStackTrace(Context cx, Scriptable thisObj, Object[] args)
+    {
+<span class="fc" id="L295">        ScriptableObject obj = (ScriptableObject)ScriptRuntime.toObjectOrNull(cx, args[0], thisObj);</span>
+<span class="fc" id="L296">        Function func = null;</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        if (args.length &gt; 1) {</span>
+<span class="fc" id="L298">            func = (Function)ScriptRuntime.toObjectOrNull(cx, args[1], thisObj);</span>
+        }
+
+        // Create a new error that will have the correct prototype so we can re-use &quot;getStackTrace&quot;
+<span class="fc" id="L302">        NativeError err = (NativeError)cx.newObject(thisObj, &quot;Error&quot;);</span>
+        // Wire it up so that it will have an actual exception with a stack trace
+<span class="fc" id="L304">        err.setStackProvider(new EvaluatorException(&quot;[object Object]&quot;));</span>
+
+        // Figure out if they passed a function used to hide part of the stack
+<span class="fc bfc" id="L307" title="All 2 branches covered.">        if (func != null) {</span>
+<span class="fc" id="L308">            Object funcName = func.get(&quot;name&quot;, func);</span>
+<span class="pc bpc" id="L309" title="2 of 4 branches missed.">            if ((funcName != null) &amp;&amp; !Undefined.instance.equals(funcName)) {</span>
+<span class="fc" id="L310">                err.associateValue(STACK_HIDE_KEY, Context.toString(funcName));</span>
+            }
+        }
+
+        // Define a property on the specified object to get that stack
+        // that delegates to our new error. Build the stack trace lazily
+        // using the &quot;getStack&quot; code from NativeError.
+<span class="fc" id="L317">        obj.defineProperty(&quot;stack&quot;, err,</span>
+                           ERROR_DELEGATE_GET_STACK, ERROR_DELEGATE_SET_STACK, 0);
+<span class="fc" id="L319">    }</span>
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #string_id_map#
+// #generated# Last update: 2007-05-09 08:15:45 EDT
+<span class="fc" id="L327">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L328">            int s_length = s.length();</span>
+<span class="fc bfc" id="L329" title="All 2 branches covered.">            if (s_length==8) {</span>
+<span class="fc" id="L330">                c=s.charAt(3);</span>
+<span class="fc bfc" id="L331" title="All 2 branches covered.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+            }
+<span class="fc bfc" id="L334" title="All 2 branches covered.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L335" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L339">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor    = 1,
+        Id_toString       = 2,
+        Id_toSource       = 3,
+        ConstructorId_captureStackTrace = -1,
+
+        MAX_PROTOTYPE_ID  = 3;
+
+// #/string_id_map#
+
+    /**
+     * We will attch this object to the constructor and use it solely to store the constructor properties
+     * that are &quot;global.&quot; We can't make them static because there can be many contexts in the same JVM.
+     */
+<span class="fc" id="L356">    private static final class ProtoProps</span>
+        implements Serializable
+    {
+        static final String KEY = &quot;_ErrorPrototypeProps&quot;;
+
+        static final Method GET_STACK_LIMIT;
+        static final Method SET_STACK_LIMIT;
+        static final Method GET_PREPARE_STACK;
+        static final Method SET_PREPARE_STACK;
+
+        static {
+            try {
+<span class="fc" id="L368">                GET_STACK_LIMIT = ProtoProps.class.getMethod(&quot;getStackTraceLimit&quot;, Scriptable.class);</span>
+<span class="fc" id="L369">                SET_STACK_LIMIT = ProtoProps.class.getMethod(&quot;setStackTraceLimit&quot;, Scriptable.class, Object.class);</span>
+<span class="fc" id="L370">                GET_PREPARE_STACK = ProtoProps.class.getMethod(&quot;getPrepareStackTrace&quot;, Scriptable.class);</span>
+<span class="fc" id="L371">                SET_PREPARE_STACK = ProtoProps.class.getMethod(&quot;setPrepareStackTrace&quot;, Scriptable.class, Object.class);</span>
+<span class="nc" id="L372">            } catch (NoSuchMethodException nsm) {</span>
+<span class="nc" id="L373">                throw new RuntimeException(nsm);</span>
+<span class="fc" id="L374">            }</span>
+<span class="fc" id="L375">        }</span>
+
+        private static final long serialVersionUID = 1907180507775337939L;
+
+<span class="fc" id="L379">        private int stackTraceLimit = DEFAULT_STACK_LIMIT;</span>
+        private Function prepareStackTrace;
+
+        public Object getStackTraceLimit(Scriptable thisObj) {
+<span class="fc bfc" id="L383" title="All 2 branches covered.">            if (stackTraceLimit &gt;= 0) {</span>
+<span class="fc" id="L384">                return stackTraceLimit;</span>
+            } else {
+<span class="fc" id="L386">                return Double.POSITIVE_INFINITY;</span>
+            }
+        }
+
+        public int getStackTraceLimit() {
+<span class="fc" id="L391">            return stackTraceLimit;</span>
+        }
+
+        public void setStackTraceLimit(Scriptable thisObj, Object value) {
+<span class="fc" id="L395">            double limit = Context.toNumber(value);</span>
+<span class="pc bpc" id="L396" title="1 of 4 branches missed.">            if (Double.isNaN(limit) || Double.isInfinite(limit)) {</span>
+<span class="fc" id="L397">                stackTraceLimit = -1;</span>
+            } else {
+<span class="fc" id="L399">                stackTraceLimit = (int)limit;</span>
+            }
+<span class="fc" id="L401">        }</span>
+
+        public Object getPrepareStackTrace(Scriptable thisObj)
+        {
+<span class="fc" id="L405">            Object ps = getPrepareStackTrace();</span>
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">            return (ps == null ? Undefined.instance : ps);</span>
+        }
+
+        public Function getPrepareStackTrace() {
+<span class="fc" id="L410">            return prepareStackTrace;</span>
+        }
+
+        public void setPrepareStackTrace(Scriptable thisObj, Object value) {
+<span class="pc bpc" id="L414" title="1 of 4 branches missed.">            if ((value == null) || Undefined.instance.equals(value)) {</span>
+<span class="fc" id="L415">                prepareStackTrace = null;</span>
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">            } else if (value instanceof Function) {</span>
+<span class="fc" id="L417">                prepareStackTrace = (Function)value;</span>
+            }
+<span class="fc" id="L419">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Comment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">Comment.java</span></div><h1>Comment.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * Node representing comments.
+ * Node type is {@link Token#COMMENT}.&lt;p&gt;
+ *
+ * &lt;p&gt;JavaScript effectively has five comment types:
+ *   &lt;ol&gt;
+ *     &lt;li&gt;// line comments&lt;/li&gt;
+ *     &lt;li&gt;/&lt;span class=&quot;none&quot;&gt;* block comments *\/&lt;/li&gt;
+ *     &lt;li&gt;/&lt;span class=&quot;none&quot;&gt;** jsdoc comments *\/&lt;/li&gt;
+ *     &lt;li&gt;&amp;lt;!-- html-open line comments&lt;/li&gt;
+ *     &lt;li&gt;^\\s*--&amp;gt; html-close line comments&lt;/li&gt;
+ *   &lt;/ol&gt;
+ *
+ * &lt;p&gt;The first three should be familiar to Java programmers.  JsDoc comments
+ * are really just block comments with some conventions about the formatting
+ * within the comment delimiters.  Line and block comments are described in the
+ * Ecma-262 specification. &lt;p&gt;
+ *
+ * &lt;p&gt;SpiderMonkey and Rhino also support HTML comment syntax, but somewhat
+ * counterintuitively, the syntax does not produce a block comment.  Instead,
+ * everything from the string &amp;lt;!-- through the end of the line is considered
+ * a comment, and if the token --&amp;gt; is the first non-whitespace on the line,
+ * then the line is considered a line comment.  This is to support parsing
+ * JavaScript in &amp;lt;script&amp;gt; HTML tags that has been &quot;hidden&quot; from very old
+ * browsers by surrounding it with HTML comment delimiters. &lt;p&gt;
+ *
+ * Note the node start position for Comment nodes is still relative to the
+ * parent, but Comments are always stored directly in the AstRoot node, so
+ * they are also effectively absolute offsets.
+ */
+public class Comment extends AstNode {
+
+    private String value;
+    private Token.CommentType commentType;
+
+    {
+<span class="fc" id="L47">        type = Token.COMMENT;</span>
+    }
+
+    /**
+     * Constructs a new Comment
+     * @param pos the start position
+     * @param len the length including delimiter(s)
+     * @param type the comment type
+     * @param value the value of the comment, as a string
+     */
+    public Comment(int pos, int len, Token.CommentType type, String value) {
+<span class="fc" id="L58">        super(pos, len);</span>
+<span class="fc" id="L59">        commentType = type;</span>
+<span class="fc" id="L60">        this.value = value;</span>
+<span class="fc" id="L61">    }</span>
+
+    /**
+     * Returns the comment style
+     */
+    public Token.CommentType getCommentType() {
+<span class="nc" id="L67">        return commentType;</span>
+    }
+
+    /**
+     * Sets the comment style
+     * @param type the comment style, a
+     * {@link org.mozilla.javascript.Token.CommentType}
+     */
+    public void setCommentType(Token.CommentType type) {
+<span class="nc" id="L76">        this.commentType = type;</span>
+<span class="nc" id="L77">    }</span>
+
+    /**
+     * Returns a string of the comment value.
+     */
+    public String getValue() {
+<span class="fc" id="L83">        return value;</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L88">        StringBuilder sb = new StringBuilder(getLength() + 10);</span>
+<span class="nc" id="L89">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L90">        sb.append(value);</span>
+<span class="nc" id="L91">        return sb.toString();</span>
+    }
+
+    /**
+     * Comment nodes are not visited during normal visitor traversals,
+     * but comply with the {@link AstNode#visit} interface.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc" id="L100">        v.visit(this);</span>
+<span class="nc" id="L101">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

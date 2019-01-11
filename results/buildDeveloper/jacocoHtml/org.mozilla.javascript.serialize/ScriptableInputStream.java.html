@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScriptableInputStream.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.serialize</a> &gt; <span class="el_source">ScriptableInputStream.java</span></div><h1>ScriptableInputStream.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript.serialize;
+
+import java.io.*;
+
+import org.mozilla.javascript.*;
+
+/**
+ * Class ScriptableInputStream is used to read in a JavaScript
+ * object or function previously serialized with a ScriptableOutputStream.
+ * References to names in the exclusion list
+ * replaced with references to the top-level scope specified during
+ * creation of the ScriptableInputStream.
+ *
+ * @author Norris Boyd
+ */
+
+public class ScriptableInputStream extends ObjectInputStream {
+
+    /**
+     * Create a ScriptableInputStream.
+     * @param in the InputStream to read from.
+     * @param scope the top-level scope to create the object in.
+     */
+    public ScriptableInputStream(InputStream in, Scriptable scope)
+        throws IOException
+    {
+<span class="fc" id="L35">        super(in);</span>
+<span class="fc" id="L36">        this.scope = scope;</span>
+<span class="fc" id="L37">        enableResolveObject(true);</span>
+<span class="fc" id="L38">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        if (cx != null) {</span>
+<span class="fc" id="L40">            this.classLoader = cx.getApplicationClassLoader();</span>
+        }
+<span class="fc" id="L42">    }</span>
+
+    @Override
+    protected Class&lt;?&gt; resolveClass(ObjectStreamClass desc)
+        throws IOException, ClassNotFoundException
+    {
+<span class="fc" id="L48">        String name = desc.getName();</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        if (classLoader != null) {</span>
+            try {
+<span class="fc" id="L51">                return classLoader.loadClass(name);</span>
+<span class="fc" id="L52">            } catch (ClassNotFoundException ex) {</span>
+                // fall through to default loading
+            }
+        }
+<span class="fc" id="L56">        return super.resolveClass(desc);</span>
+    }
+
+    @Override
+    protected Object resolveObject(Object obj)
+        throws IOException
+    {
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (obj instanceof ScriptableOutputStream.PendingLookup) {</span>
+<span class="fc" id="L64">            String name = ((ScriptableOutputStream.PendingLookup)obj).getName();</span>
+<span class="fc" id="L65">            obj = ScriptableOutputStream.lookupQualifiedName(scope, name);</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">            if (obj == Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L67">                throw new IOException(&quot;Object &quot; + name + &quot; not found upon &quot; +</span>
+                                      &quot;deserialization.&quot;);
+            }
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        }else if (obj instanceof UniqueTag) {</span>
+<span class="fc" id="L71">            obj = ((UniqueTag)obj).readResolve();</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        }else if (obj instanceof Undefined) {</span>
+<span class="fc" id="L73">            obj = ((Undefined)obj).readResolve();</span>
+        }
+<span class="fc" id="L75">        return obj;</span>
+    }
+
+    private Scriptable scope;
+    private ClassLoader classLoader;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

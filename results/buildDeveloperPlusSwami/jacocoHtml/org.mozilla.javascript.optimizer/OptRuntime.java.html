@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OptRuntime.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.optimizer</a> &gt; <span class="el_source">OptRuntime.java</span></div><h1>OptRuntime.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+
+<span class="nc" id="L10">public final class OptRuntime extends ScriptRuntime</span>
+{
+
+<span class="fc" id="L13">    public static final Double zeroObj = new Double(0.0);</span>
+<span class="fc" id="L14">    public static final Double oneObj = new Double(1.0);</span>
+<span class="fc" id="L15">    public static final Double minusOneObj = new Double(-1.0);</span>
+
+    /**
+     * Implement ....() call shrinking optimizer code.
+     */
+    public static Object call0(Callable fun, Scriptable thisObj,
+                               Context cx, Scriptable scope)
+    {
+<span class="fc" id="L23">        return fun.call(cx, scope, thisObj, ScriptRuntime.emptyArgs);</span>
+    }
+
+    /**
+     * Implement ....(arg) call shrinking optimizer code.
+     */
+    public static Object call1(Callable fun, Scriptable thisObj, Object arg0,
+                               Context cx, Scriptable scope)
+    {
+<span class="fc" id="L32">        return fun.call(cx, scope, thisObj, new Object[] { arg0 } );</span>
+    }
+
+    /**
+     * Implement ....(arg0, arg1) call shrinking optimizer code.
+     */
+    public static Object call2(Callable fun, Scriptable thisObj,
+                               Object arg0, Object arg1,
+                               Context cx, Scriptable scope)
+    {
+<span class="fc" id="L42">        return fun.call(cx, scope, thisObj, new Object[] { arg0, arg1 });</span>
+    }
+
+    /**
+     * Implement ....(arg0, arg1, ...) call shrinking optimizer code.
+     */
+    public static Object callN(Callable fun, Scriptable thisObj,
+                               Object[] args,
+                               Context cx, Scriptable scope)
+    {
+<span class="fc" id="L52">        return fun.call(cx, scope, thisObj, args);</span>
+    }
+
+    /**
+     * Implement name(args) call shrinking optimizer code.
+     */
+    public static Object callName(Object[] args, String name,
+                                  Context cx, Scriptable scope)
+    {
+<span class="fc" id="L61">        Callable f = getNameFunctionAndThis(name, cx, scope);</span>
+<span class="fc" id="L62">        Scriptable thisObj = lastStoredScriptable(cx);</span>
+<span class="fc" id="L63">        return f.call(cx, scope, thisObj, args);</span>
+    }
+
+    /**
+     * Implement name() call shrinking optimizer code.
+     */
+    public static Object callName0(String name,
+                                   Context cx, Scriptable scope)
+    {
+<span class="fc" id="L72">        Callable f = getNameFunctionAndThis(name, cx, scope);</span>
+<span class="fc" id="L73">        Scriptable thisObj = lastStoredScriptable(cx);</span>
+<span class="fc" id="L74">        return f.call(cx, scope, thisObj, ScriptRuntime.emptyArgs);</span>
+    }
+
+    /**
+     * Implement x.property() call shrinking optimizer code.
+     */
+    public static Object callProp0(Object value, String property,
+                                   Context cx, Scriptable scope)
+    {
+<span class="fc" id="L83">        Callable f = getPropFunctionAndThis(value, property, cx, scope);</span>
+<span class="fc" id="L84">        Scriptable thisObj = lastStoredScriptable(cx);</span>
+<span class="fc" id="L85">        return f.call(cx, scope, thisObj, ScriptRuntime.emptyArgs);</span>
+    }
+
+    public static Object add(Object val1, double val2)
+    {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (val1 instanceof Scriptable)</span>
+<span class="fc" id="L91">            val1 = ((Scriptable) val1).getDefaultValue(null);</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if (!(val1 instanceof CharSequence))</span>
+<span class="fc" id="L93">            return wrapDouble(toNumber(val1) + val2);</span>
+<span class="fc" id="L94">        return new ConsString((CharSequence)val1, toString(val2));</span>
+    }
+
+    public static Object add(double val1, Object val2)
+    {
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (val2 instanceof Scriptable)</span>
+<span class="fc" id="L100">            val2 = ((Scriptable) val2).getDefaultValue(null);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (!(val2 instanceof CharSequence))</span>
+<span class="fc" id="L102">            return wrapDouble(toNumber(val2) + val1);</span>
+<span class="fc" id="L103">        return new ConsString(toString(val1), (CharSequence)val2);</span>
+    }
+
+    /**
+     * @deprecated Use {@link #elemIncrDecr(Object, double, Context, Scriptable, int)} instead
+     */
+    @Deprecated
+    public static Object elemIncrDecr(Object obj, double index,
+                                      Context cx, int incrDecrMask)
+    {
+<span class="nc" id="L113">        return elemIncrDecr(obj, index, cx, getTopCallScope(cx), incrDecrMask);</span>
+    }
+
+    public static Object elemIncrDecr(Object obj, double index,
+                                      Context cx, Scriptable scope,
+                                      int incrDecrMask)
+    {
+<span class="nc" id="L120">        return ScriptRuntime.elemIncrDecr(obj, new Double(index), cx, scope,</span>
+                                          incrDecrMask);
+    }
+
+    public static Object[] padStart(Object[] currentArgs, int count) {
+<span class="nc" id="L125">        Object[] result = new Object[currentArgs.length + count];</span>
+<span class="nc" id="L126">        System.arraycopy(currentArgs, 0, result, count, currentArgs.length);</span>
+<span class="nc" id="L127">        return result;</span>
+    }
+
+    public static void initFunction(NativeFunction fn, int functionType,
+                                    Scriptable scope, Context cx)
+    {
+<span class="fc" id="L133">        ScriptRuntime.initFunction(cx, scope, fn, functionType, false);</span>
+<span class="fc" id="L134">    }</span>
+
+    public static Function bindThis(NativeFunction fn, Context cx, Scriptable scope, Scriptable thisObj)
+    {
+<span class="fc" id="L138">        return new ArrowFunction(cx, scope, fn, thisObj);</span>
+    }
+
+    public static Object callSpecial(Context cx, Callable fun,
+                                     Scriptable thisObj, Object[] args,
+                                     Scriptable scope,
+                                     Scriptable callerThis, int callType,
+                                     String fileName, int lineNumber)
+    {
+<span class="fc" id="L147">        return ScriptRuntime.callSpecial(cx, fun, thisObj, args, scope,</span>
+                                         callerThis, callType,
+                                         fileName, lineNumber);
+    }
+
+    public static Object newObjectSpecial(Context cx, Object fun,
+                                          Object[] args, Scriptable scope,
+                                          Scriptable callerThis, int callType)
+    {
+<span class="nc" id="L156">        return ScriptRuntime.newSpecial(cx, fun, args, scope, callType);</span>
+    }
+
+    public static Double wrapDouble(double num)
+    {
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (num == 0.0) {</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            if (1 / num &gt; 0) {</span>
+                // +0.0
+<span class="fc" id="L164">                return zeroObj;</span>
+            }
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        } else if (num == 1.0) {</span>
+<span class="fc" id="L167">            return oneObj;</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        } else if (num == -1.0) {</span>
+<span class="fc" id="L169">            return minusOneObj;</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        } else if (num != num) {</span>
+<span class="fc" id="L171">            return NaNobj;</span>
+        }
+<span class="fc" id="L173">        return new Double(num);</span>
+    }
+
+    static String encodeIntArray(int[] array)
+    {
+        // XXX: this extremely inefficient for small integers
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        if (array == null) { return null; }</span>
+<span class="fc" id="L180">        int n = array.length;</span>
+<span class="fc" id="L181">        char[] buffer = new char[1 + n * 2];</span>
+<span class="fc" id="L182">        buffer[0] = 1;</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        for (int i = 0; i != n; ++i) {</span>
+<span class="fc" id="L184">            int value = array[i];</span>
+<span class="fc" id="L185">            int shift = 1 + i * 2;</span>
+<span class="fc" id="L186">            buffer[shift] = (char)(value &gt;&gt;&gt; 16);</span>
+<span class="fc" id="L187">            buffer[shift + 1] = (char)value;</span>
+        }
+<span class="fc" id="L189">        return new String(buffer);</span>
+    }
+
+    private static int[] decodeIntArray(String str, int arraySize)
+    {
+        // XXX: this extremely inefficient for small integers
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if (arraySize == 0) {</span>
+<span class="pc bpc" id="L196" title="1 of 2 branches missed.">            if (str != null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L197">            return null;</span>
+        }
+<span class="pc bpc" id="L199" title="3 of 4 branches missed.">        if (str.length() != 1 + arraySize * 2 &amp;&amp; str.charAt(0) != 1) {</span>
+<span class="nc" id="L200">            throw new IllegalArgumentException();</span>
+        }
+<span class="fc" id="L202">        int[] array = new int[arraySize];</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        for (int i = 0; i != arraySize; ++i) {</span>
+<span class="fc" id="L204">            int shift = 1 + i * 2;</span>
+<span class="fc" id="L205">            array[i] = (str.charAt(shift) &lt;&lt; 16) | str.charAt(shift + 1);</span>
+        }
+<span class="fc" id="L207">        return array;</span>
+    }
+
+    public static Scriptable newArrayLiteral(Object[] objects,
+                                             String encodedInts,
+                                             int skipCount,
+                                             Context cx,
+                                             Scriptable scope)
+    {
+<span class="fc" id="L216">        int[] skipIndexces = decodeIntArray(encodedInts, skipCount);</span>
+<span class="fc" id="L217">        return newArrayLiteral(objects, skipIndexces, cx, scope);</span>
+    }
+
+    public static void main(final Script script, final String[] args)
+    {
+<span class="nc" id="L222">        ContextFactory.getGlobal().call(new ContextAction() {</span>
+            public Object run(Context cx)
+            {
+<span class="nc" id="L225">                ScriptableObject global = getGlobal(cx);</span>
+
+                // get the command line arguments and define &quot;arguments&quot;
+                // array in the top-level object
+<span class="nc" id="L229">                Object[] argsCopy = new Object[args.length];</span>
+<span class="nc" id="L230">                System.arraycopy(args, 0, argsCopy, 0, args.length);</span>
+<span class="nc" id="L231">                Scriptable argsObj = cx.newArray(global, argsCopy);</span>
+<span class="nc" id="L232">                global.defineProperty(&quot;arguments&quot;, argsObj,</span>
+                                      ScriptableObject.DONTENUM);
+<span class="nc" id="L234">                script.exec(cx, global);</span>
+<span class="nc" id="L235">                return null;</span>
+            }
+        });
+<span class="nc" id="L238">    }</span>
+
+    public static void throwStopIteration(Object obj) {
+<span class="fc" id="L241">        throw new JavaScriptException(</span>
+<span class="fc" id="L242">            NativeIterator.getStopIterationObject((Scriptable)obj), &quot;&quot;, 0);</span>
+    }
+
+    public static Scriptable createNativeGenerator(NativeFunction funObj,
+                                                   Scriptable scope,
+                                                   Scriptable thisObj,
+                                                   int maxLocals,
+                                                   int maxStack)
+    {
+<span class="fc" id="L251">        return new NativeGenerator(scope, funObj,</span>
+                new GeneratorState(thisObj, maxLocals, maxStack));
+    }
+
+    public static Object[] getGeneratorStackState(Object obj) {
+<span class="fc" id="L256">        GeneratorState rgs = (GeneratorState) obj;</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">        if (rgs.stackState == null)</span>
+<span class="fc" id="L258">            rgs.stackState = new Object[rgs.maxStack];</span>
+<span class="fc" id="L259">        return rgs.stackState;</span>
+    }
+
+    public static Object[] getGeneratorLocalsState(Object obj) {
+<span class="fc" id="L263">        GeneratorState rgs = (GeneratorState) obj;</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">        if (rgs.localsState == null)</span>
+<span class="fc" id="L265">            rgs.localsState = new Object[rgs.maxLocals];</span>
+<span class="fc" id="L266">        return rgs.localsState;</span>
+    }
+
+    public static class GeneratorState {
+        static final String CLASS_NAME =
+            &quot;org/mozilla/javascript/optimizer/OptRuntime$GeneratorState&quot;;
+
+        public int resumptionPoint;
+        static final String resumptionPoint_NAME = &quot;resumptionPoint&quot;;
+        static final String resumptionPoint_TYPE = &quot;I&quot;;
+
+        public Scriptable thisObj;
+        static final String thisObj_NAME = &quot;thisObj&quot;;
+        static final String thisObj_TYPE =
+            &quot;Lorg/mozilla/javascript/Scriptable;&quot;;
+
+        Object[] stackState;
+        Object[] localsState;
+        int maxLocals;
+        int maxStack;
+
+<span class="fc" id="L287">        GeneratorState(Scriptable thisObj, int maxLocals, int maxStack) {</span>
+<span class="fc" id="L288">            this.thisObj = thisObj;</span>
+<span class="fc" id="L289">            this.maxLocals = maxLocals;</span>
+<span class="fc" id="L290">            this.maxStack = maxStack;</span>
+<span class="fc" id="L291">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

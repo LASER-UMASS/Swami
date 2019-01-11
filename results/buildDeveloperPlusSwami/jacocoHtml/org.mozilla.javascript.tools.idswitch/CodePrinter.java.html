@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CodePrinter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.idswitch</a> &gt; <span class="el_source">CodePrinter.java</span></div><h1>CodePrinter.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.idswitch;
+
+<span class="nc" id="L8">class CodePrinter {</span>
+
+// length of u-type escape like \u12AB
+    private static final int LITERAL_CHAR_MAX_SIZE = 6;
+
+<span class="nc" id="L13">    private String lineTerminator = &quot;\n&quot;;</span>
+
+<span class="nc" id="L15">    private int indentStep = 4;</span>
+<span class="nc" id="L16">    private int indentTabSize = 8;</span>
+
+<span class="nc" id="L18">    private char[] buffer = new char[1 &lt;&lt; 12]; // 4K</span>
+    private int offset;
+
+<span class="nc" id="L21">    public String getLineTerminator() { return lineTerminator; }</span>
+<span class="nc" id="L22">    public void setLineTerminator(String value) { lineTerminator = value; }</span>
+
+<span class="nc" id="L24">    public int getIndentStep() { return indentStep; }</span>
+<span class="nc" id="L25">    public void setIndentStep(int char_count) { indentStep = char_count; }</span>
+
+<span class="nc" id="L27">    public int getIndentTabSize() {    return indentTabSize; }</span>
+<span class="nc" id="L28">    public void setIndentTabSize(int tab_size) { indentTabSize = tab_size; }</span>
+
+    public void clear() {
+<span class="nc" id="L31">        offset = 0;</span>
+<span class="nc" id="L32">    }</span>
+
+    private int ensure_area(int area_size) {
+<span class="nc" id="L35">        int begin = offset;</span>
+<span class="nc" id="L36">        int end = begin + area_size;</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        if (end &gt; buffer.length) {</span>
+<span class="nc" id="L38">            int new_capacity = buffer.length * 2;</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">            if (end &gt; new_capacity) { new_capacity = end; }</span>
+<span class="nc" id="L40">            char[] tmp = new char[new_capacity];</span>
+<span class="nc" id="L41">            System.arraycopy(buffer, 0, tmp, 0, begin);</span>
+<span class="nc" id="L42">            buffer = tmp;</span>
+        }
+<span class="nc" id="L44">        return begin;</span>
+    }
+
+    private int add_area(int area_size) {
+<span class="nc" id="L48">        int pos = ensure_area(area_size);</span>
+<span class="nc" id="L49">        offset = pos + area_size;</span>
+<span class="nc" id="L50">        return pos;</span>
+    }
+
+    public int getOffset() {
+<span class="nc" id="L54">        return offset;</span>
+    }
+
+    public int getLastChar() {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        return offset == 0 ? -1 : buffer[offset - 1];</span>
+    }
+
+    public void p(char c) {
+<span class="nc" id="L62">        int pos = add_area(1);</span>
+<span class="nc" id="L63">        buffer[pos] = c;</span>
+<span class="nc" id="L64">    }</span>
+
+    public void p(String s) {
+<span class="nc" id="L67">        int l = s.length();</span>
+<span class="nc" id="L68">        int pos = add_area(l);</span>
+<span class="nc" id="L69">        s.getChars(0, l, buffer, pos);</span>
+<span class="nc" id="L70">    }</span>
+
+    public final void p(char[] array) {
+<span class="nc" id="L73">        p(array, 0, array.length);</span>
+<span class="nc" id="L74">    }</span>
+
+    public void p(char[] array, int begin, int end) {
+<span class="nc" id="L77">        int l = end - begin;</span>
+<span class="nc" id="L78">        int pos = add_area(l);</span>
+<span class="nc" id="L79">        System.arraycopy(array, begin, buffer, pos, l);</span>
+<span class="nc" id="L80">    }</span>
+
+    public void p(int i) {
+<span class="nc" id="L83">        p(Integer.toString(i));</span>
+<span class="nc" id="L84">    }</span>
+
+    public void qchar(int c) {
+<span class="nc" id="L87">        int pos = ensure_area(2 + LITERAL_CHAR_MAX_SIZE);</span>
+<span class="nc" id="L88">        buffer[pos] = '\'';</span>
+<span class="nc" id="L89">        pos = put_string_literal_char(pos + 1, c, false);</span>
+<span class="nc" id="L90">        buffer[pos] = '\'';</span>
+<span class="nc" id="L91">        offset = pos + 1;</span>
+<span class="nc" id="L92">    }</span>
+
+    public void qstring(String s) {
+<span class="nc" id="L95">        int l = s.length();</span>
+<span class="nc" id="L96">        int pos = ensure_area(2 + LITERAL_CHAR_MAX_SIZE * l);</span>
+<span class="nc" id="L97">        buffer[pos] = '&quot;';</span>
+<span class="nc" id="L98">        ++pos;</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (int i = 0; i != l; ++i) {</span>
+<span class="nc" id="L100">            pos = put_string_literal_char(pos, s.charAt(i), true);</span>
+        }
+<span class="nc" id="L102">        buffer[pos] = '&quot;';</span>
+<span class="nc" id="L103">        offset = pos + 1;</span>
+<span class="nc" id="L104">    }</span>
+
+    private int put_string_literal_char(int pos, int c, boolean in_string) {
+<span class="nc" id="L107">        boolean backslash_symbol = true;</span>
+<span class="nc bnc" id="L108" title="All 8 branches missed.">        switch (c) {</span>
+<span class="nc" id="L109">            case '\b': c = 'b'; break;</span>
+<span class="nc" id="L110">            case '\t': c = 't'; break;</span>
+<span class="nc" id="L111">            case '\n': c = 'n'; break;</span>
+<span class="nc" id="L112">            case '\f': c = 'f'; break;</span>
+<span class="nc" id="L113">            case '\r': c = 'r'; break;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            case '\'': backslash_symbol = !in_string; break;</span>
+<span class="nc" id="L115">            case '&quot;': backslash_symbol = in_string; break;</span>
+<span class="nc" id="L116">            default: backslash_symbol = false;</span>
+        }
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (backslash_symbol) {</span>
+<span class="nc" id="L120">            buffer[pos] = '\\';</span>
+<span class="nc" id="L121">            buffer[pos + 1] = (char)c;</span>
+<span class="nc" id="L122">            pos += 2;</span>
+        }
+<span class="nc bnc" id="L124" title="All 4 branches missed.">        else if (' ' &lt;= c &amp;&amp; c &lt;= 126) {</span>
+<span class="nc" id="L125">            buffer[pos] = (char)c;</span>
+<span class="nc" id="L126">            ++pos;</span>
+        }
+        else {
+<span class="nc" id="L129">            buffer[pos] = '\\';</span>
+<span class="nc" id="L130">            buffer[pos + 1] = 'u';</span>
+<span class="nc" id="L131">            buffer[pos + 2] = digit_to_hex_letter(0xF &amp; (c &gt;&gt; 12));</span>
+<span class="nc" id="L132">            buffer[pos + 3] = digit_to_hex_letter(0xF &amp; (c &gt;&gt; 8));</span>
+<span class="nc" id="L133">            buffer[pos + 4] = digit_to_hex_letter(0xF &amp; (c &gt;&gt; 4));</span>
+<span class="nc" id="L134">            buffer[pos + 5] = digit_to_hex_letter(0xF &amp; c);</span>
+<span class="nc" id="L135">            pos += 6;</span>
+        }
+<span class="nc" id="L137">        return pos;</span>
+    }
+
+    private static char digit_to_hex_letter(int d) {
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        return (char)((d &lt; 10) ? '0' + d : 'A' - 10 + d);</span>
+    }
+
+    public void indent(int level) {
+<span class="nc" id="L145">        int visible_size = indentStep * level;</span>
+        int indent_size, tab_count;
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (indentTabSize &lt;= 0) {</span>
+<span class="nc" id="L148">            tab_count = 0; indent_size = visible_size;</span>
+        }
+        else {
+<span class="nc" id="L151">            tab_count = visible_size / indentTabSize;</span>
+<span class="nc" id="L152">            indent_size = tab_count + visible_size % indentTabSize;</span>
+        }
+<span class="nc" id="L154">        int pos = add_area(indent_size);</span>
+<span class="nc" id="L155">        int tab_end = pos + tab_count;</span>
+<span class="nc" id="L156">        int indent_end = pos + indent_size;</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        for (; pos != tab_end; ++pos) {    buffer[pos] = '\t'; }</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        for (; pos != indent_end; ++pos) {    buffer[pos] = ' '; }</span>
+<span class="nc" id="L159">    }</span>
+
+    public void nl() {
+<span class="nc" id="L162">        p('\n');</span>
+<span class="nc" id="L163">    }</span>
+
+    public void line(int indent_level, String s) {
+<span class="nc" id="L166">        indent(indent_level); p(s); nl();</span>
+<span class="nc" id="L167">    }</span>
+
+    public void erase(int begin, int end) {
+<span class="nc" id="L170">        System.arraycopy(buffer, end, buffer, begin, offset - end);</span>
+<span class="nc" id="L171">        offset -= end - begin;</span>
+<span class="nc" id="L172">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L176">        return new String(buffer, 0, offset);</span>
+    }
+
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

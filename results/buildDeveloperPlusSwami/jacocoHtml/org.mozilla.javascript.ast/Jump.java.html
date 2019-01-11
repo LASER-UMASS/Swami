@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Jump.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">Jump.java</span></div><h1>Jump.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Node;
+import org.mozilla.javascript.Token;
+
+/**
+ * Used for code generation.  During codegen, the AST is transformed
+ * into an Intermediate Representation (IR) in which loops, ifs, switches
+ * and other control-flow statements are rewritten as labeled jumps.
+ * If the parser is set to IDE-mode, the resulting AST will not contain
+ * any instances of this class.
+ */
+public class Jump extends AstNode {
+
+    public Node target;
+    private Node target2;
+    private Jump jumpNode;
+
+<span class="fc" id="L25">    public Jump() {</span>
+<span class="fc" id="L26">        type = Token.ERROR;</span>
+<span class="fc" id="L27">    }</span>
+
+<span class="fc" id="L29">    public Jump(int nodeType) {</span>
+<span class="fc" id="L30">        type = nodeType;</span>
+<span class="fc" id="L31">    }</span>
+
+    public Jump(int type, int lineno) {
+<span class="nc" id="L34">        this(type);</span>
+<span class="nc" id="L35">        setLineno(lineno);</span>
+<span class="nc" id="L36">    }</span>
+
+    public Jump(int type, Node child) {
+<span class="fc" id="L39">        this(type);</span>
+<span class="fc" id="L40">        addChildToBack(child);</span>
+<span class="fc" id="L41">    }</span>
+
+    public Jump(int type, Node child, int lineno) {
+<span class="fc" id="L44">        this(type, child);</span>
+<span class="fc" id="L45">        setLineno(lineno);</span>
+<span class="fc" id="L46">    }</span>
+
+    public Jump getJumpStatement()
+    {
+<span class="pc bpc" id="L50" title="1 of 4 branches missed.">        if (type != Token.BREAK &amp;&amp; type != Token.CONTINUE) codeBug();</span>
+<span class="fc" id="L51">        return jumpNode;</span>
+    }
+
+    public void setJumpStatement(Jump jumpStatement)
+    {
+<span class="pc bpc" id="L56" title="1 of 4 branches missed.">        if (type != Token.BREAK &amp;&amp; type != Token.CONTINUE) codeBug();</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (jumpStatement == null) codeBug();</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (this.jumpNode != null) codeBug(); //only once</span>
+<span class="fc" id="L59">        this.jumpNode = jumpStatement;</span>
+<span class="fc" id="L60">    }</span>
+
+    public Node getDefault()
+    {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (type != Token.SWITCH) codeBug();</span>
+<span class="fc" id="L65">        return target2;</span>
+    }
+
+    public void setDefault(Node defaultTarget)
+    {
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (type != Token.SWITCH) codeBug();</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (defaultTarget.getType() != Token.TARGET) codeBug();</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (target2 != null) codeBug(); //only once</span>
+<span class="fc" id="L73">        target2 = defaultTarget;</span>
+<span class="fc" id="L74">    }</span>
+
+    public Node getFinally()
+    {
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (type != Token.TRY) codeBug();</span>
+<span class="fc" id="L79">        return target2;</span>
+    }
+
+    public void setFinally(Node finallyTarget)
+    {
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">        if (type != Token.TRY) codeBug();</span>
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">        if (finallyTarget.getType() != Token.TARGET) codeBug();</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (target2 != null) codeBug(); //only once</span>
+<span class="fc" id="L87">        target2 = finallyTarget;</span>
+<span class="fc" id="L88">    }</span>
+
+    public Jump getLoop()
+    {
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (type != Token.LABEL) codeBug();</span>
+<span class="nc" id="L93">        return jumpNode;</span>
+    }
+
+    public void setLoop(Jump loop)
+    {
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (type != Token.LABEL) codeBug();</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        if (loop == null) codeBug();</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">        if (jumpNode != null) codeBug(); //only once</span>
+<span class="fc" id="L101">        jumpNode = loop;</span>
+<span class="fc" id="L102">    }</span>
+
+    public Node getContinue()
+    {
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (type != Token.LOOP) codeBug();</span>
+<span class="fc" id="L107">        return target2;</span>
+    }
+
+    public void setContinue(Node continueTarget)
+    {
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (type != Token.LOOP) codeBug();</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">        if (continueTarget.getType() != Token.TARGET) codeBug();</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        if (target2 != null) codeBug(); //only once</span>
+<span class="fc" id="L115">        target2 = continueTarget;</span>
+<span class="fc" id="L116">    }</span>
+
+    /**
+     * Jumps are only used directly during code generation, and do
+     * not support this interface.
+     * @throws UnsupportedOperationException
+     */
+    @Override
+    public void visit(NodeVisitor visitor) {
+<span class="nc" id="L125">        throw new UnsupportedOperationException(this.toString());</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L130">        throw new UnsupportedOperationException(this.toString());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

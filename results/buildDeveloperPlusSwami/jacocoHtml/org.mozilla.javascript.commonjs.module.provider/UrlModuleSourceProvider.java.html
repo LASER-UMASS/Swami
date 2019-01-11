@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UrlModuleSourceProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.commonjs.module.provider</a> &gt; <span class="el_source">UrlModuleSourceProvider.java</span></div><h1>UrlModuleSourceProvider.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module.provider;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Iterator;
+import java.util.List;
+
+
+/**
+ * A URL-based script provider that can load modules against a set of base
+ * privileged and fallback URIs. It is deliberately not named &quot;URI provider&quot;
+ * but a &quot;URL provider&quot; since it actually only works against those URIs that
+ * are URLs (and the JRE has a protocol handler for them). It creates cache
+ * validators that are suitable for use with both file: and http: URL
+ * protocols. Specifically, it is able to use both last-modified timestamps and
+ * ETags for cache revalidation, and follows the HTTP cache expiry calculation
+ * model, and allows for fallback heuristic expiry calculation when no server
+ * specified expiry is provided.
+ * @author Attila Szegedi
+ * @version $Id: UrlModuleSourceProvider.java,v 1.4 2011/04/07 20:26:12 hannes%helma.at Exp $
+ */
+public class UrlModuleSourceProvider extends ModuleSourceProviderBase
+{
+    private static final long serialVersionUID = 1L;
+
+    private final Iterable&lt;URI&gt; privilegedUris;
+    private final Iterable&lt;URI&gt; fallbackUris;
+    private final UrlConnectionSecurityDomainProvider
+        urlConnectionSecurityDomainProvider;
+    private final UrlConnectionExpiryCalculator urlConnectionExpiryCalculator;
+
+    /**
+     * Creates a new module script provider that loads modules against a set of
+     * privileged and fallback URIs. It will use a fixed default cache expiry
+     * of 60 seconds, and provide no security domain objects for the resource.
+     * @param privilegedUris an iterable providing the privileged URIs. Can be
+     * null if no privileged URIs are used.
+     * @param fallbackUris an iterable providing the fallback URIs. Can be
+     * null if no fallback URIs are used.
+     */
+    public UrlModuleSourceProvider(Iterable&lt;URI&gt; privilegedUris,
+            Iterable&lt;URI&gt; fallbackUris)
+    {
+<span class="fc" id="L56">        this(privilegedUris, fallbackUris,</span>
+                new DefaultUrlConnectionExpiryCalculator(), null);
+<span class="fc" id="L58">    }</span>
+
+    /**
+     * Creates a new module script provider that loads modules against a set of
+     * privileged and fallback URIs. It will use the specified heuristic cache
+     * expiry calculator and security domain provider.
+     * @param privilegedUris an iterable providing the privileged URIs. Can be
+     * null if no privileged URIs are used.
+     * @param fallbackUris an iterable providing the fallback URIs. Can be
+     * null if no fallback URIs are used.
+     * @param urlConnectionExpiryCalculator the calculator object for heuristic
+     * calculation of the resource expiry, used when no expiry is provided by
+     * the server of the resource. Can be null, in which case the maximum age
+     * of cached entries without validation will be zero.
+     * @param urlConnectionSecurityDomainProvider object that provides security
+     * domain objects for the loaded sources. Can be null, in which case the
+     * loaded sources will have no security domain associated with them.
+     */
+    public UrlModuleSourceProvider(Iterable&lt;URI&gt; privilegedUris,
+            Iterable&lt;URI&gt; fallbackUris,
+            UrlConnectionExpiryCalculator urlConnectionExpiryCalculator,
+            UrlConnectionSecurityDomainProvider urlConnectionSecurityDomainProvider)
+<span class="fc" id="L80">    {</span>
+<span class="fc" id="L81">        this.privilegedUris = privilegedUris;</span>
+<span class="fc" id="L82">        this.fallbackUris = fallbackUris;</span>
+<span class="fc" id="L83">        this.urlConnectionExpiryCalculator = urlConnectionExpiryCalculator;</span>
+<span class="fc" id="L84">        this.urlConnectionSecurityDomainProvider =</span>
+            urlConnectionSecurityDomainProvider;
+<span class="fc" id="L86">    }</span>
+
+    @Override
+    protected ModuleSource loadFromPrivilegedLocations(
+            String moduleId, Object validator)
+            throws IOException, URISyntaxException
+    {
+<span class="fc" id="L93">        return loadFromPathList(moduleId, validator, privilegedUris);</span>
+    }
+
+    @Override
+    protected ModuleSource loadFromFallbackLocations(
+            String moduleId, Object validator)
+            throws IOException, URISyntaxException
+    {
+<span class="fc" id="L101">        return loadFromPathList(moduleId, validator, fallbackUris);</span>
+    }
+
+    private ModuleSource loadFromPathList(String moduleId,
+            Object validator, Iterable&lt;URI&gt; paths)
+            throws IOException, URISyntaxException
+    {
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">        if(paths == null) {</span>
+<span class="nc" id="L109">            return null;</span>
+        }
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        for (URI path : paths) {</span>
+<span class="fc" id="L112">            final ModuleSource moduleSource = loadFromUri(</span>
+<span class="fc" id="L113">                    path.resolve(moduleId), path, validator);</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">            if (moduleSource != null) {</span>
+<span class="fc" id="L115">                return moduleSource;</span>
+            }
+<span class="fc" id="L117">        }</span>
+<span class="fc" id="L118">        return null;</span>
+    }
+
+    @Override
+    protected ModuleSource loadFromUri(URI uri, URI base, Object validator)
+    throws IOException, URISyntaxException
+    {
+        // We expect modules to have a &quot;.js&quot; file name extension ...
+<span class="fc" id="L126">        URI fullUri = new URI(uri + &quot;.js&quot;);</span>
+<span class="fc" id="L127">        ModuleSource source = loadFromActualUri(fullUri, base, validator);</span>
+        // ... but for compatibility we support modules without extension,
+        // or ids with explicit extension.
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        return source != null ?</span>
+<span class="fc" id="L131">               source : loadFromActualUri(uri, base, validator);</span>
+    }
+
+    protected ModuleSource loadFromActualUri(URI uri, URI base, Object validator)
+    throws IOException
+    {
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">        final URL url = new URL(base == null ? null : base.toURL(), uri.toString());</span>
+<span class="fc" id="L138">        final long request_time = System.currentTimeMillis();</span>
+<span class="fc" id="L139">        final URLConnection urlConnection = openUrlConnection(url);</span>
+        final URLValidator applicableValidator;
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        if(validator instanceof URLValidator) {</span>
+<span class="nc" id="L142">            final URLValidator uriValidator = ((URLValidator)validator);</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            applicableValidator = uriValidator.appliesTo(uri) ? uriValidator :</span>
+                null;
+<span class="nc" id="L145">        }</span>
+        else {
+<span class="fc" id="L147">            applicableValidator = null;</span>
+        }
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if(applicableValidator != null) {</span>
+<span class="nc" id="L150">            applicableValidator.applyConditionals(urlConnection);</span>
+        }
+        try {
+<span class="fc" id="L153">            urlConnection.connect();</span>
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">            if(applicableValidator != null &amp;&amp;</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                    applicableValidator.updateValidator(urlConnection,</span>
+                            request_time, urlConnectionExpiryCalculator))
+            {
+<span class="nc" id="L158">                close(urlConnection);</span>
+<span class="nc" id="L159">                return NOT_MODIFIED;</span>
+            }
+
+<span class="fc" id="L162">            return new ModuleSource(getReader(urlConnection),</span>
+<span class="fc" id="L163">                    getSecurityDomain(urlConnection), uri, base,</span>
+                    new URLValidator(uri, urlConnection, request_time,
+                            urlConnectionExpiryCalculator));
+        }
+<span class="fc" id="L167">        catch(FileNotFoundException e) {</span>
+<span class="fc" id="L168">            return null;</span>
+        }
+<span class="nc" id="L170">        catch(RuntimeException e) {</span>
+<span class="nc" id="L171">            close(urlConnection);</span>
+<span class="nc" id="L172">            throw e;</span>
+        }
+<span class="nc" id="L174">        catch(IOException e) {</span>
+<span class="nc" id="L175">            close(urlConnection);</span>
+<span class="nc" id="L176">            throw e;</span>
+        }
+    }
+
+    private static Reader getReader(URLConnection urlConnection)
+    throws IOException
+    {
+<span class="fc" id="L183">        return new InputStreamReader(urlConnection.getInputStream(),</span>
+<span class="fc" id="L184">                getCharacterEncoding(urlConnection));</span>
+    }
+
+    private static String getCharacterEncoding(URLConnection urlConnection) {
+<span class="fc" id="L188">        final ParsedContentType pct = new ParsedContentType(</span>
+<span class="fc" id="L189">                urlConnection.getContentType());</span>
+<span class="fc" id="L190">        final String encoding = pct.getEncoding();</span>
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if(encoding != null) {</span>
+<span class="nc" id="L192">            return encoding;</span>
+        }
+<span class="fc" id="L194">        final String contentType = pct.getContentType();</span>
+<span class="pc bpc" id="L195" title="2 of 4 branches missed.">        if(contentType != null &amp;&amp; contentType.startsWith(&quot;text/&quot;)) {</span>
+<span class="nc" id="L196">            return &quot;8859_1&quot;;</span>
+        }
+        else {
+<span class="fc" id="L199">            return &quot;utf-8&quot;;</span>
+        }
+    }
+
+    private Object getSecurityDomain(URLConnection urlConnection) {
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">        return urlConnectionSecurityDomainProvider == null ? null :</span>
+<span class="nc" id="L205">            urlConnectionSecurityDomainProvider.getSecurityDomain(</span>
+                    urlConnection);
+    }
+
+    private void close(URLConnection urlConnection) {
+        try {
+<span class="nc" id="L211">            urlConnection.getInputStream().close();</span>
+        }
+<span class="nc" id="L213">        catch(IOException e) {</span>
+<span class="nc" id="L214">            onFailedClosingUrlConnection(urlConnection, e);</span>
+<span class="nc" id="L215">        }</span>
+<span class="nc" id="L216">    }</span>
+
+    /**
+     * Override if you want to get notified if the URL connection fails to
+     * close. Does nothing by default.
+     * @param urlConnection the connection
+     * @param cause the cause it failed to close.
+     */
+    protected void onFailedClosingUrlConnection(URLConnection urlConnection,
+            IOException cause) {
+<span class="nc" id="L226">    }</span>
+
+    /**
+     * Can be overridden in subclasses to customize the URL connection opening
+     * process. By default, just calls {@link URL#openConnection()}.
+     * @param url the URL
+     * @return a connection to the URL.
+     * @throws IOException if an I/O error occurs.
+     */
+    protected URLConnection openUrlConnection(URL url) throws IOException {
+<span class="fc" id="L236">        return url.openConnection();</span>
+    }
+
+    @Override
+    protected boolean entityNeedsRevalidation(Object validator) {
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        return !(validator instanceof URLValidator)</span>
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">                || ((URLValidator)validator).entityNeedsRevalidation();</span>
+    }
+
+    private static class URLValidator implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final URI uri;
+        private final long lastModified;
+        private final String entityTags;
+        private long expiry;
+
+        public URLValidator(URI uri, URLConnection urlConnection,
+                long request_time, UrlConnectionExpiryCalculator
+<span class="fc" id="L255">                urlConnectionExpiryCalculator) {</span>
+<span class="fc" id="L256">            this.uri = uri;</span>
+<span class="fc" id="L257">            this.lastModified = urlConnection.getLastModified();</span>
+<span class="fc" id="L258">            this.entityTags = getEntityTags(urlConnection);</span>
+<span class="fc" id="L259">            expiry = calculateExpiry(urlConnection, request_time,</span>
+                    urlConnectionExpiryCalculator);
+<span class="fc" id="L261">        }</span>
+
+        boolean updateValidator(URLConnection urlConnection, long request_time,
+                UrlConnectionExpiryCalculator urlConnectionExpiryCalculator)
+        throws IOException
+        {
+<span class="nc" id="L267">            boolean isResourceChanged = isResourceChanged(urlConnection);</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            if(!isResourceChanged) {</span>
+<span class="nc" id="L269">                expiry = calculateExpiry(urlConnection, request_time,</span>
+                        urlConnectionExpiryCalculator);
+            }
+<span class="nc" id="L272">            return isResourceChanged;</span>
+        }
+
+        private boolean isResourceChanged(URLConnection urlConnection)
+        throws IOException {
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            if(urlConnection instanceof HttpURLConnection) {</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                return ((HttpURLConnection)urlConnection).getResponseCode() ==</span>
+                    HttpURLConnection.HTTP_NOT_MODIFIED;
+            }
+<span class="nc bnc" id="L281" title="All 2 branches missed.">            return lastModified == urlConnection.getLastModified();</span>
+        }
+
+        private long calculateExpiry(URLConnection urlConnection,
+                long request_time, UrlConnectionExpiryCalculator
+                urlConnectionExpiryCalculator)
+        {
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            if(&quot;no-cache&quot;.equals(urlConnection.getHeaderField(&quot;Pragma&quot;))) {</span>
+<span class="nc" id="L289">                return 0L;</span>
+            }
+<span class="fc" id="L291">            final String cacheControl = urlConnection.getHeaderField(</span>
+                    &quot;Cache-Control&quot;);
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">            if(cacheControl != null ) {</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">                if(cacheControl.indexOf(&quot;no-cache&quot;) != -1) {</span>
+<span class="nc" id="L295">                    return 0L;</span>
+                }
+<span class="nc" id="L297">                final int max_age = getMaxAge(cacheControl);</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                if(-1 != max_age) {</span>
+<span class="nc" id="L299">                    final long response_time = System.currentTimeMillis();</span>
+<span class="nc" id="L300">                    final long apparent_age = Math.max(0, response_time -</span>
+<span class="nc" id="L301">                            urlConnection.getDate());</span>
+<span class="nc" id="L302">                    final long corrected_received_age = Math.max(apparent_age,</span>
+<span class="nc" id="L303">                            urlConnection.getHeaderFieldInt(&quot;Age&quot;, 0) * 1000L);</span>
+<span class="nc" id="L304">                    final long response_delay = response_time - request_time;</span>
+<span class="nc" id="L305">                    final long corrected_initial_age = corrected_received_age +</span>
+                        response_delay;
+<span class="nc" id="L307">                    final long creation_time = response_time -</span>
+                        corrected_initial_age;
+<span class="nc" id="L309">                    return max_age * 1000L + creation_time;</span>
+                }
+            }
+<span class="fc" id="L312">            final long explicitExpiry = urlConnection.getHeaderFieldDate(</span>
+                    &quot;Expires&quot;, -1L);
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">            if(explicitExpiry != -1L) {</span>
+<span class="nc" id="L315">                return explicitExpiry;</span>
+            }
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">            return urlConnectionExpiryCalculator == null ? 0L :</span>
+<span class="fc" id="L318">                urlConnectionExpiryCalculator.calculateExpiry(urlConnection);</span>
+        }
+
+        private int getMaxAge(String cacheControl) {
+<span class="nc" id="L322">            final int maxAgeIndex = cacheControl.indexOf(&quot;max-age&quot;);</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">            if(maxAgeIndex == -1) {</span>
+<span class="nc" id="L324">                return -1;</span>
+            }
+<span class="nc" id="L326">            final int eq = cacheControl.indexOf('=', maxAgeIndex + 7);</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">            if(eq == -1) {</span>
+<span class="nc" id="L328">                return -1;</span>
+            }
+<span class="nc" id="L330">            final int comma = cacheControl.indexOf(',', eq + 1);</span>
+            final String strAge;
+<span class="nc bnc" id="L332" title="All 2 branches missed.">            if(comma == -1) {</span>
+<span class="nc" id="L333">                strAge = cacheControl.substring(eq + 1);</span>
+            }
+            else {
+<span class="nc" id="L336">                strAge = cacheControl.substring(eq + 1, comma);</span>
+            }
+            try {
+<span class="nc" id="L339">                return Integer.parseInt(strAge);</span>
+            }
+<span class="nc" id="L341">            catch(NumberFormatException e) {</span>
+<span class="nc" id="L342">                return -1;</span>
+            }
+        }
+
+        private String getEntityTags(URLConnection urlConnection) {
+<span class="fc" id="L347">            final List&lt;String&gt; etags = urlConnection.getHeaderFields().get(&quot;ETag&quot;);</span>
+<span class="pc bpc" id="L348" title="3 of 4 branches missed.">            if(etags == null || etags.isEmpty()) {</span>
+<span class="fc" id="L349">                return null;</span>
+            }
+<span class="nc" id="L351">            final StringBuilder b = new StringBuilder();</span>
+<span class="nc" id="L352">            final Iterator&lt;String&gt; it = etags.iterator();</span>
+<span class="nc" id="L353">            b.append(it.next());</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            while(it.hasNext()) {</span>
+<span class="nc" id="L355">                b.append(&quot;, &quot;).append(it.next());</span>
+            }
+<span class="nc" id="L357">            return b.toString();</span>
+        }
+
+        boolean appliesTo(URI uri) {
+<span class="nc" id="L361">            return this.uri.equals(uri);</span>
+        }
+
+        void applyConditionals(URLConnection urlConnection) {
+<span class="nc bnc" id="L365" title="All 2 branches missed.">            if(lastModified != 0L) {</span>
+<span class="nc" id="L366">                urlConnection.setIfModifiedSince(lastModified);</span>
+            }
+<span class="nc bnc" id="L368" title="All 4 branches missed.">            if(entityTags != null &amp;&amp; entityTags.length() &gt; 0) {</span>
+<span class="nc" id="L369">                urlConnection.addRequestProperty(&quot;If-None-Match&quot;, entityTags);</span>
+            }
+<span class="nc" id="L371">        }</span>
+
+        boolean entityNeedsRevalidation() {
+<span class="pc bpc" id="L374" title="1 of 2 branches missed.">            return System.currentTimeMillis() &gt; expiry;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

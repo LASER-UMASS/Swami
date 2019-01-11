@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlRef.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">XmlRef.java</span></div><h1>XmlRef.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+/**
+ * Base class for E4X XML attribute-access or property-get expressions.
+ * Such expressions can take a variety of forms. The general syntax has
+ * three parts:&lt;p&gt;
+ *
+ * &lt;ol&gt;
+ *  &lt;li&gt;optional: an {@code @}&lt;/li&gt;  (specifying an attribute access)&lt;/li&gt;
+ *  &lt;li&gt;optional: a namespace (a {@code Name}) and double-colon&lt;/li&gt;
+ *  &lt;li&gt;required:  either a {@code Name} or a bracketed [expression]&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * The property-name expressions (examples:  {@code ns::name}, {@code @name})
+ * are represented as {@link XmlPropRef} nodes.  The bracketed-expression
+ * versions (examples:  {@code ns::[name]}, {@code @[name]}) become
+ * {@link XmlElemRef} nodes.&lt;p&gt;
+ *
+ * This node type (or more specifically, its subclasses) will
+ * sometimes be the right-hand child of a {@link PropertyGet} node or
+ * an {@link XmlMemberGet} node.  The {@code XmlRef} node may also
+ * be a standalone primary expression with no explicit target, which
+ * is valid in certain expression contexts such as
+ * {@code company..employee.(@id &amp;lt; 100)} - in this case, the {@code @id}
+ * is an {@code XmlRef} that is part of an infix '&amp;lt;' expression
+ * whose parent is an {@code XmlDotQuery} node.&lt;p&gt;
+ */
+public abstract class XmlRef extends AstNode {
+
+    protected Name namespace;
+<span class="pc" id="L37">    protected int atPos = -1;</span>
+<span class="pc" id="L38">    protected int colonPos = -1;</span>
+
+<span class="nc" id="L40">    public XmlRef() {</span>
+<span class="nc" id="L41">    }</span>
+
+    public XmlRef(int pos) {
+<span class="nc" id="L44">        super(pos);</span>
+<span class="nc" id="L45">    }</span>
+
+    public XmlRef(int pos, int len) {
+<span class="fc" id="L48">        super(pos, len);</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Return the namespace.  May be {@code @null}.
+     */
+    public Name getNamespace() {
+<span class="fc" id="L55">        return namespace;</span>
+    }
+
+    /**
+     * Sets namespace, and sets its parent to this node.
+     * Can be {@code null}.
+     */
+    public void setNamespace(Name namespace) {
+<span class="fc" id="L63">        this.namespace = namespace;</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (namespace != null)</span>
+<span class="fc" id="L65">            namespace.setParent(this);</span>
+<span class="fc" id="L66">    }</span>
+
+    /**
+     * Returns {@code true} if this expression began with an {@code @}-token.
+     */
+    public boolean isAttributeAccess() {
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        return atPos &gt;= 0;</span>
+    }
+
+    /**
+     * Returns position of {@code @}-token, or -1 if this is not
+     * an attribute-access expression.
+     */
+    public int getAtPos() {
+<span class="nc" id="L80">        return atPos;</span>
+    }
+
+    /**
+     * Sets position of {@code @}-token, or -1
+     */
+    public void setAtPos(int atPos) {
+<span class="fc" id="L87">        this.atPos = atPos;</span>
+<span class="fc" id="L88">    }</span>
+
+    /**
+     * Returns position of {@code ::} token, or -1 if not present.
+     * It will only be present if the namespace node is non-{@code null}.
+     */
+    public int getColonPos() {
+<span class="nc" id="L95">        return colonPos;</span>
+    }
+
+    /**
+     * Sets position of {@code ::} token, or -1 if not present
+     */
+    public void setColonPos(int colonPos) {
+<span class="fc" id="L102">        this.colonPos = colonPos;</span>
+<span class="fc" id="L103">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaMethod.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaMethod.java</span></div><h1>NativeJavaMethod.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.util.Arrays;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * This class reflects Java methods into the JavaScript environment and
+ * handles overloading of methods.
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaPackage
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaMethod extends BaseFunction
+{
+    static final long serialVersionUID = -3440381785576412928L;
+
+    NativeJavaMethod(MemberBox[] methods)
+<span class="fc" id="L28">    {</span>
+<span class="fc" id="L29">        this.functionName = methods[0].getName();</span>
+<span class="fc" id="L30">        this.methods = methods;</span>
+<span class="fc" id="L31">    }</span>
+
+    NativeJavaMethod(MemberBox[] methods, String name)
+<span class="fc" id="L34">    {</span>
+<span class="fc" id="L35">        this.functionName = name;</span>
+<span class="fc" id="L36">        this.methods = methods;</span>
+<span class="fc" id="L37">    }</span>
+
+    NativeJavaMethod(MemberBox method, String name)
+<span class="fc" id="L40">    {</span>
+<span class="fc" id="L41">        this.functionName = name;</span>
+<span class="fc" id="L42">        this.methods = new MemberBox[] { method };</span>
+<span class="fc" id="L43">    }</span>
+
+    public NativeJavaMethod(Method method, String name)
+    {
+<span class="nc" id="L47">        this(new MemberBox(method), name);</span>
+<span class="nc" id="L48">    }</span>
+
+    @Override
+    public String getFunctionName()
+    {
+<span class="nc" id="L53">        return functionName;</span>
+    }
+
+    static String scriptSignature(Object[] values)
+    {
+<span class="fc" id="L58">        StringBuilder sig = new StringBuilder();</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        for (int i = 0; i != values.length; ++i) {</span>
+<span class="fc" id="L60">            Object value = values[i];</span>
+
+            String s;
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L64">                s = &quot;null&quot;;</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">            } else if (value instanceof Boolean) {</span>
+<span class="nc" id="L66">                s = &quot;boolean&quot;;</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">            } else if (value instanceof String) {</span>
+<span class="nc" id="L68">                s = &quot;string&quot;;</span>
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">            } else if (value instanceof Number) {</span>
+<span class="nc" id="L70">                s = &quot;number&quot;;</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">            } else if (value instanceof Scriptable) {</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">                if (value instanceof Undefined) {</span>
+<span class="nc" id="L73">                    s = &quot;undefined&quot;;</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">                } else if (value instanceof Wrapper) {</span>
+<span class="nc" id="L75">                    Object wrapped = ((Wrapper)value).unwrap();</span>
+<span class="nc" id="L76">                    s = wrapped.getClass().getName();</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                } else if (value instanceof Function) {</span>
+<span class="fc" id="L78">                    s = &quot;function&quot;;</span>
+                } else {
+<span class="nc" id="L80">                    s = &quot;object&quot;;</span>
+                }
+            } else {
+<span class="nc" id="L83">                s = JavaMembers.javaSignature(value.getClass());</span>
+            }
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">            if (i != 0) {</span>
+<span class="nc" id="L87">                sig.append(',');</span>
+            }
+<span class="fc" id="L89">            sig.append(s);</span>
+        }
+<span class="fc" id="L91">        return sig.toString();</span>
+    }
+
+    @Override
+    String decompile(int indent, int flags)
+    {
+<span class="nc" id="L97">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        boolean justbody = (0 != (flags &amp; Decompiler.ONLY_BODY_FLAG));</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (!justbody) {</span>
+<span class="nc" id="L100">            sb.append(&quot;function &quot;);</span>
+<span class="nc" id="L101">            sb.append(getFunctionName());</span>
+<span class="nc" id="L102">            sb.append(&quot;() {&quot;);</span>
+        }
+<span class="nc" id="L104">        sb.append(&quot;/*\n&quot;);</span>
+<span class="nc" id="L105">        sb.append(toString());</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        sb.append(justbody ? &quot;*/\n&quot; : &quot;*/}\n&quot;);</span>
+<span class="nc" id="L107">        return sb.toString();</span>
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="nc" id="L113">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        for (int i = 0, N = methods.length; i != N; ++i) {</span>
+            // Check member type, we also use this for overloaded constructors
+<span class="nc bnc" id="L116" title="All 2 branches missed.">            if (methods[i].isMethod()) {</span>
+<span class="nc" id="L117">                Method method = methods[i].method();</span>
+<span class="nc" id="L118">                sb.append(JavaMembers.javaSignature(method.getReturnType()));</span>
+<span class="nc" id="L119">                sb.append(' ');</span>
+<span class="nc" id="L120">                sb.append(method.getName());</span>
+<span class="nc" id="L121">            } else {</span>
+<span class="nc" id="L122">                sb.append(methods[i].getName());</span>
+            }
+<span class="nc" id="L124">            sb.append(JavaMembers.liveConnectSignature(methods[i].argTypes));</span>
+<span class="nc" id="L125">            sb.append('\n');</span>
+        }
+<span class="nc" id="L127">        return sb.toString();</span>
+    }
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+        // Find a method that matches the types given.
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (methods.length == 0) {</span>
+<span class="nc" id="L136">            throw new RuntimeException(&quot;No methods defined for call&quot;);</span>
+        }
+
+<span class="fc" id="L139">        int index = findCachedFunction(cx, args);</span>
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">        if (index &lt; 0) {</span>
+<span class="nc" id="L141">            Class&lt;?&gt; c = methods[0].method().getDeclaringClass();</span>
+<span class="nc" id="L142">            String sig = c.getName() + '.' + getFunctionName() + '(' +</span>
+<span class="nc" id="L143">                         scriptSignature(args) + ')';</span>
+<span class="nc" id="L144">            throw Context.reportRuntimeError1(&quot;msg.java.no_such_method&quot;, sig);</span>
+        }
+
+<span class="fc" id="L147">        MemberBox meth = methods[index];</span>
+<span class="fc" id="L148">        Class&lt;?&gt;[] argTypes = meth.argTypes;</span>
+
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        if (meth.vararg) {</span>
+            // marshall the explicit parameters
+<span class="fc" id="L152">            Object[] newArgs = new Object[argTypes.length];</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">            for (int i = 0; i &lt; argTypes.length-1; i++) {</span>
+<span class="fc" id="L154">                newArgs[i] = Context.jsToJava(args[i], argTypes[i]);</span>
+            }
+
+            Object varArgs;
+
+            // Handle special situation where a single variable parameter
+            // is given and it is a Java or ECMA array or is null.
+<span class="pc bpc" id="L161" title="3 of 8 branches missed.">            if (args.length == argTypes.length &amp;&amp;</span>
+                (args[args.length-1] == null ||
+                 args[args.length-1] instanceof NativeArray ||
+                 args[args.length-1] instanceof NativeJavaArray))
+            {
+                // convert the ECMA array into a native array
+<span class="fc" id="L167">                varArgs = Context.jsToJava(args[args.length-1],</span>
+                                           argTypes[argTypes.length - 1]);
+            } else {
+                // marshall the variable parameters
+<span class="fc" id="L171">                Class&lt;?&gt; componentType = argTypes[argTypes.length - 1].</span>
+<span class="fc" id="L172">                                         getComponentType();</span>
+<span class="fc" id="L173">                varArgs = Array.newInstance(componentType,</span>
+                                            args.length - argTypes.length + 1);
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                for (int i = 0; i &lt; Array.getLength(varArgs); i++) {</span>
+<span class="fc" id="L176">                    Object value = Context.jsToJava(args[argTypes.length-1 + i],</span>
+                                                    componentType);
+<span class="fc" id="L178">                    Array.set(varArgs, i, value);</span>
+                }
+            }
+
+            // add varargs
+<span class="fc" id="L183">            newArgs[argTypes.length-1] = varArgs;</span>
+            // replace the original args with the new one
+<span class="fc" id="L185">            args = newArgs;</span>
+<span class="fc" id="L186">        } else {</span>
+            // First, we marshall the args.
+<span class="fc" id="L188">            Object[] origArgs = args;</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="fc" id="L190">                Object arg = args[i];</span>
+<span class="fc" id="L191">                Object coerced = Context.jsToJava(arg, argTypes[i]);</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">                if (coerced != arg) {</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">                    if (origArgs == args) {</span>
+<span class="fc" id="L194">                        args = args.clone();</span>
+                    }
+<span class="fc" id="L196">                    args[i] = coerced;</span>
+                }
+            }
+        }
+        Object javaObject;
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        if (meth.isStatic()) {</span>
+<span class="fc" id="L202">            javaObject = null;  // don't need an object</span>
+        } else {
+<span class="fc" id="L204">            Scriptable o = thisObj;</span>
+<span class="fc" id="L205">            Class&lt;?&gt; c = meth.getDeclaringClass();</span>
+            for (;;) {
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">                if (o == null) {</span>
+<span class="nc" id="L208">                    throw Context.reportRuntimeError3(</span>
+<span class="nc" id="L209">                        &quot;msg.nonjava.method&quot;, getFunctionName(),</span>
+<span class="nc" id="L210">                        ScriptRuntime.toString(thisObj), c.getName());</span>
+                }
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">                if (o instanceof Wrapper) {</span>
+<span class="fc" id="L213">                    javaObject = ((Wrapper)o).unwrap();</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">                    if (c.isInstance(javaObject)) {</span>
+<span class="fc" id="L215">                        break;</span>
+                    }
+                }
+<span class="nc" id="L218">                o = o.getPrototype();</span>
+            }
+        }
+        if (debug) {
+            printDebug(&quot;Calling &quot;, meth, args);
+        }
+
+<span class="fc" id="L225">        Object retval = meth.invoke(javaObject, args);</span>
+<span class="fc" id="L226">        Class&lt;?&gt; staticType = meth.method().getReturnType();</span>
+
+        if (debug) {
+            Class&lt;?&gt; actualType = (retval == null) ? null
+                                                : retval.getClass();
+            System.err.println(&quot; ----- Returned &quot; + retval +
+                               &quot; actual = &quot; + actualType +
+                               &quot; expect = &quot; + staticType);
+        }
+
+<span class="fc" id="L236">        Object wrapped = cx.getWrapFactory().wrap(cx, scope,</span>
+                                                  retval, staticType);
+        if (debug) {
+            Class&lt;?&gt; actualType = (wrapped == null) ? null
+                                                 : wrapped.getClass();
+            System.err.println(&quot; ----- Wrapped as &quot; + wrapped +
+                               &quot; class = &quot; + actualType);
+        }
+
+<span class="fc bfc" id="L245" title="All 4 branches covered.">        if (wrapped == null &amp;&amp; staticType == Void.TYPE) {</span>
+<span class="fc" id="L246">            wrapped = Undefined.instance;</span>
+        }
+<span class="fc" id="L248">        return wrapped;</span>
+    }
+
+    int findCachedFunction(Context cx, Object[] args) {
+<span class="fc bfc" id="L252" title="All 2 branches covered.">        if (methods.length &gt; 1) {</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">            if (overloadCache != null) {</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                for (ResolvedOverload ovl : overloadCache) {</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">                    if (ovl.matches(args)) {</span>
+<span class="fc" id="L256">                        return ovl.index;</span>
+                    }
+<span class="fc" id="L258">                }</span>
+            } else {
+<span class="fc" id="L260">                overloadCache = new CopyOnWriteArrayList&lt;ResolvedOverload&gt;();</span>
+            }
+<span class="fc" id="L262">            int index = findFunction(cx, methods, args);</span>
+            // As a sanity measure, don't let the lookup cache grow longer
+            // than twice the number of overloaded methods
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">            if (overloadCache.size() &lt; methods.length * 2) {</span>
+<span class="fc" id="L266">                synchronized (overloadCache) {</span>
+<span class="fc" id="L267">                    ResolvedOverload ovl = new ResolvedOverload(args, index);</span>
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">                    if (!overloadCache.contains(ovl)) {</span>
+<span class="fc" id="L269">                        overloadCache.add(0, ovl);</span>
+                    }
+<span class="pc" id="L271">                }</span>
+            }
+<span class="fc" id="L273">            return index;</span>
+        }
+<span class="fc" id="L275">        return findFunction(cx, methods, args);</span>
+    }
+
+    /**
+     * Find the index of the correct function to call given the set of methods
+     * or constructors and the arguments.
+     * If no function can be found to call, return -1.
+     */
+    static int findFunction(Context cx,
+                            MemberBox[] methodsOrCtors, Object[] args)
+    {
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">        if (methodsOrCtors.length == 0) {</span>
+<span class="nc" id="L287">            return -1;</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">        } else if (methodsOrCtors.length == 1) {</span>
+<span class="fc" id="L289">            MemberBox member = methodsOrCtors[0];</span>
+<span class="fc" id="L290">            Class&lt;?&gt;[] argTypes = member.argTypes;</span>
+<span class="fc" id="L291">            int alength = argTypes.length;</span>
+
+<span class="fc bfc" id="L293" title="All 2 branches covered.">            if (member.vararg) {</span>
+<span class="fc" id="L294">                alength--;</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">                if ( alength &gt; args.length) {</span>
+<span class="nc" id="L296">                    return -1;</span>
+                }
+            } else {
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">                if (alength != args.length) {</span>
+<span class="nc" id="L300">                    return -1;</span>
+                }
+            }
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            for (int j = 0; j != alength; ++j) {</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">                if (!NativeJavaObject.canConvert(args[j], argTypes[j])) {</span>
+                    if (debug) printDebug(&quot;Rejecting (args can't convert) &quot;,
+                                          member, args);
+<span class="nc" id="L307">                    return -1;</span>
+                }
+            }
+            if (debug) printDebug(&quot;Found &quot;, member, args);
+<span class="fc" id="L311">            return 0;</span>
+        }
+
+<span class="fc" id="L314">        int firstBestFit = -1;</span>
+<span class="fc" id="L315">        int[] extraBestFits = null;</span>
+<span class="fc" id="L316">        int extraBestFitsCount = 0;</span>
+
+      search:
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        for (int i = 0; i &lt; methodsOrCtors.length; i++) {</span>
+<span class="fc" id="L320">            MemberBox member = methodsOrCtors[i];</span>
+<span class="fc" id="L321">            Class&lt;?&gt;[] argTypes = member.argTypes;</span>
+<span class="fc" id="L322">            int alength = argTypes.length;</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">            if (member.vararg) {</span>
+<span class="fc" id="L324">                alength--;</span>
+<span class="pc bpc" id="L325" title="1 of 2 branches missed.">                if ( alength &gt; args.length) {</span>
+<span class="nc" id="L326">                    continue search;</span>
+                }
+            } else {
+<span class="fc bfc" id="L329" title="All 2 branches covered.">                if (alength != args.length) {</span>
+<span class="fc" id="L330">                    continue search;</span>
+                }
+            }
+<span class="fc bfc" id="L333" title="All 2 branches covered.">            for (int j = 0; j &lt; alength; j++) {</span>
+<span class="fc bfc" id="L334" title="All 2 branches covered.">                if (!NativeJavaObject.canConvert(args[j], argTypes[j])) {</span>
+                    if (debug) printDebug(&quot;Rejecting (args can't convert) &quot;,
+                                          member, args);
+<span class="fc" id="L337">                    continue search;</span>
+                }
+            }
+<span class="fc bfc" id="L340" title="All 2 branches covered.">            if (firstBestFit &lt; 0) {</span>
+                if (debug) printDebug(&quot;Found first applicable &quot;, member, args);
+<span class="fc" id="L342">                firstBestFit = i;</span>
+            } else {
+                // Compare with all currently fit methods.
+                // The loop starts from -1 denoting firstBestFit and proceed
+                // until extraBestFitsCount to avoid extraBestFits allocation
+                // in the most common case of no ambiguity
+<span class="fc" id="L348">                int betterCount = 0; // number of times member was prefered over</span>
+                                     // best fits
+<span class="fc" id="L350">                int worseCount = 0;  // number of times best fits were prefered</span>
+                                     // over member
+<span class="fc bfc" id="L352" title="All 2 branches covered.">                for (int j = -1; j != extraBestFitsCount; ++j) {</span>
+                    int bestFitIndex;
+<span class="fc bfc" id="L354" title="All 2 branches covered.">                    if (j == -1) {</span>
+<span class="fc" id="L355">                        bestFitIndex = firstBestFit;</span>
+                    } else {
+<span class="fc" id="L357">                        bestFitIndex = extraBestFits[j];</span>
+                    }
+<span class="fc" id="L359">                    MemberBox bestFit = methodsOrCtors[bestFitIndex];</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">                    if (cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS) &amp;&amp;</span>
+<span class="fc" id="L361">                        (bestFit.member().getModifiers() &amp; Modifier.PUBLIC) !=</span>
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">                            (member.member().getModifiers() &amp; Modifier.PUBLIC))</span>
+                    {
+                        // When FEATURE_ENHANCED_JAVA_ACCESS gives us access
+                        // to non-public members, continue to prefer public
+                        // methods in overloading
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                        if ((bestFit.member().getModifiers() &amp; Modifier.PUBLIC) == 0)</span>
+<span class="nc" id="L368">                            ++betterCount;</span>
+                        else
+<span class="nc" id="L370">                            ++worseCount;</span>
+                    } else {
+<span class="fc" id="L372">                        int preference = preferSignature(args, argTypes,</span>
+                                                         member.vararg,
+                                                         bestFit.argTypes,
+                                                         bestFit.vararg );
+<span class="fc bfc" id="L376" title="All 2 branches covered.">                        if (preference == PREFERENCE_AMBIGUOUS) {</span>
+<span class="fc" id="L377">                            break;</span>
+<span class="fc bfc" id="L378" title="All 2 branches covered.">                        } else if (preference == PREFERENCE_FIRST_ARG) {</span>
+<span class="fc" id="L379">                            ++betterCount;</span>
+<span class="pc bpc" id="L380" title="1 of 2 branches missed.">                        } else if (preference == PREFERENCE_SECOND_ARG) {</span>
+<span class="fc" id="L381">                            ++worseCount;</span>
+                        } else {
+<span class="nc bnc" id="L383" title="All 2 branches missed.">                            if (preference != PREFERENCE_EQUAL) Kit.codeBug();</span>
+                            // This should not happen in theory
+                            // but on some JVMs, Class.getMethods will return all
+                            // static methods of the class hierarchy, even if
+                            // a derived class's parameters match exactly.
+                            // We want to call the derived class's method.
+<span class="nc bnc" id="L389" title="All 2 branches missed.">                            if (bestFit.isStatic() &amp;&amp;</span>
+<span class="nc bnc" id="L390" title="All 2 branches missed.">                                bestFit.getDeclaringClass().isAssignableFrom(</span>
+<span class="nc" id="L391">                                       member.getDeclaringClass()))</span>
+                            {
+                                // On some JVMs, Class.getMethods will return all
+                                // static methods of the class hierarchy, even if
+                                // a derived class's parameters match exactly.
+                                // We want to call the derived class's method.
+                                if (debug) printDebug(
+                                    &quot;Substituting (overridden static)&quot;,
+                                    member, args);
+<span class="nc bnc" id="L400" title="All 2 branches missed.">                                if (j == -1) {</span>
+<span class="nc" id="L401">                                    firstBestFit = i;</span>
+                                } else {
+<span class="nc" id="L403">                                    extraBestFits[j] = i;</span>
+                                }
+                            } else {
+                                if (debug) printDebug(
+                                    &quot;Ignoring same signature member &quot;,
+                                    member, args);
+                            }
+                            continue search;
+                        }
+                    }
+                }
+<span class="fc bfc" id="L414" title="All 2 branches covered.">                if (betterCount == 1 + extraBestFitsCount) {</span>
+                    // member was prefered over all best fits
+                    if (debug) printDebug(
+                        &quot;New first applicable &quot;, member, args);
+<span class="fc" id="L418">                    firstBestFit = i;</span>
+<span class="fc" id="L419">                    extraBestFitsCount = 0;</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">                } else if (worseCount == 1 + extraBestFitsCount) {</span>
+                    // all best fits were prefered over member, ignore it
+                    if (debug) printDebug(
+                        &quot;Rejecting (all current bests better) &quot;, member, args);
+                } else {
+                    // some ambiguity was present, add member to best fit set
+                    if (debug) printDebug(
+                        &quot;Added to best fit set &quot;, member, args);
+<span class="fc bfc" id="L428" title="All 2 branches covered.">                    if (extraBestFits == null) {</span>
+                        // Allocate maximum possible array
+<span class="fc" id="L430">                        extraBestFits = new int[methodsOrCtors.length - 1];</span>
+                    }
+<span class="fc" id="L432">                    extraBestFits[extraBestFitsCount] = i;</span>
+<span class="fc" id="L433">                    ++extraBestFitsCount;</span>
+                }
+            }
+        }
+
+<span class="pc bpc" id="L438" title="1 of 2 branches missed.">        if (firstBestFit &lt; 0) {</span>
+            // Nothing was found
+<span class="nc" id="L440">            return -1;</span>
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        } else if (extraBestFitsCount == 0) {</span>
+            // single best fit
+<span class="fc" id="L443">            return firstBestFit;</span>
+        }
+
+        // report remaining ambiguity
+<span class="fc" id="L447">        StringBuilder buf = new StringBuilder();</span>
+<span class="fc bfc" id="L448" title="All 2 branches covered.">        for (int j = -1; j != extraBestFitsCount; ++j) {</span>
+            int bestFitIndex;
+<span class="fc bfc" id="L450" title="All 2 branches covered.">            if (j == -1) {</span>
+<span class="fc" id="L451">                bestFitIndex = firstBestFit;</span>
+            } else {
+<span class="fc" id="L453">                bestFitIndex = extraBestFits[j];</span>
+            }
+<span class="fc" id="L455">            buf.append(&quot;\n    &quot;);</span>
+<span class="fc" id="L456">            buf.append(methodsOrCtors[bestFitIndex].toJavaDeclaration());</span>
+        }
+
+<span class="fc" id="L459">        MemberBox firstFitMember = methodsOrCtors[firstBestFit];</span>
+<span class="fc" id="L460">        String memberName = firstFitMember.getName();</span>
+<span class="fc" id="L461">        String memberClass = firstFitMember.getDeclaringClass().getName();</span>
+
+<span class="pc bpc" id="L463" title="1 of 2 branches missed.">        if (methodsOrCtors[0].isCtor()) {</span>
+<span class="nc" id="L464">            throw Context.reportRuntimeError3(</span>
+                &quot;msg.constructor.ambiguous&quot;,
+<span class="nc" id="L466">                memberName, scriptSignature(args), buf.toString());</span>
+        } else {
+<span class="fc" id="L468">            throw Context.reportRuntimeError4(</span>
+                &quot;msg.method.ambiguous&quot;, memberClass,
+<span class="fc" id="L470">                memberName, scriptSignature(args), buf.toString());</span>
+        }
+    }
+
+    /** Types are equal */
+    private static final int PREFERENCE_EQUAL      = 0;
+    private static final int PREFERENCE_FIRST_ARG  = 1;
+    private static final int PREFERENCE_SECOND_ARG = 2;
+    /** No clear &quot;easy&quot; conversion */
+    private static final int PREFERENCE_AMBIGUOUS  = 3;
+
+    /**
+     * Determine which of two signatures is the closer fit.
+     * Returns one of PREFERENCE_EQUAL, PREFERENCE_FIRST_ARG,
+     * PREFERENCE_SECOND_ARG, or PREFERENCE_AMBIGUOUS.
+     */
+    private static int preferSignature(Object[] args,
+                                       Class&lt;?&gt;[] sig1,
+                                       boolean vararg1,
+                                       Class&lt;?&gt;[] sig2,
+                                       boolean vararg2 )
+    {
+<span class="fc" id="L492">        int totalPreference = 0;</span>
+<span class="fc bfc" id="L493" title="All 2 branches covered.">        for (int j = 0; j &lt; args.length; j++) {</span>
+<span class="pc bpc" id="L494" title="3 of 4 branches missed.">            Class&lt;?&gt; type1 = vararg1 &amp;&amp; j &gt;= sig1.length ? sig1[sig1.length-1] : sig1[j];</span>
+<span class="fc bfc" id="L495" title="All 4 branches covered.">            Class&lt;?&gt; type2 = vararg2 &amp;&amp; j &gt;= sig2.length ? sig2[sig2.length-1] : sig2[j];</span>
+<span class="fc bfc" id="L496" title="All 2 branches covered.">            if (type1 == type2) {</span>
+<span class="fc" id="L497">                continue;</span>
+            }
+<span class="fc" id="L499">            Object arg = args[j];</span>
+
+            // Determine which of type1, type2 is easier to convert from arg.
+
+<span class="fc" id="L503">            int rank1 = NativeJavaObject.getConversionWeight(arg, type1);</span>
+<span class="fc" id="L504">            int rank2 = NativeJavaObject.getConversionWeight(arg, type2);</span>
+
+            int preference;
+<span class="fc bfc" id="L507" title="All 2 branches covered.">            if (rank1 &lt; rank2) {</span>
+<span class="fc" id="L508">                preference = PREFERENCE_FIRST_ARG;</span>
+<span class="fc bfc" id="L509" title="All 2 branches covered.">            } else if (rank1 &gt; rank2) {</span>
+<span class="fc" id="L510">                preference = PREFERENCE_SECOND_ARG;</span>
+            } else {
+                // Equal ranks
+<span class="pc bpc" id="L513" title="1 of 2 branches missed.">                if (rank1 == NativeJavaObject.CONVERSION_NONTRIVIAL) {</span>
+<span class="nc bnc" id="L514" title="All 2 branches missed.">                    if (type1.isAssignableFrom(type2)) {</span>
+<span class="nc" id="L515">                        preference = PREFERENCE_SECOND_ARG;</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">                    } else if (type2.isAssignableFrom(type1)) {</span>
+<span class="nc" id="L517">                        preference = PREFERENCE_FIRST_ARG;</span>
+                    } else {
+<span class="nc" id="L519">                        preference = PREFERENCE_AMBIGUOUS;</span>
+                    }
+                } else {
+<span class="fc" id="L522">                    preference = PREFERENCE_AMBIGUOUS;</span>
+                }
+            }
+
+<span class="fc" id="L526">            totalPreference |= preference;</span>
+
+<span class="fc bfc" id="L528" title="All 2 branches covered.">            if (totalPreference == PREFERENCE_AMBIGUOUS) {</span>
+<span class="fc" id="L529">                break;</span>
+            }
+        }
+<span class="fc" id="L532">        return totalPreference;</span>
+    }
+
+
+    private static final boolean debug = false;
+
+    private static void printDebug(String msg, MemberBox member,
+                                   Object[] args)
+    {
+        if (debug) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(&quot; ----- &quot;);
+            sb.append(msg);
+            sb.append(member.getDeclaringClass().getName());
+            sb.append('.');
+            if (member.isMethod()) {
+                sb.append(member.getName());
+            }
+            sb.append(JavaMembers.liveConnectSignature(member.argTypes));
+            sb.append(&quot; for arguments (&quot;);
+            sb.append(scriptSignature(args));
+            sb.append(')');
+            System.out.println(sb);
+        }
+<span class="nc" id="L556">    }</span>
+
+    MemberBox[] methods;
+    private String functionName;
+    private transient CopyOnWriteArrayList&lt;ResolvedOverload&gt; overloadCache;
+}
+
+class ResolvedOverload {
+    final Class&lt;?&gt;[] types;
+    final int index;
+
+<span class="fc" id="L567">    ResolvedOverload(Object[] args, int index) {</span>
+<span class="fc" id="L568">        this.index = index;</span>
+<span class="fc" id="L569">        types = new Class&lt;?&gt;[args.length];</span>
+<span class="fc bfc" id="L570" title="All 2 branches covered.">        for (int i = 0, l = args.length; i &lt; l; i++) {</span>
+<span class="fc" id="L571">            Object arg = args[i];</span>
+<span class="fc bfc" id="L572" title="All 2 branches covered.">            if (arg instanceof Wrapper)</span>
+<span class="fc" id="L573">                arg = ((Wrapper)arg).unwrap();</span>
+<span class="fc bfc" id="L574" title="All 2 branches covered.">            types[i] = arg == null ? null : arg.getClass();</span>
+        }
+<span class="fc" id="L576">    }</span>
+
+    boolean matches(Object[] args) {
+<span class="fc bfc" id="L579" title="All 2 branches covered.">        if (args.length != types.length) {</span>
+<span class="fc" id="L580">            return false;</span>
+        }
+<span class="fc bfc" id="L582" title="All 2 branches covered.">        for (int i = 0, l = args.length; i &lt; l; i++) {</span>
+<span class="fc" id="L583">            Object arg = args[i];</span>
+<span class="fc bfc" id="L584" title="All 2 branches covered.">            if (arg instanceof Wrapper)</span>
+<span class="fc" id="L585">                arg = ((Wrapper)arg).unwrap();</span>
+<span class="pc bpc" id="L586" title="1 of 2 branches missed.">            if (arg == null) {</span>
+<span class="nc bnc" id="L587" title="All 2 branches missed.">                if (types[i] != null) return false;</span>
+<span class="fc bfc" id="L588" title="All 2 branches covered.">            } else if (arg.getClass() != types[i]) {</span>
+<span class="fc" id="L589">                return false;</span>
+            }
+        }
+<span class="fc" id="L592">        return true;</span>
+    }
+
+    @Override
+    public boolean equals(Object other) {
+<span class="pc bpc" id="L597" title="1 of 2 branches missed.">        if (!(other instanceof ResolvedOverload)) {</span>
+<span class="nc" id="L598">            return false;</span>
+        }
+<span class="fc" id="L600">        ResolvedOverload ovl = (ResolvedOverload) other;</span>
+<span class="pc bpc" id="L601" title="3 of 4 branches missed.">        return Arrays.equals(types, ovl.types) &amp;&amp; index == ovl.index;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L606">        return Arrays.hashCode(types);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

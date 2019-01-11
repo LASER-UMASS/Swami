@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaArray.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaArray.java</span></div><h1>NativeJavaArray.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.Array;
+
+/**
+ * This class reflects Java arrays into the JavaScript environment.
+ *
+ * @author Mike Shaver
+ * @see NativeJavaClass
+ * @see NativeJavaObject
+ * @see NativeJavaPackage
+ */
+
+public class NativeJavaArray extends NativeJavaObject
+{
+    static final long serialVersionUID = -924022554283675333L;
+
+    @Override
+    public String getClassName() {
+<span class="nc" id="L26">        return &quot;JavaArray&quot;;</span>
+    }
+
+    public static NativeJavaArray wrap(Scriptable scope, Object array) {
+<span class="fc" id="L30">        return new NativeJavaArray(scope, array);</span>
+    }
+
+    @Override
+    public Object unwrap() {
+<span class="fc" id="L35">        return array;</span>
+    }
+
+    public NativeJavaArray(Scriptable scope, Object array) {
+<span class="fc" id="L39">        super(scope, null, ScriptRuntime.ObjectClass);</span>
+<span class="fc" id="L40">        Class&lt;?&gt; cl = array.getClass();</span>
+<span class="pc bpc" id="L41" title="1 of 2 branches missed.">        if (!cl.isArray()) {</span>
+<span class="nc" id="L42">            throw new RuntimeException(&quot;Array expected&quot;);</span>
+        }
+<span class="fc" id="L44">        this.array = array;</span>
+<span class="fc" id="L45">        this.length = Array.getLength(array);</span>
+<span class="fc" id="L46">        this.cls = cl.getComponentType();</span>
+<span class="fc" id="L47">    }</span>
+
+    @Override
+    public boolean has(String id, Scriptable start) {
+<span class="pc bpc" id="L51" title="1 of 4 branches missed.">        return id.equals(&quot;length&quot;) || super.has(id, start);</span>
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start) {
+<span class="pc bpc" id="L56" title="2 of 4 branches missed.">        return 0 &lt;= index &amp;&amp; index &lt; length;</span>
+    }
+
+    @Override
+    public Object get(String id, Scriptable start) {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (id.equals(&quot;length&quot;))</span>
+<span class="fc" id="L62">            return Integer.valueOf(length);</span>
+<span class="fc" id="L63">        Object result = super.get(id, start);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (result == NOT_FOUND &amp;&amp;</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">            !ScriptableObject.hasProperty(getPrototype(), id))</span>
+        {
+<span class="fc" id="L67">            throw Context.reportRuntimeError2(</span>
+<span class="fc" id="L68">                &quot;msg.java.member.not.found&quot;, array.getClass().getName(), id);</span>
+        }
+<span class="fc" id="L70">        return result;</span>
+    }
+
+    @Override
+    public Object get(int index, Scriptable start) {
+<span class="pc bpc" id="L75" title="2 of 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; length) {</span>
+<span class="fc" id="L76">            Context cx = Context.getContext();</span>
+<span class="fc" id="L77">            Object obj = Array.get(array, index);</span>
+<span class="fc" id="L78">            return cx.getWrapFactory().wrap(cx, this, obj, cls);</span>
+        }
+<span class="nc" id="L80">        return Undefined.instance;</span>
+    }
+
+    @Override
+    public void put(String id, Scriptable start, Object value) {
+        // Ignore assignments to &quot;length&quot;--it's readonly.
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (!id.equals(&quot;length&quot;))</span>
+<span class="fc" id="L87">            throw Context.reportRuntimeError1(</span>
+                &quot;msg.java.array.member.not.found&quot;, id);
+<span class="fc" id="L89">    }</span>
+
+    @Override
+    public void put(int index, Scriptable start, Object value) {
+<span class="pc bpc" id="L93" title="2 of 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; length) {</span>
+<span class="fc" id="L94">            Array.set(array, index, Context.jsToJava(value, cls));</span>
+        }
+        else {
+<span class="nc" id="L97">            throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L98">                &quot;msg.java.array.index.out.of.bounds&quot;, String.valueOf(index),</span>
+<span class="nc" id="L99">                String.valueOf(length - 1));</span>
+        }
+<span class="fc" id="L101">    }</span>
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint) {
+<span class="pc bpc" id="L105" title="1 of 4 branches missed.">        if (hint == null || hint == ScriptRuntime.StringClass)</span>
+<span class="fc" id="L106">            return array.toString();</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (hint == ScriptRuntime.BooleanClass)</span>
+<span class="nc" id="L108">            return Boolean.TRUE;</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (hint == ScriptRuntime.NumberClass)</span>
+<span class="nc" id="L110">            return ScriptRuntime.NaNobj;</span>
+<span class="nc" id="L111">        return this;</span>
+    }
+
+    @Override
+    public Object[] getIds() {
+<span class="fc" id="L116">        Object[] result = new Object[length];</span>
+<span class="fc" id="L117">        int i = length;</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        while (--i &gt;= 0)</span>
+<span class="fc" id="L119">            result[i] = Integer.valueOf(i);</span>
+<span class="fc" id="L120">        return result;</span>
+    }
+
+    @Override
+    public boolean hasInstance(Scriptable value) {
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (!(value instanceof Wrapper))</span>
+<span class="nc" id="L126">            return false;</span>
+<span class="nc" id="L127">        Object instance = ((Wrapper)value).unwrap();</span>
+<span class="nc" id="L128">        return cls.isInstance(instance);</span>
+    }
+
+    @Override
+    public Scriptable getPrototype() {
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (prototype == null) {</span>
+<span class="fc" id="L134">            prototype =</span>
+<span class="fc" id="L135">                ScriptableObject.getArrayPrototype(this.getParentScope());</span>
+        }
+<span class="fc" id="L137">        return prototype;</span>
+    }
+
+    Object array;
+    int length;
+    Class&lt;?&gt; cls;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

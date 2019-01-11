@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JsonParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.json</a> &gt; <span class="el_source">JsonParser.java</span></div><h1>JsonParser.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.json;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptRuntime;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * This class converts a stream of JSON tokens into a JSON value.
+ *
+ * See ECMA 15.12.
+ * @author Raphael Speyer
+ * @author Hannes Wallnoefer
+ */
+<span class="pc bpc" id="L23" title="1 of 2 branches missed.">public class JsonParser {</span>
+
+    private Context cx;
+    private Scriptable scope;
+
+    private int pos;
+    private int length;
+    private String src;
+
+<span class="fc" id="L32">    public JsonParser(Context cx, Scriptable scope) {</span>
+<span class="fc" id="L33">        this.cx = cx;</span>
+<span class="fc" id="L34">        this.scope = scope;</span>
+<span class="fc" id="L35">    }</span>
+
+    public synchronized Object parseValue(String json) throws ParseException {
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        if (json == null) {</span>
+<span class="fc" id="L39">            throw new ParseException(&quot;Input string may not be null&quot;);</span>
+        }
+<span class="fc" id="L41">        pos = 0;</span>
+<span class="fc" id="L42">        length = json.length();</span>
+<span class="fc" id="L43">        src = json;</span>
+<span class="fc" id="L44">        Object value = readValue();</span>
+<span class="fc" id="L45">        consumeWhitespace();</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (pos &lt; length) {</span>
+<span class="fc" id="L47">            throw new ParseException(&quot;Expected end of stream at char &quot; + pos);</span>
+        }
+<span class="fc" id="L49">        return value;</span>
+    }
+
+    private Object readValue() throws ParseException {
+<span class="fc" id="L53">        consumeWhitespace();</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        while (pos &lt; length) {</span>
+<span class="fc" id="L55">            char c = src.charAt(pos++);</span>
+<span class="fc bfc" id="L56" title="All 8 branches covered.">            switch (c) {</span>
+                case '{':
+<span class="fc" id="L58">                    return readObject();</span>
+                case '[':
+<span class="fc" id="L60">                    return readArray();</span>
+                case 't':
+<span class="fc" id="L62">                    return readTrue();</span>
+                case 'f':
+<span class="fc" id="L64">                    return readFalse();</span>
+                case '&quot;':
+<span class="fc" id="L66">                    return readString();</span>
+                case 'n':
+<span class="fc" id="L68">                    return readNull();</span>
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case '0':
+                case '-':
+<span class="fc" id="L80">                    return readNumber(c);</span>
+                default:
+<span class="fc" id="L82">                    throw new ParseException(&quot;Unexpected token: &quot; + c);</span>
+            }
+        }
+<span class="fc" id="L85">        throw new ParseException(&quot;Empty JSON string&quot;);</span>
+    }
+
+    private Object readObject() throws ParseException {
+<span class="fc" id="L89">        consumeWhitespace();</span>
+<span class="fc" id="L90">        Scriptable object = cx.newObject(scope);</span>
+        // handle empty object literal case early
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">        if (pos &lt; length &amp;&amp; src.charAt(pos) == '}') {</span>
+<span class="fc" id="L93">            pos += 1;</span>
+<span class="fc" id="L94">            return object;</span>
+        }
+        String id;
+        Object value;
+<span class="fc" id="L98">        boolean needsComma = false;</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        while (pos &lt; length) {</span>
+<span class="fc" id="L100">            char c = src.charAt(pos++);</span>
+<span class="pc bpc" id="L101" title="1 of 4 branches missed.">            switch(c) {</span>
+                case '}':
+<span class="fc bfc" id="L103" title="All 2 branches covered.">                    if (!needsComma) {</span>
+<span class="fc" id="L104">                        throw new ParseException(&quot;Unexpected comma in object literal&quot;);</span>
+                    }
+<span class="fc" id="L106">                    return object;</span>
+                case ',':
+<span class="fc bfc" id="L108" title="All 2 branches covered.">                    if (!needsComma) {</span>
+<span class="fc" id="L109">                        throw new ParseException(&quot;Unexpected comma in object literal&quot;);</span>
+                    }
+<span class="fc" id="L111">                    needsComma = false;</span>
+<span class="fc" id="L112">                    break;</span>
+                case '&quot;':
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">                    if (needsComma) {</span>
+<span class="nc" id="L115">                        throw new ParseException(&quot;Missing comma in object literal&quot;);</span>
+                    }
+<span class="fc" id="L117">                    id = readString();</span>
+<span class="fc" id="L118">                    consume(':');</span>
+<span class="fc" id="L119">                    value = readValue();</span>
+
+<span class="fc" id="L121">                    long index = ScriptRuntime.indexFromString(id);</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">                    if (index &lt; 0) {</span>
+<span class="fc" id="L123">                      object.put(id, object, value);</span>
+                    } else {
+<span class="fc" id="L125">                      object.put((int)index, object, value);</span>
+                    }
+
+<span class="fc" id="L128">                    needsComma = true;</span>
+<span class="fc" id="L129">                    break;</span>
+                default:
+<span class="nc" id="L131">                    throw new ParseException(&quot;Unexpected token in object literal&quot;);</span>
+            }
+<span class="fc" id="L133">            consumeWhitespace();</span>
+<span class="fc" id="L134">        }</span>
+<span class="nc" id="L135">        throw new ParseException(&quot;Unterminated object literal&quot;);</span>
+    }
+
+    private Object readArray() throws ParseException {
+<span class="fc" id="L139">        consumeWhitespace();</span>
+        // handle empty array literal case early
+<span class="pc bpc" id="L141" title="1 of 4 branches missed.">        if (pos &lt; length &amp;&amp; src.charAt(pos) == ']') {</span>
+<span class="fc" id="L142">            pos += 1;</span>
+<span class="fc" id="L143">            return cx.newArray(scope, 0);</span>
+        }
+<span class="fc" id="L145">        List&lt;Object&gt; list = new ArrayList&lt;Object&gt;();</span>
+<span class="fc" id="L146">        boolean needsComma = false;</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        while (pos &lt; length) {</span>
+<span class="fc" id="L148">            char c = src.charAt(pos);</span>
+<span class="fc bfc" id="L149" title="All 3 branches covered.">            switch(c) {</span>
+                case ']':
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                    if (!needsComma) {</span>
+<span class="fc" id="L152">                        throw new ParseException(&quot;Unexpected comma in array literal&quot;);</span>
+                    }
+<span class="fc" id="L154">                    pos += 1;</span>
+<span class="fc" id="L155">                    return cx.newArray(scope, list.toArray());</span>
+                case ',':
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                    if (!needsComma) {</span>
+<span class="fc" id="L158">                        throw new ParseException(&quot;Unexpected comma in array literal&quot;);</span>
+                    }
+<span class="fc" id="L160">                    needsComma = false;</span>
+<span class="fc" id="L161">                    pos += 1;</span>
+<span class="fc" id="L162">                    break;</span>
+                default:
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">                    if (needsComma) {</span>
+<span class="nc" id="L165">                        throw new ParseException(&quot;Missing comma in array literal&quot;);</span>
+                    }
+<span class="fc" id="L167">                    list.add(readValue());</span>
+<span class="fc" id="L168">                    needsComma = true;</span>
+            }
+<span class="fc" id="L170">            consumeWhitespace();</span>
+<span class="fc" id="L171">        }</span>
+<span class="fc" id="L172">        throw new ParseException(&quot;Unterminated array literal&quot;);</span>
+    }
+
+    private String readString() throws ParseException {
+        /*
+         * Optimization: if the source contains no escaped characters, create the
+         * string directly from the source text.
+         */
+<span class="fc" id="L180">        int stringStart = pos;</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">        while (pos &lt; length) {</span>
+<span class="fc" id="L182">            char c = src.charAt(pos++);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">            if (c &lt;= '\u001F') {</span>
+<span class="fc" id="L184">                throw new ParseException(&quot;String contains control character&quot;);</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">            } else if (c == '\\') {</span>
+<span class="fc" id="L186">                break;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">            } else if (c == '&quot;') {</span>
+<span class="fc" id="L188">                return src.substring(stringStart, pos - 1);</span>
+            }
+<span class="fc" id="L190">        }</span>
+
+        /*
+         * Slow case: string contains escaped characters.  Copy a maximal sequence
+         * of unescaped characters into a temporary buffer, then an escaped
+         * character, and repeat until the entire string is consumed.
+         */
+<span class="fc" id="L197">        StringBuilder b = new StringBuilder();</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        while (pos &lt; length) {</span>
+<span class="pc bpc" id="L199" title="2 of 4 branches missed.">            assert src.charAt(pos - 1) == '\\';</span>
+<span class="fc" id="L200">            b.append(src, stringStart, pos - 1);</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">            if (pos &gt;= length) {</span>
+<span class="nc" id="L202">                throw new ParseException(&quot;Unterminated string&quot;);</span>
+            }
+<span class="fc" id="L204">            char c = src.charAt(pos++);</span>
+<span class="pc bpc" id="L205" title="3 of 10 branches missed.">            switch (c) {</span>
+                case '&quot;':
+<span class="fc" id="L207">                    b.append('&quot;');</span>
+<span class="fc" id="L208">                    break;</span>
+                case '\\':
+<span class="fc" id="L210">                    b.append('\\');</span>
+<span class="fc" id="L211">                    break;</span>
+                case '/':
+<span class="fc" id="L213">                    b.append('/');</span>
+<span class="fc" id="L214">                    break;</span>
+                case 'b':
+<span class="nc" id="L216">                    b.append('\b');</span>
+<span class="nc" id="L217">                    break;</span>
+                case 'f':
+<span class="nc" id="L219">                    b.append('\f');</span>
+<span class="nc" id="L220">                    break;</span>
+                case 'n':
+<span class="fc" id="L222">                    b.append('\n');</span>
+<span class="fc" id="L223">                    break;</span>
+                case 'r':
+<span class="fc" id="L225">                    b.append('\r');</span>
+<span class="fc" id="L226">                    break;</span>
+                case 't':
+<span class="fc" id="L228">                    b.append('\t');</span>
+<span class="fc" id="L229">                    break;</span>
+                case 'u':
+<span class="fc bfc" id="L231" title="All 2 branches covered.">                    if (length - pos &lt; 5) {</span>
+<span class="fc" id="L232">                        throw new ParseException(&quot;Invalid character code: \\u&quot; + src.substring(pos));</span>
+                    }
+<span class="fc" id="L234">                    int code = fromHex(src.charAt(pos + 0)) &lt;&lt; 12</span>
+<span class="fc" id="L235">                             | fromHex(src.charAt(pos + 1)) &lt;&lt; 8</span>
+<span class="fc" id="L236">                             | fromHex(src.charAt(pos + 2)) &lt;&lt; 4</span>
+<span class="fc" id="L237">                             | fromHex(src.charAt(pos + 3));</span>
+<span class="fc bfc" id="L238" title="All 2 branches covered.">                    if (code &lt; 0) {</span>
+<span class="fc" id="L239">                        throw new ParseException(&quot;Invalid character code: &quot; + src.substring(pos, pos + 4));</span>
+                    }
+<span class="fc" id="L241">                    pos += 4;</span>
+<span class="fc" id="L242">                    b.append((char) code);</span>
+<span class="fc" id="L243">                    break;</span>
+                default:
+<span class="nc" id="L245">                    throw new ParseException(&quot;Unexpected character in string: '\\&quot; + c + &quot;'&quot;);</span>
+            }
+<span class="fc" id="L247">            stringStart = pos;</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">            while (pos &lt; length) {</span>
+<span class="fc" id="L249">                c = src.charAt(pos++);</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">                if (c &lt;= '\u001F') {</span>
+<span class="nc" id="L251">                    throw new ParseException(&quot;String contains control character&quot;);</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">                } else if (c == '\\') {</span>
+<span class="fc" id="L253">                    break;</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                } else if (c == '&quot;') {</span>
+<span class="fc" id="L255">                    b.append(src, stringStart, pos - 1);</span>
+<span class="fc" id="L256">                    return b.toString();</span>
+                }
+            }
+<span class="fc" id="L259">        }</span>
+<span class="fc" id="L260">        throw new ParseException(&quot;Unterminated string literal&quot;);</span>
+    }
+
+    private int fromHex(char c) {
+<span class="pc bpc" id="L264" title="1 of 12 branches missed.">        return c &gt;= '0' &amp;&amp; c &lt;= '9' ? c - '0'</span>
+                : c &gt;= 'A' &amp;&amp; c &lt;= 'F' ? c - 'A' + 10
+                : c &gt;= 'a' &amp;&amp; c &lt;= 'f' ? c - 'a' + 10
+                : -1;
+    }
+
+    private Number readNumber(char c) throws ParseException {
+<span class="pc bpc" id="L271" title="3 of 8 branches missed.">        assert c == '-' || (c &gt;= '0' &amp;&amp; c &lt;= '9');</span>
+<span class="fc" id="L272">        final int numberStart = pos - 1;</span>
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        if (c == '-') {</span>
+<span class="fc" id="L274">            c = nextOrNumberError(numberStart);</span>
+<span class="pc bpc" id="L275" title="1 of 4 branches missed.">            if (!(c &gt;= '0' &amp;&amp; c &lt;= '9')) {</span>
+<span class="fc" id="L276">                throw numberError(numberStart, pos);</span>
+            }
+        }
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        if (c != '0') {</span>
+<span class="fc" id="L280">            readDigits();</span>
+        }
+        // read optional fraction part
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        if (pos &lt; length) {</span>
+<span class="fc" id="L284">            c = src.charAt(pos);</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            if (c == '.') {</span>
+<span class="fc" id="L286">                pos += 1;</span>
+<span class="fc" id="L287">                c = nextOrNumberError(numberStart);</span>
+<span class="pc bpc" id="L288" title="2 of 4 branches missed.">                if (!(c &gt;= '0' &amp;&amp; c &lt;= '9')) {</span>
+<span class="nc" id="L289">                    throw numberError(numberStart, pos);</span>
+                }
+<span class="fc" id="L291">                readDigits();</span>
+            }
+        }
+        // read optional exponent part
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        if (pos &lt; length) {</span>
+<span class="fc" id="L296">            c = src.charAt(pos);</span>
+<span class="pc bpc" id="L297" title="1 of 4 branches missed.">            if (c == 'e' || c == 'E') {</span>
+<span class="fc" id="L298">                pos += 1;</span>
+<span class="fc" id="L299">                c = nextOrNumberError(numberStart);</span>
+<span class="pc bpc" id="L300" title="2 of 4 branches missed.">                if (c == '-' || c == '+') {</span>
+<span class="nc" id="L301">                    c = nextOrNumberError(numberStart);</span>
+                }
+<span class="pc bpc" id="L303" title="2 of 4 branches missed.">                if (!(c &gt;= '0' &amp;&amp; c &lt;= '9')) {</span>
+<span class="nc" id="L304">                    throw numberError(numberStart, pos);</span>
+                }
+<span class="fc" id="L306">                readDigits();</span>
+            }
+        }
+<span class="fc" id="L309">        String num = src.substring(numberStart, pos);</span>
+<span class="fc" id="L310">        final double dval = Double.parseDouble(num);</span>
+<span class="fc" id="L311">        final int ival = (int)dval;</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">        if (ival == dval) {</span>
+<span class="fc" id="L313">            return Integer.valueOf(ival);</span>
+        } else {
+<span class="fc" id="L315">            return Double.valueOf(dval);</span>
+        }
+    }
+
+    private ParseException numberError(int start, int end) {
+<span class="fc" id="L320">        return new ParseException(&quot;Unsupported number format: &quot; + src.substring(start, end));</span>
+    }
+
+    private char nextOrNumberError(int numberStart) throws ParseException {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">        if (pos &gt;= length) {</span>
+<span class="fc" id="L325">            throw numberError(numberStart, length);</span>
+        }
+<span class="fc" id="L327">        return src.charAt(pos++);</span>
+    }
+
+    private void readDigits() {
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        for (; pos &lt; length; ++pos) {</span>
+<span class="fc" id="L332">            char c = src.charAt(pos);</span>
+<span class="fc bfc" id="L333" title="All 4 branches covered.">            if (!(c &gt;= '0' &amp;&amp; c &lt;= '9')) {</span>
+<span class="fc" id="L334">                break;</span>
+            }
+        }
+<span class="fc" id="L337">    }</span>
+
+    private Boolean readTrue() throws ParseException {
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        if (length - pos &lt; 3</span>
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">                || src.charAt(pos) != 'r'</span>
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">                || src.charAt(pos + 1) != 'u'</span>
+<span class="pc bpc" id="L343" title="1 of 2 branches missed.">                || src.charAt(pos + 2) != 'e') {</span>
+<span class="nc" id="L344">            throw new ParseException(&quot;Unexpected token: t&quot;);</span>
+        }
+<span class="fc" id="L346">        pos += 3;</span>
+<span class="fc" id="L347">        return Boolean.TRUE;</span>
+    }
+
+    private Boolean readFalse() throws ParseException {
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">        if (length - pos &lt; 4</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">                || src.charAt(pos) != 'a'</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">                || src.charAt(pos + 1) != 'l'</span>
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">                || src.charAt(pos + 2) != 's'</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">                || src.charAt(pos + 3) != 'e') {</span>
+<span class="nc" id="L356">            throw new ParseException(&quot;Unexpected token: f&quot;);</span>
+        }
+<span class="fc" id="L358">        pos += 4;</span>
+<span class="fc" id="L359">        return Boolean.FALSE;</span>
+    }
+
+    private Object readNull() throws ParseException {
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        if (length - pos &lt; 3</span>
+<span class="pc bpc" id="L364" title="1 of 2 branches missed.">                || src.charAt(pos) != 'u'</span>
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">                || src.charAt(pos + 1) != 'l'</span>
+<span class="pc bpc" id="L366" title="1 of 2 branches missed.">                || src.charAt(pos + 2) != 'l') {</span>
+<span class="nc" id="L367">            throw new ParseException(&quot;Unexpected token: n&quot;);</span>
+        }
+<span class="fc" id="L369">        pos += 3;</span>
+<span class="fc" id="L370">        return null;</span>
+    }
+
+    private void consumeWhitespace() {
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        while (pos &lt; length) {</span>
+<span class="fc" id="L375">            char c = src.charAt(pos);</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">            switch (c) {</span>
+                case ' ':
+                case '\t':
+                case '\r':
+                case '\n':
+<span class="fc" id="L381">                    pos += 1;</span>
+<span class="fc" id="L382">                    break;</span>
+                default:
+<span class="fc" id="L384">                    return;</span>
+            }
+<span class="fc" id="L386">        }</span>
+<span class="fc" id="L387">    }</span>
+
+    private void consume(char token) throws ParseException {
+<span class="fc" id="L390">        consumeWhitespace();</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">        if (pos &gt;= length) {</span>
+<span class="fc" id="L392">            throw new ParseException(&quot;Expected &quot; + token + &quot; but reached end of stream&quot;);</span>
+        }
+<span class="fc" id="L394">        char c = src.charAt(pos++);</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">        if (c == token) {</span>
+<span class="fc" id="L396">            return;</span>
+        } else {
+<span class="fc" id="L398">            throw new ParseException(&quot;Expected &quot; + token + &quot; found &quot; + c);</span>
+        }
+    }
+
+    public static class ParseException extends Exception {
+        
+        static final long serialVersionUID = 4804542791749920772L;
+        
+        ParseException(String message) {
+<span class="fc" id="L407">            super(message);</span>
+<span class="fc" id="L408">        }</span>
+
+        ParseException(Exception cause) {
+<span class="nc" id="L411">            super(cause);</span>
+<span class="nc" id="L412">        }</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

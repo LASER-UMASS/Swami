@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CachingModuleScriptProviderBase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.commonjs.module.provider</a> &gt; <span class="el_source">CachingModuleScriptProviderBase.java</span></div><h1>CachingModuleScriptProviderBase.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module.provider;
+
+import java.io.Reader;
+import java.io.Serializable;
+import java.net.URI;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.commonjs.module.ModuleScript;
+import org.mozilla.javascript.commonjs.module.ModuleScriptProvider;
+
+/**
+ * Abstract base class that implements caching of loaded module scripts. It
+ * uses a {@link ModuleSourceProvider} to obtain the source text of the
+ * scripts. It supports a cache revalidation mechanism based on validator
+ * objects returned from the {@link ModuleSourceProvider}. Instances of this
+ * class and its subclasses are thread safe (and written to perform decently
+ * under concurrent access).
+ * @author Attila Szegedi
+ * @version $Id: CachingModuleScriptProviderBase.java,v 1.3 2011/04/07 20:26:12 hannes%helma.at Exp $
+ */
+public abstract class CachingModuleScriptProviderBase
+implements ModuleScriptProvider, Serializable
+{
+    private static final long serialVersionUID = 1L;
+
+    private static final int loadConcurrencyLevel =
+<span class="fc" id="L32">        Runtime.getRuntime().availableProcessors() * 8;</span>
+    private static final int loadLockShift;
+    private static final int loadLockMask;
+    private static final int loadLockCount;
+    static {
+<span class="fc" id="L37">        int sshift = 0;</span>
+<span class="fc" id="L38">        int ssize = 1;</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        while (ssize &lt; loadConcurrencyLevel) {</span>
+<span class="fc" id="L40">            ++sshift;</span>
+<span class="fc" id="L41">            ssize &lt;&lt;= 1;</span>
+        }
+<span class="fc" id="L43">        loadLockShift = 32 - sshift;</span>
+<span class="fc" id="L44">        loadLockMask = ssize - 1;</span>
+<span class="fc" id="L45">        loadLockCount = ssize;</span>
+<span class="fc" id="L46">    }</span>
+<span class="fc" id="L47">    private final Object[] loadLocks = new Object[loadLockCount]; {</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        for(int i = 0; i &lt; loadLocks.length; ++i) {</span>
+<span class="fc" id="L49">            loadLocks[i] = new Object();</span>
+        }
+    }
+
+    private final ModuleSourceProvider moduleSourceProvider;
+
+    /**
+     * Creates a new module script provider with the specified source.
+     * @param moduleSourceProvider provider for modules' source code
+     */
+    protected CachingModuleScriptProviderBase(
+<span class="fc" id="L60">            ModuleSourceProvider moduleSourceProvider) {</span>
+<span class="fc" id="L61">        this.moduleSourceProvider = moduleSourceProvider;</span>
+<span class="fc" id="L62">    }</span>
+
+    public ModuleScript getModuleScript(Context cx, String moduleId,
+            URI moduleUri, URI baseUri, Scriptable paths) throws Exception
+    {
+<span class="fc" id="L67">        final CachedModuleScript cachedModule1 = getLoadedModule(moduleId);</span>
+<span class="fc" id="L68">        final Object validator1 = getValidator(cachedModule1);</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        final ModuleSource moduleSource = (moduleUri == null)</span>
+<span class="fc" id="L70">                ? moduleSourceProvider.loadSource(moduleId, paths, validator1)</span>
+<span class="fc" id="L71">                : moduleSourceProvider.loadSource(moduleUri, baseUri, validator1);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if(moduleSource == ModuleSourceProvider.NOT_MODIFIED) {</span>
+<span class="fc" id="L73">            return cachedModule1.getModule();</span>
+        }
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if(moduleSource == null) {</span>
+<span class="fc" id="L76">            return null;</span>
+        }
+<span class="fc" id="L78">        final Reader reader = moduleSource.getReader();</span>
+        try {
+<span class="fc" id="L80">            final int idHash = moduleId.hashCode();</span>
+<span class="fc" id="L81">            synchronized(loadLocks[(idHash &gt;&gt;&gt; loadLockShift) &amp; loadLockMask]) {</span>
+<span class="fc" id="L82">                final CachedModuleScript cachedModule2 = getLoadedModule(moduleId);</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">                if(cachedModule2 != null) {</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                    if(!equal(validator1, getValidator(cachedModule2))) {</span>
+<span class="nc" id="L85">                        return cachedModule2.getModule();</span>
+                    }
+                }
+<span class="fc" id="L88">                final URI sourceUri = moduleSource.getUri();</span>
+<span class="fc" id="L89">                final ModuleScript moduleScript = new ModuleScript(</span>
+<span class="fc" id="L90">                        cx.compileReader(reader, sourceUri.toString(), 1,</span>
+<span class="fc" id="L91">                                moduleSource.getSecurityDomain()),</span>
+<span class="fc" id="L92">                        sourceUri, moduleSource.getBase());</span>
+<span class="fc" id="L93">                putLoadedModule(moduleId, moduleScript,</span>
+<span class="fc" id="L94">                        moduleSource.getValidator());</span>
+<span class="fc" id="L95">                return moduleScript;</span>
+<span class="nc" id="L96">            }</span>
+        }
+        finally {
+<span class="pc" id="L99">            reader.close();</span>
+<span class="nc" id="L100">        }</span>
+    }
+
+    /**
+     * Store a loaded module script for later retrieval using
+     * {@link #getLoadedModule(String)}.
+     * @param moduleId the ID of the module
+     * @param moduleScript the module script
+     * @param validator the validator for the module's source text entity
+     */
+    protected abstract void putLoadedModule(String moduleId,
+            ModuleScript moduleScript, Object validator);
+
+    /**
+     * Retrieves an already loaded moduleScript stored using
+     * {@link #putLoadedModule(String, ModuleScript, Object)}.
+     * @param moduleId the ID of the module
+     * @return a cached module script, or null if the module is not loaded.
+     */
+    protected abstract CachedModuleScript getLoadedModule(String moduleId);
+
+    /**
+     * Instances of this class represent a loaded and cached module script.
+     * @author Attila Szegedi
+     * @version $Id: CachingModuleScriptProviderBase.java,v 1.3 2011/04/07 20:26:12 hannes%helma.at Exp $
+     */
+    public static class CachedModuleScript {
+        private final ModuleScript moduleScript;
+        private final Object validator;
+
+        /**
+         * Creates a new cached module script.
+         * @param moduleScript the module script itself
+         * @param validator a validator for the moduleScript's source text
+         * entity.
+         */
+<span class="fc" id="L136">        public CachedModuleScript(ModuleScript moduleScript, Object validator) {</span>
+<span class="fc" id="L137">            this.moduleScript = moduleScript;</span>
+<span class="fc" id="L138">            this.validator = validator;</span>
+<span class="fc" id="L139">        }</span>
+
+        /**
+         * Returns the module script.
+         * @return the module script.
+         */
+        ModuleScript getModule() {
+<span class="fc" id="L146">            return moduleScript;</span>
+        }
+
+        /**
+         * Returns the validator for the module script's source text entity.
+         * @return the validator for the module script's source text entity.
+         */
+        Object getValidator() {
+<span class="fc" id="L154">            return validator;</span>
+        }
+    }
+
+    private static Object getValidator(CachedModuleScript cachedModule) {
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        return cachedModule == null ? null : cachedModule.getValidator();</span>
+    }
+
+    private static boolean equal(Object o1, Object o2) {
+<span class="nc bnc" id="L163" title="All 4 branches missed.">        return o1 == null ? o2 == null : o1.equals(o2);</span>
+    }
+
+    /**
+     * Returns the internal concurrency level utilized by caches in this JVM.
+     * @return the internal concurrency level utilized by caches in this JVM.
+     */
+    protected static int getConcurrencyLevel() {
+<span class="fc" id="L171">        return loadLockCount;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Main.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.debugger</a> &gt; <span class="el_source">Main.java</span></div><h1>Main.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.debugger;
+
+import java.io.InputStream;
+import java.io.PrintStream;
+
+import javax.swing.JFrame;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.tools.shell.Global;
+
+/**
+ * Rhino script debugger main class.  This class links together a
+ * debugger object ({@link Dim}) and a debugger GUI object ({@link SwingGui}).
+ */
+public class Main {
+
+    /**
+     * The debugger.
+     */
+    private Dim dim;
+
+    /**
+     * The debugger frame.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * Creates a new Main.
+     */
+<span class="nc" id="L36">    public Main(String title) {</span>
+<span class="nc" id="L37">        dim = new Dim();</span>
+<span class="nc" id="L38">        debugGui = new SwingGui(dim, title);</span>
+<span class="nc" id="L39">    }</span>
+
+    /**
+     * Returns the debugger window {@link JFrame}.
+     */
+    public JFrame getDebugFrame() {
+<span class="nc" id="L45">        return debugGui;</span>
+    }
+
+    /**
+     * Breaks execution of the script.
+     */
+    public void doBreak() {
+<span class="nc" id="L52">        dim.setBreak();</span>
+<span class="nc" id="L53">    }</span>
+
+    /**
+     * Sets whether execution should break when a script exception is thrown.
+     */
+    public void setBreakOnExceptions(boolean value) {
+<span class="nc" id="L59">        dim.setBreakOnExceptions(value);</span>
+<span class="nc" id="L60">        debugGui.getMenubar().getBreakOnExceptions().setSelected(value);</span>
+<span class="nc" id="L61">    }</span>
+
+    /**
+     * Sets whether execution should break when a function is entered.
+     */
+    public void setBreakOnEnter(boolean value) {
+<span class="nc" id="L67">        dim.setBreakOnEnter(value);</span>
+<span class="nc" id="L68">        debugGui.getMenubar().getBreakOnEnter().setSelected(value);</span>
+<span class="nc" id="L69">    }</span>
+
+    /**
+     * Sets whether execution should break when a function is left.
+     */
+    public void setBreakOnReturn(boolean value) {
+<span class="nc" id="L75">        dim.setBreakOnReturn(value);</span>
+<span class="nc" id="L76">        debugGui.getMenubar().getBreakOnReturn().setSelected(value);</span>
+<span class="nc" id="L77">    }</span>
+
+    /**
+     * Removes all breakpoints.
+     */
+    public void clearAllBreakpoints() {
+<span class="nc" id="L83">        dim.clearAllBreakpoints();</span>
+<span class="nc" id="L84">    }</span>
+
+    /**
+     * Resumes execution of the script.
+     */
+    public void go() {
+<span class="nc" id="L90">        dim.go();</span>
+<span class="nc" id="L91">    }</span>
+
+    /**
+     * Sets the scope to be used for script evaluation.
+     */
+    public void setScope(Scriptable scope) {
+<span class="nc" id="L97">        setScopeProvider(IProxy.newScopeProvider(scope));</span>
+<span class="nc" id="L98">    }</span>
+
+    /**
+     * Sets the {@link ScopeProvider} that provides a scope to be used
+     * for script evaluation.
+     */
+    public void setScopeProvider(ScopeProvider p) {
+<span class="nc" id="L105">        dim.setScopeProvider(p);</span>
+<span class="nc" id="L106">    }</span>
+
+    /**
+     * Sets the {@link SourceProvider} that provides the source to be displayed
+     * for script evaluation.
+     */
+    public void setSourceProvider(final SourceProvider sourceProvider) {
+<span class="nc" id="L113">        dim.setSourceProvider(sourceProvider);</span>
+<span class="nc" id="L114">    }</span>
+
+    /**
+     * Assign a Runnable object that will be invoked when the user
+     * selects &quot;Exit...&quot; or closes the Debugger main window.
+     */
+    public void setExitAction(Runnable r) {
+<span class="nc" id="L121">        debugGui.setExitAction(r);</span>
+<span class="nc" id="L122">    }</span>
+
+    /**
+     * Returns an {@link InputStream} for stdin from the debugger's internal
+     * Console window.
+     */
+    public InputStream getIn() {
+<span class="nc" id="L129">        return debugGui.getConsole().getIn();</span>
+    }
+
+    /**
+     * Returns a {@link PrintStream} for stdout to the debugger's internal
+     * Console window.
+     */
+    public PrintStream getOut() {
+<span class="nc" id="L137">        return debugGui.getConsole().getOut();</span>
+    }
+
+    /**
+     * Returns a {@link PrintStream} for stderr in the Debugger's internal
+     * Console window.
+     */
+    public PrintStream getErr() {
+<span class="nc" id="L145">        return debugGui.getConsole().getErr();</span>
+    }
+
+    /**
+     * Packs the debugger GUI frame.
+     */
+    public void pack() {
+<span class="nc" id="L152">        debugGui.pack();</span>
+<span class="nc" id="L153">    }</span>
+
+    /**
+     * Sets the debugger GUI frame dimensions.
+     */
+    public void setSize(int w, int h) {
+<span class="nc" id="L159">        debugGui.setSize(w, h);</span>
+<span class="nc" id="L160">    }</span>
+
+    /**
+     * Sets the visibility of the debugger GUI frame.
+     */
+    public void setVisible(boolean flag) {
+<span class="nc" id="L166">        debugGui.setVisible(flag);</span>
+<span class="nc" id="L167">    }</span>
+
+    /**
+     * Returns whether the debugger GUI frame is visible.
+     */
+    public boolean isVisible() {
+<span class="nc" id="L173">        return debugGui.isVisible();</span>
+    }
+
+    /**
+     * Frees any resources held by the debugger.
+     */
+    public void dispose() {
+<span class="nc" id="L180">        clearAllBreakpoints();</span>
+<span class="nc" id="L181">        dim.go();</span>
+<span class="nc" id="L182">        debugGui.dispose();</span>
+<span class="nc" id="L183">        dim = null;</span>
+<span class="nc" id="L184">    }</span>
+
+    /**
+     * Attaches the debugger to the given {@link ContextFactory}.
+     */
+    public void attachTo(ContextFactory factory) {
+<span class="nc" id="L190">        dim.attachTo(factory);</span>
+<span class="nc" id="L191">    }</span>
+
+    /**
+     * Detaches from the current {@link ContextFactory}.
+     */
+    public void detach() {
+<span class="nc" id="L197">        dim.detach();</span>
+<span class="nc" id="L198">    }</span>
+
+    /**
+     * Main entry point.  Creates a debugger attached to a Rhino
+     * {@link org.mozilla.javascript.tools.shell.Main} shell session.
+     */
+    public static void main(String[] args) {
+<span class="nc" id="L205">        Main main = new Main(&quot;Rhino JavaScript Debugger&quot;);</span>
+<span class="nc" id="L206">        main.doBreak();</span>
+<span class="nc" id="L207">        main.setExitAction(new IProxy(IProxy.EXIT_ACTION));</span>
+
+<span class="nc" id="L209">        System.setIn(main.getIn());</span>
+<span class="nc" id="L210">        System.setOut(main.getOut());</span>
+<span class="nc" id="L211">        System.setErr(main.getErr());</span>
+
+<span class="nc" id="L213">        Global global = org.mozilla.javascript.tools.shell.Main.getGlobal();</span>
+<span class="nc" id="L214">        global.setIn(main.getIn());</span>
+<span class="nc" id="L215">        global.setOut(main.getOut());</span>
+<span class="nc" id="L216">        global.setErr(main.getErr());</span>
+
+<span class="nc" id="L218">        main.attachTo(</span>
+            org.mozilla.javascript.tools.shell.Main.shellContextFactory);
+
+<span class="nc" id="L221">        main.setScope(global);</span>
+
+<span class="nc" id="L223">        main.pack();</span>
+<span class="nc" id="L224">        main.setSize(600, 460);</span>
+<span class="nc" id="L225">        main.setVisible(true);</span>
+
+<span class="nc" id="L227">        org.mozilla.javascript.tools.shell.Main.exec(args);</span>
+<span class="nc" id="L228">    }</span>
+
+    /**
+     * Entry point for embedded applications.  This method attaches
+     * to the global {@link ContextFactory} with a scope of a newly
+     * created {@link Global} object.  No I/O redirection is performed
+     * as with {@link #main(String[])}.
+     */
+    public static Main mainEmbedded(String title) {
+<span class="nc" id="L237">        ContextFactory factory = ContextFactory.getGlobal();</span>
+<span class="nc" id="L238">        Global global = new Global();</span>
+<span class="nc" id="L239">        global.init(factory);</span>
+<span class="nc" id="L240">        return mainEmbedded(factory, global, title);</span>
+    }
+
+    /**
+     * Entry point for embedded applications.  This method attaches
+     * to the given {@link ContextFactory} with the given scope.  No
+     * I/O redirection is performed as with {@link #main(String[])}.
+     */
+    public static Main mainEmbedded(ContextFactory factory,
+                                    Scriptable scope,
+                                    String title) {
+<span class="nc" id="L251">        return mainEmbeddedImpl(factory, scope, title);</span>
+    }
+
+    /**
+     * Entry point for embedded applications.  This method attaches
+     * to the given {@link ContextFactory} with the given scope.  No
+     * I/O redirection is performed as with {@link #main(String[])}.
+     */
+    public static Main mainEmbedded(ContextFactory factory,
+                                    ScopeProvider scopeProvider,
+                                    String title) {
+<span class="nc" id="L262">        return mainEmbeddedImpl(factory, scopeProvider, title);</span>
+    }
+
+    /**
+     * Helper method for {@link #mainEmbedded(String)}, etc.
+     */
+    private static Main mainEmbeddedImpl(ContextFactory factory,
+                                         Object scopeProvider,
+                                         String title) {
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (title == null) {</span>
+<span class="nc" id="L272">            title = &quot;Rhino JavaScript Debugger (embedded usage)&quot;;</span>
+        }
+<span class="nc" id="L274">        Main main = new Main(title);</span>
+<span class="nc" id="L275">        main.doBreak();</span>
+<span class="nc" id="L276">        main.setExitAction(new IProxy(IProxy.EXIT_ACTION));</span>
+
+<span class="nc" id="L278">        main.attachTo(factory);</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">        if (scopeProvider instanceof ScopeProvider) {</span>
+<span class="nc" id="L280">            main.setScopeProvider((ScopeProvider)scopeProvider);</span>
+        } else {
+<span class="nc" id="L282">            Scriptable scope = (Scriptable)scopeProvider;</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">            if (scope instanceof Global) {</span>
+<span class="nc" id="L284">                Global global = (Global)scope;</span>
+<span class="nc" id="L285">                global.setIn(main.getIn());</span>
+<span class="nc" id="L286">                global.setOut(main.getOut());</span>
+<span class="nc" id="L287">                global.setErr(main.getErr());</span>
+            }
+<span class="nc" id="L289">            main.setScope(scope);</span>
+        }
+
+<span class="nc" id="L292">        main.pack();</span>
+<span class="nc" id="L293">        main.setSize(600, 460);</span>
+<span class="nc" id="L294">        main.setVisible(true);</span>
+<span class="nc" id="L295">        return main;</span>
+    }
+
+    // Deprecated methods
+
+    /**
+     * @deprecated Use {@link #setSize(int, int)} instead.
+     */
+    @Deprecated
+    public void setSize(java.awt.Dimension dimension) {
+<span class="nc" id="L305">        debugGui.setSize(dimension.width, dimension.height);</span>
+<span class="nc" id="L306">    }</span>
+
+    /**
+     * @deprecated
+     * The method does nothing and is only present for compatibility.
+     */
+    @Deprecated
+    public void setOptimizationLevel(int level) {
+<span class="nc" id="L314">    }</span>
+
+    /**
+     * @deprecated
+     * The method is only present for compatibility and should not be called.
+     */
+    @Deprecated
+    public void contextEntered(Context cx) {
+<span class="nc" id="L322">        throw new IllegalStateException();</span>
+    }
+
+    /**
+     * @deprecated
+     * The method is only present for compatibility and should not be called.
+     */
+    @Deprecated
+    public void contextExited(Context cx) {
+<span class="nc" id="L331">        throw new IllegalStateException();</span>
+    }
+
+    /**
+     * @deprecated
+     * The method is only present for compatibility and should not be called.
+     */
+    @Deprecated
+    public void contextCreated(Context cx) {
+<span class="nc" id="L340">        throw new IllegalStateException();</span>
+    }
+
+    /**
+     * @deprecated
+     * The method is only present for compatibility and should not be called.
+     */
+    @Deprecated
+    public void contextReleased(Context cx)
+    {
+<span class="nc" id="L350">        throw new IllegalStateException();</span>
+    }
+
+    /**
+     * Class to consolidate all internal implementations of interfaces
+     * to avoid class generation bloat.
+     */
+    private static class IProxy implements Runnable, ScopeProvider {
+
+        // Constants for 'type'.
+        public static final int EXIT_ACTION = 1;
+        public static final int SCOPE_PROVIDER = 2;
+
+        /**
+         * The type of interface.
+         */
+        private final int type;
+
+        /**
+         * The scope object to expose when {@link #type} =
+         * {@link #SCOPE_PROVIDER}.
+         */
+        private Scriptable scope;
+
+        /**
+         * Creates a new IProxy.
+         */
+<span class="nc" id="L377">        public IProxy(int type) {</span>
+<span class="nc" id="L378">            this.type = type;</span>
+<span class="nc" id="L379">        }</span>
+
+        /**
+         * Creates a new IProxy that acts as a {@link ScopeProvider}.
+         */
+        public static ScopeProvider newScopeProvider(Scriptable scope) {
+<span class="nc" id="L385">            IProxy scopeProvider = new IProxy(SCOPE_PROVIDER);</span>
+<span class="nc" id="L386">            scopeProvider.scope = scope;</span>
+<span class="nc" id="L387">            return scopeProvider;</span>
+        }
+
+        // ContextAction
+
+        /**
+         * Exit action.
+         */
+        public void run() {
+<span class="nc bnc" id="L396" title="All 2 branches missed.">            if (type != EXIT_ACTION) Kit.codeBug();</span>
+<span class="nc" id="L397">            System.exit(0);</span>
+<span class="nc" id="L398">        }</span>
+
+        // ScopeProvider
+
+        /**
+         * Returns the scope for script evaluations.
+         */
+        public Scriptable getScope() {
+<span class="nc bnc" id="L406" title="All 2 branches missed.">            if (type != SCOPE_PROVIDER) Kit.codeBug();</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">            if (scope == null) Kit.codeBug();</span>
+<span class="nc" id="L408">            return scope;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

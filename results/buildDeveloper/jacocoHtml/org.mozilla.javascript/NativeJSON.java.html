@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJSON.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJSON.java</span></div><h1>NativeJSON.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.json.JsonParser;
+
+import java.util.Stack;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Arrays;
+import java.util.List;
+import java.util.LinkedList;
+
+/**
+ * This class implements the JSON native object.
+ * See ECMA 15.12.
+ * @author Matthew Crumley, Raphael Speyer
+ */
+public final class NativeJSON extends IdScriptableObject
+{
+    static final long serialVersionUID = -4567599697595654984L;
+
+<span class="fc" id="L27">    private static final Object JSON_TAG = &quot;JSON&quot;;</span>
+
+    private static final int MAX_STRINGIFY_GAP_LENGTH = 10;
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L33">        NativeJSON obj = new NativeJSON();</span>
+<span class="fc" id="L34">        obj.activatePrototypeMap(MAX_ID);</span>
+<span class="fc" id="L35">        obj.setPrototype(getObjectPrototype(scope));</span>
+<span class="fc" id="L36">        obj.setParentScope(scope);</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (sealed) { obj.sealObject(); }</span>
+<span class="fc" id="L38">        ScriptableObject.defineProperty(scope, &quot;JSON&quot;, obj,</span>
+                                        ScriptableObject.DONTENUM);
+<span class="fc" id="L40">    }</span>
+
+    private NativeJSON()
+<span class="fc" id="L43">    {</span>
+<span class="fc" id="L44">    }</span>
+
+    @Override
+<span class="nc" id="L47">    public String getClassName() { return &quot;JSON&quot;; }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">        if (id &lt;= LAST_METHOD_ID) {</span>
+            String name;
+            int arity;
+<span class="pc bpc" id="L55" title="2 of 4 branches missed.">            switch (id) {</span>
+<span class="nc" id="L56">              case Id_toSource:  arity = 0; name = &quot;toSource&quot;;  break;</span>
+<span class="fc" id="L57">              case Id_parse:     arity = 2; name = &quot;parse&quot;;     break;</span>
+<span class="fc" id="L58">              case Id_stringify: arity = 3; name = &quot;stringify&quot;; break;</span>
+<span class="nc" id="L59">              default: throw new IllegalStateException(String.valueOf(id));</span>
+            }
+<span class="fc" id="L61">            initPrototypeMethod(JSON_TAG, id, name, arity);</span>
+<span class="fc" id="L62">        } else {</span>
+<span class="nc" id="L63">            throw new IllegalStateException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L65">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (!f.hasTag(JSON_TAG)) {</span>
+<span class="nc" id="L72">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L74">        int methodId = f.methodId();</span>
+<span class="pc bpc" id="L75" title="2 of 4 branches missed.">        switch (methodId) {</span>
+            case Id_toSource:
+<span class="nc" id="L77">                return &quot;JSON&quot;;</span>
+
+            case Id_parse: {
+<span class="fc" id="L80">                String jtext = ScriptRuntime.toString(args, 0);</span>
+<span class="fc" id="L81">                Object reviver = null;</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">                if (args.length &gt; 1) {</span>
+<span class="nc" id="L83">                    reviver = args[1];</span>
+                }
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">                if (reviver instanceof Callable) {</span>
+<span class="nc" id="L86">                  return parse(cx, scope, jtext, (Callable) reviver);</span>
+                } else {
+<span class="fc" id="L88">                  return parse(cx, scope, jtext);</span>
+                }
+            }
+
+            case Id_stringify: {
+<span class="fc" id="L93">                Object value = null, replacer = null, space = null;</span>
+<span class="pc bpc" id="L94" title="1 of 4 branches missed.">                switch (args.length) {</span>
+<span class="fc" id="L95">                    case 3: space = args[2];</span>
+<span class="fc" id="L96">                    /* fallthru */ case 2: replacer = args[1];</span>
+<span class="fc" id="L97">                    /* fallthru */ case 1: value = args[0];</span>
+                    /* fallthru */ case 0:
+                    /* fallthru */ default:
+                }
+<span class="fc" id="L101">                return stringify(cx, scope, value, replacer, space);</span>
+            }
+
+<span class="nc" id="L104">            default: throw new IllegalStateException(String.valueOf(methodId));</span>
+        }
+    }
+
+    private static Object parse(Context cx, Scriptable scope, String jtext) {
+      try {
+<span class="fc" id="L110">        return new JsonParser(cx, scope).parseValue(jtext);</span>
+<span class="nc" id="L111">      } catch (JsonParser.ParseException ex) {</span>
+<span class="nc" id="L112">        throw ScriptRuntime.constructError(&quot;SyntaxError&quot;, ex.getMessage());</span>
+      }
+    }
+
+    public static Object parse(Context cx, Scriptable scope, String jtext,
+                               Callable reviver)
+    {
+<span class="nc" id="L119">      Object unfiltered = parse(cx, scope, jtext);</span>
+<span class="nc" id="L120">      Scriptable root = cx.newObject(scope);</span>
+<span class="nc" id="L121">      root.put(&quot;&quot;, root, unfiltered);</span>
+<span class="nc" id="L122">      return walk(cx, scope, reviver, root, &quot;&quot;);</span>
+    }
+
+    private static Object walk(Context cx, Scriptable scope, Callable reviver,
+                               Scriptable holder, Object name)
+    {
+        final Object property;
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (name instanceof Number) {</span>
+<span class="nc" id="L130">            property = holder.get( ((Number) name).intValue(), holder);</span>
+        } else {
+<span class="nc" id="L132">            property = holder.get( ((String) name), holder);</span>
+        }
+
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        if (property instanceof Scriptable) {</span>
+<span class="nc" id="L136">            Scriptable val = ((Scriptable) property);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">            if (val instanceof NativeArray) {</span>
+<span class="nc" id="L138">                long len = ((NativeArray) val).getLength();</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                for (long i = 0; i &lt; len; i++) {</span>
+                    // indices greater than MAX_INT are represented as strings
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                    if (i &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L142">                        String id = Long.toString(i);</span>
+<span class="nc" id="L143">                        Object newElement = walk(cx, scope, reviver, val, id);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">                        if (newElement == Undefined.instance) {</span>
+<span class="nc" id="L145">                            val.delete(id);</span>
+                        } else {
+<span class="nc" id="L147">                            val.put(id, val, newElement);</span>
+                        }
+<span class="nc" id="L149">                    } else {</span>
+<span class="nc" id="L150">                        int idx = (int) i;</span>
+<span class="nc" id="L151">                        Object newElement = walk(cx, scope, reviver, val, idx);</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                        if (newElement == Undefined.instance) {</span>
+<span class="nc" id="L153">                            val.delete(idx);</span>
+                        } else {
+<span class="nc" id="L155">                            val.put(idx, val, newElement);</span>
+                        }
+                    }
+                }
+<span class="nc" id="L159">            } else {</span>
+<span class="nc" id="L160">                Object[] keys = val.getIds();</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                for (Object p : keys) {</span>
+<span class="nc" id="L162">                    Object newElement = walk(cx, scope, reviver, val, p);</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                    if (newElement == Undefined.instance) {</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">                        if (p instanceof Number)</span>
+<span class="nc" id="L165">                          val.delete(((Number) p).intValue());</span>
+                        else
+<span class="nc" id="L167">                          val.delete((String) p);</span>
+                    } else {
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                        if (p instanceof Number)</span>
+<span class="nc" id="L170">                          val.put(((Number) p).intValue(), val, newElement);</span>
+                        else
+<span class="nc" id="L172">                          val.put((String) p, val, newElement);</span>
+                    }
+                }
+            }
+        }
+
+<span class="nc" id="L178">        return reviver.call(cx, scope, holder, new Object[] { name, property });</span>
+    }
+
+    private static String repeat(char c, int count) {
+<span class="nc" id="L182">      char chars[] = new char[count];</span>
+<span class="nc" id="L183">      Arrays.fill(chars, c);</span>
+<span class="nc" id="L184">      return new String(chars);</span>
+    }
+
+    private static class StringifyState {
+        StringifyState(Context cx, Scriptable scope, String indent, String gap,
+                       Callable replacer, List&lt;Object&gt; propertyList,
+                       Object space)
+<span class="fc" id="L191">        {</span>
+<span class="fc" id="L192">            this.cx = cx;</span>
+<span class="fc" id="L193">            this.scope = scope;</span>
+
+<span class="fc" id="L195">            this.indent = indent;</span>
+<span class="fc" id="L196">            this.gap = gap;</span>
+<span class="fc" id="L197">            this.replacer = replacer;</span>
+<span class="fc" id="L198">            this.propertyList = propertyList;</span>
+<span class="fc" id="L199">            this.space = space;</span>
+<span class="fc" id="L200">        }</span>
+
+<span class="fc" id="L202">        Stack&lt;Scriptable&gt; stack = new Stack&lt;Scriptable&gt;();</span>
+        String indent;
+        String gap;
+        Callable replacer;
+        List&lt;Object&gt; propertyList;
+        Object space;
+
+        Context cx;
+        Scriptable scope;
+    }
+
+    public static Object stringify(Context cx, Scriptable scope, Object value,
+                                   Object replacer, Object space)
+    {
+<span class="fc" id="L216">        String indent = &quot;&quot;;</span>
+<span class="fc" id="L217">        String gap = &quot;&quot;;</span>
+
+<span class="fc" id="L219">        List&lt;Object&gt; propertyList = null;</span>
+<span class="fc" id="L220">        Callable replacerFunction = null;</span>
+
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (replacer instanceof Callable) {</span>
+<span class="fc" id="L223">          replacerFunction = (Callable) replacer;</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">        } else if (replacer instanceof NativeArray) {</span>
+<span class="nc" id="L225">          propertyList = new LinkedList&lt;Object&gt;();</span>
+<span class="nc" id="L226">          NativeArray replacerArray = (NativeArray) replacer;</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">          for (int i : replacerArray.getIndexIds()) {</span>
+<span class="nc" id="L228">            Object v = replacerArray.get(i, replacerArray);</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">            if (v instanceof String || v instanceof Number) {</span>
+<span class="nc" id="L230">              propertyList.add(v);</span>
+<span class="nc bnc" id="L231" title="All 4 branches missed.">            } else if (v instanceof NativeString || v instanceof NativeNumber) {</span>
+<span class="nc" id="L232">              propertyList.add(ScriptRuntime.toString(v));</span>
+            }
+          }
+        }
+
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">        if (space instanceof NativeNumber) {</span>
+<span class="nc" id="L238">            space = ScriptRuntime.toNumber(space);</span>
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">        } else if (space instanceof NativeString) {</span>
+<span class="nc" id="L240">            space = ScriptRuntime.toString(space);</span>
+        }
+
+<span class="pc bpc" id="L243" title="1 of 2 branches missed.">        if (space instanceof Number) {</span>
+<span class="nc" id="L244">            int gapLength = (int) ScriptRuntime.toInteger(space);</span>
+<span class="nc" id="L245">            gapLength = Math.min(MAX_STRINGIFY_GAP_LENGTH, gapLength);</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            gap = (gapLength &gt; 0) ? repeat(' ', gapLength) : &quot;&quot;;</span>
+<span class="nc" id="L247">            space = gapLength;</span>
+<span class="pc bfc" id="L248" title="All 2 branches covered.">        } else if (space instanceof String) {</span>
+<span class="fc" id="L249">            gap = (String) space;</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">            if (gap.length() &gt; MAX_STRINGIFY_GAP_LENGTH) {</span>
+<span class="nc" id="L251">              gap = gap.substring(0, MAX_STRINGIFY_GAP_LENGTH);</span>
+            }
+        }
+
+<span class="fc" id="L255">        StringifyState state = new StringifyState(cx, scope,</span>
+            indent,
+            gap,
+            replacerFunction,
+            propertyList,
+            space);
+
+<span class="fc" id="L262">        ScriptableObject wrapper = new NativeObject();</span>
+<span class="fc" id="L263">        wrapper.setParentScope(scope);</span>
+<span class="fc" id="L264">        wrapper.setPrototype(ScriptableObject.getObjectPrototype(scope));</span>
+<span class="fc" id="L265">        wrapper.defineProperty(&quot;&quot;, value, 0);</span>
+<span class="fc" id="L266">        return str(&quot;&quot;, wrapper, state);</span>
+    }
+
+    private static Object str(Object key, Scriptable holder,
+                              StringifyState state)
+    {
+<span class="fc" id="L272">        Object value = null;</span>
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        if (key instanceof String) {</span>
+<span class="fc" id="L274">            value = getProperty(holder, (String) key);</span>
+        } else {
+<span class="fc" id="L276">            value = getProperty(holder, ((Number) key).intValue());</span>
+        }
+
+<span class="pc bpc" id="L279" title="1 of 4 branches missed.">        if (value instanceof Scriptable &amp;&amp; hasProperty((Scriptable) value, &quot;toJSON&quot;)) {</span>
+<span class="nc" id="L280">            Object toJSON = getProperty((Scriptable) value, &quot;toJSON&quot;);</span>
+<span class="nc bnc" id="L281" title="All 2 branches missed.">            if (toJSON instanceof Callable) {</span>
+<span class="nc" id="L282">                value = callMethod(state.cx, (Scriptable) value, &quot;toJSON&quot;,</span>
+                                   new Object[] { key });
+            }
+        }
+
+<span class="fc bfc" id="L287" title="All 2 branches covered.">        if (state.replacer != null) {</span>
+<span class="fc" id="L288">            value = state.replacer.call(state.cx, state.scope, holder,</span>
+                                        new Object[] { key, value });
+        }
+
+
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        if (value instanceof NativeNumber) {</span>
+<span class="nc" id="L294">            value = ScriptRuntime.toNumber(value);</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        } else if (value instanceof NativeString) {</span>
+<span class="nc" id="L296">            value = ScriptRuntime.toString(value);</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        } else if (value instanceof NativeBoolean) {</span>
+<span class="nc" id="L298">            value = ((NativeBoolean) value).getDefaultValue(ScriptRuntime.BooleanClass);</span>
+        }
+
+<span class="pc bpc" id="L301" title="1 of 2 branches missed.">        if (value == null) return &quot;null&quot;;</span>
+<span class="pc bpc" id="L302" title="1 of 2 branches missed.">        if (value.equals(Boolean.TRUE)) return &quot;true&quot;;</span>
+<span class="pc bpc" id="L303" title="1 of 2 branches missed.">        if (value.equals(Boolean.FALSE)) return &quot;false&quot;;</span>
+
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        if (value instanceof CharSequence) {</span>
+<span class="fc" id="L306">            return quote(value.toString());</span>
+        }
+
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        if (value instanceof Number) {</span>
+<span class="fc" id="L310">            double d = ((Number) value).doubleValue();</span>
+<span class="pc bpc" id="L311" title="3 of 6 branches missed.">            if (d == d &amp;&amp; d != Double.POSITIVE_INFINITY &amp;&amp;</span>
+                d != Double.NEGATIVE_INFINITY)
+            {
+<span class="fc" id="L314">                return ScriptRuntime.toString(value);</span>
+            } else {
+<span class="nc" id="L316">                return &quot;null&quot;;</span>
+            }
+        }
+
+<span class="pc bpc" id="L320" title="2 of 4 branches missed.">        if (value instanceof Scriptable &amp;&amp; !(value instanceof Callable)) {</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">            if (value instanceof NativeArray) {</span>
+<span class="fc" id="L322">                return ja((NativeArray) value, state);</span>
+            }
+<span class="fc" id="L324">            return jo((Scriptable) value, state);</span>
+        }
+
+<span class="nc" id="L327">        return Undefined.instance;</span>
+    }
+
+    private static String join(Collection&lt;Object&gt; objs, String delimiter) {
+<span class="pc bpc" id="L331" title="2 of 4 branches missed.">        if (objs == null || objs.isEmpty()) {</span>
+<span class="nc" id="L332">            return &quot;&quot;;</span>
+        }
+<span class="fc" id="L334">        Iterator&lt;Object&gt; iter = objs.iterator();</span>
+<span class="pc bpc" id="L335" title="1 of 2 branches missed.">        if (!iter.hasNext()) return &quot;&quot;;</span>
+<span class="fc" id="L336">        StringBuilder builder = new StringBuilder(iter.next().toString());</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">        while (iter.hasNext()) {</span>
+<span class="fc" id="L338">            builder.append(delimiter).append(iter.next().toString());</span>
+        }
+<span class="fc" id="L340">        return builder.toString();</span>
+    }
+
+    private static String jo(Scriptable value, StringifyState state) {
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">        if (state.stack.search(value) != -1) {</span>
+<span class="nc" id="L345">            throw ScriptRuntime.typeError0(&quot;msg.cyclic.value&quot;);</span>
+        }
+<span class="fc" id="L347">        state.stack.push(value);</span>
+
+<span class="fc" id="L349">        String stepback = state.indent;</span>
+<span class="fc" id="L350">        state.indent = state.indent + state.gap;</span>
+<span class="fc" id="L351">        Object[] k = null;</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        if (state.propertyList != null) {</span>
+<span class="nc" id="L353">            k = state.propertyList.toArray();</span>
+        } else {
+<span class="fc" id="L355">            k = value.getIds();</span>
+        }
+
+<span class="fc" id="L358">        List&lt;Object&gt; partial = new LinkedList&lt;Object&gt;();</span>
+
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        for (Object p : k) {</span>
+<span class="fc" id="L361">            Object strP = str(p, value, state);</span>
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">            if (strP != Undefined.instance) {</span>
+<span class="fc" id="L363">                String member = quote(p.toString()) + &quot;:&quot;;</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">                if (state.gap.length() &gt; 0) {</span>
+<span class="fc" id="L365">                    member = member + &quot; &quot;;</span>
+                }
+<span class="fc" id="L367">                member = member + strP;</span>
+<span class="fc" id="L368">                partial.add(member);</span>
+            }
+        }
+
+        final String finalValue;
+
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        if (partial.isEmpty()) {</span>
+<span class="fc" id="L375">            finalValue = &quot;{}&quot;;</span>
+        } else {
+<span class="fc bfc" id="L377" title="All 2 branches covered.">            if (state.gap.length() == 0) {</span>
+<span class="fc" id="L378">                finalValue = '{' + join(partial, &quot;,&quot;) + '}';</span>
+            } else {
+<span class="fc" id="L380">                String separator = &quot;,\n&quot; + state.indent;</span>
+<span class="fc" id="L381">                String properties = join(partial, separator);</span>
+<span class="fc" id="L382">                finalValue = &quot;{\n&quot; + state.indent + properties + '\n' +</span>
+                    stepback + '}';
+            }
+        }
+
+<span class="fc" id="L387">        state.stack.pop();</span>
+<span class="fc" id="L388">        state.indent = stepback;</span>
+<span class="fc" id="L389">        return finalValue;</span>
+    }
+
+    private static String ja(NativeArray value, StringifyState state) {
+<span class="pc bpc" id="L393" title="1 of 2 branches missed.">        if (state.stack.search(value) != -1) {</span>
+<span class="nc" id="L394">            throw ScriptRuntime.typeError0(&quot;msg.cyclic.value&quot;);</span>
+        }
+<span class="fc" id="L396">        state.stack.push(value);</span>
+
+<span class="fc" id="L398">        String stepback = state.indent;</span>
+<span class="fc" id="L399">        state.indent = state.indent + state.gap;</span>
+<span class="fc" id="L400">        List&lt;Object&gt; partial = new LinkedList&lt;Object&gt;();</span>
+
+<span class="fc" id="L402">        long len = value.getLength();</span>
+<span class="fc bfc" id="L403" title="All 2 branches covered.">        for (long index = 0; index &lt; len; index++) {</span>
+            Object strP;
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">            if (index &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L406">                strP = str(Long.toString(index), value, state);</span>
+            } else {
+<span class="fc" id="L408">                strP = str((int) index, value, state);</span>
+            }
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">            if (strP == Undefined.instance) {</span>
+<span class="nc" id="L411">                partial.add(&quot;null&quot;);</span>
+            } else {
+<span class="fc" id="L413">                partial.add(strP);</span>
+            }
+        }
+
+        final String finalValue;
+
+<span class="pc bpc" id="L419" title="1 of 2 branches missed.">        if (partial.isEmpty()) {</span>
+<span class="nc" id="L420">            finalValue = &quot;[]&quot;;</span>
+        } else {
+<span class="fc bfc" id="L422" title="All 2 branches covered.">            if (state.gap.length() == 0) {</span>
+<span class="fc" id="L423">                finalValue = '[' + join(partial, &quot;,&quot;) + ']';</span>
+            } else {
+<span class="fc" id="L425">                String separator = &quot;,\n&quot; + state.indent;</span>
+<span class="fc" id="L426">                String properties = join(partial, separator);</span>
+<span class="fc" id="L427">                finalValue = &quot;[\n&quot; + state.indent + properties + '\n' + stepback + ']';</span>
+            }
+        }
+
+<span class="fc" id="L431">        state.stack.pop();</span>
+<span class="fc" id="L432">        state.indent = stepback;</span>
+<span class="fc" id="L433">        return finalValue;</span>
+    }
+
+    private static String quote(String string) {
+<span class="fc" id="L437">        StringBuilder product = new StringBuilder(string.length()+2); // two extra chars for &quot; on either side</span>
+<span class="fc" id="L438">        product.append('&quot;');</span>
+<span class="fc" id="L439">        int length = string.length();</span>
+<span class="fc bfc" id="L440" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="fc" id="L441">            char c = string.charAt(i);</span>
+<span class="pc bpc" id="L442" title="6 of 8 branches missed.">            switch (c) {</span>
+                case '&quot;':
+<span class="fc" id="L444">                    product.append(&quot;\\\&quot;&quot;);</span>
+<span class="fc" id="L445">                    break;</span>
+                case '\\':
+<span class="nc" id="L447">                    product.append(&quot;\\\\&quot;);</span>
+<span class="nc" id="L448">                    break;</span>
+                case '\b':
+<span class="nc" id="L450">                    product.append(&quot;\\b&quot;);</span>
+<span class="nc" id="L451">                    break;</span>
+                case '\f':
+<span class="nc" id="L453">                    product.append(&quot;\\f&quot;);</span>
+<span class="nc" id="L454">                    break;</span>
+                case '\n':
+<span class="nc" id="L456">                    product.append(&quot;\\n&quot;);</span>
+<span class="nc" id="L457">                    break;</span>
+                case '\r':
+<span class="nc" id="L459">                    product.append(&quot;\\r&quot;);</span>
+<span class="nc" id="L460">                    break;</span>
+                case '\t':
+<span class="nc" id="L462">                    product.append(&quot;\\t&quot;);</span>
+<span class="nc" id="L463">                    break;</span>
+                default:
+<span class="pc bpc" id="L465" title="1 of 2 branches missed.">                    if (c &lt; ' ') {</span>
+<span class="nc" id="L466">                        product.append(&quot;\\u&quot;);</span>
+<span class="nc" id="L467">                        String hex = String.format(&quot;%04x&quot;, (int) c);</span>
+<span class="nc" id="L468">                        product.append(hex);</span>
+<span class="nc" id="L469">                    }</span>
+                    else {
+<span class="fc" id="L471">                        product.append(c);</span>
+                    }
+                    break;
+            }
+        }
+<span class="fc" id="L476">        product.append('&quot;');</span>
+<span class="fc" id="L477">        return product.toString();</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2009-05-25 16:01:00 EDT
+<span class="fc" id="L487">        {   id = 0; String X = null;</span>
+<span class="pc bpc" id="L488" title="2 of 4 branches missed.">            L: switch (s.length()) {</span>
+<span class="fc" id="L489">            case 5: X=&quot;parse&quot;;id=Id_parse; break L;</span>
+<span class="nc" id="L490">            case 8: X=&quot;toSource&quot;;id=Id_toSource; break L;</span>
+<span class="fc" id="L491">            case 9: X=&quot;stringify&quot;;id=Id_stringify; break L;</span>
+            }
+<span class="pc bpc" id="L493" title="2 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+        }
+// #/generated#
+<span class="fc" id="L496">        return id;</span>
+    }
+
+    private static final int
+        Id_toSource     = 1,
+        Id_parse        = 2,
+        Id_stringify    = 3,
+        LAST_METHOD_ID  = 3,
+        MAX_ID          = 3;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

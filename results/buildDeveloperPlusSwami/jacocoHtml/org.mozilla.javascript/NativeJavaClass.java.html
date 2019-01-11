@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaClass.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaClass.java</span></div><h1>NativeJavaClass.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.util.Map;
+
+/**
+ * This class reflects Java classes into the JavaScript environment, mainly
+ * for constructors and static members.  We lazily reflect properties,
+ * and currently do not guarantee that a single j.l.Class is only
+ * reflected once into the JS environment, although we should.
+ * The only known case where multiple reflections
+ * are possible occurs when a j.l.Class is wrapped as part of a
+ * method return or property access, rather than by walking the
+ * Packages/java tree.
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaObject
+ * @see NativeJavaPackage
+ */
+
+public class NativeJavaClass extends NativeJavaObject implements Function
+{
+    static final long serialVersionUID = -6460763940409461664L;
+
+    // Special property for getting the underlying Java class object.
+    static final String javaClassPropertyName = &quot;__javaObject__&quot;;
+
+<span class="nc" id="L35">    public NativeJavaClass() {</span>
+<span class="nc" id="L36">    }</span>
+
+    public NativeJavaClass(Scriptable scope, Class&lt;?&gt; cl) {
+<span class="fc" id="L39">        this(scope, cl, false);</span>
+<span class="fc" id="L40">    }</span>
+
+    public NativeJavaClass(Scriptable scope, Class&lt;?&gt; cl, boolean isAdapter) {
+<span class="fc" id="L43">        super(scope, cl, null, isAdapter);</span>
+<span class="fc" id="L44">    }</span>
+
+    @Override
+    protected void initMembers() {
+<span class="fc" id="L48">        Class&lt;?&gt; cl = (Class&lt;?&gt;)javaObject;</span>
+<span class="fc" id="L49">        members = JavaMembers.lookupClass(parent, cl, cl, isAdapter);</span>
+<span class="fc" id="L50">        staticFieldAndMethods = members.getFieldAndMethodsObjects(this, cl, true);</span>
+<span class="fc" id="L51">    }</span>
+
+    @Override
+    public String getClassName() {
+<span class="nc" id="L55">        return &quot;JavaClass&quot;;</span>
+    }
+
+    @Override
+    public boolean has(String name, Scriptable start) {
+<span class="nc bnc" id="L60" title="All 4 branches missed.">        return members.has(name, true) || javaClassPropertyName.equals(name);</span>
+    }
+
+    @Override
+    public Object get(String name, Scriptable start) {
+        // When used as a constructor, ScriptRuntime.newObject() asks
+        // for our prototype to create an object of the correct type.
+        // We don't really care what the object is, since we're returning
+        // one constructed out of whole cloth, so we return null.
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (name.equals(&quot;prototype&quot;))</span>
+<span class="nc" id="L70">            return null;</span>
+
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">         if (staticFieldAndMethods != null) {</span>
+<span class="nc" id="L73">            Object result = staticFieldAndMethods.get(name);</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if (result != null)</span>
+<span class="nc" id="L75">                return result;</span>
+        }
+
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (members.has(name, true)) {</span>
+<span class="fc" id="L79">            return members.get(this, name, javaObject, true);</span>
+        }
+
+<span class="fc" id="L82">        Context cx = Context.getContext();</span>
+<span class="fc" id="L83">        Scriptable scope = ScriptableObject.getTopLevelScope(start);</span>
+<span class="fc" id="L84">        WrapFactory wrapFactory = cx.getWrapFactory();</span>
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (javaClassPropertyName.equals(name)) {</span>
+<span class="nc" id="L87">            return wrapFactory.wrap(cx, scope, javaObject,</span>
+                                    ScriptRuntime.ClassClass);
+        }
+
+        // experimental:  look for nested classes by appending $name to
+        // current class' name.
+<span class="fc" id="L93">        Class&lt;?&gt; nestedClass = findNestedClass(getClassObject(), name);</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        if (nestedClass != null) {</span>
+<span class="fc" id="L95">            Scriptable nestedValue = wrapFactory.wrapJavaClass(cx, scope,</span>
+                    nestedClass);
+<span class="fc" id="L97">            nestedValue.setParentScope(this);</span>
+<span class="fc" id="L98">            return nestedValue;</span>
+        }
+
+<span class="nc" id="L101">        throw members.reportMemberNotFound(name);</span>
+    }
+
+    @Override
+    public void put(String name, Scriptable start, Object value) {
+<span class="nc" id="L106">        members.put(this, name, javaObject, value, true);</span>
+<span class="nc" id="L107">    }</span>
+
+    @Override
+    public Object[] getIds() {
+<span class="nc" id="L111">        return members.getIds(true);</span>
+    }
+
+    public Class&lt;?&gt; getClassObject() {
+<span class="fc" id="L115">        return (Class&lt;?&gt;) super.unwrap();</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint) {
+<span class="pc bpc" id="L120" title="1 of 4 branches missed.">        if (hint == null || hint == ScriptRuntime.StringClass)</span>
+<span class="fc" id="L121">            return this.toString();</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (hint == ScriptRuntime.BooleanClass)</span>
+<span class="nc" id="L123">            return Boolean.TRUE;</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (hint == ScriptRuntime.NumberClass)</span>
+<span class="nc" id="L125">            return ScriptRuntime.NaNobj;</span>
+<span class="nc" id="L126">        return this;</span>
+    }
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+        // If it looks like a &quot;cast&quot; of an object to this class type,
+        // walk the prototype chain to see if there's a wrapper of a
+        // object that's an instanceof this class.
+<span class="nc bnc" id="L135" title="All 4 branches missed.">        if (args.length == 1 &amp;&amp; args[0] instanceof Scriptable) {</span>
+<span class="nc" id="L136">            Class&lt;?&gt; c = getClassObject();</span>
+<span class="nc" id="L137">            Scriptable p = (Scriptable) args[0];</span>
+            do {
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                if (p instanceof Wrapper) {</span>
+<span class="nc" id="L140">                    Object o = ((Wrapper) p).unwrap();</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                    if (c.isInstance(o))</span>
+<span class="nc" id="L142">                        return p;</span>
+                }
+<span class="nc" id="L144">                p = p.getPrototype();</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">            } while (p != null);</span>
+        }
+<span class="nc" id="L147">        return construct(cx, scope, args);</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="fc" id="L152">        Class&lt;?&gt; classObject = getClassObject();</span>
+<span class="fc" id="L153">        int modifiers = classObject.getModifiers();</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (! (Modifier.isInterface(modifiers) ||</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">               Modifier.isAbstract(modifiers)))</span>
+        {
+<span class="fc" id="L157">            NativeJavaMethod ctors = members.ctors;</span>
+<span class="fc" id="L158">            int index = ctors.findCachedFunction(cx, args);</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">            if (index &lt; 0) {</span>
+<span class="nc" id="L160">                String sig = NativeJavaMethod.scriptSignature(args);</span>
+<span class="nc" id="L161">                throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L162">                    &quot;msg.no.java.ctor&quot;, classObject.getName(), sig);</span>
+            }
+
+            // Found the constructor, so try invoking it.
+<span class="fc" id="L166">            return constructSpecific(cx, scope, args, ctors.methods[index]);</span>
+        } else {
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">            if (args.length == 0) {</span>
+<span class="nc" id="L169">                throw Context.reportRuntimeError0(&quot;msg.adapter.zero.args&quot;);</span>
+            }
+<span class="fc" id="L171">            Scriptable topLevel = ScriptableObject.getTopLevelScope(this);</span>
+<span class="fc" id="L172">            String msg = &quot;&quot;;</span>
+            try {
+                // When running on Android create an InterfaceAdapter since our
+                // bytecode generation won't work on Dalvik VM.
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">                if (&quot;Dalvik&quot;.equals(System.getProperty(&quot;java.vm.name&quot;))</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">                        &amp;&amp; classObject.isInterface()) {</span>
+<span class="nc" id="L178">                    Object obj = createInterfaceAdapter(classObject,</span>
+<span class="nc" id="L179">                            ScriptableObject.ensureScriptableObject(args[0]));</span>
+<span class="nc" id="L180">                    return cx.getWrapFactory().wrapAsJavaObject(cx, scope, obj, null);</span>
+                }
+                // use JavaAdapter to construct a new class on the fly that
+                // implements/extends this interface/abstract class.
+<span class="fc" id="L184">                Object v = topLevel.get(&quot;JavaAdapter&quot;, topLevel);</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">                if (v != NOT_FOUND) {</span>
+<span class="fc" id="L186">                    Function f = (Function) v;</span>
+                    // Args are (interface, js object)
+<span class="fc" id="L188">                    Object[] adapterArgs = { this, args[0] };</span>
+<span class="fc" id="L189">                    return f.construct(cx, topLevel, adapterArgs);</span>
+                }
+<span class="nc" id="L191">            } catch (Exception ex) {</span>
+                // fall through to error
+<span class="nc" id="L193">                String m = ex.getMessage();</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                if (m != null)</span>
+<span class="nc" id="L195">                    msg = m;</span>
+<span class="nc" id="L196">            }</span>
+<span class="nc" id="L197">            throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L198">                &quot;msg.cant.instantiate&quot;, msg, classObject.getName());</span>
+        }
+    }
+
+    static Scriptable constructSpecific(Context cx, Scriptable scope,
+                                        Object[] args, MemberBox ctor)
+    {
+<span class="fc" id="L205">        Object instance = constructInternal(args, ctor);</span>
+        // we need to force this to be wrapped, because construct _has_
+        // to return a scriptable
+<span class="fc" id="L208">        Scriptable topLevel = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="fc" id="L209">        return cx.getWrapFactory().wrapNewObject(cx, topLevel, instance);</span>
+    }
+
+    static Object constructInternal(Object[] args, MemberBox ctor)
+    {
+<span class="fc" id="L214">        Class&lt;?&gt;[] argTypes = ctor.argTypes;</span>
+
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        if (ctor.vararg) {</span>
+            // marshall the explicit parameter
+<span class="nc" id="L218">            Object[] newArgs = new Object[argTypes.length];</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            for (int i = 0; i &lt; argTypes.length-1; i++) {</span>
+<span class="nc" id="L220">                newArgs[i] = Context.jsToJava(args[i], argTypes[i]);</span>
+            }
+
+            Object varArgs;
+
+            // Handle special situation where a single variable parameter
+            // is given and it is a Java or ECMA array.
+<span class="nc bnc" id="L227" title="All 8 branches missed.">            if (args.length == argTypes.length &amp;&amp;</span>
+                (args[args.length-1] == null ||
+                 args[args.length-1] instanceof NativeArray ||
+                 args[args.length-1] instanceof NativeJavaArray))
+            {
+                // convert the ECMA array into a native array
+<span class="nc" id="L233">                varArgs = Context.jsToJava(args[args.length-1],</span>
+                                           argTypes[argTypes.length - 1]);
+            } else {
+                // marshall the variable parameter
+<span class="nc" id="L237">                Class&lt;?&gt; componentType = argTypes[argTypes.length - 1].</span>
+<span class="nc" id="L238">                                        getComponentType();</span>
+<span class="nc" id="L239">                varArgs = Array.newInstance(componentType,</span>
+                                            args.length - argTypes.length + 1);
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                for (int i=0; i &lt; Array.getLength(varArgs); i++) {</span>
+<span class="nc" id="L242">                    Object value = Context.jsToJava(args[argTypes.length-1 + i],</span>
+                                                    componentType);
+<span class="nc" id="L244">                    Array.set(varArgs, i, value);</span>
+                }
+            }
+
+            // add varargs
+<span class="nc" id="L249">            newArgs[argTypes.length-1] = varArgs;</span>
+            // replace the original args with the new one
+<span class="nc" id="L251">            args = newArgs;</span>
+<span class="nc" id="L252">        } else {</span>
+<span class="fc" id="L253">            Object[] origArgs = args;</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">            for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="fc" id="L255">                Object arg = args[i];</span>
+<span class="fc" id="L256">                Object x = Context.jsToJava(arg, argTypes[i]);</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                if (x != arg) {</span>
+<span class="fc bfc" id="L258" title="All 2 branches covered.">                    if (args == origArgs) {</span>
+<span class="fc" id="L259">                        args = origArgs.clone();</span>
+                    }
+<span class="fc" id="L261">                    args[i] = x;</span>
+                }
+            }
+        }
+
+<span class="fc" id="L266">        return ctor.newInstance(args);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L271">        return &quot;[JavaClass &quot; + getClassObject().getName() + &quot;]&quot;;</span>
+    }
+
+    /**
+     * Determines if prototype is a wrapped Java object and performs
+     * a Java &quot;instanceof&quot;.
+     * Exception: if value is an instance of NativeJavaClass, it isn't
+     * considered an instance of the Java class; this forestalls any
+     * name conflicts between java.lang.Class's methods and the
+     * static methods exposed by a JavaNativeClass.
+     */
+    @Override
+    public boolean hasInstance(Scriptable value) {
+
+<span class="pc bpc" id="L285" title="1 of 4 branches missed.">        if (value instanceof Wrapper &amp;&amp;</span>
+            !(value instanceof NativeJavaClass)) {
+<span class="fc" id="L287">            Object instance = ((Wrapper)value).unwrap();</span>
+
+<span class="fc" id="L289">            return getClassObject().isInstance(instance);</span>
+        }
+
+        // value wasn't something we understand
+<span class="fc" id="L293">        return false;</span>
+    }
+
+    private static Class&lt;?&gt; findNestedClass(Class&lt;?&gt; parentClass, String name) {
+<span class="fc" id="L297">        String nestedClassName = parentClass.getName() + '$' + name;</span>
+<span class="fc" id="L298">        ClassLoader loader = parentClass.getClassLoader();</span>
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">        if (loader == null) {</span>
+            // ALERT: if loader is null, nested class should be loaded
+            // via system class loader which can be different from the
+            // loader that brought Rhino classes that Class.forName() would
+            // use, but ClassLoader.getSystemClassLoader() is Java 2 only
+<span class="nc" id="L304">            return Kit.classOrNull(nestedClassName);</span>
+        } else {
+<span class="fc" id="L306">            return Kit.classOrNull(loader, nestedClassName);</span>
+        }
+    }
+
+    private Map&lt;String,FieldAndMethods&gt; staticFieldAndMethods;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

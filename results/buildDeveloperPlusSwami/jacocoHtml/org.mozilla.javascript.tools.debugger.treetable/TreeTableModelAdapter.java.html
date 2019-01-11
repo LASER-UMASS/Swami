@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TreeTableModelAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.debugger.treetable</a> &gt; <span class="el_source">TreeTableModelAdapter.java</span></div><h1>TreeTableModelAdapter.java</h1><pre class="source lang-java linenums">/*
+ * @(#)TreeTableModelAdapter.java       1.2 98/10/27
+ *
+ * Copyright 1997, 1998 Sun Microsystems, Inc.  All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *   - Neither the name of Sun Microsystems nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS
+ * IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package org.mozilla.javascript.tools.debugger.treetable;
+
+import javax.swing.JTree;
+import javax.swing.SwingUtilities;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.tree.TreePath;
+import javax.swing.event.TreeExpansionEvent;
+import javax.swing.event.TreeExpansionListener;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
+
+/**
+ * This is a wrapper class takes a TreeTableModel and implements
+ * the table model interface. The implementation is trivial, with
+ * all of the event dispatching support provided by the superclass:
+ * the AbstractTableModel.
+ *
+ * @version 1.2 10/27/98
+ *
+ * @author Philip Milne
+ * @author Scott Violet
+ */
+public class TreeTableModelAdapter extends AbstractTableModel {
+    private static final long serialVersionUID = 48741114609209052L;
+    JTree tree;
+    TreeTableModel treeTableModel;
+
+<span class="nc" id="L61">    public TreeTableModelAdapter(TreeTableModel treeTableModel, JTree tree) {</span>
+<span class="nc" id="L62">        this.tree = tree;</span>
+<span class="nc" id="L63">        this.treeTableModel = treeTableModel;</span>
+
+<span class="nc" id="L65">        tree.addTreeExpansionListener(new TreeExpansionListener() {</span>
+            // Don't use fireTableRowsInserted() here; the selection model
+            // would get updated twice.
+            public void treeExpanded(TreeExpansionEvent event) {
+<span class="nc" id="L69">              fireTableDataChanged();</span>
+<span class="nc" id="L70">            }</span>
+            public void treeCollapsed(TreeExpansionEvent event) {
+<span class="nc" id="L72">              fireTableDataChanged();</span>
+<span class="nc" id="L73">            }</span>
+        });
+
+        // Install a TreeModelListener that can update the table when
+        // tree changes. We use delayedFireTableDataChanged as we can
+        // not be guaranteed the tree will have finished processing
+        // the event before us.
+<span class="nc" id="L80">        treeTableModel.addTreeModelListener(new TreeModelListener() {</span>
+            public void treeNodesChanged(TreeModelEvent e) {
+<span class="nc" id="L82">                delayedFireTableDataChanged();</span>
+<span class="nc" id="L83">            }</span>
+
+            public void treeNodesInserted(TreeModelEvent e) {
+<span class="nc" id="L86">                delayedFireTableDataChanged();</span>
+<span class="nc" id="L87">            }</span>
+
+            public void treeNodesRemoved(TreeModelEvent e) {
+<span class="nc" id="L90">                delayedFireTableDataChanged();</span>
+<span class="nc" id="L91">            }</span>
+
+            public void treeStructureChanged(TreeModelEvent e) {
+<span class="nc" id="L94">                delayedFireTableDataChanged();</span>
+<span class="nc" id="L95">            }</span>
+        });
+<span class="nc" id="L97">    }</span>
+
+    // Wrappers, implementing TableModel interface.
+
+    public int getColumnCount() {
+<span class="nc" id="L102">        return treeTableModel.getColumnCount();</span>
+    }
+
+    @Override
+    public String getColumnName(int column) {
+<span class="nc" id="L107">        return treeTableModel.getColumnName(column);</span>
+    }
+
+    @Override
+    public Class&lt;?&gt; getColumnClass(int column) {
+<span class="nc" id="L112">        return treeTableModel.getColumnClass(column);</span>
+    }
+
+    public int getRowCount() {
+<span class="nc" id="L116">        return tree.getRowCount();</span>
+    }
+
+    protected Object nodeForRow(int row) {
+<span class="nc" id="L120">        TreePath treePath = tree.getPathForRow(row);</span>
+<span class="nc" id="L121">        return treePath.getLastPathComponent();</span>
+    }
+
+    public Object getValueAt(int row, int column) {
+<span class="nc" id="L125">        return treeTableModel.getValueAt(nodeForRow(row), column);</span>
+    }
+
+    @Override
+    public boolean isCellEditable(int row, int column) {
+<span class="nc" id="L130">         return treeTableModel.isCellEditable(nodeForRow(row), column);</span>
+    }
+
+    @Override
+    public void setValueAt(Object value, int row, int column) {
+<span class="nc" id="L135">        treeTableModel.setValueAt(value, nodeForRow(row), column);</span>
+<span class="nc" id="L136">    }</span>
+
+    /**
+     * Invokes fireTableDataChanged after all the pending events have been
+     * processed. SwingUtilities.invokeLater is used to handle this.
+     */
+    protected void delayedFireTableDataChanged() {
+<span class="nc" id="L143">        SwingUtilities.invokeLater(new Runnable() {</span>
+            public void run() {
+<span class="nc" id="L145">                fireTableDataChanged();</span>
+<span class="nc" id="L146">            }</span>
+        });
+<span class="nc" id="L148">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

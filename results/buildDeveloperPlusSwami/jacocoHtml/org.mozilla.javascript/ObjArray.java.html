@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ObjArray.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ObjArray.java</span></div><h1>ObjArray.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
+/**
+Implementation of resizable array with focus on minimizing memory usage by storing few initial array elements in object fields. Can also be used as a stack.
+*/
+
+public class ObjArray implements Serializable
+{
+    static final long serialVersionUID = 4174889037736658296L;
+
+<span class="fc" id="L22">    public ObjArray() { }</span>
+
+    public final boolean isSealed()
+    {
+<span class="nc" id="L26">        return sealed;</span>
+    }
+
+    public final void seal()
+    {
+<span class="nc" id="L31">        sealed = true;</span>
+<span class="nc" id="L32">    }</span>
+
+    public final boolean isEmpty()
+    {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        return size == 0;</span>
+    }
+
+    public final int size()
+    {
+<span class="fc" id="L41">        return size;</span>
+    }
+
+    public final void setSize(int newSize)
+    {
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (newSize &lt; 0) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="nc" id="L48">        int N = size;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (newSize &lt; N) {</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            for (int i = newSize; i != N; ++i) {</span>
+<span class="nc" id="L51">                setImpl(i, null);</span>
+            }
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        } else if (newSize &gt; N) {</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if (newSize &gt; FIELDS_STORE_SIZE) {</span>
+<span class="nc" id="L55">                ensureCapacity(newSize);</span>
+            }
+        }
+<span class="nc" id="L58">        size = newSize;</span>
+<span class="nc" id="L59">    }</span>
+
+    public final Object get(int index)
+    {
+<span class="pc bpc" id="L63" title="2 of 4 branches missed.">        if (!(0 &lt;= index &amp;&amp; index &lt; size)) throw onInvalidIndex(index, size);</span>
+<span class="fc" id="L64">        return getImpl(index);</span>
+    }
+
+    public final void set(int index, Object value)
+    {
+<span class="nc bnc" id="L69" title="All 4 branches missed.">        if (!(0 &lt;= index &amp;&amp; index &lt; size)) throw onInvalidIndex(index, size);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="nc" id="L71">        setImpl(index, value);</span>
+<span class="nc" id="L72">    }</span>
+
+    private Object getImpl(int index)
+    {
+<span class="fc bfc" id="L76" title="All 6 branches covered.">        switch (index) {</span>
+<span class="fc" id="L77">            case 0: return f0;</span>
+<span class="fc" id="L78">            case 1: return f1;</span>
+<span class="fc" id="L79">            case 2: return f2;</span>
+<span class="fc" id="L80">            case 3: return f3;</span>
+<span class="fc" id="L81">            case 4: return f4;</span>
+        }
+<span class="fc" id="L83">        return data[index - FIELDS_STORE_SIZE];</span>
+    }
+
+    private void setImpl(int index, Object value)
+    {
+<span class="fc bfc" id="L88" title="All 6 branches covered.">        switch (index) {</span>
+<span class="fc" id="L89">            case 0: f0 = value; break;</span>
+<span class="fc" id="L90">            case 1: f1 = value; break;</span>
+<span class="fc" id="L91">            case 2: f2 = value; break;</span>
+<span class="fc" id="L92">            case 3: f3 = value; break;</span>
+<span class="fc" id="L93">            case 4: f4 = value; break;</span>
+<span class="fc" id="L94">            default: data[index - FIELDS_STORE_SIZE] = value;</span>
+        }
+
+<span class="fc" id="L97">    }</span>
+
+    public int indexOf(Object obj)
+    {
+<span class="nc" id="L101">        int N = size;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L103">            Object current = getImpl(i);</span>
+<span class="nc bnc" id="L104" title="All 6 branches missed.">            if (current == obj || (current != null &amp;&amp; current.equals(obj))) {</span>
+<span class="nc" id="L105">                return i;</span>
+            }
+        }
+<span class="nc" id="L108">        return -1;</span>
+    }
+
+    public int lastIndexOf(Object obj)
+    {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        for (int i = size; i != 0;) {</span>
+<span class="nc" id="L114">            --i;</span>
+<span class="nc" id="L115">            Object current = getImpl(i);</span>
+<span class="nc bnc" id="L116" title="All 6 branches missed.">            if (current == obj || (current != null &amp;&amp; current.equals(obj))) {</span>
+<span class="nc" id="L117">                return i;</span>
+            }
+<span class="nc" id="L119">        }</span>
+<span class="nc" id="L120">        return -1;</span>
+    }
+
+    public final Object peek()
+    {
+<span class="fc" id="L125">        int N = size;</span>
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if (N == 0) throw onEmptyStackTopRead();</span>
+<span class="fc" id="L127">        return getImpl(N - 1);</span>
+    }
+
+    public final Object pop()
+    {
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="fc" id="L133">        int N = size;</span>
+<span class="fc" id="L134">        --N;</span>
+        Object top;
+<span class="pc bpc" id="L136" title="1 of 7 branches missed.">        switch (N) {</span>
+<span class="nc" id="L137">            case -1: throw onEmptyStackTopRead();</span>
+<span class="fc" id="L138">            case 0: top = f0; f0 = null; break;</span>
+<span class="fc" id="L139">            case 1: top = f1; f1 = null; break;</span>
+<span class="fc" id="L140">            case 2: top = f2; f2 = null; break;</span>
+<span class="fc" id="L141">            case 3: top = f3; f3 = null; break;</span>
+<span class="fc" id="L142">            case 4: top = f4; f4 = null; break;</span>
+            default:
+<span class="fc" id="L144">                top = data[N - FIELDS_STORE_SIZE];</span>
+<span class="fc" id="L145">                data[N - FIELDS_STORE_SIZE] = null;</span>
+        }
+<span class="fc" id="L147">        size = N;</span>
+<span class="fc" id="L148">        return top;</span>
+    }
+
+    public final void push(Object value)
+    {
+<span class="fc" id="L153">        add(value);</span>
+<span class="fc" id="L154">    }</span>
+
+    public final void add(Object value)
+    {
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="fc" id="L159">        int N = size;</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (N &gt;= FIELDS_STORE_SIZE) {</span>
+<span class="fc" id="L161">            ensureCapacity(N + 1);</span>
+        }
+<span class="fc" id="L163">        size = N + 1;</span>
+<span class="fc" id="L164">        setImpl(N, value);</span>
+<span class="fc" id="L165">    }</span>
+
+    public final void add(int index, Object value)
+    {
+<span class="nc" id="L169">        int N = size;</span>
+<span class="nc bnc" id="L170" title="All 4 branches missed.">        if (!(0 &lt;= index &amp;&amp; index &lt;= N)) throw onInvalidIndex(index, N + 1);</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+        Object tmp;
+<span class="nc bnc" id="L173" title="All 6 branches missed.">        switch (index) {</span>
+            case 0:
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                if (N == 0) { f0 = value; break; }</span>
+<span class="nc" id="L176">                tmp = f0; f0 = value; value = tmp;</span>
+            /* fallthru */ case 1:
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                if (N == 1) { f1 = value; break; }</span>
+<span class="nc" id="L179">                tmp = f1; f1 = value; value = tmp;</span>
+            /* fallthru */ case 2:
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                if (N == 2) { f2 = value; break; }</span>
+<span class="nc" id="L182">                tmp = f2; f2 = value; value = tmp;</span>
+            /* fallthru */ case 3:
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                if (N == 3) { f3 = value; break; }</span>
+<span class="nc" id="L185">                tmp = f3; f3 = value; value = tmp;</span>
+            /* fallthru */ case 4:
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                if (N == 4) { f4 = value; break; }</span>
+<span class="nc" id="L188">                tmp = f4; f4 = value; value = tmp;</span>
+
+<span class="nc" id="L190">                index = FIELDS_STORE_SIZE;</span>
+            /* fallthru */ default:
+<span class="nc" id="L192">                ensureCapacity(N + 1);</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                if (index != N) {</span>
+<span class="nc" id="L194">                    System.arraycopy(data, index - FIELDS_STORE_SIZE,</span>
+                                     data, index - FIELDS_STORE_SIZE + 1,
+                                     N - index);
+                }
+<span class="nc" id="L198">                data[index - FIELDS_STORE_SIZE] = value;</span>
+        }
+<span class="nc" id="L200">        size = N + 1;</span>
+<span class="nc" id="L201">    }</span>
+
+    public final void remove(int index)
+    {
+<span class="nc" id="L205">        int N = size;</span>
+<span class="nc bnc" id="L206" title="All 4 branches missed.">        if (!(0 &lt;= index &amp;&amp; index &lt; N)) throw onInvalidIndex(index, N);</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="nc" id="L208">        --N;</span>
+<span class="nc bnc" id="L209" title="All 6 branches missed.">        switch (index) {</span>
+            case 0:
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                if (N == 0) { f0 = null; break; }</span>
+<span class="nc" id="L212">                f0 = f1;</span>
+            /* fallthru */ case 1:
+<span class="nc bnc" id="L214" title="All 2 branches missed.">                if (N == 1) { f1 = null; break; }</span>
+<span class="nc" id="L215">                f1 = f2;</span>
+            /* fallthru */ case 2:
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                if (N == 2) { f2 = null; break; }</span>
+<span class="nc" id="L218">                f2 = f3;</span>
+            /* fallthru */ case 3:
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                if (N == 3) { f3 = null; break; }</span>
+<span class="nc" id="L221">                f3 = f4;</span>
+            /* fallthru */ case 4:
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                if (N == 4) { f4 = null; break; }</span>
+<span class="nc" id="L224">                f4 = data[0];</span>
+
+<span class="nc" id="L226">                index = FIELDS_STORE_SIZE;</span>
+            /* fallthru */ default:
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                if (index != N) {</span>
+<span class="nc" id="L229">                    System.arraycopy(data, index - FIELDS_STORE_SIZE + 1,</span>
+                                     data, index - FIELDS_STORE_SIZE,
+                                     N - index);
+                }
+<span class="nc" id="L233">                data[N - FIELDS_STORE_SIZE] = null;</span>
+        }
+<span class="nc" id="L235">        size = N;</span>
+<span class="nc" id="L236">    }</span>
+
+    public final void clear()
+    {
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        if (sealed) throw onSeledMutation();</span>
+<span class="nc" id="L241">        int N = size;</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L243">            setImpl(i, null);</span>
+        }
+<span class="nc" id="L245">        size = 0;</span>
+<span class="nc" id="L246">    }</span>
+
+    public final Object[] toArray()
+    {
+<span class="fc" id="L250">        Object[] array = new Object[size];</span>
+<span class="fc" id="L251">        toArray(array, 0);</span>
+<span class="fc" id="L252">        return array;</span>
+    }
+
+    public final void toArray(Object[] array)
+    {
+<span class="fc" id="L257">        toArray(array, 0);</span>
+<span class="fc" id="L258">    }</span>
+
+    public final void toArray(Object[] array, int offset)
+    {
+<span class="fc" id="L262">        int N = size;</span>
+<span class="fc bfc" id="L263" title="All 7 branches covered.">        switch (N) {</span>
+            default:
+<span class="fc" id="L265">                System.arraycopy(data, 0, array, offset + FIELDS_STORE_SIZE,</span>
+                                 N - FIELDS_STORE_SIZE);
+<span class="fc" id="L267">            /* fallthru */ case 5: array[offset + 4] = f4;</span>
+<span class="fc" id="L268">            /* fallthru */ case 4: array[offset + 3] = f3;</span>
+<span class="fc" id="L269">            /* fallthru */ case 3: array[offset + 2] = f2;</span>
+<span class="fc" id="L270">            /* fallthru */ case 2: array[offset + 1] = f1;</span>
+<span class="fc" id="L271">            /* fallthru */ case 1: array[offset + 0] = f0;</span>
+            /* fallthru */ case 0: break;
+        }
+<span class="fc" id="L274">    }</span>
+
+    private void ensureCapacity(int minimalCapacity)
+    {
+<span class="fc" id="L278">        int required = minimalCapacity - FIELDS_STORE_SIZE;</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">        if (required &lt;= 0) throw new IllegalArgumentException();</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">        if (data == null) {</span>
+<span class="fc" id="L281">            int alloc = FIELDS_STORE_SIZE * 2;</span>
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">            if (alloc &lt; required) {</span>
+<span class="nc" id="L283">                alloc = required;</span>
+            }
+<span class="fc" id="L285">            data = new Object[alloc];</span>
+<span class="fc" id="L286">        } else {</span>
+<span class="fc" id="L287">            int alloc = data.length;</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">            if (alloc &lt; required) {</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                   if (alloc &lt;= FIELDS_STORE_SIZE) {</span>
+<span class="nc" id="L290">                    alloc = FIELDS_STORE_SIZE * 2;</span>
+                } else {
+<span class="fc" id="L292">                    alloc *= 2;</span>
+                }
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">                if (alloc &lt; required) {</span>
+<span class="nc" id="L295">                    alloc = required;</span>
+                }
+<span class="fc" id="L297">                Object[] tmp = new Object[alloc];</span>
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">                if (size &gt; FIELDS_STORE_SIZE) {</span>
+<span class="fc" id="L299">                    System.arraycopy(data, 0, tmp, 0,</span>
+                                     size - FIELDS_STORE_SIZE);
+                }
+<span class="fc" id="L302">                data = tmp;</span>
+            }
+        }
+<span class="fc" id="L305">    }</span>
+
+    private static RuntimeException onInvalidIndex(int index, int upperBound)
+    {
+        // \u2209 is &quot;NOT ELEMENT OF&quot;
+<span class="nc" id="L310">        String msg = index+&quot; \u2209 [0, &quot;+upperBound+')';</span>
+<span class="nc" id="L311">        throw new IndexOutOfBoundsException(msg);</span>
+    }
+
+    private static RuntimeException onEmptyStackTopRead()
+    {
+<span class="nc" id="L316">        throw new RuntimeException(&quot;Empty stack&quot;);</span>
+    }
+
+    private static RuntimeException onSeledMutation()
+    {
+<span class="nc" id="L321">        throw new IllegalStateException(&quot;Attempt to modify sealed array&quot;);</span>
+    }
+
+    private void writeObject(ObjectOutputStream os) throws IOException
+    {
+<span class="nc" id="L326">        os.defaultWriteObject();</span>
+<span class="nc" id="L327">        int N = size;</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L329">            Object obj = getImpl(i);</span>
+<span class="nc" id="L330">            os.writeObject(obj);</span>
+        }
+<span class="nc" id="L332">    }</span>
+
+    private void readObject(ObjectInputStream is)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc" id="L337">        is.defaultReadObject(); // It reads size</span>
+<span class="nc" id="L338">        int N = size;</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        if (N &gt; FIELDS_STORE_SIZE) {</span>
+<span class="nc" id="L340">            data = new Object[N - FIELDS_STORE_SIZE];</span>
+        }
+<span class="nc bnc" id="L342" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L343">            Object obj = is.readObject();</span>
+<span class="nc" id="L344">            setImpl(i, obj);</span>
+        }
+<span class="nc" id="L346">    }</span>
+
+// Number of data elements
+    private int size;
+
+    private boolean sealed;
+
+    private static final int FIELDS_STORE_SIZE = 5;
+    private transient Object f0, f1, f2, f3, f4;
+    private transient Object[] data;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ForInLoop.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ForInLoop.java</span></div><h1>ForInLoop.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * For-in or for-each-in or for-of statement.  Node type is {@link Token#FOR}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;b&gt;for&lt;/b&gt; [&lt;b&gt;each&lt;/b&gt;] ( LeftHandSideExpression &lt;b&gt;in&lt;/b&gt; Expression ) Statement&lt;/pre&gt;
+ * &lt;pre&gt;&lt;b&gt;for&lt;/b&gt; [&lt;b&gt;each&lt;/b&gt;] ( &lt;b&gt;var&lt;/b&gt; VariableDeclarationNoIn &lt;b&gt;in&lt;/b&gt; Expression ) Statement&lt;/pre&gt;
+ * &lt;pre&gt;&lt;b&gt;for&lt;/b&gt; ( LeftHandSideExpression &lt;b&gt;of&lt;/b&gt; Expression ) Statement&lt;/pre&gt;
+ * &lt;pre&gt;&lt;b&gt;for&lt;/b&gt; ( ForDeclaration &lt;b&gt;of&lt;/b&gt; Expression ) Statement&lt;/pre&gt;
+ */
+public class ForInLoop extends Loop {
+
+    protected AstNode iterator;
+    protected AstNode iteratedObject;
+<span class="pc" id="L23">    protected int inPosition = -1;</span>
+<span class="pc" id="L24">    protected int eachPosition = -1;</span>
+    protected boolean isForEach;
+    protected boolean isForOf;
+
+    {
+<span class="pc" id="L29">        type = Token.FOR;</span>
+    }
+
+<span class="nc" id="L32">    public ForInLoop() {</span>
+<span class="nc" id="L33">    }</span>
+
+    public ForInLoop(int pos) {
+<span class="fc" id="L36">        super(pos);</span>
+<span class="fc" id="L37">    }</span>
+
+    public ForInLoop(int pos, int len) {
+<span class="nc" id="L40">        super(pos, len);</span>
+<span class="nc" id="L41">    }</span>
+
+    /**
+     * Returns loop iterator expression
+     */
+    public AstNode getIterator() {
+<span class="fc" id="L47">        return iterator;</span>
+    }
+
+    /**
+     * Sets loop iterator expression:  the part before the &quot;in&quot; or &quot;of&quot; keyword.
+     * Also sets its parent to this node.
+     * @throws IllegalArgumentException if {@code iterator} is {@code null}
+     */
+    public void setIterator(AstNode iterator) {
+<span class="fc" id="L56">        assertNotNull(iterator);</span>
+<span class="fc" id="L57">        this.iterator = iterator;</span>
+<span class="fc" id="L58">        iterator.setParent(this);</span>
+<span class="fc" id="L59">    }</span>
+
+    /**
+     * Returns object being iterated over
+     */
+    public AstNode getIteratedObject() {
+<span class="fc" id="L65">        return iteratedObject;</span>
+    }
+
+    /**
+     * Sets object being iterated over, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code object} is {@code null}
+     */
+    public void setIteratedObject(AstNode object) {
+<span class="fc" id="L73">        assertNotNull(object);</span>
+<span class="fc" id="L74">        this.iteratedObject = object;</span>
+<span class="fc" id="L75">        object.setParent(this);</span>
+<span class="fc" id="L76">    }</span>
+
+    /**
+     * Returns whether the loop is a for-each loop
+     */
+    public boolean isForEach() {
+<span class="fc" id="L82">        return isForEach;</span>
+    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    public void setIsForEach(boolean isForEach) {
+<span class="fc" id="L89">        this.isForEach = isForEach;</span>
+<span class="fc" id="L90">    }</span>
+
+    /**
+     * Returns whether the loop is a for-of loop
+     */
+    public boolean isForOf() {
+<span class="fc" id="L96">        return isForOf;</span>
+    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    public void setIsForOf(boolean isForOf) {
+<span class="fc" id="L103">        this.isForOf = isForOf;</span>
+<span class="fc" id="L104">    }</span>
+
+    /**
+     * Returns position of &quot;in&quot; or &quot;of&quot; keyword
+     */
+    public int getInPosition() {
+<span class="nc" id="L110">        return inPosition;</span>
+    }
+
+    /**
+     * Sets position of &quot;in&quot; or &quot;of&quot; keyword
+     * @param inPosition position of &quot;in&quot; or &quot;of&quot; keyword,
+     * or -1 if not present (e.g. in presence of a syntax error)
+     */
+    public void setInPosition(int inPosition) {
+<span class="fc" id="L119">        this.inPosition = inPosition;</span>
+<span class="fc" id="L120">    }</span>
+
+    /**
+     * Returns position of &quot;each&quot; keyword
+     */
+    public int getEachPosition() {
+<span class="nc" id="L126">        return eachPosition;</span>
+    }
+
+    /**
+     * Sets position of &quot;each&quot; keyword
+     * @param eachPosition position of &quot;each&quot; keyword,
+     * or -1 if not present.
+     */
+    public void setEachPosition(int eachPosition) {
+<span class="fc" id="L135">        this.eachPosition = eachPosition;</span>
+<span class="fc" id="L136">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L140">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L141">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L142">        sb.append(&quot;for &quot;);</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (isForEach()) {</span>
+<span class="nc" id="L144">            sb.append(&quot;each &quot;);</span>
+        }
+<span class="fc" id="L146">        sb.append(&quot;(&quot;);</span>
+<span class="fc" id="L147">        sb.append(iterator.toSource(0));</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">        if (isForOf) {</span>
+<span class="nc" id="L149">            sb.append(&quot; of &quot;);</span>
+        } else {
+<span class="fc" id="L151">            sb.append(&quot; in &quot;);</span>
+        }
+<span class="fc" id="L153">        sb.append(iteratedObject.toSource(0));</span>
+<span class="fc" id="L154">        sb.append(&quot;) &quot;);</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (body.getType() == Token.BLOCK) {</span>
+<span class="fc" id="L156">            sb.append(body.toSource(depth).trim()).append(&quot;\n&quot;);</span>
+        } else {
+<span class="fc" id="L158">            sb.append(&quot;\n&quot;).append(body.toSource(depth+1));</span>
+        }
+<span class="fc" id="L160">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the iterator, the iterated object, and the body.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L169">            iterator.visit(v);</span>
+<span class="nc" id="L170">            iteratedObject.visit(v);</span>
+<span class="nc" id="L171">            body.visit(v);</span>
+        }
+<span class="nc" id="L173">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

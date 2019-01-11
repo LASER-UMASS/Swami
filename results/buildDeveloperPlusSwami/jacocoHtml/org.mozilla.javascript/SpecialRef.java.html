@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SpecialRef.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">SpecialRef.java</span></div><h1>SpecialRef.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+class SpecialRef extends Ref
+{
+    static final long serialVersionUID = -7521596632456797847L;
+
+    private static final int SPECIAL_NONE = 0;
+    private static final int SPECIAL_PROTO = 1;
+    private static final int SPECIAL_PARENT = 2;
+
+    private Scriptable target;
+    private int type;
+    private String name;
+
+    private SpecialRef(Scriptable target, int type, String name)
+<span class="fc" id="L22">    {</span>
+<span class="fc" id="L23">        this.target = target;</span>
+<span class="fc" id="L24">        this.type = type;</span>
+<span class="fc" id="L25">        this.name = name;</span>
+<span class="fc" id="L26">    }</span>
+
+    static Ref createSpecial(Context cx, Scriptable scope, Object object,
+                             String name)
+    {
+<span class="fc" id="L31">        Scriptable target = ScriptRuntime.toObjectOrNull(cx, object, scope);</span>
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">        if (target == null) {</span>
+<span class="nc" id="L33">            throw ScriptRuntime.undefReadError(object, name);</span>
+        }
+
+        int type;
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (name.equals(&quot;__proto__&quot;)) {</span>
+<span class="fc" id="L38">            type = SPECIAL_PROTO;</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        } else if (name.equals(&quot;__parent__&quot;)) {</span>
+<span class="fc" id="L40">            type = SPECIAL_PARENT;</span>
+        } else {
+<span class="nc" id="L42">            throw new IllegalArgumentException(name);</span>
+        }
+
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        if (!cx.hasFeature(Context.FEATURE_PARENT_PROTO_PROPERTIES)) {</span>
+            // Clear special after checking for valid name!
+<span class="nc" id="L47">            type = SPECIAL_NONE;</span>
+        }
+
+<span class="fc" id="L50">        return new SpecialRef(target, type, name);</span>
+    }
+
+    @Override
+    public Object get(Context cx)
+    {
+<span class="pc bpc" id="L56" title="2 of 4 branches missed.">        switch (type) {</span>
+          case SPECIAL_NONE:
+<span class="nc" id="L58">            return ScriptRuntime.getObjectProp(target, name, cx);</span>
+          case SPECIAL_PROTO:
+<span class="fc" id="L60">            return target.getPrototype();</span>
+          case SPECIAL_PARENT:
+<span class="fc" id="L62">            return target.getParentScope();</span>
+          default:
+<span class="nc" id="L64">            throw Kit.codeBug();</span>
+        }
+    }
+
+    @Override
+    @Deprecated
+    public Object set(Context cx, Object value) {
+<span class="nc" id="L71">        throw new IllegalStateException();</span>
+    }
+
+    @Override
+    public Object set(Context cx, Scriptable scope, Object value)
+    {
+<span class="pc bpc" id="L77" title="2 of 3 branches missed.">        switch (type) {</span>
+          case SPECIAL_NONE:
+<span class="nc" id="L79">            return ScriptRuntime.setObjectProp(target, name, value, cx);</span>
+          case SPECIAL_PROTO:
+          case SPECIAL_PARENT:
+            {
+<span class="fc" id="L83">                Scriptable obj = ScriptRuntime.toObjectOrNull(cx, value, scope);</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                if (obj != null) {</span>
+                    // Check that obj does not contain on its prototype/scope
+                    // chain to prevent cycles
+<span class="fc" id="L87">                    Scriptable search = obj;</span>
+                    do {
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">                        if (search == target) {</span>
+<span class="nc" id="L90">                            throw Context.reportRuntimeError1(</span>
+                                &quot;msg.cyclic.value&quot;, name);
+                        }
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">                        if (type == SPECIAL_PROTO) {</span>
+<span class="fc" id="L94">                            search = search.getPrototype();</span>
+                        } else {
+<span class="nc" id="L96">                            search = search.getParentScope();</span>
+                        }
+<span class="fc bfc" id="L98" title="All 2 branches covered.">                    } while (search != null);</span>
+                }
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                if (type == SPECIAL_PROTO) {</span>
+<span class="fc" id="L101">                    target.setPrototype(obj);</span>
+                } else {
+<span class="nc" id="L103">                    target.setParentScope(obj);</span>
+                }
+<span class="fc" id="L105">                return obj;</span>
+            }
+          default:
+<span class="nc" id="L108">            throw Kit.codeBug();</span>
+        }
+    }
+
+    @Override
+    public boolean has(Context cx)
+    {
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (type == SPECIAL_NONE) {</span>
+<span class="nc" id="L116">            return ScriptRuntime.hasObjectElem(target, name, cx);</span>
+        }
+<span class="nc" id="L118">        return true;</span>
+    }
+
+    @Override
+    public boolean delete(Context cx)
+    {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (type == SPECIAL_NONE) {</span>
+<span class="nc" id="L125">            return ScriptRuntime.deleteObjectElem(target, name, cx);</span>
+        }
+<span class="nc" id="L127">        return false;</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
