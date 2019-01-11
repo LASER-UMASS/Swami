@@ -13,6 +13,11 @@ rm -rf ../results/Rhino_ECMA262_Tests/
 python3 swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests rhino 1000
 
 echo
-echo "STEP3: Run and analyse generated Tests on Rhino"
+echo "STEP3: Run Developer-written, Swami-generated, and Developer-written augmented with Swami tests in Rhino"
 echo
 ./runTestsInRhino.sh
+
+echo
+echo "STEP4: compare code coverage of Developer-written, with Developer-written augmented with Swami tests in Rhino"
+echo
+./compareCoverageDeveloper.sh
