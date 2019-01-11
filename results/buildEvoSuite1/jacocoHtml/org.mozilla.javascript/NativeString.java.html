@@ -1,0 +1,967 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeString.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeString.java</span></div><h1>NativeString.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.regexp.NativeRegExp;
+
+import java.text.Collator;
+import java.text.Normalizer;
+
+import static org.mozilla.javascript.ScriptRuntime.rangeError;
+import static org.mozilla.javascript.ScriptRuntimeES6.requireObjectCoercible;
+
+/**
+ * This class implements the String native object.
+ *
+ * See ECMA 15.5.
+ *
+ * String methods for dealing with regular expressions are
+ * ported directly from C. Latest port is from version 1.40.12.19
+ * in the JSFUN13_BRANCH.
+ *
+ * @author Mike McCabe
+ * @author Norris Boyd
+ */
+final class NativeString extends IdScriptableObject
+{
+    static final long serialVersionUID = 920268368584188687L;
+
+<span class="fc" id="L33">    private static final Object STRING_TAG = &quot;String&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L37">        NativeString obj = new NativeString(&quot;&quot;);</span>
+<span class="fc" id="L38">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L39">    }</span>
+
+<span class="fc" id="L41">    NativeString(CharSequence s) {</span>
+<span class="fc" id="L42">        string = s;</span>
+<span class="fc" id="L43">    }</span>
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L47">        return &quot;String&quot;;</span>
+    }
+
+    private static final int
+        Id_length                    =  1,
+        MAX_INSTANCE_ID              =  1;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L57">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (s.equals(&quot;length&quot;)) {</span>
+<span class="fc" id="L64">            return instanceIdInfo(DONTENUM | READONLY | PERMANENT, Id_length);</span>
+        }
+<span class="fc" id="L66">        return super.findInstanceIdInfo(s);</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (id == Id_length) { return &quot;length&quot;; }</span>
+<span class="nc" id="L73">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        if (id == Id_length) {</span>
+<span class="nc" id="L80">            return ScriptRuntime.wrapInt(string.length());</span>
+        }
+<span class="nc" id="L82">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L88">        addIdFunctionProperty(ctor, STRING_TAG, ConstructorId_fromCharCode,</span>
+                &quot;fromCharCode&quot;, 1);
+<span class="fc" id="L90">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_charAt, &quot;charAt&quot;, 2);
+<span class="fc" id="L92">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_charCodeAt, &quot;charCodeAt&quot;, 2);
+<span class="fc" id="L94">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_indexOf, &quot;indexOf&quot;, 2);
+<span class="fc" id="L96">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_lastIndexOf, &quot;lastIndexOf&quot;, 2);
+<span class="fc" id="L98">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_split, &quot;split&quot;, 3);
+<span class="fc" id="L100">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_substring, &quot;substring&quot;, 3);
+<span class="fc" id="L102">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_toLowerCase, &quot;toLowerCase&quot;, 1);
+<span class="fc" id="L104">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_toUpperCase, &quot;toUpperCase&quot;, 1);
+<span class="fc" id="L106">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_substr, &quot;substr&quot;, 3);
+<span class="fc" id="L108">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_concat, &quot;concat&quot;, 2);
+<span class="fc" id="L110">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_slice, &quot;slice&quot;, 3);
+<span class="fc" id="L112">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_equalsIgnoreCase, &quot;equalsIgnoreCase&quot;, 2);
+<span class="fc" id="L114">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_match, &quot;match&quot;, 2);
+<span class="fc" id="L116">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_search, &quot;search&quot;, 2);
+<span class="fc" id="L118">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_replace, &quot;replace&quot;, 2);
+<span class="fc" id="L120">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_localeCompare, &quot;localeCompare&quot;, 2);
+<span class="fc" id="L122">        addIdFunctionProperty(ctor, STRING_TAG,</span>
+                ConstructorId_toLocaleLowerCase, &quot;toLocaleLowerCase&quot;, 1);
+<span class="fc" id="L124">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L125">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if (id == SymbolId_iterator) {</span>
+<span class="nc" id="L131">            initPrototypeMethod(STRING_TAG, id, SymbolKey.ITERATOR, &quot;[Symbol.iterator]&quot;, 0);</span>
+<span class="nc" id="L132">            return;</span>
+        }
+
+<span class="fc" id="L135">        String s, fnName = null;</span>
+        int arity;
+<span class="pc bpc" id="L137" title="45 of 46 branches missed.">        switch (id) {</span>
+<span class="fc" id="L138">          case Id_constructor:       arity=1; s=&quot;constructor&quot;;       break;</span>
+<span class="nc" id="L139">          case Id_toString:          arity=0; s=&quot;toString&quot;;          break;</span>
+<span class="nc" id="L140">          case Id_toSource:          arity=0; s=&quot;toSource&quot;;          break;</span>
+<span class="nc" id="L141">          case Id_valueOf:           arity=0; s=&quot;valueOf&quot;;           break;</span>
+<span class="nc" id="L142">          case Id_charAt:            arity=1; s=&quot;charAt&quot;;            break;</span>
+<span class="nc" id="L143">          case Id_charCodeAt:        arity=1; s=&quot;charCodeAt&quot;;        break;</span>
+<span class="nc" id="L144">          case Id_indexOf:           arity=1; s=&quot;indexOf&quot;;           break;</span>
+<span class="nc" id="L145">          case Id_lastIndexOf:       arity=1; s=&quot;lastIndexOf&quot;;       break;</span>
+<span class="nc" id="L146">          case Id_split:             arity=2; s=&quot;split&quot;;             break;</span>
+<span class="nc" id="L147">          case Id_substring:         arity=2; s=&quot;substring&quot;;         break;</span>
+<span class="nc" id="L148">          case Id_toLowerCase:       arity=0; s=&quot;toLowerCase&quot;;       break;</span>
+<span class="nc" id="L149">          case Id_toUpperCase:       arity=0; s=&quot;toUpperCase&quot;;       break;</span>
+<span class="nc" id="L150">          case Id_substr:            arity=2; s=&quot;substr&quot;;            break;</span>
+<span class="nc" id="L151">          case Id_concat:            arity=1; s=&quot;concat&quot;;            break;</span>
+<span class="nc" id="L152">          case Id_slice:             arity=2; s=&quot;slice&quot;;             break;</span>
+<span class="nc" id="L153">          case Id_bold:              arity=0; s=&quot;bold&quot;;              break;</span>
+<span class="nc" id="L154">          case Id_italics:           arity=0; s=&quot;italics&quot;;           break;</span>
+<span class="nc" id="L155">          case Id_fixed:             arity=0; s=&quot;fixed&quot;;             break;</span>
+<span class="nc" id="L156">          case Id_strike:            arity=0; s=&quot;strike&quot;;            break;</span>
+<span class="nc" id="L157">          case Id_small:             arity=0; s=&quot;small&quot;;             break;</span>
+<span class="nc" id="L158">          case Id_big:               arity=0; s=&quot;big&quot;;               break;</span>
+<span class="nc" id="L159">          case Id_blink:             arity=0; s=&quot;blink&quot;;             break;</span>
+<span class="nc" id="L160">          case Id_sup:               arity=0; s=&quot;sup&quot;;               break;</span>
+<span class="nc" id="L161">          case Id_sub:               arity=0; s=&quot;sub&quot;;               break;</span>
+<span class="nc" id="L162">          case Id_fontsize:          arity=0; s=&quot;fontsize&quot;;          break;</span>
+<span class="nc" id="L163">          case Id_fontcolor:         arity=0; s=&quot;fontcolor&quot;;         break;</span>
+<span class="nc" id="L164">          case Id_link:              arity=0; s=&quot;link&quot;;              break;</span>
+<span class="nc" id="L165">          case Id_anchor:            arity=0; s=&quot;anchor&quot;;            break;</span>
+<span class="nc" id="L166">          case Id_equals:            arity=1; s=&quot;equals&quot;;            break;</span>
+<span class="nc" id="L167">          case Id_equalsIgnoreCase:  arity=1; s=&quot;equalsIgnoreCase&quot;;  break;</span>
+<span class="nc" id="L168">          case Id_match:             arity=1; s=&quot;match&quot;;             break;</span>
+<span class="nc" id="L169">          case Id_search:            arity=1; s=&quot;search&quot;;            break;</span>
+<span class="nc" id="L170">          case Id_replace:           arity=2; s=&quot;replace&quot;;           break;</span>
+<span class="nc" id="L171">          case Id_localeCompare:     arity=1; s=&quot;localeCompare&quot;;     break;</span>
+<span class="nc" id="L172">          case Id_toLocaleLowerCase: arity=0; s=&quot;toLocaleLowerCase&quot;; break;</span>
+<span class="nc" id="L173">          case Id_toLocaleUpperCase: arity=0; s=&quot;toLocaleUpperCase&quot;; break;</span>
+<span class="nc" id="L174">          case Id_trim:              arity=0; s=&quot;trim&quot;;              break;</span>
+<span class="nc" id="L175">          case Id_trimLeft:          arity=0; s=&quot;trimLeft&quot;;          break;</span>
+<span class="nc" id="L176">          case Id_trimRight:         arity=0; s=&quot;trimRight&quot;;         break;</span>
+<span class="nc" id="L177">          case Id_includes:          arity=1; s=&quot;includes&quot;;          break;</span>
+<span class="nc" id="L178">          case Id_startsWith:        arity=1; s=&quot;startsWith&quot;;        break;</span>
+<span class="nc" id="L179">          case Id_endsWith:          arity=1; s=&quot;endsWith&quot;;          break;</span>
+<span class="nc" id="L180">          case Id_normalize:         arity=0; s=&quot;normalize&quot;;         break;</span>
+<span class="nc" id="L181">          case Id_repeat:            arity=1; s=&quot;repeat&quot;;            break;</span>
+<span class="nc" id="L182">          case Id_codePointAt:       arity=1; s=&quot;codePointAt&quot;;       break;</span>
+<span class="nc" id="L183">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L185">        initPrototypeMethod(STRING_TAG, id, s, fnName, arity);</span>
+<span class="fc" id="L186">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">        if (!f.hasTag(STRING_TAG)) {</span>
+<span class="nc" id="L193">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L195">        int id = f.methodId();</span>
+      again:
+        for(;;) {
+<span class="nc bnc" id="L198" title="All 42 branches missed.">            switch (id) {</span>
+                case ConstructorId_charAt:
+                case ConstructorId_charCodeAt:
+                case ConstructorId_indexOf:
+                case ConstructorId_lastIndexOf:
+                case ConstructorId_split:
+                case ConstructorId_substring:
+                case ConstructorId_toLowerCase:
+                case ConstructorId_toUpperCase:
+                case ConstructorId_substr:
+                case ConstructorId_concat:
+                case ConstructorId_slice:
+                case ConstructorId_equalsIgnoreCase:
+                case ConstructorId_match:
+                case ConstructorId_search:
+                case ConstructorId_replace:
+                case ConstructorId_localeCompare:
+                case ConstructorId_toLocaleLowerCase: {
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                    if (args.length &gt; 0) {</span>
+<span class="nc" id="L217">                        thisObj = ScriptRuntime.toObject(cx, scope,</span>
+<span class="nc" id="L218">                            ScriptRuntime.toCharSequence(args[0]));</span>
+<span class="nc" id="L219">                        Object[] newArgs = new Object[args.length - 1];</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                        for (int i = 0; i &lt; newArgs.length; i++)</span>
+<span class="nc" id="L221">                            newArgs[i] = args[i + 1];</span>
+<span class="nc" id="L222">                        args = newArgs;</span>
+<span class="nc" id="L223">                    } else {</span>
+<span class="nc" id="L224">                        thisObj = ScriptRuntime.toObject(cx, scope,</span>
+<span class="nc" id="L225">                            ScriptRuntime.toCharSequence(thisObj));</span>
+                    }
+<span class="nc" id="L227">                    id = -id;</span>
+<span class="nc" id="L228">                    continue again;</span>
+                }
+
+                case ConstructorId_fromCharCode: {
+<span class="nc" id="L232">                    int N = args.length;</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">                    if (N &lt; 1)</span>
+<span class="nc" id="L234">                        return &quot;&quot;;</span>
+<span class="nc" id="L235">                    StringBuilder sb = new StringBuilder(N);</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                    for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L237">                        sb.append(ScriptRuntime.toUint16(args[i]));</span>
+                    }
+<span class="nc" id="L239">                    return sb.toString();</span>
+                }
+
+                case Id_constructor: {
+                    CharSequence s;
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                    if (args.length == 0) {</span>
+<span class="nc" id="L245">                        s = &quot;&quot;;</span>
+<span class="nc" id="L246">                    } else if</span>
+<span class="nc bnc" id="L247" title="All 4 branches missed.">                        (ScriptRuntime.isSymbol(args[0]) &amp;&amp;</span>
+                        (thisObj != null)) {
+                        // 19.4.3.2 et.al. Convert a symbol to a string with String() but not new String()
+<span class="nc" id="L250">                        s = args[0].toString();</span>
+                    } else {
+<span class="nc" id="L252">                        s = ScriptRuntime.toCharSequence(args[0]);</span>
+                    }
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                    if (thisObj == null) {</span>
+                        // new String(val) creates a new String object.
+<span class="nc" id="L256">                        return new NativeString(s);</span>
+                    }
+                    // String(val) converts val to a string value.
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                    return s instanceof String ? s : s.toString();</span>
+                }
+
+                case Id_toString:
+                case Id_valueOf:
+                    // ECMA 15.5.4.2: 'the toString function is not generic.
+<span class="nc" id="L265">                    CharSequence cs = realThis(thisObj, f).string;</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                    return cs instanceof String ? cs : cs.toString();</span>
+
+                case Id_toSource: {
+<span class="nc" id="L269">                    CharSequence s = realThis(thisObj, f).string;</span>
+<span class="nc" id="L270">                    return &quot;(new String(\&quot;&quot; + ScriptRuntime.escapeString(s.toString()) + &quot;\&quot;))&quot;;</span>
+                }
+
+                case Id_charAt:
+                case Id_charCodeAt: {
+                    // See ECMA 15.5.4.[4,5]
+<span class="nc" id="L276">                    CharSequence target = ScriptRuntime.toCharSequence(thisObj);</span>
+<span class="nc" id="L277">                    double pos = ScriptRuntime.toInteger(args, 0);</span>
+<span class="nc bnc" id="L278" title="All 4 branches missed.">                    if (pos &lt; 0 || pos &gt;= target.length()) {</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                        if (id == Id_charAt) return &quot;&quot;;</span>
+<span class="nc" id="L280">                        else return ScriptRuntime.NaNobj;</span>
+                    }
+<span class="nc" id="L282">                    char c = target.charAt((int) pos);</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                    if (id == Id_charAt) return String.valueOf(c);</span>
+<span class="nc" id="L284">                    else return ScriptRuntime.wrapInt(c);</span>
+                }
+
+                case Id_indexOf:
+<span class="nc" id="L288">                    return ScriptRuntime.wrapInt(js_indexOf(Id_indexOf, ScriptRuntime.toString(thisObj), args));</span>
+
+                case Id_includes:
+                case Id_startsWith:
+                case Id_endsWith:
+<span class="nc" id="L293">                    String s = ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f));</span>
+<span class="nc bnc" id="L294" title="All 4 branches missed.">                    if (args.length &gt; 0 &amp;&amp; args[0] instanceof NativeRegExp) {</span>
+<span class="nc" id="L295">                        throw ScriptRuntime.typeError2(&quot;msg.first.arg.not.regexp&quot;, String.class.getSimpleName(), f.getFunctionName());</span>
+                    }
+
+<span class="nc" id="L298">                    int idx = js_indexOf(id, s, args);</span>
+
+<span class="nc bnc" id="L300" title="All 2 branches missed.">                    if (id == Id_includes) {</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">                        return idx != -1;</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                    } else if (id == Id_startsWith) {</span>
+<span class="nc bnc" id="L303" title="All 2 branches missed.">                        return idx == 0;</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                    } else if (id == Id_endsWith) {</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                        return idx != -1;</span>
+                    }
+                    // fallthrough
+
+                case Id_lastIndexOf:
+<span class="nc" id="L310">                    return ScriptRuntime.wrapInt(js_lastIndexOf(</span>
+<span class="nc" id="L311">                        ScriptRuntime.toString(thisObj), args));</span>
+
+                case Id_split:
+<span class="nc" id="L314">                    return ScriptRuntime.checkRegExpProxy(cx).</span>
+<span class="nc" id="L315">                        js_split(cx, scope, ScriptRuntime.toString(thisObj),</span>
+                            args);
+
+                case Id_substring:
+<span class="nc" id="L319">                    return js_substring(cx, ScriptRuntime.toCharSequence(thisObj), args);</span>
+
+                case Id_toLowerCase:
+                    // See ECMA 15.5.4.11
+<span class="nc" id="L323">                    return ScriptRuntime.toString(thisObj).toLowerCase(</span>
+                        ScriptRuntime.ROOT_LOCALE);
+
+                case Id_toUpperCase:
+                    // See ECMA 15.5.4.12
+<span class="nc" id="L328">                    return ScriptRuntime.toString(thisObj).toUpperCase(</span>
+                        ScriptRuntime.ROOT_LOCALE);
+
+                case Id_substr:
+<span class="nc" id="L332">                    return js_substr(ScriptRuntime.toCharSequence(thisObj), args);</span>
+
+                case Id_concat:
+<span class="nc" id="L335">                    return js_concat(ScriptRuntime.toString(thisObj), args);</span>
+
+                case Id_slice:
+<span class="nc" id="L338">                    return js_slice(ScriptRuntime.toCharSequence(thisObj), args);</span>
+
+                case Id_bold:
+<span class="nc" id="L341">                    return tagify(thisObj, &quot;b&quot;, null, null);</span>
+
+                case Id_italics:
+<span class="nc" id="L344">                    return tagify(thisObj, &quot;i&quot;, null, null);</span>
+
+                case Id_fixed:
+<span class="nc" id="L347">                    return tagify(thisObj, &quot;tt&quot;, null, null);</span>
+
+                case Id_strike:
+<span class="nc" id="L350">                    return tagify(thisObj, &quot;strike&quot;, null, null);</span>
+
+                case Id_small:
+<span class="nc" id="L353">                    return tagify(thisObj, &quot;small&quot;, null, null);</span>
+
+                case Id_big:
+<span class="nc" id="L356">                    return tagify(thisObj, &quot;big&quot;, null, null);</span>
+
+                case Id_blink:
+<span class="nc" id="L359">                    return tagify(thisObj, &quot;blink&quot;, null, null);</span>
+
+                case Id_sup:
+<span class="nc" id="L362">                    return tagify(thisObj, &quot;sup&quot;, null, null);</span>
+
+                case Id_sub:
+<span class="nc" id="L365">                    return tagify(thisObj, &quot;sub&quot;, null, null);</span>
+
+                case Id_fontsize:
+<span class="nc" id="L368">                    return tagify(thisObj, &quot;font&quot;, &quot;size&quot;, args);</span>
+
+                case Id_fontcolor:
+<span class="nc" id="L371">                    return tagify(thisObj, &quot;font&quot;, &quot;color&quot;, args);</span>
+
+                case Id_link:
+<span class="nc" id="L374">                    return tagify(thisObj, &quot;a&quot;, &quot;href&quot;, args);</span>
+
+                case Id_anchor:
+<span class="nc" id="L377">                    return tagify(thisObj, &quot;a&quot;, &quot;name&quot;, args);</span>
+
+                case Id_equals:
+                case Id_equalsIgnoreCase: {
+<span class="nc" id="L381">                    String s1 = ScriptRuntime.toString(thisObj);</span>
+<span class="nc" id="L382">                    String s2 = ScriptRuntime.toString(args, 0);</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">                    return ScriptRuntime.wrapBoolean(</span>
+<span class="nc" id="L384">                        (id == Id_equals) ? s1.equals(s2)</span>
+<span class="nc" id="L385">                            : s1.equalsIgnoreCase(s2));</span>
+                }
+
+                case Id_match:
+                case Id_search:
+                case Id_replace: {
+                    int actionType;
+<span class="nc bnc" id="L392" title="All 2 branches missed.">                    if (id == Id_match) {</span>
+<span class="nc" id="L393">                        actionType = RegExpProxy.RA_MATCH;</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">                    } else if (id == Id_search) {</span>
+<span class="nc" id="L395">                        actionType = RegExpProxy.RA_SEARCH;</span>
+                    } else {
+<span class="nc" id="L397">                        actionType = RegExpProxy.RA_REPLACE;</span>
+                    }
+<span class="nc" id="L399">                    return ScriptRuntime.checkRegExpProxy(cx).</span>
+<span class="nc" id="L400">                        action(cx, scope, thisObj, args, actionType);</span>
+                }
+                // ECMA-262 1 5.5.4.9
+                case Id_localeCompare: {
+                    // For now, create and configure a collator instance. I can't
+                    // actually imagine that this'd be slower than caching them
+                    // a la ClassCache, so we aren't trying to outsmart ourselves
+                    // with a caching mechanism for now.
+<span class="nc" id="L408">                    Collator collator = Collator.getInstance(cx.getLocale());</span>
+<span class="nc" id="L409">                    collator.setStrength(Collator.IDENTICAL);</span>
+<span class="nc" id="L410">                    collator.setDecomposition(Collator.CANONICAL_DECOMPOSITION);</span>
+<span class="nc" id="L411">                    return ScriptRuntime.wrapNumber(collator.compare(</span>
+<span class="nc" id="L412">                        ScriptRuntime.toString(thisObj),</span>
+<span class="nc" id="L413">                        ScriptRuntime.toString(args, 0)));</span>
+                }
+                case Id_toLocaleLowerCase: {
+<span class="nc" id="L416">                    return ScriptRuntime.toString(thisObj)</span>
+<span class="nc" id="L417">                        .toLowerCase(cx.getLocale());</span>
+                }
+                case Id_toLocaleUpperCase: {
+<span class="nc" id="L420">                    return ScriptRuntime.toString(thisObj)</span>
+<span class="nc" id="L421">                        .toUpperCase(cx.getLocale());</span>
+                }
+                case Id_trim: {
+<span class="nc" id="L424">                    String str = ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f));</span>
+<span class="nc" id="L425">                    char[] chars = str.toCharArray();</span>
+
+<span class="nc" id="L427">                    int start = 0;</span>
+<span class="nc bnc" id="L428" title="All 4 branches missed.">                    while (start &lt; chars.length &amp;&amp; ScriptRuntime.isJSWhitespaceOrLineTerminator(chars[start])) {</span>
+<span class="nc" id="L429">                        start++;</span>
+                    }
+<span class="nc" id="L431">                    int end = chars.length;</span>
+<span class="nc bnc" id="L432" title="All 4 branches missed.">                    while (end &gt; start &amp;&amp; ScriptRuntime.isJSWhitespaceOrLineTerminator(chars[end - 1])) {</span>
+<span class="nc" id="L433">                        end--;</span>
+                    }
+
+<span class="nc" id="L436">                    return str.substring(start, end);</span>
+                }
+                case Id_trimLeft: {
+<span class="nc" id="L439">                    String str = ScriptRuntime.toString(thisObj);</span>
+<span class="nc" id="L440">                    char[] chars = str.toCharArray();</span>
+
+<span class="nc" id="L442">                    int start = 0;</span>
+<span class="nc bnc" id="L443" title="All 4 branches missed.">                    while (start &lt; chars.length &amp;&amp; ScriptRuntime.isJSWhitespaceOrLineTerminator(chars[start])) {</span>
+<span class="nc" id="L444">                        start++;</span>
+                    }
+<span class="nc" id="L446">                    int end = chars.length;</span>
+
+<span class="nc" id="L448">                    return str.substring(start, end);</span>
+                }
+                case Id_trimRight:
+                {
+<span class="nc" id="L452">                    String str = ScriptRuntime.toString(thisObj);</span>
+<span class="nc" id="L453">                    char[] chars = str.toCharArray();</span>
+
+<span class="nc" id="L455">                    int start = 0;</span>
+
+<span class="nc" id="L457">                    int end = chars.length;</span>
+<span class="nc bnc" id="L458" title="All 4 branches missed.">                    while (end &gt; start &amp;&amp; ScriptRuntime.isJSWhitespaceOrLineTerminator(chars[end - 1])) {</span>
+<span class="nc" id="L459">                        end--;</span>
+                    }
+
+<span class="nc" id="L462">                    return str.substring(start, end);</span>
+                }
+                case Id_normalize:
+                {
+<span class="nc" id="L466">                    String formStr = ScriptRuntime.toString(args, 0);</span>
+
+                    Normalizer.Form form;
+<span class="nc bnc" id="L469" title="All 2 branches missed.">                    if (Normalizer.Form.NFD.name().equals(formStr)) form = Normalizer.Form.NFD;</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">                    else if (Normalizer.Form.NFKC.name().equals(formStr)) form = Normalizer.Form.NFKC;</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">                    else if (Normalizer.Form.NFKD.name().equals(formStr)) form = Normalizer.Form.NFKD;</span>
+<span class="nc bnc" id="L472" title="All 4 branches missed.">                    else if (Normalizer.Form.NFC.name().equals(formStr) || args.length == 0) form = Normalizer.Form.NFC;</span>
+<span class="nc" id="L473">                    else throw rangeError(&quot;The normalization form should be one of NFC, NFD, NFKC, NFKD&quot;);</span>
+
+<span class="nc" id="L475">                    return Normalizer.normalize(ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f)), form);</span>
+                }
+
+                case Id_repeat:
+                {
+<span class="nc" id="L480">                    return js_repeat(cx, thisObj, f, args);</span>
+                }
+                case Id_codePointAt:
+                {
+<span class="nc" id="L484">                    String str = ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f));</span>
+<span class="nc" id="L485">                    double cnt = ScriptRuntime.toInteger(args, 0);</span>
+
+<span class="nc bnc" id="L487" title="All 4 branches missed.">                    return (cnt &lt; 0 || cnt &gt;= str.length())</span>
+                        ? Undefined.instance
+<span class="nc" id="L489">                        : str.codePointAt((int) cnt);</span>
+                }
+
+              case SymbolId_iterator:
+<span class="nc" id="L493">                  return new NativeStringIterator(scope, thisObj);</span>
+
+            }
+<span class="nc" id="L496">            throw new IllegalArgumentException(&quot;String.prototype has no method: &quot; + f.getFunctionName());</span>
+        }
+    }
+
+    private static NativeString realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        if (!(thisObj instanceof NativeString))</span>
+<span class="nc" id="L503">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L504">        return (NativeString)thisObj;</span>
+    }
+
+    /*
+     * HTML composition aids.
+     */
+    private static String tagify(Object thisObj, String tag,
+                                 String attribute, Object[] args)
+    {
+<span class="nc" id="L513">        String str = ScriptRuntime.toString(thisObj);</span>
+<span class="nc" id="L514">        StringBuilder result = new StringBuilder();</span>
+<span class="nc" id="L515">        result.append('&lt;');</span>
+<span class="nc" id="L516">        result.append(tag);</span>
+<span class="nc bnc" id="L517" title="All 2 branches missed.">        if (attribute != null) {</span>
+<span class="nc" id="L518">            result.append(' ');</span>
+<span class="nc" id="L519">            result.append(attribute);</span>
+<span class="nc" id="L520">            result.append(&quot;=\&quot;&quot;);</span>
+<span class="nc" id="L521">            result.append(ScriptRuntime.toString(args, 0));</span>
+<span class="nc" id="L522">            result.append('&quot;');</span>
+        }
+<span class="nc" id="L524">        result.append('&gt;');</span>
+<span class="nc" id="L525">        result.append(str);</span>
+<span class="nc" id="L526">        result.append(&quot;&lt;/&quot;);</span>
+<span class="nc" id="L527">        result.append(tag);</span>
+<span class="nc" id="L528">        result.append('&gt;');</span>
+<span class="nc" id="L529">        return result.toString();</span>
+    }
+
+    public CharSequence toCharSequence() {
+<span class="nc" id="L533">        return string;</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc bfc" id="L538" title="All 2 branches covered.">        return string instanceof String ? (String)string : string.toString();</span>
+    }
+
+    /* Make array-style property lookup work for strings.
+     * XXX is this ECMA?  A version check is probably needed. In js too.
+     */
+    @Override
+    public Object get(int index, Scriptable start) {
+<span class="pc bpc" id="L546" title="1 of 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; string.length()) {</span>
+<span class="fc" id="L547">            return String.valueOf(string.charAt(index));</span>
+        }
+<span class="fc" id="L549">        return super.get(index, start);</span>
+    }
+
+    @Override
+    public void put(int index, Scriptable start, Object value) {
+<span class="pc bpc" id="L554" title="1 of 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; string.length()) {</span>
+<span class="fc" id="L555">            return;</span>
+        }
+<span class="fc" id="L557">        super.put(index, start, value);</span>
+<span class="fc" id="L558">    }</span>
+
+    @Override
+    public boolean has(int index, Scriptable start) {
+<span class="pc bpc" id="L562" title="1 of 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; string.length()) {</span>
+<span class="fc" id="L563">            return true;</span>
+        }
+<span class="fc" id="L565">        return super.has(index, start);</span>
+    }
+
+    @Override
+    protected Object[] getIds(boolean nonEnumerable, boolean getSymbols)
+    {
+        // In ES6, Strings have entries in the property map for each character.
+<span class="fc" id="L572">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L573" title="3 of 4 branches missed.">        if ((cx != null) &amp;&amp; (cx.getLanguageVersion() &gt;= Context.VERSION_ES6)) {</span>
+<span class="nc" id="L574">            Object[] sids = super.getIds(nonEnumerable, getSymbols);</span>
+<span class="nc" id="L575">            Object[] a = new Object[sids.length + string.length()];</span>
+            int i;
+<span class="nc bnc" id="L577" title="All 2 branches missed.">            for (i = 0; i &lt; string.length(); i++) {</span>
+<span class="nc" id="L578">                a[i] = Integer.valueOf(i);</span>
+            }
+<span class="nc" id="L580">            System.arraycopy(sids, 0, a, i, sids.length);</span>
+<span class="nc" id="L581">            return a;</span>
+        }
+<span class="fc" id="L583">        return super.getIds(nonEnumerable, getSymbols);</span>
+    }
+
+    /*
+     *
+     * See ECMA 15.5.4.6.  Uses Java String.indexOf()
+     * OPT to add - BMH searching from jsstr.c.
+     */
+    private static int  js_indexOf(int methodId, String target, Object[] args) {
+<span class="nc" id="L592">        String searchStr = ScriptRuntime.toString(args, 0);</span>
+<span class="nc" id="L593">        double position = ScriptRuntime.toInteger(args, 1);</span>
+
+<span class="nc bnc" id="L595" title="All 6 branches missed.">        if (position &gt; target.length() &amp;&amp; methodId != Id_startsWith &amp;&amp; methodId != Id_endsWith) {</span>
+<span class="nc" id="L596">            return -1;</span>
+        } else {
+<span class="nc bnc" id="L598" title="All 2 branches missed.">            if (position &lt; 0) position = 0;</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            else if (position &gt; target.length()) position = target.length();</span>
+<span class="nc bnc" id="L600" title="All 6 branches missed.">            else if (methodId == Id_endsWith &amp;&amp; (position != position  || position &gt; target.length())) position = target.length();</span>
+
+<span class="nc bnc" id="L602" title="All 2 branches missed.">            if (Id_endsWith == methodId) {</span>
+<span class="nc bnc" id="L603" title="All 8 branches missed.">                if (args.length == 0 || args.length == 1 || (args.length == 2 &amp;&amp; args[1] == Undefined.instance)) position = target.length();</span>
+<span class="nc bnc" id="L604" title="All 2 branches missed.">                return target.substring(0, (int)position).endsWith(searchStr) ? 0 : -1;</span>
+            }
+<span class="nc bnc" id="L606" title="All 2 branches missed.">            return methodId == Id_startsWith</span>
+<span class="nc bnc" id="L607" title="All 2 branches missed.">                    ? target.startsWith(searchStr, (int)position) ? 0 : -1</span>
+<span class="nc" id="L608">                    : target.indexOf(searchStr, (int)position);</span>
+        }
+    }
+
+    /*
+     *
+     * See ECMA 15.5.4.7
+     *
+     */
+    private static int js_lastIndexOf(String target, Object[] args) {
+<span class="nc" id="L618">        String search = ScriptRuntime.toString(args, 0);</span>
+<span class="nc" id="L619">        double end = ScriptRuntime.toNumber(args, 1);</span>
+
+<span class="nc bnc" id="L621" title="All 4 branches missed.">        if (end != end || end &gt; target.length())</span>
+<span class="nc" id="L622">            end = target.length();</span>
+<span class="nc bnc" id="L623" title="All 2 branches missed.">        else if (end &lt; 0)</span>
+<span class="nc" id="L624">            end = 0;</span>
+
+<span class="nc" id="L626">        return target.lastIndexOf(search, (int)end);</span>
+    }
+
+
+    /*
+     * See ECMA 15.5.4.15
+     */
+    private static CharSequence js_substring(Context cx, CharSequence target,
+                                       Object[] args)
+    {
+<span class="nc" id="L636">        int length = target.length();</span>
+<span class="nc" id="L637">        double start = ScriptRuntime.toInteger(args, 0);</span>
+        double end;
+
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (start &lt; 0)</span>
+<span class="nc" id="L641">            start = 0;</span>
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        else if (start &gt; length)</span>
+<span class="nc" id="L643">            start = length;</span>
+
+<span class="nc bnc" id="L645" title="All 4 branches missed.">        if (args.length &lt;= 1 || args[1] == Undefined.instance) {</span>
+<span class="nc" id="L646">            end = length;</span>
+        } else {
+<span class="nc" id="L648">            end = ScriptRuntime.toInteger(args[1]);</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">            if (end &lt; 0)</span>
+<span class="nc" id="L650">                end = 0;</span>
+<span class="nc bnc" id="L651" title="All 2 branches missed.">            else if (end &gt; length)</span>
+<span class="nc" id="L652">                end = length;</span>
+
+            // swap if end &lt; start
+<span class="nc bnc" id="L655" title="All 2 branches missed.">            if (end &lt; start) {</span>
+<span class="nc bnc" id="L656" title="All 2 branches missed.">                if (cx.getLanguageVersion() != Context.VERSION_1_2) {</span>
+<span class="nc" id="L657">                    double temp = start;</span>
+<span class="nc" id="L658">                    start = end;</span>
+<span class="nc" id="L659">                    end = temp;</span>
+<span class="nc" id="L660">                } else {</span>
+                    // Emulate old JDK1.0 java.lang.String.substring()
+<span class="nc" id="L662">                    end = start;</span>
+                }
+            }
+        }
+<span class="nc" id="L666">        return target.subSequence((int)start, (int)end);</span>
+    }
+
+    int getLength() {
+<span class="fc" id="L670">        return string.length();</span>
+    }
+
+    /*
+     * Non-ECMA methods.
+     */
+    private static CharSequence js_substr(CharSequence target, Object[] args) {
+<span class="nc bnc" id="L677" title="All 2 branches missed.">        if (args.length &lt; 1)</span>
+<span class="nc" id="L678">            return target;</span>
+
+<span class="nc" id="L680">        double begin = ScriptRuntime.toInteger(args[0]);</span>
+        double end;
+<span class="nc" id="L682">        int length = target.length();</span>
+
+<span class="nc bnc" id="L684" title="All 2 branches missed.">        if (begin &lt; 0) {</span>
+<span class="nc" id="L685">            begin += length;</span>
+<span class="nc bnc" id="L686" title="All 2 branches missed.">            if (begin &lt; 0)</span>
+<span class="nc" id="L687">                begin = 0;</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">        } else if (begin &gt; length) {</span>
+<span class="nc" id="L689">            begin = length;</span>
+        }
+
+<span class="nc bnc" id="L692" title="All 2 branches missed.">        if (args.length == 1) {</span>
+<span class="nc" id="L693">            end = length;</span>
+        } else {
+<span class="nc" id="L695">            end = ScriptRuntime.toInteger(args[1]);</span>
+<span class="nc bnc" id="L696" title="All 2 branches missed.">            if (end &lt; 0)</span>
+<span class="nc" id="L697">                end = 0;</span>
+<span class="nc" id="L698">            end += begin;</span>
+<span class="nc bnc" id="L699" title="All 2 branches missed.">            if (end &gt; length)</span>
+<span class="nc" id="L700">                end = length;</span>
+        }
+
+<span class="nc" id="L703">        return target.subSequence((int)begin, (int)end);</span>
+    }
+
+    /*
+     * Python-esque sequence operations.
+     */
+    private static String js_concat(String target, Object[] args) {
+<span class="nc" id="L710">        int N = args.length;</span>
+<span class="nc bnc" id="L711" title="All 2 branches missed.">        if (N == 0) { return target; }</span>
+<span class="nc bnc" id="L712" title="All 2 branches missed.">        else if (N == 1) {</span>
+<span class="nc" id="L713">            String arg = ScriptRuntime.toString(args[0]);</span>
+<span class="nc" id="L714">            return target.concat(arg);</span>
+        }
+
+        // Find total capacity for the final string to avoid unnecessary
+        // re-allocations in StringBuilder
+<span class="nc" id="L719">        int size = target.length();</span>
+<span class="nc" id="L720">        String[] argsAsStrings = new String[N];</span>
+<span class="nc bnc" id="L721" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L722">            String s = ScriptRuntime.toString(args[i]);</span>
+<span class="nc" id="L723">            argsAsStrings[i] = s;</span>
+<span class="nc" id="L724">            size += s.length();</span>
+        }
+
+<span class="nc" id="L727">        StringBuilder result = new StringBuilder(size);</span>
+<span class="nc" id="L728">        result.append(target);</span>
+<span class="nc bnc" id="L729" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L730">            result.append(argsAsStrings[i]);</span>
+        }
+<span class="nc" id="L732">        return result.toString();</span>
+    }
+
+    private static CharSequence js_slice(CharSequence target, Object[] args) {
+<span class="nc bnc" id="L736" title="All 2 branches missed.">        double begin = args.length &lt; 1 ? 0 : ScriptRuntime.toInteger(args[0]);</span>
+        double end;
+<span class="nc" id="L738">        int length = target.length();</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">        if (begin &lt; 0) {</span>
+<span class="nc" id="L740">            begin += length;</span>
+<span class="nc bnc" id="L741" title="All 2 branches missed.">            if (begin &lt; 0)</span>
+<span class="nc" id="L742">                begin = 0;</span>
+<span class="nc bnc" id="L743" title="All 2 branches missed.">        } else if (begin &gt; length) {</span>
+<span class="nc" id="L744">            begin = length;</span>
+        }
+
+<span class="nc bnc" id="L747" title="All 4 branches missed.">        if (args.length &lt; 2 || args[1] == Undefined.instance) {</span>
+<span class="nc" id="L748">            end = length;</span>
+        } else {
+<span class="nc" id="L750">            end = ScriptRuntime.toInteger(args[1]);</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">            if (end &lt; 0) {</span>
+<span class="nc" id="L752">                end += length;</span>
+<span class="nc bnc" id="L753" title="All 2 branches missed.">                if (end &lt; 0)</span>
+<span class="nc" id="L754">                    end = 0;</span>
+<span class="nc bnc" id="L755" title="All 2 branches missed.">            } else if (end &gt; length) {</span>
+<span class="nc" id="L756">                end = length;</span>
+            }
+<span class="nc bnc" id="L758" title="All 2 branches missed.">            if (end &lt; begin)</span>
+<span class="nc" id="L759">                end = begin;</span>
+        }
+<span class="nc" id="L761">        return target.subSequence((int) begin, (int) end);</span>
+    }
+
+    private static String js_repeat(Context cx, Scriptable thisObj, IdFunctionObject f, Object[] args)
+    {
+<span class="nc" id="L766">        String str = ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f));</span>
+<span class="nc" id="L767">        double cnt = ScriptRuntime.toInteger(args, 0);</span>
+
+<span class="nc bnc" id="L769" title="All 4 branches missed.">        if ((cnt &lt; 0.0) || (cnt == Double.POSITIVE_INFINITY)) {</span>
+<span class="nc" id="L770">            throw rangeError(&quot;Invalid count value&quot;);</span>
+        }
+
+<span class="nc bnc" id="L773" title="All 4 branches missed.">        if (cnt == 0.0 || str.length() == 0) {</span>
+<span class="nc" id="L774">            return &quot;&quot;;</span>
+        }
+
+<span class="nc" id="L777">        long size = str.length() * (long)cnt;</span>
+        // Check for overflow
+<span class="nc bnc" id="L779" title="All 4 branches missed.">        if ((cnt &gt; Integer.MAX_VALUE) || (size &gt; Integer.MAX_VALUE)) {</span>
+<span class="nc" id="L780">            throw rangeError(&quot;Invalid size or count value&quot;);</span>
+        }
+
+<span class="nc" id="L783">        StringBuilder retval = new StringBuilder((int) size);</span>
+<span class="nc" id="L784">        retval.append(str);</span>
+
+<span class="nc" id="L786">        int i = 1;</span>
+<span class="nc" id="L787">        int icnt = (int)cnt;</span>
+<span class="nc bnc" id="L788" title="All 2 branches missed.">        while (i &lt;= (icnt / 2)) {</span>
+<span class="nc" id="L789">            retval.append(retval);</span>
+<span class="nc" id="L790">            i *= 2;</span>
+        }
+<span class="nc bnc" id="L792" title="All 2 branches missed.">        if (i &lt; icnt) {</span>
+<span class="nc" id="L793">            retval.append(retval.substring(0, str.length() * (icnt - i)));</span>
+        }
+
+<span class="nc" id="L796">        return retval.toString();</span>
+    }
+
+    @Override
+    protected int findPrototypeId(Symbol k)
+    {
+<span class="pc bpc" id="L802" title="1 of 2 branches missed.">        if (SymbolKey.ITERATOR.equals(k)) {</span>
+<span class="nc" id="L803">            return SymbolId_iterator;</span>
+        }
+<span class="fc" id="L805">        return 0;</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2016-03-04 20:51:44 GMT
+<span class="fc" id="L815">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L816" title="8 of 13 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L817">            case 3: c=s.charAt(2);</span>
+<span class="nc bnc" id="L818" title="All 6 branches missed.">                if (c=='b') { if (s.charAt(0)=='s' &amp;&amp; s.charAt(1)=='u') {id=Id_sub; break L0;} }</span>
+<span class="nc bnc" id="L819" title="All 6 branches missed.">                else if (c=='g') { if (s.charAt(0)=='b' &amp;&amp; s.charAt(1)=='i') {id=Id_big; break L0;} }</span>
+<span class="nc bnc" id="L820" title="All 6 branches missed.">                else if (c=='p') { if (s.charAt(0)=='s' &amp;&amp; s.charAt(1)=='u') {id=Id_sup; break L0;} }</span>
+                break L;
+<span class="nc" id="L822">            case 4: c=s.charAt(0);</span>
+<span class="nc bnc" id="L823" title="All 2 branches missed.">                if (c=='b') { X=&quot;bold&quot;;id=Id_bold; }</span>
+<span class="nc bnc" id="L824" title="All 2 branches missed.">                else if (c=='l') { X=&quot;link&quot;;id=Id_link; }</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">                else if (c=='t') { X=&quot;trim&quot;;id=Id_trim; }</span>
+                break L;
+<span class="pc bpc" id="L827" title="6 of 7 branches missed.">            case 5: switch (s.charAt(4)) {</span>
+<span class="nc" id="L828">                case 'd': X=&quot;fixed&quot;;id=Id_fixed; break L;</span>
+<span class="nc" id="L829">                case 'e': X=&quot;slice&quot;;id=Id_slice; break L;</span>
+<span class="nc" id="L830">                case 'h': X=&quot;match&quot;;id=Id_match; break L;</span>
+<span class="nc" id="L831">                case 'k': X=&quot;blink&quot;;id=Id_blink; break L;</span>
+<span class="nc" id="L832">                case 'l': X=&quot;small&quot;;id=Id_small; break L;</span>
+<span class="nc" id="L833">                case 't': X=&quot;split&quot;;id=Id_split; break L;</span>
+<span class="fc" id="L834">                } break L;</span>
+<span class="nc bnc" id="L835" title="All 8 branches missed.">            case 6: switch (s.charAt(1)) {</span>
+<span class="nc" id="L836">                case 'e': c=s.charAt(0);</span>
+<span class="nc bnc" id="L837" title="All 2 branches missed.">                    if (c=='r') { X=&quot;repeat&quot;;id=Id_repeat; }</span>
+<span class="nc bnc" id="L838" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;search&quot;;id=Id_search; }</span>
+                    break L;
+<span class="nc" id="L840">                case 'h': X=&quot;charAt&quot;;id=Id_charAt; break L;</span>
+<span class="nc" id="L841">                case 'n': X=&quot;anchor&quot;;id=Id_anchor; break L;</span>
+<span class="nc" id="L842">                case 'o': X=&quot;concat&quot;;id=Id_concat; break L;</span>
+<span class="nc" id="L843">                case 'q': X=&quot;equals&quot;;id=Id_equals; break L;</span>
+<span class="nc" id="L844">                case 't': X=&quot;strike&quot;;id=Id_strike; break L;</span>
+<span class="nc" id="L845">                case 'u': X=&quot;substr&quot;;id=Id_substr; break L;</span>
+<span class="nc" id="L846">                } break L;</span>
+<span class="pc bpc" id="L847" title="4 of 5 branches missed.">            case 7: switch (s.charAt(1)) {</span>
+<span class="nc" id="L848">                case 'a': X=&quot;valueOf&quot;;id=Id_valueOf; break L;</span>
+<span class="nc" id="L849">                case 'e': X=&quot;replace&quot;;id=Id_replace; break L;</span>
+<span class="nc" id="L850">                case 'n': X=&quot;indexOf&quot;;id=Id_indexOf; break L;</span>
+<span class="nc" id="L851">                case 't': X=&quot;italics&quot;;id=Id_italics; break L;</span>
+<span class="fc" id="L852">                } break L;</span>
+<span class="pc bpc" id="L853" title="6 of 7 branches missed.">            case 8: switch (s.charAt(6)) {</span>
+<span class="nc" id="L854">                case 'c': X=&quot;toSource&quot;;id=Id_toSource; break L;</span>
+<span class="nc" id="L855">                case 'e': X=&quot;includes&quot;;id=Id_includes; break L;</span>
+<span class="nc" id="L856">                case 'f': X=&quot;trimLeft&quot;;id=Id_trimLeft; break L;</span>
+<span class="nc" id="L857">                case 'n': X=&quot;toString&quot;;id=Id_toString; break L;</span>
+<span class="nc" id="L858">                case 't': X=&quot;endsWith&quot;;id=Id_endsWith; break L;</span>
+<span class="nc" id="L859">                case 'z': X=&quot;fontsize&quot;;id=Id_fontsize; break L;</span>
+<span class="fc" id="L860">                } break L;</span>
+<span class="pc bpc" id="L861" title="4 of 5 branches missed.">            case 9: switch (s.charAt(0)) {</span>
+<span class="nc" id="L862">                case 'f': X=&quot;fontcolor&quot;;id=Id_fontcolor; break L;</span>
+<span class="nc" id="L863">                case 'n': X=&quot;normalize&quot;;id=Id_normalize; break L;</span>
+<span class="nc" id="L864">                case 's': X=&quot;substring&quot;;id=Id_substring; break L;</span>
+<span class="nc" id="L865">                case 't': X=&quot;trimRight&quot;;id=Id_trimRight; break L;</span>
+<span class="fc" id="L866">                } break L;</span>
+<span class="nc" id="L867">            case 10: c=s.charAt(0);</span>
+<span class="nc bnc" id="L868" title="All 2 branches missed.">                if (c=='c') { X=&quot;charCodeAt&quot;;id=Id_charCodeAt; }</span>
+<span class="nc bnc" id="L869" title="All 2 branches missed.">                else if (c=='s') { X=&quot;startsWith&quot;;id=Id_startsWith; }</span>
+                break L;
+<span class="pc bpc" id="L871" title="4 of 6 branches missed.">            case 11: switch (s.charAt(2)) {</span>
+<span class="nc" id="L872">                case 'L': X=&quot;toLowerCase&quot;;id=Id_toLowerCase; break L;</span>
+<span class="nc" id="L873">                case 'U': X=&quot;toUpperCase&quot;;id=Id_toUpperCase; break L;</span>
+<span class="nc" id="L874">                case 'd': X=&quot;codePointAt&quot;;id=Id_codePointAt; break L;</span>
+<span class="fc" id="L875">                case 'n': X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+<span class="nc" id="L876">                case 's': X=&quot;lastIndexOf&quot;;id=Id_lastIndexOf; break L;</span>
+<span class="fc" id="L877">                } break L;</span>
+<span class="nc" id="L878">            case 13: X=&quot;localeCompare&quot;;id=Id_localeCompare; break L;</span>
+<span class="nc" id="L879">            case 16: X=&quot;equalsIgnoreCase&quot;;id=Id_equalsIgnoreCase; break L;</span>
+<span class="nc" id="L880">            case 17: c=s.charAt(8);</span>
+<span class="nc bnc" id="L881" title="All 2 branches missed.">                if (c=='L') { X=&quot;toLocaleLowerCase&quot;;id=Id_toLocaleLowerCase; }</span>
+<span class="nc bnc" id="L882" title="All 2 branches missed.">                else if (c=='U') { X=&quot;toLocaleUpperCase&quot;;id=Id_toLocaleUpperCase; }</span>
+                break L;
+            }
+<span class="pc bpc" id="L885" title="3 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L889">        return id;</span>
+    }
+
+    private static final int
+        ConstructorId_fromCharCode   = -1,
+
+        Id_constructor               = 1,
+        Id_toString                  = 2,
+        Id_toSource                  = 3,
+        Id_valueOf                   = 4,
+        Id_charAt                    = 5,
+        Id_charCodeAt                = 6,
+        Id_indexOf                   = 7,
+        Id_lastIndexOf               = 8,
+        Id_split                     = 9,
+        Id_substring                 = 10,
+        Id_toLowerCase               = 11,
+        Id_toUpperCase               = 12,
+        Id_substr                    = 13,
+        Id_concat                    = 14,
+        Id_slice                     = 15,
+        Id_bold                      = 16,
+        Id_italics                   = 17,
+        Id_fixed                     = 18,
+        Id_strike                    = 19,
+        Id_small                     = 20,
+        Id_big                       = 21,
+        Id_blink                     = 22,
+        Id_sup                       = 23,
+        Id_sub                       = 24,
+        Id_fontsize                  = 25,
+        Id_fontcolor                 = 26,
+        Id_link                      = 27,
+        Id_anchor                    = 28,
+        Id_equals                    = 29,
+        Id_equalsIgnoreCase          = 30,
+        Id_match                     = 31,
+        Id_search                    = 32,
+        Id_replace                   = 33,
+        Id_localeCompare             = 34,
+        Id_toLocaleLowerCase         = 35,
+        Id_toLocaleUpperCase         = 36,
+        Id_trim                      = 37,
+        Id_trimLeft                  = 38,
+        Id_trimRight                 = 39,
+        Id_includes                  = 40,
+        Id_startsWith                = 41,
+        Id_endsWith                  = 42,
+        Id_normalize                 = 43,
+        Id_repeat                    = 44,
+        Id_codePointAt               = 45,
+        SymbolId_iterator            = 46,
+        MAX_PROTOTYPE_ID             = SymbolId_iterator;
+
+// #/string_id_map#
+
+    private static final int
+        ConstructorId_charAt         = -Id_charAt,
+        ConstructorId_charCodeAt     = -Id_charCodeAt,
+        ConstructorId_indexOf        = -Id_indexOf,
+        ConstructorId_lastIndexOf    = -Id_lastIndexOf,
+        ConstructorId_split          = -Id_split,
+        ConstructorId_substring      = -Id_substring,
+        ConstructorId_toLowerCase    = -Id_toLowerCase,
+        ConstructorId_toUpperCase    = -Id_toUpperCase,
+        ConstructorId_substr         = -Id_substr,
+        ConstructorId_concat         = -Id_concat,
+        ConstructorId_slice          = -Id_slice,
+        ConstructorId_equalsIgnoreCase = -Id_equalsIgnoreCase,
+        ConstructorId_match          = -Id_match,
+        ConstructorId_search         = -Id_search,
+        ConstructorId_replace        = -Id_replace,
+        ConstructorId_localeCompare  = -Id_localeCompare,
+        ConstructorId_toLocaleLowerCase = -Id_toLocaleLowerCase;
+
+    private CharSequence string;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

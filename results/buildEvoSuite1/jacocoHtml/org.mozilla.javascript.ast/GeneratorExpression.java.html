@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeneratorExpression.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">GeneratorExpression.java</span></div><h1>GeneratorExpression.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.mozilla.javascript.Token;
+
+/**
+ */
+public class GeneratorExpression extends Scope {
+    
+    private AstNode result;
+<span class="fc" id="L18">    private List&lt;GeneratorExpressionLoop&gt; loops =</span>
+        new ArrayList&lt;GeneratorExpressionLoop&gt;();
+    private AstNode filter;
+<span class="fc" id="L21">    private int ifPosition = -1;</span>
+<span class="fc" id="L22">    private int lp = -1;</span>
+<span class="fc" id="L23">    private int rp = -1;</span>
+    
+    {
+<span class="fc" id="L26">        type = Token.GENEXPR;</span>
+    }
+
+<span class="fc" id="L29">    public GeneratorExpression() {</span>
+<span class="fc" id="L30">    }</span>
+
+    public GeneratorExpression(int pos) {
+<span class="fc" id="L33">        super(pos);</span>
+<span class="fc" id="L34">    }</span>
+
+    public GeneratorExpression(int pos, int len) {
+<span class="fc" id="L37">        super(pos, len);</span>
+<span class="fc" id="L38">    }</span>
+    
+    /**
+     * Returns result expression node (just after opening bracket)
+     */
+    public AstNode getResult() {
+<span class="fc" id="L44">        return result;</span>
+    }
+
+    /**
+     * Sets result expression, and sets its parent to this node.
+     * @throws IllegalArgumentException if result is {@code null}
+     */
+    public void setResult(AstNode result) {
+<span class="fc" id="L52">        assertNotNull(result);</span>
+<span class="fc" id="L53">        this.result = result;</span>
+<span class="fc" id="L54">        result.setParent(this);</span>
+<span class="fc" id="L55">    }</span>
+
+    /**
+     * Returns loop list
+     */
+    public List&lt;GeneratorExpressionLoop&gt; getLoops() {
+<span class="fc" id="L61">        return loops;</span>
+    }
+
+    /**
+     * Sets loop list
+     * @throws IllegalArgumentException if loops is {@code null}
+     */
+    public void setLoops(List&lt;GeneratorExpressionLoop&gt; loops) {
+<span class="fc" id="L69">        assertNotNull(loops);</span>
+<span class="fc" id="L70">        this.loops.clear();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        for (GeneratorExpressionLoop acl : loops) {</span>
+<span class="fc" id="L72">            addLoop(acl);</span>
+<span class="fc" id="L73">        }</span>
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * Adds a child loop node, and sets its parent to this node.
+     * @throws IllegalArgumentException if acl is {@code null}
+     */
+    public void addLoop(GeneratorExpressionLoop acl) {
+<span class="fc" id="L81">        assertNotNull(acl);</span>
+<span class="fc" id="L82">        loops.add(acl);</span>
+<span class="fc" id="L83">        acl.setParent(this);</span>
+<span class="fc" id="L84">    }</span>
+    
+    /**
+     * Returns filter expression, or {@code null} if not present
+     */
+    public AstNode getFilter() {
+<span class="fc" id="L90">        return filter;</span>
+    }
+
+    /**
+     * Sets filter expression, and sets its parent to this node.
+     * Can be {@code null}.
+     */
+    public void setFilter(AstNode filter) {
+<span class="fc" id="L98">        this.filter = filter;</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        if (filter != null)</span>
+<span class="fc" id="L100">            filter.setParent(this);</span>
+<span class="fc" id="L101">    }</span>
+
+    /**
+     * Returns position of 'if' keyword, -1 if not present
+     */
+    public int getIfPosition() {
+<span class="fc" id="L107">        return ifPosition;</span>
+    }
+
+    /**
+     * Sets position of 'if' keyword
+     */
+    public void setIfPosition(int ifPosition) {
+<span class="fc" id="L114">        this.ifPosition = ifPosition;</span>
+<span class="fc" id="L115">    }</span>
+
+    /**
+     * Returns filter left paren position, or -1 if no filter
+     */
+    public int getFilterLp() {
+<span class="fc" id="L121">        return lp;</span>
+    }
+
+    /**
+     * Sets filter left paren position, or -1 if no filter
+     */
+    public void setFilterLp(int lp) {
+<span class="fc" id="L128">        this.lp = lp;</span>
+<span class="fc" id="L129">    }</span>
+
+    /**
+     * Returns filter right paren position, or -1 if no filter
+     */
+    public int getFilterRp() {
+<span class="fc" id="L135">        return rp;</span>
+    }
+
+    /**
+     * Sets filter right paren position, or -1 if no filter
+     */
+    public void setFilterRp(int rp) {
+<span class="fc" id="L142">        this.rp = rp;</span>
+<span class="fc" id="L143">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L147">        StringBuilder sb = new StringBuilder(250);</span>
+<span class="fc" id="L148">        sb.append(&quot;(&quot;);</span>
+<span class="fc" id="L149">        sb.append(result.toSource(0));</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        for (GeneratorExpressionLoop loop : loops) {</span>
+<span class="nc" id="L151">            sb.append(loop.toSource(0));</span>
+<span class="nc" id="L152">        }</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">        if (filter != null) {</span>
+<span class="fc" id="L154">            sb.append(&quot; if (&quot;);</span>
+<span class="fc" id="L155">            sb.append(filter.toSource(0));</span>
+<span class="fc" id="L156">            sb.append(&quot;)&quot;);</span>
+        }
+<span class="fc" id="L158">        sb.append(&quot;)&quot;);</span>
+<span class="fc" id="L159">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the result expression, the loops, and the optional
+     * filter.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        if (!v.visit(this)) {</span>
+<span class="nc" id="L169">            return;</span>
+        }
+<span class="fc" id="L171">        result.visit(v);</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        for (GeneratorExpressionLoop loop : loops) {</span>
+<span class="nc" id="L173">            loop.visit(v);</span>
+<span class="nc" id="L174">        }</span>
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">        if (filter != null) {</span>
+<span class="fc" id="L176">            filter.visit(v);</span>
+        }
+<span class="fc" id="L178">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

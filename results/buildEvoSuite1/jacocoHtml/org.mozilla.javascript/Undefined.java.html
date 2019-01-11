@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Undefined.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Undefined.java</span></div><h1>Undefined.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+/**
+ * This class implements the Undefined value in JavaScript.
+ */
+public class Undefined implements Serializable
+{
+    static final long serialVersionUID = 9195680630202616767L;
+
+<span class="fc" id="L21">    public static final Object instance = new Undefined();</span>
+
+    private Undefined()
+<span class="fc" id="L24">    {</span>
+<span class="fc" id="L25">    }</span>
+
+    public Object readResolve()
+    {
+<span class="fc" id="L29">        return instance;</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L34" title="2 of 4 branches missed.">        return isUndefined(obj) || super.equals(obj);</span>
+    }
+
+    @Override
+    public int hashCode() {
+        // All instances of Undefined are equivalent!
+<span class="fc" id="L40">        return 0;</span>
+    }
+
+    public static final Scriptable SCRIPTABLE_UNDEFINED;
+
+    static {
+<span class="fc" id="L46">        SCRIPTABLE_UNDEFINED = (Scriptable) Proxy.newProxyInstance(Undefined.class.getClassLoader(), new Class[]{Scriptable.class}, new InvocationHandler() {</span>
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">                if (method.getName().equals(&quot;toString&quot;)) return &quot;undefined&quot;;</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">                if (method.getName().equals(&quot;equals&quot;)) {</span>
+<span class="nc bnc" id="L51" title="All 4 branches missed.">                    return args.length &gt; 0 &amp;&amp; isUndefined(args[0]);</span>
+                }
+<span class="fc" id="L53">                throw new UnsupportedOperationException(&quot;undefined doesn't support &quot; + method.getName());</span>
+            }
+        });
+<span class="fc" id="L56">    }</span>
+
+    public static boolean isUndefined(Object obj)
+    {
+<span class="pc bpc" id="L60" title="2 of 4 branches missed.">        return Undefined.instance == obj || Undefined.SCRIPTABLE_UNDEFINED == obj;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

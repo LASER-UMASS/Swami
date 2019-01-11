@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Block.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.optimizer</a> &gt; <span class="el_source">Block.java</span></div><h1>Block.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.Jump;
+
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
+class Block
+{
+
+<span class="fc" id="L20">    private static class FatBlock</span>
+    {
+
+        private static Block[] reduceToArray(ObjToIntMap map)
+        {
+<span class="fc" id="L25">            Block[] result = null;</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">            if (!map.isEmpty()) {</span>
+<span class="fc" id="L27">                result = new Block[map.size()];</span>
+<span class="fc" id="L28">                int i = 0;</span>
+<span class="fc" id="L29">                ObjToIntMap.Iterator iter = map.newIterator();</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">                for (iter.start(); !iter.done(); iter.next()) {</span>
+<span class="fc" id="L31">                    FatBlock fb = (FatBlock)(iter.getKey());</span>
+<span class="fc" id="L32">                    result[i++] = fb.realBlock;</span>
+                }
+            }
+<span class="fc" id="L35">            return result;</span>
+        }
+
+<span class="fc" id="L38">        void addSuccessor(FatBlock b)  { successors.put(b, 0); }</span>
+<span class="fc" id="L39">        void addPredecessor(FatBlock b)  { predecessors.put(b, 0); }</span>
+
+<span class="fc" id="L41">        Block[] getSuccessors() { return reduceToArray(successors); }</span>
+<span class="fc" id="L42">        Block[] getPredecessors() { return reduceToArray(predecessors); }</span>
+
+        // all the Blocks that come immediately after this
+<span class="fc" id="L45">        private ObjToIntMap successors = new ObjToIntMap();</span>
+        // all the Blocks that come immediately before this
+<span class="fc" id="L47">        private ObjToIntMap predecessors = new ObjToIntMap();</span>
+
+        Block realBlock;
+    }
+
+    Block(int startNodeIndex, int endNodeIndex)
+<span class="fc" id="L53">    {</span>
+<span class="fc" id="L54">        itsStartNodeIndex = startNodeIndex;</span>
+<span class="fc" id="L55">        itsEndNodeIndex = endNodeIndex;</span>
+<span class="fc" id="L56">    }</span>
+
+    static void runFlowAnalyzes(OptFunctionNode fn, Node[] statementNodes)
+    {
+<span class="fc" id="L60">        int paramCount = fn.fnode.getParamCount();</span>
+<span class="fc" id="L61">        int varCount = fn.fnode.getParamAndVarCount();</span>
+<span class="fc" id="L62">        int[] varTypes = new int[varCount];</span>
+        // If the variable is a parameter, it could have any type.
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        for (int i = 0; i != paramCount; ++i) {</span>
+<span class="nc" id="L65">            varTypes[i] = Optimizer.AnyType;</span>
+        }
+        // If the variable is from a &quot;var&quot; statement, its typeEvent will be set
+        // when we see the setVar node.
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        for (int i = paramCount; i != varCount; ++i) {</span>
+<span class="nc" id="L70">            varTypes[i] = Optimizer.NoType;</span>
+        }
+
+<span class="fc" id="L73">        Block[] theBlocks = buildBlocks(statementNodes);</span>
+
+        if (DEBUG) {
+            ++debug_blockCount;
+            System.out.println(&quot;-------------------&quot;+fn.fnode.getFunctionName()+&quot;  &quot;+debug_blockCount+&quot;--------&quot;);
+            System.out.println(fn.fnode.toStringTree(fn.fnode));
+            System.out.println(toString(theBlocks, statementNodes));
+        }
+
+<span class="fc" id="L82">        reachingDefDataFlow(fn, statementNodes, theBlocks, varTypes);</span>
+<span class="fc" id="L83">        typeFlow(fn, statementNodes, theBlocks, varTypes);</span>
+
+        if (DEBUG) {
+            for (int i = 0; i &lt; theBlocks.length; i++) {
+                System.out.println(&quot;For block &quot; + theBlocks[i].itsBlockID);
+                theBlocks[i].printLiveOnEntrySet(fn);
+            }
+            System.out.println(&quot;Variable Table, size = &quot; + varCount);
+            for (int i = 0; i != varCount; i++) {
+                System.out.println(&quot;[&quot;+i+&quot;] type: &quot;+varTypes[i]);
+            }
+        }
+
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        for (int i = paramCount; i != varCount; i++) {</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (varTypes[i] == Optimizer.NumberType) {</span>
+<span class="nc" id="L98">                fn.setIsNumberVar(i);</span>
+            }
+        }
+
+<span class="fc" id="L102">    }</span>
+
+    private static Block[] buildBlocks(Node[] statementNodes)
+    {
+        // a mapping from each target node to the block it begins
+<span class="fc" id="L107">        Map&lt;Node,FatBlock&gt; theTargetBlocks = new HashMap&lt;Node,FatBlock&gt;();</span>
+<span class="fc" id="L108">        ObjArray theBlocks = new ObjArray();</span>
+
+        // there's a block that starts at index 0
+<span class="fc" id="L111">        int beginNodeIndex = 0;</span>
+
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        for (int i = 0; i &lt; statementNodes.length; i++) {</span>
+<span class="fc bfc" id="L114" title="All 3 branches covered.">            switch (statementNodes[i].getType()) {</span>
+                case Token.TARGET :
+                {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                    if (i != beginNodeIndex) {</span>
+<span class="fc" id="L118">                        FatBlock fb = newFatBlock(beginNodeIndex, i - 1);</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">                        if (statementNodes[beginNodeIndex].getType() == Token.TARGET) {</span>
+<span class="fc" id="L120">                            theTargetBlocks.put(statementNodes[beginNodeIndex], fb);</span>
+                        }
+<span class="fc" id="L122">                        theBlocks.add(fb);</span>
+                        // start the next block at this node
+<span class="fc" id="L124">                        beginNodeIndex = i;</span>
+<span class="fc" id="L125">                    }</span>
+                }
+                break;
+                case Token.IFNE :
+                case Token.IFEQ :
+                case Token.GOTO :
+                {
+<span class="fc" id="L132">                    FatBlock fb = newFatBlock(beginNodeIndex, i);</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">                    if (statementNodes[beginNodeIndex].getType() == Token.TARGET) {</span>
+<span class="nc" id="L134">                        theTargetBlocks.put(statementNodes[beginNodeIndex], fb);</span>
+                    }
+<span class="fc" id="L136">                    theBlocks.add(fb);</span>
+                    // start the next block at the next node
+<span class="fc" id="L138">                    beginNodeIndex = i + 1;</span>
+                }
+                break;
+            }
+        }
+
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (beginNodeIndex != statementNodes.length) {</span>
+<span class="fc" id="L145">            FatBlock fb = newFatBlock(beginNodeIndex, statementNodes.length - 1);</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">            if (statementNodes[beginNodeIndex].getType() == Token.TARGET) {</span>
+<span class="fc" id="L147">                theTargetBlocks.put(statementNodes[beginNodeIndex], fb);</span>
+            }
+<span class="fc" id="L149">            theBlocks.add(fb);</span>
+        }
+
+        // build successor and predecessor links
+
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        for (int i = 0; i &lt; theBlocks.size(); i++) {</span>
+<span class="fc" id="L155">            FatBlock fb = (FatBlock)(theBlocks.get(i));</span>
+
+<span class="fc" id="L157">            Node blockEndNode = statementNodes[fb.realBlock.itsEndNodeIndex];</span>
+<span class="fc" id="L158">            int blockEndNodeType = blockEndNode.getType();</span>
+
+<span class="pc bpc" id="L160" title="1 of 4 branches missed.">            if ((blockEndNodeType != Token.GOTO) &amp;&amp; (i &lt; (theBlocks.size() - 1))) {</span>
+<span class="fc" id="L161">                FatBlock fallThruTarget = (FatBlock)(theBlocks.get(i + 1));</span>
+<span class="fc" id="L162">                fb.addSuccessor(fallThruTarget);</span>
+<span class="fc" id="L163">                fallThruTarget.addPredecessor(fb);</span>
+            }
+
+
+<span class="pc bpc" id="L167" title="2 of 6 branches missed.">            if ( (blockEndNodeType == Token.IFNE)</span>
+                    || (blockEndNodeType == Token.IFEQ)
+                    || (blockEndNodeType == Token.GOTO) ) {
+<span class="fc" id="L170">                Node target = ((Jump)blockEndNode).target;</span>
+<span class="fc" id="L171">                FatBlock branchTargetBlock = theTargetBlocks.get(target);</span>
+<span class="nc" id="L172">                target.putProp(Node.TARGETBLOCK_PROP, branchTargetBlock.realBlock);</span>
+<span class="nc" id="L173">                fb.addSuccessor(branchTargetBlock);</span>
+<span class="nc" id="L174">                branchTargetBlock.addPredecessor(fb);</span>
+            }
+        }
+
+<span class="fc" id="L178">        Block[] result = new Block[theBlocks.size()];</span>
+
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        for (int i = 0; i &lt; theBlocks.size(); i++) {</span>
+<span class="fc" id="L181">            FatBlock fb = (FatBlock)(theBlocks.get(i));</span>
+<span class="fc" id="L182">            Block b = fb.realBlock;</span>
+<span class="fc" id="L183">            b.itsSuccessors = fb.getSuccessors();</span>
+<span class="fc" id="L184">            b.itsPredecessors = fb.getPredecessors();</span>
+<span class="fc" id="L185">            b.itsBlockID = i;</span>
+<span class="fc" id="L186">            result[i] = b;</span>
+        }
+
+<span class="fc" id="L189">        return result;</span>
+    }
+
+    private static FatBlock newFatBlock(int startNodeIndex, int endNodeIndex)
+    {
+<span class="fc" id="L194">        FatBlock fb = new FatBlock();</span>
+<span class="fc" id="L195">        fb.realBlock = new Block(startNodeIndex, endNodeIndex);</span>
+<span class="fc" id="L196">        return fb;</span>
+    }
+
+    private static String toString(Block[] blockList, Node[] statementNodes)
+    {
+<span class="nc" id="L201">        if (!DEBUG) return null;</span>
+
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+
+        pw.println(blockList.length + &quot; Blocks&quot;);
+        for (int i = 0; i &lt; blockList.length; i++) {
+            Block b = blockList[i];
+            pw.println(&quot;#&quot; + b.itsBlockID);
+            pw.println(&quot;from &quot; + b.itsStartNodeIndex
+                    + &quot; &quot;
+                    + statementNodes[b.itsStartNodeIndex].toString());
+            pw.println(&quot;thru &quot; + b.itsEndNodeIndex
+                    + &quot; &quot;
+                    + statementNodes[b.itsEndNodeIndex].toString());
+            pw.print(&quot;Predecessors &quot;);
+            if (b.itsPredecessors != null) {
+                for (int j = 0; j &lt; b.itsPredecessors.length; j++) {
+                    pw.print(b.itsPredecessors[j].itsBlockID + &quot; &quot;);
+                }
+                pw.println();
+            } else {
+                pw.println(&quot;none&quot;);
+            }
+            pw.print(&quot;Successors &quot;);
+            if (b.itsSuccessors != null) {
+                for (int j = 0; j &lt; b.itsSuccessors.length; j++) {
+                    pw.print(b.itsSuccessors[j].itsBlockID + &quot; &quot;);
+                }
+                pw.println();
+            } else {
+                pw.println(&quot;none&quot;);
+            }
+        }
+        return sw.toString();
+    }
+
+    private static void reachingDefDataFlow(OptFunctionNode fn, Node[] statementNodes,
+                                            Block theBlocks[], int[] varTypes)
+    {
+/*
+    initialize the liveOnEntry and liveOnExit sets, then discover the variables
+    that are def'd by each function, and those that are used before being def'd
+    (hence liveOnEntry)
+*/
+<span class="fc bfc" id="L246" title="All 2 branches covered.">        for (int i = 0; i &lt; theBlocks.length; i++) {</span>
+<span class="fc" id="L247">            theBlocks[i].initLiveOnEntrySets(fn, statementNodes);</span>
+        }
+/*
+    this visits every block starting at the last, re-adding the predecessors of
+    any block whose inputs change as a result of the dataflow.
+    REMIND, better would be to visit in CFG postorder
+*/
+<span class="fc" id="L254">        boolean visit[] = new boolean[theBlocks.length];</span>
+<span class="fc" id="L255">        boolean doneOnce[] = new boolean[theBlocks.length];</span>
+<span class="fc" id="L256">        int vIndex = theBlocks.length - 1;</span>
+<span class="fc" id="L257">        boolean needRescan = false;</span>
+<span class="fc" id="L258">        visit[vIndex] = true;</span>
+        while (true) {
+<span class="pc bpc" id="L260" title="1 of 4 branches missed.">            if (visit[vIndex] || !doneOnce[vIndex]) {</span>
+<span class="fc" id="L261">                doneOnce[vIndex] = true;</span>
+<span class="fc" id="L262">                visit[vIndex] = false;</span>
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">                if (theBlocks[vIndex].doReachedUseDataFlow()) {</span>
+<span class="nc" id="L264">                    Block pred[] = theBlocks[vIndex].itsPredecessors;</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                    if (pred != null) {</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                        for (int i = 0; i &lt; pred.length; i++) {</span>
+<span class="nc" id="L267">                            int index = pred[i].itsBlockID;</span>
+<span class="nc" id="L268">                            visit[index] = true;</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">                            needRescan |= (index &gt; vIndex);</span>
+                        }
+                    }
+                }
+            }
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            if (vIndex == 0) {</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">                if (needRescan) {</span>
+<span class="nc" id="L276">                    vIndex = theBlocks.length - 1;</span>
+<span class="nc" id="L277">                    needRescan = false;</span>
+                } else {
+                    break;
+                }
+            } else {
+<span class="fc" id="L282">                vIndex--;</span>
+            }
+        }
+/*
+        if any variable is live on entry to block 0, we have to mark it as
+        not jRegable - since it means that someone is trying to access the
+        'undefined'-ness of that variable.
+*/
+
+<span class="fc" id="L291">        theBlocks[0].markAnyTypeVariables(varTypes);</span>
+<span class="fc" id="L292">    }</span>
+
+    private static void typeFlow(OptFunctionNode fn, Node[] statementNodes,
+                                 Block theBlocks[], int[] varTypes)
+    {
+<span class="fc" id="L297">        boolean visit[] = new boolean[theBlocks.length];</span>
+<span class="fc" id="L298">        boolean doneOnce[] = new boolean[theBlocks.length];</span>
+<span class="fc" id="L299">        int vIndex = 0;</span>
+<span class="fc" id="L300">        boolean needRescan = false;</span>
+<span class="fc" id="L301">        visit[vIndex] = true;</span>
+        while (true) {
+<span class="pc bpc" id="L303" title="1 of 4 branches missed.">            if (visit[vIndex] || !doneOnce[vIndex]) {</span>
+<span class="fc" id="L304">                doneOnce[vIndex] = true;</span>
+<span class="fc" id="L305">                visit[vIndex] = false;</span>
+<span class="pc bpc" id="L306" title="1 of 2 branches missed.">                if (theBlocks[vIndex].doTypeFlow(fn, statementNodes, varTypes))</span>
+                {
+<span class="nc" id="L308">                    Block succ[] = theBlocks[vIndex].itsSuccessors;</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">                    if (succ != null) {</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                        for (int i = 0; i &lt; succ.length; i++) {</span>
+<span class="nc" id="L311">                            int index = succ[i].itsBlockID;</span>
+<span class="nc" id="L312">                            visit[index] = true;</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                            needRescan |= (index &lt; vIndex);</span>
+                        }
+                    }
+                }
+            }
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (vIndex == (theBlocks.length - 1)) {</span>
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">                if (needRescan) {</span>
+<span class="nc" id="L320">                    vIndex = 0;</span>
+<span class="nc" id="L321">                    needRescan = false;</span>
+                } else {
+                    break;
+                }
+            } else {
+<span class="fc" id="L326">                vIndex++;</span>
+            }
+        }
+<span class="fc" id="L329">    }</span>
+
+    private static boolean assignType(int[] varTypes, int index, int type)
+    {
+<span class="nc" id="L333">        int prev = varTypes[index];</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        return prev != (varTypes[index] |= type);</span>
+    }
+
+    private void markAnyTypeVariables(int[] varTypes)
+    {
+<span class="pc bpc" id="L339" title="1 of 2 branches missed.">        for (int i = 0; i != varTypes.length; i++) {</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">            if (itsLiveOnEntrySet.get(i)) {</span>
+<span class="nc" id="L341">                assignType(varTypes, i, Optimizer.AnyType);</span>
+            }
+        }
+
+<span class="fc" id="L345">    }</span>
+
+    /*
+        We're tracking uses and defs - in order to
+        build the def set and to identify the last use
+        nodes.
+
+        The itsNotDefSet is built reversed then flipped later.
+
+    */
+    private void lookForVariableAccess(OptFunctionNode fn, Node n)
+    {
+<span class="pc bpc" id="L357" title="2 of 5 branches missed.">        switch (n.getType()) {</span>
+            case Token.TYPEOFNAME:
+            {
+                // TYPEOFNAME may be used with undefined names, which is why
+                // this is handled separately from GETVAR above.
+<span class="nc" id="L362">                int varIndex = fn.fnode.getIndexForNameNode(n);</span>
+<span class="nc bnc" id="L363" title="All 4 branches missed.">                if (varIndex &gt; -1 &amp;&amp; !itsNotDefSet.get(varIndex))</span>
+<span class="nc" id="L364">                    itsUseBeforeDefSet.set(varIndex);</span>
+            }
+<span class="nc" id="L366">            break;</span>
+            case Token.DEC :
+            case Token.INC :
+            {
+<span class="fc" id="L370">                Node child = n.getFirstChild();</span>
+<span class="pc bpc" id="L371" title="1 of 2 branches missed.">                if (child.getType() == Token.GETVAR) {</span>
+<span class="nc" id="L372">                    int varIndex = fn.getVarIndex(child);</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">                    if (!itsNotDefSet.get(varIndex))</span>
+<span class="nc" id="L374">                        itsUseBeforeDefSet.set(varIndex);</span>
+<span class="nc" id="L375">                    itsNotDefSet.set(varIndex);</span>
+<span class="nc" id="L376">                } else {</span>
+<span class="fc" id="L377">                    lookForVariableAccess(fn, child);</span>
+                }
+            }
+<span class="fc" id="L380">            break;</span>
+            case Token.SETVAR :
+            case Token.SETCONSTVAR :
+            {
+<span class="fc" id="L384">                Node lhs = n.getFirstChild();</span>
+<span class="fc" id="L385">                Node rhs = lhs.getNext();</span>
+<span class="fc" id="L386">                lookForVariableAccess(fn, rhs);</span>
+<span class="nc" id="L387">                itsNotDefSet.set(fn.getVarIndex(n));</span>
+            }
+<span class="nc" id="L389">            break;</span>
+            case Token.GETVAR :
+            {
+<span class="nc" id="L392">                int varIndex = fn.getVarIndex(n);</span>
+<span class="nc bnc" id="L393" title="All 2 branches missed.">                if (!itsNotDefSet.get(varIndex))</span>
+<span class="nc" id="L394">                    itsUseBeforeDefSet.set(varIndex);</span>
+            }
+<span class="nc" id="L396">            break;</span>
+            default :
+<span class="fc" id="L398">                Node child = n.getFirstChild();</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">                while (child != null) {</span>
+<span class="fc" id="L400">                    lookForVariableAccess(fn, child);</span>
+<span class="fc" id="L401">                    child = child.getNext();</span>
+                }
+                break;
+        }
+<span class="fc" id="L405">    }</span>
+
+    /*
+        build the live on entry/exit sets.
+        Then walk the trees looking for defs/uses of variables
+        and build the def and useBeforeDef sets.
+    */
+    private void initLiveOnEntrySets(OptFunctionNode fn, Node[] statementNodes)
+    {
+<span class="fc" id="L414">        int listLength = fn.getVarCount();</span>
+<span class="fc" id="L415">        itsUseBeforeDefSet = new BitSet(listLength);</span>
+<span class="fc" id="L416">        itsNotDefSet = new BitSet(listLength);</span>
+<span class="fc" id="L417">        itsLiveOnEntrySet = new BitSet(listLength);</span>
+<span class="fc" id="L418">        itsLiveOnExitSet = new BitSet(listLength);</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">        for (int i = itsStartNodeIndex; i &lt;= itsEndNodeIndex; i++) {</span>
+<span class="fc" id="L420">            Node n = statementNodes[i];</span>
+<span class="fc" id="L421">            lookForVariableAccess(fn, n);</span>
+        }
+<span class="fc" id="L423">        itsNotDefSet.flip(0, listLength);         // truth in advertising</span>
+<span class="fc" id="L424">    }</span>
+
+    /*
+        the liveOnEntry of each successor is the liveOnExit for this block.
+        The liveOnEntry for this block is -
+        liveOnEntry = liveOnExit - defsInThisBlock + useBeforeDefsInThisBlock
+
+    */
+    private boolean doReachedUseDataFlow()
+    {
+<span class="fc" id="L434">        itsLiveOnExitSet.clear();</span>
+<span class="fc bfc" id="L435" title="All 2 branches covered.">        if (itsSuccessors != null) {</span>
+<span class="fc bfc" id="L436" title="All 2 branches covered.">            for (int i = 0; i &lt; itsSuccessors.length; i++) {</span>
+<span class="fc" id="L437">                itsLiveOnExitSet.or(itsSuccessors[i].itsLiveOnEntrySet);</span>
+            }
+        }
+<span class="fc" id="L440">        return updateEntrySet(itsLiveOnEntrySet, itsLiveOnExitSet,</span>
+                              itsUseBeforeDefSet, itsNotDefSet);
+    }
+
+    private boolean updateEntrySet(BitSet entrySet, BitSet exitSet,
+                                   BitSet useBeforeDef, BitSet notDef) {
+<span class="fc" id="L446">        int card = entrySet.cardinality();</span>
+<span class="fc" id="L447">        entrySet.or(exitSet);</span>
+<span class="fc" id="L448">        entrySet.and(notDef);</span>
+<span class="fc" id="L449">        entrySet.or(useBeforeDef);</span>
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">        return entrySet.cardinality() != card;</span>
+    }
+
+    /*
+        the type of an expression is relatively unknown. Cases we can be sure
+        about are -
+            Literals,
+            Arithmetic operations - always return a Number
+    */
+    private static int findExpressionType(OptFunctionNode fn, Node n,
+                                          int[] varTypes)
+    {
+<span class="nc bnc" id="L462" title="All 14 branches missed.">        switch (n.getType()) {</span>
+            case Token.NUMBER:
+<span class="nc" id="L464">                return Optimizer.NumberType;</span>
+
+            case Token.CALL:
+            case Token.NEW:
+            case Token.REF_CALL:
+<span class="nc" id="L469">                return Optimizer.AnyType;</span>
+
+            case Token.GETELEM:
+            case Token.GETPROP:
+            case Token.NAME:
+            case Token.THIS:
+<span class="nc" id="L475">                return Optimizer.AnyType;</span>
+
+            case Token.GETVAR:
+<span class="nc" id="L478">                return varTypes[fn.getVarIndex(n)];</span>
+
+            case Token.INC:
+            case Token.DEC:
+            case Token.MUL:
+            case Token.DIV:
+            case Token.MOD:
+            case Token.BITOR:
+            case Token.BITXOR:
+            case Token.BITAND:
+            case Token.BITNOT:
+            case Token.LSH:
+            case Token.RSH:
+            case Token.URSH:
+            case Token.SUB:
+            case Token.POS:
+            case Token.NEG:
+<span class="nc" id="L495">                return Optimizer.NumberType;</span>
+
+            case Token.VOID:
+                // NYI: undefined type
+<span class="nc" id="L499">                return Optimizer.AnyType;</span>
+
+            case Token.FALSE:
+            case Token.TRUE:
+            case Token.EQ:
+            case Token.NE:
+            case Token.LT:
+            case Token.LE:
+            case Token.GT:
+            case Token.GE:
+            case Token.SHEQ:
+            case Token.SHNE:
+            case Token.NOT:
+            case Token.INSTANCEOF:
+            case Token.IN:
+            case Token.DEL_REF:
+            case Token.DELPROP:
+                // NYI: boolean type
+<span class="nc" id="L517">                return Optimizer.AnyType;</span>
+
+            case Token.STRING:
+            case Token.TYPEOF:
+            case Token.TYPEOFNAME:
+                // NYI: string type
+<span class="nc" id="L523">                return Optimizer.AnyType;</span>
+
+            case Token.NULL:
+            case Token.REGEXP:
+            case Token.ARRAYCOMP:
+            case Token.ARRAYLIT:
+            case Token.OBJECTLIT:
+<span class="nc" id="L530">                return Optimizer.AnyType; // XXX: actually, we know it's not</span>
+            // number, but no type yet for that
+
+            case Token.ADD: {
+                // if the lhs &amp; rhs are known to be numbers, we can be sure that's
+                // the result, otherwise it could be a string.
+<span class="nc" id="L536">                Node child = n.getFirstChild();</span>
+<span class="nc" id="L537">                int lType = findExpressionType(fn, child, varTypes);</span>
+<span class="nc" id="L538">                int rType = findExpressionType(fn, child.getNext(), varTypes);</span>
+<span class="nc" id="L539">                return lType | rType;    // we're not distinguishing strings yet</span>
+            }
+
+            case Token.HOOK: {
+<span class="nc" id="L543">                Node ifTrue = n.getFirstChild().getNext();</span>
+<span class="nc" id="L544">                Node ifFalse = ifTrue.getNext();</span>
+<span class="nc" id="L545">                int ifTrueType = findExpressionType(fn, ifTrue, varTypes);</span>
+<span class="nc" id="L546">                int ifFalseType = findExpressionType(fn, ifFalse, varTypes);</span>
+<span class="nc" id="L547">                return ifTrueType | ifFalseType;</span>
+            }
+
+            case Token.COMMA:
+            case Token.SETVAR:
+            case Token.SETCONSTVAR:
+            case Token.SETNAME:
+            case Token.SETPROP:
+            case Token.SETELEM:
+<span class="nc" id="L556">                return findExpressionType(fn, n.getLastChild(), varTypes);</span>
+
+            case Token.AND:
+            case Token.OR: {
+<span class="nc" id="L560">                Node child = n.getFirstChild();</span>
+<span class="nc" id="L561">                int lType = findExpressionType(fn, child, varTypes);</span>
+<span class="nc" id="L562">                int rType = findExpressionType(fn, child.getNext(), varTypes);</span>
+<span class="nc" id="L563">                return lType | rType;</span>
+            }
+        }
+
+<span class="nc" id="L567">        return Optimizer.AnyType;</span>
+    }
+
+    private static boolean findDefPoints(OptFunctionNode fn, Node n,
+                                         int[] varTypes)
+    {
+<span class="fc" id="L573">        boolean result = false;</span>
+<span class="fc" id="L574">        Node first = n.getFirstChild();</span>
+<span class="fc bfc" id="L575" title="All 2 branches covered.">        for (Node next = first; next != null; next = next.getNext()) {</span>
+<span class="fc" id="L576">            result |= findDefPoints(fn, next, varTypes);</span>
+        }
+<span class="pc bpc" id="L578" title="1 of 3 branches missed.">        switch (n.getType()) {</span>
+            case Token.DEC :
+            case Token.INC :
+<span class="pc bpc" id="L581" title="1 of 2 branches missed.">                if (first.getType() == Token.GETVAR) {</span>
+                    // theVar is a Number now
+<span class="nc" id="L583">                    int i = fn.getVarIndex(first);</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">                    if (!fn.fnode.getParamAndVarConst()[i]) {</span>
+<span class="nc" id="L585">                        result |= assignType(varTypes, i, Optimizer.NumberType);</span>
+                    }
+<span class="nc" id="L587">                }</span>
+                break;
+            case Token.SETVAR :
+            case Token.SETCONSTVAR : {
+<span class="nc" id="L591">                Node rValue = first.getNext();</span>
+<span class="nc" id="L592">                int theType = findExpressionType(fn, rValue, varTypes);</span>
+<span class="nc" id="L593">                int i = fn.getVarIndex(n);</span>
+<span class="nc bnc" id="L594" title="All 2 branches missed.">                if (!(n.getType() == Token.SETVAR</span>
+<span class="nc bnc" id="L595" title="All 2 branches missed.">                        &amp;&amp; fn.fnode.getParamAndVarConst()[i])) {</span>
+<span class="nc" id="L596">                    result |= assignType(varTypes, i, theType);</span>
+                }
+                break;
+            }
+        }
+<span class="fc" id="L601">        return result;</span>
+    }
+
+    private boolean doTypeFlow(OptFunctionNode fn, Node[] statementNodes,
+                               int[] varTypes)
+    {
+<span class="fc" id="L607">        boolean changed = false;</span>
+
+<span class="fc bfc" id="L609" title="All 2 branches covered.">        for (int i = itsStartNodeIndex; i &lt;= itsEndNodeIndex; i++) {</span>
+<span class="fc" id="L610">            Node n = statementNodes[i];</span>
+<span class="pc bpc" id="L611" title="1 of 2 branches missed.">            if (n != null) {</span>
+<span class="fc" id="L612">                changed |= findDefPoints(fn, n, varTypes);</span>
+            }
+        }
+
+<span class="fc" id="L616">        return changed;</span>
+    }
+
+    private void printLiveOnEntrySet(OptFunctionNode fn)
+    {
+        if (DEBUG) {
+            for (int i = 0; i &lt; fn.getVarCount(); i++) {
+                String name = fn.fnode.getParamOrVarName(i);
+                if (itsUseBeforeDefSet.get(i))
+                    System.out.println(name + &quot; is used before def'd&quot;);
+                if (itsNotDefSet.get(i))
+                    System.out.println(name + &quot; is not def'd&quot;);
+                if (itsLiveOnEntrySet.get(i))
+                    System.out.println(name + &quot; is live on entry&quot;);
+                if (itsLiveOnExitSet.get(i))
+                    System.out.println(name + &quot; is live on exit&quot;);
+            }
+        }
+<span class="nc" id="L634">    }</span>
+
+    // all the Blocks that come immediately after this
+    private Block[] itsSuccessors;
+    // all the Blocks that come immediately before this
+    private Block[] itsPredecessors;
+
+    private int itsStartNodeIndex;       // the Node at the start of the block
+    private int itsEndNodeIndex;         // the Node at the end of the block
+
+    private int itsBlockID;               // a unique index for each block
+
+    // reaching def bit sets -
+    private BitSet itsLiveOnEntrySet;
+    private BitSet itsLiveOnExitSet;
+    private BitSet itsUseBeforeDefSet;
+    private BitSet itsNotDefSet;
+
+    static final boolean DEBUG = false;
+    private static int debug_blockCount;
+
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

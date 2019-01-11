@@ -1,0 +1,795 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLList.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLList.java</span></div><h1>XMLList.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.xml.*;
+import java.util.ArrayList;
+
+class XMLList extends XMLObjectImpl implements Function {
+    static final long serialVersionUID = -4543618751670781135L;
+
+    private XmlNode.InternalList _annos;
+<span class="fc" id="L17">    private XMLObjectImpl targetObject = null;</span>
+<span class="fc" id="L18">    private XmlNode.QName targetProperty = null;</span>
+
+    XMLList(XMLLibImpl lib, Scriptable scope, XMLObject prototype) {
+<span class="fc" id="L21">        super(lib, scope, prototype);</span>
+<span class="fc" id="L22">        _annos = new XmlNode.InternalList();</span>
+<span class="fc" id="L23">    }</span>
+
+    /* TODO Will probably end up unnecessary as we move things around */
+    XmlNode.InternalList getNodeList() {
+<span class="fc" id="L27">        return _annos;</span>
+    }
+
+    //    TODO    Should be XMLObjectImpl, XMLName?
+    void setTargets(XMLObjectImpl object, XmlNode.QName property) {
+<span class="nc" id="L32">        targetObject = object;</span>
+<span class="nc" id="L33">        targetProperty = property;</span>
+<span class="nc" id="L34">    }</span>
+
+    /* TODO: original author marked this as deprecated */
+    private XML getXmlFromAnnotation(int index) {
+<span class="nc" id="L38">        return getXML(_annos, index);</span>
+    }
+
+    @Override
+    XML getXML() {
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (length() == 1) return getXmlFromAnnotation(0);</span>
+<span class="nc" id="L44">        return null;</span>
+    }
+
+    private void internalRemoveFromList(int index) {
+<span class="nc" id="L48">        _annos.remove(index);</span>
+<span class="nc" id="L49">    }</span>
+
+    void replace(int index, XML xml) {
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (index &lt; length()) {</span>
+<span class="nc" id="L53">            XmlNode.InternalList newAnnoList = new XmlNode.InternalList();</span>
+<span class="nc" id="L54">            newAnnoList.add(_annos, 0, index);</span>
+<span class="nc" id="L55">            newAnnoList.add(xml);</span>
+<span class="nc" id="L56">            newAnnoList.add(_annos, index+1, length());</span>
+<span class="nc" id="L57">            _annos = newAnnoList;</span>
+        }
+<span class="nc" id="L59">    }</span>
+
+    private void insert(int index, XML xml) {
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (index &lt; length()) {</span>
+<span class="nc" id="L63">            XmlNode.InternalList newAnnoList = new XmlNode.InternalList();</span>
+<span class="nc" id="L64">            newAnnoList.add(_annos, 0, index);</span>
+<span class="nc" id="L65">            newAnnoList.add(xml);</span>
+<span class="nc" id="L66">            newAnnoList.add(_annos, index, length());</span>
+<span class="nc" id="L67">            _annos = newAnnoList;</span>
+        }
+<span class="nc" id="L69">    }</span>
+
+    //
+    //
+    //  methods overriding ScriptableObject
+    //
+    //
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L79">        return &quot;XMLList&quot;;</span>
+    }
+
+    //
+    //
+    //  methods overriding IdScriptableObject
+    //
+    //
+
+    @Override
+    public Object get(int index, Scriptable start) {
+        //Log(&quot;get index: &quot; + index);
+
+<span class="nc bnc" id="L92" title="All 4 branches missed.">        if (index &gt;= 0 &amp;&amp; index &lt; length()) {</span>
+<span class="nc" id="L93">            return getXmlFromAnnotation(index);</span>
+        } else {
+<span class="nc" id="L95">            return Scriptable.NOT_FOUND;</span>
+        }
+    }
+
+    @Override
+    boolean hasXMLProperty(XMLName xmlName) {
+        // Has should return true if the property would have results &gt; 0
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        return getPropertyList(xmlName).length() &gt; 0;</span>
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start) {
+<span class="nc bnc" id="L107" title="All 4 branches missed.">        return 0 &lt;= index &amp;&amp; index &lt; length();</span>
+    }
+
+    @Override
+    void putXMLProperty(XMLName xmlName, Object value) {
+        //Log(&quot;put property: &quot; + name);
+
+        // Special-case checks for undefined and null
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L116">            value = &quot;null&quot;;</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        } else if (value instanceof Undefined) {</span>
+<span class="nc" id="L118">            value = &quot;undefined&quot;;</span>
+        }
+
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (length() &gt; 1) {</span>
+<span class="nc" id="L122">            throw ScriptRuntime.typeError(</span>
+               &quot;Assignment to lists with more than one item is not supported&quot;);
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        } else if (length() == 0) {</span>
+            // Secret sauce for super-expandos.
+            // We set an element here, and then add ourselves to our target.
+<span class="nc bnc" id="L127" title="All 4 branches missed.">            if (targetObject != null &amp;&amp; targetProperty != null &amp;&amp;</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                targetProperty.getLocalName() != null &amp;&amp;</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">                targetProperty.getLocalName().length() &gt; 0)</span>
+            {
+                // Add an empty element with our targetProperty name and
+                // then set it.
+<span class="nc" id="L133">                XML xmlValue = newTextElementXML(null, targetProperty, null);</span>
+<span class="nc" id="L134">                addToList(xmlValue);</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                if(xmlName.isAttributeName()) {</span>
+<span class="nc" id="L137">                    setAttribute(xmlName, value);</span>
+                } else {
+<span class="nc" id="L139">                    XML xml = item(0);</span>
+<span class="nc" id="L140">                    xml.putXMLProperty(xmlName, value);</span>
+
+                    // Update the list with the new item at location 0.
+<span class="nc" id="L143">                    replace(0, item(0));</span>
+                }
+
+                // Now add us to our parent
+<span class="nc" id="L147">                XMLName name2 = XMLName.formProperty(</span>
+<span class="nc" id="L148">                        targetProperty.getNamespace().getUri(),</span>
+<span class="nc" id="L149">                        targetProperty.getLocalName());</span>
+<span class="nc" id="L150">                targetObject.putXMLProperty(name2, this);</span>
+<span class="nc" id="L151">                replace(0, targetObject.getXML().getLastXmlChild());</span>
+<span class="nc" id="L152">            } else {</span>
+<span class="nc" id="L153">                throw ScriptRuntime.typeError(</span>
+                  &quot;Assignment to empty XMLList without targets not supported&quot;);
+            }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        } else if(xmlName.isAttributeName()) {</span>
+<span class="nc" id="L157">            setAttribute(xmlName, value);</span>
+        } else {
+<span class="nc" id="L159">            XML xml = item(0);</span>
+<span class="nc" id="L160">            xml.putXMLProperty(xmlName, value);</span>
+
+            // Update the list with the new item at location 0.
+<span class="nc" id="L163">            replace(0, item(0));</span>
+        }
+<span class="nc" id="L165">    }</span>
+
+    @Override
+    Object getXMLProperty(XMLName name) {
+<span class="nc" id="L169">        return getPropertyList(name);</span>
+    }
+
+    private void replaceNode(XML xml, XML with) {
+<span class="nc" id="L173">        xml.replaceWith(with);</span>
+<span class="nc" id="L174">    }</span>
+
+    @Override
+    public void put(int index, Scriptable start, Object value) {
+<span class="nc" id="L178">        Object parent = Undefined.instance;</span>
+        // Convert text into XML if needed.
+        XMLObject xmlValue;
+
+        // Special-case checks for undefined and null
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L184">            value = &quot;null&quot;;</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        } else if (value instanceof Undefined) {</span>
+<span class="nc" id="L186">            value = &quot;undefined&quot;;</span>
+        }
+
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (value instanceof XMLObject) {</span>
+<span class="nc" id="L190">            xmlValue = (XMLObject) value;</span>
+        } else {
+<span class="nc bnc" id="L192" title="All 2 branches missed.">            if (targetProperty == null) {</span>
+<span class="nc" id="L193">                xmlValue = newXMLFromJs(value.toString());</span>
+            } else {
+                //    Note that later in the code, we will use this as an argument to replace(int,value)
+                //    So we will be &quot;replacing&quot; this element with itself
+                //    There may well be a better way to do this
+                //    TODO    Find a way to refactor this whole method and simplify it
+<span class="nc" id="L199">                xmlValue = item(index);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                if (xmlValue == null) {</span>
+<span class="nc" id="L201">                    XML x = item(0);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                    xmlValue = x == null</span>
+<span class="nc" id="L203">                        ? newTextElementXML(null,targetProperty,null)</span>
+<span class="nc" id="L204">                        : x.copy();</span>
+                }
+<span class="nc" id="L206">                ((XML)xmlValue).setChildren(value);</span>
+            }
+        }
+
+        // Find the parent
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        if (index &lt; length()) {</span>
+<span class="nc" id="L212">          parent = item(index).parent();</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        } else if (length() == 0) {</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">          parent = targetObject != null ? targetObject.getXML() : parent();</span>
+        } else {
+          // Appending
+<span class="nc" id="L217">          parent = parent();</span>
+        }
+
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        if (parent instanceof XML) {</span>
+            // found parent, alter doc
+<span class="nc" id="L222">            XML xmlParent = (XML) parent;</span>
+
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            if (index &lt; length()) {</span>
+                // We're replacing the the node.
+<span class="nc" id="L226">                XML xmlNode = getXmlFromAnnotation(index);</span>
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                if (xmlValue instanceof XML) {</span>
+<span class="nc" id="L229">                    replaceNode(xmlNode, (XML) xmlValue);</span>
+<span class="nc" id="L230">                    replace(index, xmlNode);</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                } else if (xmlValue instanceof XMLList) {</span>
+                    // Replace the first one, and add the rest on the list.
+<span class="nc" id="L233">                    XMLList list = (XMLList) xmlValue;</span>
+
+<span class="nc bnc" id="L235" title="All 2 branches missed.">                    if (list.length() &gt; 0) {</span>
+<span class="nc" id="L236">                        int lastIndexAdded = xmlNode.childIndex();</span>
+<span class="nc" id="L237">                        replaceNode(xmlNode, list.item(0));</span>
+<span class="nc" id="L238">                        replace(index, list.item(0));</span>
+
+<span class="nc bnc" id="L240" title="All 2 branches missed.">                        for (int i = 1; i &lt; list.length(); i++) {</span>
+<span class="nc" id="L241">                            xmlParent.insertChildAfter(xmlParent.getXmlChild(lastIndexAdded), list.item(i));</span>
+<span class="nc" id="L242">                            lastIndexAdded++;</span>
+<span class="nc" id="L243">                            insert(index + i, list.item(i));</span>
+                        }
+                    }
+                }
+<span class="nc" id="L247">            } else {</span>
+                // Appending
+<span class="nc" id="L249">                xmlParent.appendChild(xmlValue);</span>
+<span class="nc" id="L250">                addToList(xmlParent.getLastXmlChild());</span>
+            }
+<span class="nc" id="L252">        } else {</span>
+            // Don't all have same parent, no underlying doc to alter
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            if (index &lt; length()) {</span>
+<span class="nc" id="L255">                XML xmlNode = getXML(_annos, index);</span>
+
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                if (xmlValue instanceof XML) {</span>
+<span class="nc" id="L258">                    replaceNode(xmlNode, (XML) xmlValue);</span>
+<span class="nc" id="L259">                    replace(index, xmlNode);</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">                } else if (xmlValue instanceof XMLList) {</span>
+                    // Replace the first one, and add the rest on the list.
+<span class="nc" id="L262">                    XMLList list = (XMLList) xmlValue;</span>
+
+<span class="nc bnc" id="L264" title="All 2 branches missed.">                    if (list.length() &gt; 0) {</span>
+<span class="nc" id="L265">                        replaceNode(xmlNode, list.item(0));</span>
+<span class="nc" id="L266">                        replace(index, list.item(0));</span>
+
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                        for (int i = 1; i &lt; list.length(); i++) {</span>
+<span class="nc" id="L269">                            insert(index + i, list.item(i));</span>
+                        }
+                    }
+                }
+<span class="nc" id="L273">            } else {</span>
+<span class="nc" id="L274">                addToList(xmlValue);</span>
+            }
+        }
+<span class="nc" id="L277">    }</span>
+
+    private XML getXML(XmlNode.InternalList _annos, int index) {
+<span class="nc bnc" id="L280" title="All 4 branches missed.">        if (index &gt;= 0 &amp;&amp; index &lt; length()) {</span>
+<span class="nc" id="L281">            return xmlFromNode(_annos.item(index));</span>
+        } else {
+<span class="nc" id="L283">            return null;</span>
+        }
+    }
+
+    @Override
+    void deleteXMLProperty(XMLName name) {
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L290">            XML xml = getXmlFromAnnotation(i);</span>
+
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            if (xml.isElement()) {</span>
+<span class="nc" id="L293">                xml.deleteXMLProperty(name);</span>
+            }
+        }
+<span class="nc" id="L296">    }</span>
+
+    @Override
+    public void delete(int index) {
+<span class="nc bnc" id="L300" title="All 4 branches missed.">        if (index &gt;= 0 &amp;&amp; index &lt; length()) {</span>
+<span class="nc" id="L301">            XML xml = getXmlFromAnnotation(index);</span>
+
+<span class="nc" id="L303">            xml.remove();</span>
+
+<span class="nc" id="L305">            internalRemoveFromList(index);</span>
+        }
+<span class="nc" id="L307">    }</span>
+
+    @Override
+    public Object[] getIds() {
+        Object enumObjs[];
+
+<span class="pc bpc" id="L313" title="1 of 2 branches missed.">        if (isPrototype()) {</span>
+<span class="nc" id="L314">            enumObjs = new Object[0];</span>
+        } else {
+<span class="fc" id="L316">            enumObjs = new Object[length()];</span>
+
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">            for (int i = 0; i &lt; enumObjs.length; i++) {</span>
+<span class="nc" id="L319">                enumObjs[i] = Integer.valueOf(i);</span>
+            }
+        }
+
+<span class="fc" id="L323">        return enumObjs;</span>
+    }
+
+    public Object[] getIdsForDebug() {
+<span class="nc" id="L327">        return getIds();</span>
+    }
+
+
+    // XMLList will remove will delete all items in the list (a set delete) this differs from the XMLList delete operator.
+    void remove() {
+<span class="nc" id="L333">        int nLen = length();</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        for (int i = nLen - 1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L335">            XML xml = getXmlFromAnnotation(i);</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">            if (xml != null) {</span>
+<span class="nc" id="L337">                xml.remove();</span>
+<span class="nc" id="L338">                internalRemoveFromList(i);</span>
+            }
+        }
+<span class="nc" id="L341">    }</span>
+
+    XML item(int index) {
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        return _annos != null</span>
+<span class="nc" id="L345">            ? getXmlFromAnnotation(index) : createEmptyXML();</span>
+    }
+
+    private void setAttribute(XMLName xmlName, Object value) {
+<span class="nc bnc" id="L349" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L350">            XML xml = getXmlFromAnnotation(i);</span>
+<span class="nc" id="L351">            xml.setAttribute(xmlName, value);</span>
+        }
+<span class="nc" id="L353">    }</span>
+
+    void addToList(Object toAdd) {
+<span class="nc" id="L356">        _annos.addToList(toAdd);</span>
+<span class="nc" id="L357">    }</span>
+
+    //
+    //
+    // Methods from section 12.4.4 in the spec
+    //
+    //
+
+    @Override
+    XMLList child(int index) {
+<span class="nc" id="L367">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L370">            result.addToList(getXmlFromAnnotation(i).child(index));</span>
+        }
+
+<span class="nc" id="L373">        return result;</span>
+    }
+
+    @Override
+    XMLList child(XMLName xmlName) {
+<span class="nc" id="L378">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L380" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L381">            result.addToList(getXmlFromAnnotation(i).child(xmlName));</span>
+        }
+
+<span class="nc" id="L384">        return result;</span>
+    }
+
+    @Override
+    void addMatches(XMLList rv, XMLName name) {
+<span class="nc bnc" id="L389" title="All 2 branches missed.">        for (int i=0; i&lt;length(); i++) {</span>
+<span class="nc" id="L390">            getXmlFromAnnotation(i).addMatches(rv, name);</span>
+        }
+<span class="nc" id="L392">    }</span>
+
+    @Override
+    XMLList children() {
+<span class="nc" id="L396">        ArrayList&lt;XML&gt; list = new ArrayList&lt;XML&gt;();</span>
+
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L399">            XML xml = getXmlFromAnnotation(i);</span>
+
+<span class="nc bnc" id="L401" title="All 2 branches missed.">            if (xml != null) {</span>
+<span class="nc" id="L402">                XMLList childList = xml.children();</span>
+
+<span class="nc" id="L404">                int cChildren = childList.length();</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                for (int j = 0; j &lt; cChildren; j++) {</span>
+<span class="nc" id="L406">                    list.add(childList.item(j));</span>
+                }
+            }
+        }
+
+<span class="nc" id="L411">        XMLList allChildren = newXMLList();</span>
+<span class="nc" id="L412">        int sz = list.size();</span>
+
+<span class="nc bnc" id="L414" title="All 2 branches missed.">        for (int i = 0; i &lt; sz; i++) {</span>
+<span class="nc" id="L415">            allChildren.addToList(list.get(i));</span>
+        }
+
+<span class="nc" id="L418">        return allChildren;</span>
+    }
+
+    @Override
+    XMLList comments() {
+<span class="nc" id="L423">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L425" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L426">            XML xml = getXmlFromAnnotation(i);</span>
+<span class="nc" id="L427">            result.addToList(xml.comments());</span>
+        }
+
+<span class="nc" id="L430">        return result;</span>
+    }
+
+    @Override
+    XMLList elements(XMLName name) {
+<span class="nc" id="L435">        XMLList rv = newXMLList();</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">        for (int i=0; i&lt;length(); i++) {</span>
+<span class="nc" id="L437">            XML xml = getXmlFromAnnotation(i);</span>
+<span class="nc" id="L438">            rv.addToList(xml.elements(name));</span>
+        }
+<span class="nc" id="L440">        return rv;</span>
+    }
+
+    @Override
+    boolean contains(Object xml) {
+<span class="nc" id="L445">        boolean result = false;</span>
+
+<span class="nc bnc" id="L447" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L448">            XML member = getXmlFromAnnotation(i);</span>
+
+<span class="nc bnc" id="L450" title="All 2 branches missed.">            if (member.equivalentXml(xml)) {</span>
+<span class="nc" id="L451">                result = true;</span>
+<span class="nc" id="L452">                break;</span>
+            }
+        }
+
+<span class="nc" id="L456">        return result;</span>
+    }
+
+    @Override
+    XMLObjectImpl copy() {
+<span class="nc" id="L461">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L463" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L464">            XML xml = getXmlFromAnnotation(i);</span>
+<span class="nc" id="L465">            result.addToList(xml.copy());</span>
+        }
+
+<span class="nc" id="L468">        return result;</span>
+    }
+
+    @Override
+    boolean hasOwnProperty(XMLName xmlName) {
+<span class="nc bnc" id="L473" title="All 2 branches missed.">        if (isPrototype()) {</span>
+<span class="nc" id="L474">            String property = xmlName.localName();</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">            return (findPrototypeId(property) != 0);</span>
+        } else {
+<span class="nc bnc" id="L477" title="All 2 branches missed.">            return (getPropertyList(xmlName).length() &gt; 0);</span>
+        }
+    }
+
+    @Override
+    boolean hasComplexContent() {
+        boolean complexContent;
+<span class="nc" id="L484">        int length = length();</span>
+
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        if (length == 0) {</span>
+<span class="nc" id="L487">            complexContent = false;</span>
+<span class="nc bnc" id="L488" title="All 2 branches missed.">        } else if (length == 1) {</span>
+<span class="nc" id="L489">            complexContent = getXmlFromAnnotation(0).hasComplexContent();</span>
+        } else {
+<span class="nc" id="L491">            complexContent = false;</span>
+
+<span class="nc bnc" id="L493" title="All 2 branches missed.">            for (int i = 0; i &lt; length; i++) {</span>
+<span class="nc" id="L494">                XML nextElement = getXmlFromAnnotation(i);</span>
+<span class="nc bnc" id="L495" title="All 2 branches missed.">                if (nextElement.isElement()) {</span>
+<span class="nc" id="L496">                    complexContent = true;</span>
+<span class="nc" id="L497">                    break;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L502">        return complexContent;</span>
+    }
+
+    @Override
+    boolean hasSimpleContent() {
+<span class="nc bnc" id="L507" title="All 2 branches missed.">        if (length() == 0) {</span>
+<span class="nc" id="L508">            return true;</span>
+<span class="nc bnc" id="L509" title="All 2 branches missed.">        } else if (length() == 1) {</span>
+<span class="nc" id="L510">            return getXmlFromAnnotation(0).hasSimpleContent();</span>
+        } else {
+<span class="nc bnc" id="L512" title="All 2 branches missed.">            for (int i=0; i&lt;length(); i++) {</span>
+<span class="nc" id="L513">                XML nextElement = getXmlFromAnnotation(i);</span>
+<span class="nc bnc" id="L514" title="All 2 branches missed.">                if (nextElement.isElement()) {</span>
+<span class="nc" id="L515">                    return false;</span>
+                }
+            }
+<span class="nc" id="L518">            return true;</span>
+        }
+    }
+
+    @Override
+    int length() {
+<span class="fc" id="L524">        int result = 0;</span>
+
+<span class="pc bpc" id="L526" title="1 of 2 branches missed.">        if (_annos != null) {</span>
+<span class="fc" id="L527">            result = _annos.length();</span>
+        }
+
+<span class="fc" id="L530">        return result;</span>
+    }
+
+    @Override
+    void normalize() {
+<span class="nc bnc" id="L535" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L536">            getXmlFromAnnotation(i).normalize();</span>
+        }
+<span class="nc" id="L538">    }</span>
+
+    /**
+     * If list is empty, return undefined, if elements have different parents return undefined,
+     * If they all have the same parent, return that parent
+     */
+    @Override
+    Object parent() {
+<span class="nc bnc" id="L546" title="All 2 branches missed.">        if (length() == 0) return Undefined.instance;</span>
+
+<span class="nc" id="L548">        XML candidateParent = null;</span>
+
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L551">            Object currParent = getXmlFromAnnotation(i).parent();</span>
+<span class="nc bnc" id="L552" title="All 2 branches missed.">            if (!(currParent instanceof XML)) return Undefined.instance;</span>
+<span class="nc" id="L553">            XML xml = (XML)currParent;</span>
+<span class="nc bnc" id="L554" title="All 2 branches missed.">            if (i == 0) {</span>
+                // Set the first for the rest to compare to.
+<span class="nc" id="L556">                candidateParent = xml;</span>
+            } else {
+<span class="nc bnc" id="L558" title="All 2 branches missed.">                if (candidateParent.is(xml)) {</span>
+                    //    keep looking
+                } else {
+<span class="nc" id="L561">                    return Undefined.instance;</span>
+                }
+            }
+        }
+<span class="nc" id="L565">        return candidateParent;</span>
+    }
+
+    @Override
+    XMLList processingInstructions(XMLName xmlName) {
+<span class="nc" id="L570">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L572" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L573">            XML xml = getXmlFromAnnotation(i);</span>
+
+<span class="nc" id="L575">            result.addToList(xml.processingInstructions(xmlName));</span>
+        }
+
+<span class="nc" id="L578">        return result;</span>
+    }
+
+    @Override
+    boolean propertyIsEnumerable(Object name) {
+        long index;
+<span class="nc bnc" id="L584" title="All 2 branches missed.">        if (name instanceof Integer) {</span>
+<span class="nc" id="L585">            index = ((Integer)name).intValue();</span>
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        } else if (name instanceof Number) {</span>
+<span class="nc" id="L587">            double x = ((Number)name).doubleValue();</span>
+<span class="nc" id="L588">            index = (long)x;</span>
+<span class="nc bnc" id="L589" title="All 2 branches missed.">            if (index != x) {</span>
+<span class="nc" id="L590">                return false;</span>
+            }
+<span class="nc bnc" id="L592" title="All 4 branches missed.">            if (index == 0 &amp;&amp; 1.0 / x &lt; 0) {</span>
+                // Negative 0
+<span class="nc" id="L594">                return false;</span>
+            }
+<span class="nc" id="L596">        } else {</span>
+<span class="nc" id="L597">            String s = ScriptRuntime.toString(name);</span>
+<span class="nc" id="L598">            index = ScriptRuntime.testUint32String(s);</span>
+        }
+<span class="nc bnc" id="L600" title="All 4 branches missed.">        return (0 &lt;= index &amp;&amp; index &lt; length());</span>
+    }
+
+    @Override
+    XMLList text() {
+<span class="nc" id="L605">        XMLList result = newXMLList();</span>
+
+<span class="nc bnc" id="L607" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L608">            result.addToList(getXmlFromAnnotation(i).text());</span>
+        }
+
+<span class="nc" id="L611">        return result;</span>
+    }
+
+    @Override
+    public String toString() {
+        //    ECMA357 10.1.2
+<span class="nc bnc" id="L617" title="All 2 branches missed.">        if (hasSimpleContent()) {</span>
+<span class="nc" id="L618">            StringBuilder sb = new StringBuilder();</span>
+
+<span class="nc bnc" id="L620" title="All 2 branches missed.">            for(int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L621">                XML next = getXmlFromAnnotation(i);</span>
+<span class="nc bnc" id="L622" title="All 4 branches missed.">                if (next.isComment() || next.isProcessingInstruction()) {</span>
+                    //    do nothing
+                } else {
+<span class="nc" id="L625">                    sb.append(next.toString());</span>
+                }
+            }
+
+<span class="nc" id="L629">            return sb.toString();</span>
+        } else {
+<span class="nc" id="L631">            return toXMLString();</span>
+        }
+    }
+
+    @Override
+    String toSource(int indent) {
+<span class="nc" id="L637">        return toXMLString();</span>
+    }
+
+    @Override
+    String toXMLString() {
+        //    See ECMA 10.2.1
+<span class="nc" id="L643">        StringBuilder sb = new StringBuilder();</span>
+
+<span class="nc bnc" id="L645" title="All 2 branches missed.">        for (int i=0; i&lt;length(); i++) {</span>
+<span class="nc bnc" id="L646" title="All 4 branches missed.">            if (getProcessor().isPrettyPrinting() &amp;&amp; i != 0) {</span>
+<span class="nc" id="L647">                sb.append('\n');</span>
+            }
+<span class="nc" id="L649">            sb.append(getXmlFromAnnotation(i).toXMLString());</span>
+        }
+<span class="nc" id="L651">        return sb.toString();</span>
+    }
+
+    @Override
+    Object valueOf() {
+<span class="nc" id="L656">        return this;</span>
+    }
+
+    //
+    // Other public Functions from XMLObject
+    //
+
+    @Override
+    boolean equivalentXml(Object target) {
+<span class="nc" id="L665">        boolean result = false;</span>
+
+        // Zero length list should equate to undefined
+<span class="nc bnc" id="L668" title="All 4 branches missed.">        if (target instanceof Undefined &amp;&amp; length() == 0) {</span>
+<span class="nc" id="L669">            result = true;</span>
+<span class="nc bnc" id="L670" title="All 2 branches missed.">        } else if (length() == 1) {</span>
+<span class="nc" id="L671">            result = getXmlFromAnnotation(0).equivalentXml(target);</span>
+<span class="nc bnc" id="L672" title="All 2 branches missed.">        } else if (target instanceof XMLList) {</span>
+<span class="nc" id="L673">            XMLList otherList = (XMLList) target;</span>
+
+<span class="nc bnc" id="L675" title="All 2 branches missed.">            if (otherList.length() == length()) {</span>
+<span class="nc" id="L676">                result = true;</span>
+
+<span class="nc bnc" id="L678" title="All 2 branches missed.">                for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc bnc" id="L679" title="All 2 branches missed.">                    if (!getXmlFromAnnotation(i).equivalentXml(otherList.getXmlFromAnnotation(i))) {</span>
+<span class="nc" id="L680">                        result = false;</span>
+<span class="nc" id="L681">                        break;</span>
+                    }
+                }
+            }
+        }
+
+<span class="nc" id="L687">        return result;</span>
+    }
+
+    private XMLList getPropertyList(XMLName name) {
+<span class="nc" id="L691">        XMLList propertyList = newXMLList();</span>
+<span class="nc" id="L692">        XmlNode.QName qname = null;</span>
+
+<span class="nc bnc" id="L694" title="All 4 branches missed.">        if (!name.isDescendants() &amp;&amp; !name.isAttributeName()) {</span>
+            // Only set the targetProperty if this is a regular child get
+            // and not a descendant or attribute get
+<span class="nc" id="L697">            qname = name.toQname();</span>
+        }
+
+<span class="nc" id="L700">        propertyList.setTargets(this, qname);</span>
+
+<span class="nc bnc" id="L702" title="All 2 branches missed.">        for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc" id="L703">            propertyList.addToList(</span>
+<span class="nc" id="L704">                getXmlFromAnnotation(i).getPropertyList(name));</span>
+        }
+
+<span class="nc" id="L707">        return propertyList;</span>
+    }
+
+    private Object applyOrCall(boolean isApply,
+        Context cx, Scriptable scope,
+        Scriptable thisObj, Object[] args) {
+<span class="nc bnc" id="L713" title="All 2 branches missed.">        String methodName = isApply ? &quot;apply&quot; : &quot;call&quot;;</span>
+<span class="nc bnc" id="L714" title="All 4 branches missed.">        if(!(thisObj instanceof XMLList) ||</span>
+            ((XMLList)thisObj).targetProperty == null)
+<span class="nc" id="L716">            throw ScriptRuntime.typeError1(&quot;msg.isnt.function&quot;,</span>
+                methodName);
+
+<span class="nc" id="L719">        return ScriptRuntime.applyOrCall(isApply, cx, scope, thisObj, args);</span>
+    }
+
+    @Override
+    protected Object jsConstructor(Context cx, boolean inNewExpr,
+                                   Object[] args)
+    {
+<span class="pc bpc" id="L726" title="1 of 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L727">            return newXMLList();</span>
+        } else {
+<span class="fc" id="L729">            Object arg0 = args[0];</span>
+<span class="pc bpc" id="L730" title="2 of 4 branches missed.">            if (!inNewExpr &amp;&amp; arg0 instanceof XMLList) {</span>
+                // XMLList(XMLList) returns the same object.
+<span class="fc" id="L732">                return arg0;</span>
+            }
+<span class="nc" id="L734">            return newXMLListFrom(arg0);</span>
+        }
+    }
+
+    /**
+     * See ECMA 357, 11_2_2_1, Semantics, 3_e.
+     */
+    @Override
+    public Scriptable getExtraMethodSource(Context cx) {
+<span class="nc bnc" id="L743" title="All 2 branches missed.">        if (length() == 1) {</span>
+<span class="nc" id="L744">            return getXmlFromAnnotation(0);</span>
+        }
+<span class="nc" id="L746">        return null;</span>
+    }
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+        Object[] args) {
+        // This XMLList is being called as a Function.
+        // Let's find the real Function object.
+<span class="nc bnc" id="L753" title="All 2 branches missed.">        if(targetProperty == null)</span>
+<span class="nc" id="L754">            throw ScriptRuntime.notFunctionError(this);</span>
+
+<span class="nc" id="L756">        String methodName = targetProperty.getLocalName();</span>
+
+<span class="nc" id="L758">        boolean isApply = methodName.equals(&quot;apply&quot;);</span>
+<span class="nc bnc" id="L759" title="All 4 branches missed.">        if(isApply || methodName.equals(&quot;call&quot;))</span>
+<span class="nc" id="L760">            return applyOrCall(isApply, cx, scope, thisObj, args);</span>
+
+<span class="nc bnc" id="L762" title="All 2 branches missed.">        if (!(thisObj instanceof XMLObject)) {</span>
+<span class="nc" id="L763">            throw ScriptRuntime.typeError1(&quot;msg.incompat.call&quot;, methodName);</span>
+        }
+<span class="nc" id="L765">        Object func = null;</span>
+<span class="nc" id="L766">        Scriptable sobj = thisObj;</span>
+
+<span class="nc bnc" id="L768" title="All 2 branches missed.">        while (sobj instanceof XMLObject) {</span>
+<span class="nc" id="L769">            XMLObject xmlObject = (XMLObject) sobj;</span>
+<span class="nc" id="L770">            func = xmlObject.getFunctionProperty(cx, methodName);</span>
+<span class="nc bnc" id="L771" title="All 2 branches missed.">            if (func != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L772">                break;</span>
+            }
+<span class="nc" id="L774">            sobj = xmlObject.getExtraMethodSource(cx);</span>
+<span class="nc bnc" id="L775" title="All 2 branches missed.">            if (sobj != null) {</span>
+<span class="nc" id="L776">                thisObj = sobj;</span>
+<span class="nc bnc" id="L777" title="All 2 branches missed.">                if (!(sobj instanceof XMLObject)) {</span>
+<span class="nc" id="L778">                    func = ScriptableObject.getProperty(sobj, methodName);</span>
+                }
+            }
+<span class="nc" id="L781">        }</span>
+
+<span class="nc bnc" id="L783" title="All 2 branches missed.">        if (!(func instanceof Callable)) {</span>
+<span class="nc" id="L784">            throw ScriptRuntime.notFunctionError(thisObj, func, methodName);</span>
+        }
+<span class="nc" id="L786">        return ((Callable)func).call(cx, scope, thisObj, args);</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
+<span class="nc" id="L790">        throw ScriptRuntime.typeError1(&quot;msg.not.ctor&quot;, &quot;XMLList&quot;);</span>
+    }
+}
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

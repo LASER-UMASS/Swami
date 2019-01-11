@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeCallSite.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeCallSite.java</span></div><h1>NativeCallSite.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class is used by the V8 extension &quot;Error.prepareStackTrace.&quot; It is passed to
+ * that function, which may then use it to format the stack as it sees fit.
+ */
+
+public class NativeCallSite extends IdScriptableObject
+{
+    private static final String CALLSITE_TAG = &quot;CallSite&quot;;
+
+    private ScriptStackElement element;
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L22">        NativeCallSite cs = new NativeCallSite();</span>
+<span class="fc" id="L23">        cs.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L24">    }</span>
+
+    static NativeCallSite make(Scriptable scope, Scriptable ctorObj)
+    {
+<span class="fc" id="L28">        NativeCallSite cs = new NativeCallSite();</span>
+<span class="fc" id="L29">        Scriptable proto = (Scriptable)(ctorObj.get(&quot;prototype&quot;, ctorObj));</span>
+<span class="fc" id="L30">        cs.setParentScope(scope);</span>
+<span class="fc" id="L31">        cs.setPrototype(proto);</span>
+<span class="fc" id="L32">        return cs;</span>
+    }
+
+    private NativeCallSite()
+<span class="fc" id="L36">    {</span>
+<span class="fc" id="L37">    }</span>
+
+    void setElement(ScriptStackElement elt)
+    {
+<span class="fc" id="L41">        this.element = elt;</span>
+<span class="fc" id="L42">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L47">        return &quot;CallSite&quot;;</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L55" title="15 of 16 branches missed.">        switch (id) {</span>
+<span class="fc" id="L56">        case Id_constructor: arity = 0; s=&quot;constructor&quot;; break;</span>
+<span class="nc" id="L57">        case Id_getThis: arity = 0; s=&quot;getThis&quot;; break;</span>
+<span class="nc" id="L58">        case Id_getTypeName: arity = 0; s=&quot;getTypeName&quot;; break;</span>
+<span class="nc" id="L59">        case Id_getFunction: arity = 0; s=&quot;getFunction&quot;; break;</span>
+<span class="nc" id="L60">        case Id_getFunctionName: arity = 0; s=&quot;getFunctionName&quot;; break;</span>
+<span class="nc" id="L61">        case Id_getMethodName: arity = 0; s=&quot;getMethodName&quot;; break;</span>
+<span class="nc" id="L62">        case Id_getFileName: arity = 0; s=&quot;getFileName&quot;; break;</span>
+<span class="nc" id="L63">        case Id_getLineNumber: arity = 0; s=&quot;getLineNumber&quot;; break;</span>
+<span class="nc" id="L64">        case Id_getColumnNumber: arity = 0; s=&quot;getColumnNumber&quot;; break;</span>
+<span class="nc" id="L65">        case Id_getEvalOrigin: arity = 0; s=&quot;getEvalOrigin&quot;; break;</span>
+<span class="nc" id="L66">        case Id_isToplevel: arity = 0; s=&quot;isToplevel&quot;; break;</span>
+<span class="nc" id="L67">        case Id_isEval: arity = 0; s=&quot;isEval&quot;; break;</span>
+<span class="nc" id="L68">        case Id_isNative: arity = 0; s=&quot;isNative&quot;; break;</span>
+<span class="nc" id="L69">        case Id_isConstructor: arity = 0; s=&quot;isConstructor&quot;; break;</span>
+<span class="nc" id="L70">        case Id_toString: arity = 0; s=&quot;toString&quot;; break;</span>
+<span class="nc" id="L71">        default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L73">        initPrototypeMethod(CALLSITE_TAG, id, s, arity);</span>
+<span class="fc" id="L74">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (!f.hasTag(CALLSITE_TAG)) {</span>
+<span class="nc" id="L81">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L83">        int id = f.methodId();</span>
+<span class="nc bnc" id="L84" title="All 9 branches missed.">        switch (id) {</span>
+        case Id_constructor:
+<span class="nc" id="L86">            return make(scope, f);</span>
+        case Id_getFunctionName:
+<span class="nc" id="L88">            return getFunctionName(thisObj);</span>
+        case Id_getFileName:
+<span class="nc" id="L90">            return getFileName(thisObj);</span>
+        case Id_getLineNumber:
+<span class="nc" id="L92">            return getLineNumber(thisObj);</span>
+        case Id_getThis:
+        case Id_getTypeName:
+        case Id_getFunction:
+        case Id_getColumnNumber:
+<span class="nc" id="L97">            return getUndefined();</span>
+        case Id_getMethodName:
+<span class="nc" id="L99">            return getNull();</span>
+        case Id_getEvalOrigin:
+        case Id_isEval:
+        case Id_isConstructor:
+        case Id_isNative:
+        case Id_isToplevel:
+<span class="nc" id="L105">            return getFalse();</span>
+        case Id_toString:
+<span class="nc" id="L107">            return js_toString(thisObj);</span>
+        default:
+<span class="nc" id="L109">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (element == null) {</span>
+<span class="fc" id="L117">            return &quot;&quot;;</span>
+        }
+<span class="fc" id="L119">        return element.toString();</span>
+    }
+
+    private Object js_toString(Scriptable obj)
+    {
+<span class="nc bnc" id="L124" title="All 4 branches missed.">        while(obj != null &amp;&amp; !(obj instanceof NativeCallSite)) {</span>
+<span class="nc" id="L125">            obj = obj.getPrototype();</span>
+        }
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L128">            return NOT_FOUND;</span>
+        }
+<span class="nc" id="L130">        NativeCallSite cs = (NativeCallSite)obj;</span>
+<span class="nc" id="L131">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L132">        cs.element.renderJavaStyle(sb);</span>
+<span class="nc" id="L133">        return sb.toString();</span>
+    }
+
+    private Object getUndefined()
+    {
+<span class="nc" id="L138">        return Undefined.instance;</span>
+    }
+
+    private Object getNull()
+    {
+<span class="nc" id="L143">        return null;</span>
+    }
+
+    private Object getFalse()
+    {
+<span class="nc" id="L148">        return Boolean.FALSE;</span>
+    }
+
+    private Object getFunctionName(Scriptable obj)
+    {
+<span class="nc bnc" id="L153" title="All 4 branches missed.">        while(obj != null &amp;&amp; !(obj instanceof NativeCallSite)) {</span>
+<span class="nc" id="L154">            obj = obj.getPrototype();</span>
+        }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L157">            return NOT_FOUND;</span>
+        }
+<span class="nc" id="L159">        NativeCallSite cs = (NativeCallSite)obj;</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        return (cs.element == null ? null : cs.element.functionName);</span>
+    }
+
+    private Object getFileName(Scriptable obj)
+    {
+<span class="nc bnc" id="L165" title="All 4 branches missed.">        while(obj != null &amp;&amp; !(obj instanceof NativeCallSite)) {</span>
+<span class="nc" id="L166">            obj = obj.getPrototype();</span>
+        }
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L169">            return NOT_FOUND;</span>
+        }
+<span class="nc" id="L171">        NativeCallSite cs = (NativeCallSite)obj;</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        return (cs.element == null ? null : cs.element.fileName);</span>
+    }
+
+    private Object getLineNumber(Scriptable obj)
+    {
+<span class="nc bnc" id="L177" title="All 4 branches missed.">        while(obj != null &amp;&amp; !(obj instanceof NativeCallSite)) {</span>
+<span class="nc" id="L178">            obj = obj.getPrototype();</span>
+        }
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L181">            return NOT_FOUND;</span>
+        }
+<span class="nc" id="L183">        NativeCallSite cs = (NativeCallSite)obj;</span>
+<span class="nc bnc" id="L184" title="All 4 branches missed.">        if ((cs.element == null) || (cs.element.lineNumber &lt; 0)) {</span>
+<span class="nc" id="L185">            return Undefined.instance;</span>
+        }
+<span class="nc" id="L187">        return cs.element.lineNumber;</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2015-03-02 23:42:12 PST
+<span class="fc" id="L197">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L198" title="5 of 8 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L199">            case 6: X=&quot;isEval&quot;;id=Id_isEval; break L;</span>
+<span class="nc" id="L200">            case 7: X=&quot;getThis&quot;;id=Id_getThis; break L;</span>
+<span class="nc" id="L201">            case 8: c=s.charAt(0);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                if (c=='i') { X=&quot;isNative&quot;;id=Id_isNative; }</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+<span class="fc" id="L205">            case 10: X=&quot;isToplevel&quot;;id=Id_isToplevel; break L;</span>
+<span class="pc bpc" id="L206" title="4 of 5 branches missed.">            case 11: switch (s.charAt(4)) {</span>
+<span class="nc" id="L207">                case 'i': X=&quot;getFileName&quot;;id=Id_getFileName; break L;</span>
+<span class="fc" id="L208">                case 't': X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+<span class="nc" id="L209">                case 'u': X=&quot;getFunction&quot;;id=Id_getFunction; break L;</span>
+<span class="nc" id="L210">                case 'y': X=&quot;getTypeName&quot;;id=Id_getTypeName; break L;</span>
+<span class="nc" id="L211">                } break L;</span>
+<span class="pc bpc" id="L212" title="4 of 5 branches missed.">            case 13: switch (s.charAt(3)) {</span>
+<span class="nc" id="L213">                case 'E': X=&quot;getEvalOrigin&quot;;id=Id_getEvalOrigin; break L;</span>
+<span class="nc" id="L214">                case 'L': X=&quot;getLineNumber&quot;;id=Id_getLineNumber; break L;</span>
+<span class="nc" id="L215">                case 'M': X=&quot;getMethodName&quot;;id=Id_getMethodName; break L;</span>
+<span class="nc" id="L216">                case 'o': X=&quot;isConstructor&quot;;id=Id_isConstructor; break L;</span>
+<span class="fc" id="L217">                } break L;</span>
+<span class="nc" id="L218">            case 15: c=s.charAt(3);</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                if (c=='C') { X=&quot;getColumnNumber&quot;;id=Id_getColumnNumber; }</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                else if (c=='F') { X=&quot;getFunctionName&quot;;id=Id_getFunctionName; }</span>
+                break L;
+            }
+<span class="pc bpc" id="L223" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L227">        return id;</span>
+    }
+
+    private static final int
+      Id_constructor = 1,
+      Id_getThis = 2,
+      Id_getTypeName = 3,
+      Id_getFunction = 4,
+      Id_getFunctionName = 5,
+      Id_getMethodName = 6,
+      Id_getFileName = 7,
+      Id_getLineNumber = 8,
+      Id_getColumnNumber = 9,
+      Id_getEvalOrigin = 10,
+      Id_isToplevel = 11,
+      Id_isEval = 12,
+      Id_isNative = 13,
+      Id_isConstructor = 14,
+      Id_toString = 15,
+      MAX_PROTOTYPE_ID = 15;
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

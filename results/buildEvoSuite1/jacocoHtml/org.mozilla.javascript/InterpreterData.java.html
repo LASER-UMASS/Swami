@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InterpreterData.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">InterpreterData.java</span></div><h1>InterpreterData.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+import org.mozilla.javascript.debug.DebuggableScript;
+
+final class InterpreterData implements Serializable, DebuggableScript
+{
+    static final long serialVersionUID = 5067677351589230234L;
+
+    static final int INITIAL_MAX_ICODE_LENGTH = 1024;
+    static final int INITIAL_STRINGTABLE_SIZE = 64;
+    static final int INITIAL_NUMBERTABLE_SIZE = 64;
+
+    InterpreterData(int languageVersion, String sourceFile,
+                    String encodedSource, boolean isStrict)
+<span class="fc" id="L23">    {</span>
+<span class="fc" id="L24">        this.languageVersion = languageVersion;</span>
+<span class="fc" id="L25">        this.itsSourceFile = sourceFile;</span>
+<span class="fc" id="L26">        this.encodedSource = encodedSource;</span>
+<span class="fc" id="L27">        this.isStrict = isStrict;</span>
+<span class="fc" id="L28">        init();</span>
+<span class="fc" id="L29">    }</span>
+
+    InterpreterData(InterpreterData parent)
+<span class="fc" id="L32">    {</span>
+<span class="fc" id="L33">        this.parentData = parent;</span>
+<span class="fc" id="L34">        this.languageVersion = parent.languageVersion;</span>
+<span class="fc" id="L35">        this.itsSourceFile = parent.itsSourceFile;</span>
+<span class="fc" id="L36">        this.encodedSource = parent.encodedSource;</span>
+<span class="fc" id="L37">        this.isStrict = parent.isStrict;</span>
+<span class="fc" id="L38">        init();</span>
+<span class="fc" id="L39">    }</span>
+
+    private void init()
+    {
+<span class="fc" id="L43">        itsICode = new byte[INITIAL_MAX_ICODE_LENGTH];</span>
+<span class="fc" id="L44">        itsStringTable = new String[INITIAL_STRINGTABLE_SIZE];</span>
+<span class="fc" id="L45">    }</span>
+
+    String itsName;
+    String itsSourceFile;
+    boolean itsNeedsActivation;
+    int itsFunctionType;
+
+    String[] itsStringTable;
+    double[] itsDoubleTable;
+    InterpreterData[] itsNestedFunctions;
+    Object[] itsRegExpLiterals;
+
+    byte[] itsICode;
+
+    int[] itsExceptionTable;
+
+    int itsMaxVars;
+    int itsMaxLocals;
+    int itsMaxStack;
+    int itsMaxFrameArray;
+
+    // see comments in NativeFuncion for definition of argNames and argCount
+    String[] argNames;
+    boolean[] argIsConst;
+    int argCount;
+
+    int itsMaxCalleeArgs;
+
+    String encodedSource;
+    int encodedSourceStart;
+    int encodedSourceEnd;
+
+    int languageVersion;
+
+    boolean isStrict;
+    boolean topLevel;
+
+    Object[] literalIds;
+
+    UintMap longJumps;
+
+<span class="fc" id="L86">    int firstLinePC = -1; // PC for the first LINE icode</span>
+
+    InterpreterData parentData;
+
+    boolean evalScriptFlag; // true if script corresponds to eval() code
+
+    public boolean isTopLevel()
+    {
+<span class="fc" id="L94">        return topLevel;</span>
+    }
+
+    public boolean isFunction()
+    {
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        return itsFunctionType != 0;</span>
+    }
+
+    public String getFunctionName()
+    {
+<span class="fc" id="L104">        return itsName;</span>
+    }
+
+    public int getParamCount()
+    {
+<span class="fc" id="L109">        return argCount;</span>
+    }
+
+    public int getParamAndVarCount()
+    {
+<span class="nc" id="L114">        return argNames.length;</span>
+    }
+
+    public String getParamOrVarName(int index)
+    {
+<span class="nc" id="L119">        return argNames[index];</span>
+    }
+
+    public boolean getParamOrVarConst(int index)
+    {
+<span class="nc" id="L124">        return argIsConst[index];</span>
+    }
+
+    public String getSourceName()
+    {
+<span class="fc" id="L129">        return itsSourceFile;</span>
+    }
+
+    public boolean isGeneratedScript()
+    {
+<span class="fc" id="L134">        return ScriptRuntime.isGeneratedScript(itsSourceFile);</span>
+    }
+
+    public int[] getLineNumbers()
+    {
+<span class="fc" id="L139">        return Interpreter.getLineNumbers(this);</span>
+    }
+
+    public int getFunctionCount()
+    {
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        return (itsNestedFunctions == null) ? 0 : itsNestedFunctions.length;</span>
+    }
+
+    public DebuggableScript getFunction(int index)
+    {
+<span class="nc" id="L149">        return itsNestedFunctions[index];</span>
+    }
+
+    public DebuggableScript getParent()
+    {
+<span class="fc" id="L154">         return parentData;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

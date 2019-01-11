@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VMBridge.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">VMBridge.java</span></div><h1>VMBridge.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Method;
+import java.util.Iterator;
+
+<span class="fc" id="L15">public abstract class VMBridge</span>
+{
+
+<span class="fc" id="L18">    static final VMBridge instance = makeInstance();</span>
+
+    private static VMBridge makeInstance()
+    {
+<span class="fc" id="L22">        String[] classNames = {</span>
+            &quot;org.mozilla.javascript.VMBridge_custom&quot;,
+            &quot;org.mozilla.javascript.jdk18.VMBridge_jdk18&quot;,
+            &quot;org.mozilla.javascript.jdk15.VMBridge_jdk15&quot;,
+        };
+<span class="pc bpc" id="L27" title="1 of 2 branches missed.">        for (int i = 0; i != classNames.length; ++i) {</span>
+<span class="fc" id="L28">            String className = classNames[i];</span>
+<span class="fc" id="L29">            Class&lt;?&gt; cl = Kit.classOrNull(className);</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">            if (cl != null) {</span>
+<span class="fc" id="L31">                VMBridge bridge = (VMBridge)Kit.newInstanceOrNull(cl);</span>
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">                if (bridge != null) {</span>
+<span class="fc" id="L33">                    return bridge;</span>
+                }
+            }
+        }
+<span class="nc" id="L37">        throw new IllegalStateException(&quot;Failed to create VMBridge instance&quot;);</span>
+    }
+
+    /**
+     * Return a helper object to optimize {@link Context} access.
+     * &lt;p&gt;
+     * The runtime will pass the resulting helper object to the subsequent
+     * calls to {@link #getContext(Object contextHelper)} and
+     * {@link #setContext(Object contextHelper, Context cx)} methods.
+     * In this way the implementation can use the helper to cache
+     * information about current thread to make {@link Context} access faster.
+     */
+    protected abstract Object getThreadContextHelper();
+
+    /**
+     * Get {@link Context} instance associated with the current thread
+     * or null if none.
+     *
+     * @param contextHelper The result of {@link #getThreadContextHelper()}
+     *                      called from the current thread.
+     */
+    protected abstract Context getContext(Object contextHelper);
+
+    /**
+     * Associate {@link Context} instance with the current thread or remove
+     * the current association if &lt;tt&gt;cx&lt;/tt&gt; is null.
+     *
+     * @param contextHelper The result of {@link #getThreadContextHelper()}
+     *                      called from the current thread.
+     */
+    protected abstract void setContext(Object contextHelper, Context cx);
+
+    /**
+     * In many JVMSs, public methods in private
+     * classes are not accessible by default (Sun Bug #4071593).
+     * VMBridge instance should try to workaround that via, for example,
+     * calling method.setAccessible(true) when it is available.
+     * The implementation is responsible to catch all possible exceptions
+     * like SecurityException if the workaround is not available.
+     *
+     * @return true if it was possible to make method accessible
+     *         or false otherwise.
+     */
+    protected abstract boolean tryToMakeAccessible(AccessibleObject accessible);
+
+    /**
+     * Create helper object to create later proxies implementing the specified
+     * interfaces later. Under JDK 1.3 the implementation can look like:
+     * &lt;pre&gt;
+     * return java.lang.reflect.Proxy.getProxyClass(..., interfaces).
+     *     getConstructor(new Class[] {
+     *         java.lang.reflect.InvocationHandler.class });
+     * &lt;/pre&gt;
+     *
+     * @param interfaces Array with one or more interface class objects.
+     */
+    protected abstract Object getInterfaceProxyHelper(ContextFactory cf,
+                                             Class&lt;?&gt;[] interfaces);
+
+    /**
+     * Create proxy object for {@link InterfaceAdapter}. The proxy should call
+     * {@link InterfaceAdapter#invoke(ContextFactory, Object, Scriptable,
+     *                                Object, Method, Object[])}
+     * as implementation of interface methods associated with
+     * &lt;tt&gt;proxyHelper&lt;/tt&gt;. {@link Method}
+     *
+     * @param proxyHelper The result of the previous call to
+     *        {@link #getInterfaceProxyHelper(ContextFactory, Class[])}.
+     */
+    protected abstract Object newInterfaceProxy(Object proxyHelper,
+                                       ContextFactory cf,
+                                       InterfaceAdapter adapter,
+                                       Object target,
+                                       Scriptable topScope);
+
+    /**
+     * If &quot;obj&quot; is a java.util.Iterator or a java.lang.Iterable, return a
+     * wrapping as a JavaScript Iterator. Otherwise, return null.
+     * This method is in VMBridge since Iterable is a JDK 1.5 addition.
+     */
+    protected abstract Iterator&lt;?&gt; getJavaIterator(Context cx, Scriptable scope, Object obj);
+
+    /**
+     * Support checking to see if this is the default method for Java 8.
+     */
+    public abstract boolean isDefaultMethod(Method method);
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,2064 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mozilla.javascript.WrapFactory_ESTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2019-01-10T11:07:25" hostname="swami-VirtualBox" time="0.354">
+  <properties/>
+  <testcase name="test1" classname="org.mozilla.javascript.WrapFactory_ESTest" time="0.227"/>
+  <testcase name="test0" classname="org.mozilla.javascript.WrapFactory_ESTest" time="0.113"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Jan 10, 2019 3:07:12 AM org.evosuite.runtime.agent.AgentLoader loadAgent
+INFO: dynamically loading javaagent
+Jan 10, 2019 3:07:12 AM org.evosuite.runtime.agent.AgentLoader loadAgent
+INFO: Using JavaAgent in /home/swami/swami/EvoSuiteTests/evosuite_1/evosuite-tests/evosuite-standalone-runtime-1.0.6.jar
+Jan 10, 2019 3:07:12 AM org.evosuite.runtime.agent.AgentLoader loadAgent
+INFO: Classpath: /home/swami/rhino-Rhino1_7_9_Release/buildGradle/classes/java/test:/home/swami/rhino-Rhino1_7_9_Release/buildGradle/resources/test:/home/swami/rhino-Rhino1_7_9_Release/buildGradle/classes/java/main:/home/swami/rhino-Rhino1_7_9_Release/buildGradle/resources/main:/home/swami/swami/EvoSuiteTests/evosuite_1/evosuite-tests/evosuite-standalone-runtime-1.0.6.jar:/home/swami/swami/EvoSuiteTests/evosuite_1/evosuite-tests/slf4j.jdk14-1.6.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/junit/junit/4.12/2973d150c0dc1fefe998f834810d68f278ea58ec/junit-4.12.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.yaml/snakeyaml/1.15/3b132bea69e8ee099f416044970997bde80f4ea6/snakeyaml-1.15.jar:/home/swami/.gradle/caches/modules-2/files-2.1/net.trajano.caliper/caliper/1.2.1/b4dcdf8b2e8a59268511eab505144b8a84e628ab/caliper-1.2.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.3.1/ecb6e1f8e4b0e84c4b886c2f14a1500caf309757/gson-2.3.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.code.java-allocation-instrumenter/java-allocation-instrumenter/3.0/2e0cca505a5d64da11bf265158f2a52d150050b2/java-allocation-instrumenter-3.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/18.0/cce0823396aa693798f8882e64213b1772032b09/guava-18.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.inject.extensions/guice-assistedinject/3.0/544449ddb19f088dcde44f055d30a08835a954a7/guice-assistedinject-3.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.inject.extensions/guice-multibindings/3.0/5e670615a927571234df68a8b1fe1a16272be555/guice-multibindings-3.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/com.google.inject/guice/3.0/9d84f15fe35e2c716a02979fb62f50a29f38aefa/guice-3.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/joda-time/joda-time/2.7/5599707a3eaad13e889f691b3af78c8c03842195/joda-time-2.7.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-math/2.2/4877b85d388275f994a5cfc7eceb73a8045d3006/commons-math-2.2.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.jersey.core/jersey-client/2.16/72ccdd4a542964b6c053b1d238d2d5ac1a6147c9/jersey-client-2.16.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-analysis/5.0.3/c7126aded0e8e13fed5f913559a0dd7b770a10f3/asm-analysis-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-commons/5.0.3/a7111830132c7f87d08fe48cb0ca07630f8cb91c/asm-commons-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-xml/5.0.3/440c3f0a1e2459716ecc65d67ed3bde51727893d/asm-xml-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-util/5.0.3/1512e5571325854b05fb1efce1db75fcced54389/asm-util-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm-tree/5.0.3/287749b48ba7162fb67c93a026d690b29f410bed/asm-tree-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/5.0.3/dcc2193db20e19e1feca8b1240dbbc4e190824fa/asm-5.0.3.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.jersey.core/jersey-common/2.16/28aadc6d6e9978b51c3fa898d4989d908d2f65c8/jersey-common-2.16.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2/hk2-locator/2.4.0-b09/1508f542ca9e0e9ab355ae937566e096b32f89c0/hk2-locator-2.4.0-b09.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2/hk2-api/2.4.0-b09/b69de840ba9ddf35e10355b5febfd9a191f0e183/hk2-api-2.4.0-b09.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2/hk2-utils/2.4.0-b09/fbc70b91b67b1ff6b419e52b60d2991543c7e65d/hk2-utils-2.4.0-b09.jar:/home/swami/.gradle/caches/modules-2/files-2.1/javax.inject/javax.inject/1/6975da39a7040257bd51d21a231b76c915872d38/javax.inject-1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/aopalliance/aopalliance/1.0/235ba8b489512805ac13a8f9ea77a1ca5ebe3e8/aopalliance-1.0.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.sonatype.sisu.inject/cglib/2.2.1-v20090111/7ce5e983fd0e6c78346f4c9cbfa39d83049dda2/cglib-2.2.1-v20090111.jar:/home/swami/.gradle/caches/modules-2/files-2.1/javax.ws.rs/javax.ws.rs-api/2.0.1/104e9c2b5583cfcfeac0402316221648d6d8ea6b/javax.ws.rs-api-2.0.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2.external/javax.inject/2.4.0-b09/69b84056c8eb051684fb774c0a7efd040212dcac/javax.inject-2.4.0-b09.jar:/home/swami/.gradle/caches/modules-2/files-2.1/asm/asm/3.1/c157def142714c544bdea2e6144645702adf7097/asm-3.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/javax.annotation/javax.annotation-api/1.2/479c1e06db31c432330183f5cae684163f186146/javax.annotation-api-1.2.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.jersey.bundles.repackaged/jersey-guava/2.16/aef7416e0986171c628ae9402bbbca38761d4b25/jersey-guava-2.16.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2/osgi-resource-locator/1.0.1/4ed2b2d4738aed5786cfa64cba5a332779c4c708/osgi-resource-locator-1.0.1.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.glassfish.hk2.external/aopalliance-repackaged/2.4.0-b09/da39da3a3ad3bde943970cc6664949369545cadc/aopalliance-repackaged-2.4.0-b09.jar:/home/swami/.gradle/caches/modules-2/files-2.1/org.javassist/javassist/3.18.1-GA/d9a09f7732226af26bf99f19e2cffe0ae219db5b/javassist-3.18.1-GA.jar
+Jan 10, 2019 3:07:12 AM org.evosuite.runtime.agent.AgentLoader loadAgent
+INFO: Going to attach agent to process 29784
+Jan 10, 2019 3:07:13 AM org.evosuite.runtime.agent.InstrumentingAgent agentmain
+INFO: Executing agentmain of JavaAgent
+Jan 10, 2019 11:07:14 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeBoolean
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeBoolean
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdScriptableObject
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdScriptableObject
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptableObject
+Jan 10, 2019 11:07:15 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EcmaError
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EcmaError
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/RhinoException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/RhinoException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EvaluatorException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EvaluatorException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SlotMapContainer
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/SlotMapContainer
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LARGE_HASH_SIZE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ThreadSafeSlotMapContainer
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ThreadSafeSlotMapContainer
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/BaseFunction
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/BaseFunction
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/FunctionObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/FunctionObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VARARGS_METHOD
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VARARGS_CTOR
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field sawSecurityException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_UNSUPPORTED_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_STRING_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_INT_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_BOOLEAN_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_DOUBLE_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_SCRIPTABLE_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JAVA_OBJECT_TYPE
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaScriptException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/JavaScriptException
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdFunctionObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdFunctionObject
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdFunctionObjectES6
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdFunctionObjectES6
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_length
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_name
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Context
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Context
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$KeyComparator
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptableObject$KeyComparator
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ObjectLiteral
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/ObjectLiteral
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/AstNode
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/AstNode
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Node
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Node
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Jump
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Jump
+Jan 10, 2019 11:07:16 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/NumberLiteral
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/NumberLiteral
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Name
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Name
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/BodyCodegen$FinallyReturnPoint
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/BodyCodegen$FinallyReturnPoint
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Assignment
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Assignment
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/InfixExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/InfixExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ForLoop
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ForLoop
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Loop
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Loop
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Scope
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Scope
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ScriptNode
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ScriptNode
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeFloat32Array
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeFloat32Array
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeTypedArrayView
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeTypedArrayView
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_constructor
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_get
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_set
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_subarray
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SymbolId_iterator
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_PROTOTYPE_ID
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_length
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_INSTANCE_ID
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeArrayBufferView
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeArrayBufferView
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_buffer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_byteOffset
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_byteLength
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_INSTANCE_ID
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/DefaultErrorReporter
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/DefaultErrorReporter
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlString
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlString
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlFragment
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlFragment
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/DefiningClassLoader
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/DefiningClassLoader
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/GeneratorExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/GeneratorExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/UniqueTag
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/UniqueTag
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeError
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeError
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ParenthesizedExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ParenthesizedExpression
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ParseProblem$Type
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/ParseProblem$Type
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray$2
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ConstantPool
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ConstantPool
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ConstantPoolSize
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Class
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Fieldref
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Methodref
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_InterfaceMethodref
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_String
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Integer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Float
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Long
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Double
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_NameAndType
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_Utf8
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_MethodType
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_MethodHandle
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONSTANT_InvokeDynamic
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_UTF_ENCODING_SIZE
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/OptTransformer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/OptTransformer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NodeTransformer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NodeTransformer
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/FunctionNode
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/FunctionNode
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$Filter
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter$1
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter$2
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter$4
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter$5
+Jan 10, 2019 11:07:17 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Filter$3
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Token
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Token
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field printTrees
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field printICode
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field printNames
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ERROR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EOF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EOL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FIRST_BYTECODE_TOKEN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENTERWITH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LEAVEWITH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RETURN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GOTO
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field IFEQ
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field IFNE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETNAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BITOR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BITXOR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BITAND
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EQ
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field URSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ADD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SUB
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MUL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DIV
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MOD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NOT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BITNOT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field POS
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NEG
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NEW
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DELPROP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TYPEOF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GETPROP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GETPROPNOWARN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETPROP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GETELEM
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETELEM
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CALL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NUMBER
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STRING
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NULL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field THIS
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FALSE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TRUE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SHEQ
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SHNE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REGEXP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BINDNAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field THROW
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RETHROW
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field IN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INSTANCEOF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOCAL_LOAD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GETVAR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETVAR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CATCH_SCOPE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_INIT_KEYS
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_INIT_VALUES
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_INIT_ARRAY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_INIT_VALUES_IN_ORDER
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_NEXT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ENUM_ID
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field THISFN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RETURN_RESULT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ARRAYLIT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field OBJECTLIT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GET_REF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SET_REF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEL_REF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_CALL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_SPECIAL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field YIELD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STRICT_SETNAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEFAULTNAMESPACE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ESCXMLATTR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ESCXMLTEXT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_MEMBER
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_NS_MEMBER
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_NAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field REF_NS_NAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LAST_BYTECODE_TOKEN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TRY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SEMI
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LB
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RB
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LC
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RC
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field COMMA
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_BITOR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_BITXOR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_BITAND
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_LSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_RSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_URSH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_ADD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_SUB
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_MUL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_DIV
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ASSIGN_MOD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FIRST_ASSIGN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LAST_ASSIGN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field HOOK
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field COLON
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field OR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field AND
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INC
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEC
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DOT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FUNCTION
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EXPORT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field IMPORT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field IF
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ELSE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SWITCH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CASE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEFAULT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field WHILE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DO
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FOR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BREAK
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONTINUE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VAR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field WITH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CATCH
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FINALLY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VOID
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field RESERVED
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EMPTY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BLOCK
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LABEL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TARGET
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOOP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EXPR_VOID
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EXPR_RESULT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field JSR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SCRIPT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TYPEOFNAME
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field USE_STACK
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETPROP_OP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETELEM_OP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOCAL_BLOCK
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SET_REF_OP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DOTDOT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field COLONCOLON
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field XML
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DOTQUERY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field XMLATTR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field XMLEND
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TO_OBJECT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TO_DOUBLE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GET
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SET
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LET
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CONST
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETCONST
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SETCONSTVAR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ARRAYCOMP
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LETEXPR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field WITHEXPR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEBUGGER
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field COMMENT
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GENEXPR
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field METHOD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ARROW
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LAST_TOKEN
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/commonjs/module/provider/ModuleSource
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/commonjs/module/provider/ModuleSource
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject$ValueCollection$1
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeWith
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeWith
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EmbeddedSlotMap$Iter
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EmbeddedSlotMap$Iter
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJSON
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeJSON
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/json/JsonParser$ParseException
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/json/JsonParser$ParseException
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLWithScope
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XMLWithScope
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeGenerator
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeGenerator
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeGenerator$GeneratorClosedException
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeGenerator$GeneratorClosedException
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/ShellConsole$SimpleShellConsole
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/shell/ShellConsole$SimpleShellConsole
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/ShellConsole
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/tools/shell/ShellConsole
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/ShellConsole$JLineShellConsoleV2
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/shell/ShellConsole$JLineShellConsoleV2
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/ShellConsole$JLineShellConsoleV1
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/shell/ShellConsole$JLineShellConsoleV1
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjArray
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ObjArray
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FIELDS_STORE_SIZE
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SymbolKey
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/SymbolKey
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlRef
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlRef
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/FieldAndMethods
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/FieldAndMethods
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaMethod
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaMethod
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field PREFERENCE_EQUAL
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field PREFERENCE_FIRST_ARG
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field PREFERENCE_SECOND_ARG
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field PREFERENCE_AMBIGUOUS
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field debug
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ES6Iterator
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ES6Iterator
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_next
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_iterator
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_toStringTag
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_PROTOTYPE_ID
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NEXT_METHOD
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DONE_PROPERTY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field VALUE_PROPERTY
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/StackStyle
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/StackStyle
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/RegExpLiteral
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/RegExpLiteral
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeError$ProtoProps
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeError$ProtoProps
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/DoubleConversion
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/v8dtoa/DoubleConversion
+Jan 10, 2019 11:07:18 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kSignMask
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kExponentMask
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kSignificandMask
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kHiddenBit
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kPhysicalSignificandSize
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kSignificandSize
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kExponentBias
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field kDenormalExponent
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaPackage
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaPackage
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeFunction
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeFunction
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContextFactory$1GlobalSetterImpl
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController$SecureCaller
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/PolicySecurityController$SecureCaller
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLLibImpl
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XMLLibImpl
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xml/XMLLib
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLObject
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xml/XMLObject
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLList
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XMLList
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLObjectImpl
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/XMLObjectImpl
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Ref
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Ref
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLName
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XMLName
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XML
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XML
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeString
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeString
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/BodyCodegen
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/optimizer/BodyCodegen
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeArrayBuffer
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/typedarrays/NativeArrayBuffer
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/WrappedException
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/WrappedException
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeArray
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptRuntime
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ImporterTopLevel
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ImporterTopLevel
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel
+Jan 10, 2019 11:07:19 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeSymbol
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeSymbol
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeNumber
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeNumber
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Kit
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Kit
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContextFactory
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ContextFactory
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$DefaultMessageProvider
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$DefaultMessageProvider
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/Codegen
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/optimizer/Codegen
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$ClassFileFormatException
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$ClassFileFormatException
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Interpreter
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Icode
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Icode
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DELNAME
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DUP
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DUP2
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SWAP
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_POP
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_POP_RESULT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_IFEQ_POP
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_VAR_INC_DEC
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_NAME_INC_DEC
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_PROP_INC_DEC
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ELEM_INC_DEC
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REF_INC_DEC
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SCOPE_LOAD
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SCOPE_SAVE
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_TYPEOFNAME
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_NAME_AND_THIS
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_PROP_AND_THIS
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ELEM_AND_THIS
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_VALUE_AND_THIS
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CLOSURE_EXPR
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CLOSURE_STMT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_CALLSPECIAL
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_RETUNDEF
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GOSUB
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_STARTSUB
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_RETSUB
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LINE
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SHORTNUMBER
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_INTNUMBER
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_NEW
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_SET
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SPARE_ARRAYLIT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C0
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C2
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C3
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C4
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND_C5
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND2
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_IND4
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C0
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C2
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR_C3
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR2
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_REG_STR4
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GETVAR1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETVAR1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_UNDEF
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ZERO
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ONE
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_ENTERDQ
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LEAVEDQ
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_TAIL_CALL
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LOCAL_CLEAR
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_GETTER
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_LITERAL_SETTER
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONST
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONSTVAR
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_SETCONSTVAR1
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GENERATOR
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_GENERATOR_END
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Icode_DEBUGGER
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MIN_ICODE
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterpretedFunction
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterpretedFunction
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeContinuation
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeContinuation
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/VMBridge
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/VMBridge
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/jdk18/VMBridge_jdk18
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/jdk18/VMBridge_jdk18
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/jdk15/VMBridge_jdk15
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/jdk15/VMBridge_jdk15
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EmbeddedSlotMap
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/EmbeddedSlotMap
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_SLOT_SIZE
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$Slot
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptableObject$Slot
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$GetterSlot
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptableObject$GetterSlot
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeCallSite
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeCallSite
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CALLSITE_TAG
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_constructor
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getThis
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getTypeName
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getFunction
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getFunctionName
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getMethodName
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getFileName
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getLineNumber
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getColumnNumber
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getEvalOrigin
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_isToplevel
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_isEval
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_isNative
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_isConstructor
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_toString
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_PROTOTYPE_ID
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Parser$ConditionData
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Parser$ConditionData
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ErrorCollector
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ErrorCollector
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeMath
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeMath
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter$CallFrame
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Interpreter$CallFrame
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/Conversions
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/Conversions
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EIGHT_BIT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SIXTEEN_BIT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field THIRTYTWO_BIT
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaObject
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeJavaObject
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaAdapter
+Jan 10, 2019 11:07:20 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/JavaAdapter
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjToIntMap
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ObjToIntMap
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XMLCtor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/XMLCtor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContinuationPending
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ContinuationPending
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Parser$PerFunctionVariables
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Parser$PerFunctionVariables
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/LazilyLoadedCtor$1
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterfaceAdapter
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterfaceAdapter
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/LabeledStatement
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/LabeledStatement
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ArrayLiteral
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/ArrayLiteral
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/REProgState
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/REProgState
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/BreakStatement
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/BreakStatement
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeIterator$WrappedJavaIterator
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeIterator$WrappedJavaIterator
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Comment
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Comment
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray$StringLikeComparator
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeArray$StringLikeComparator
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Symbol
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Symbol
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$XmlNodeUserDataHandler
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$XmlNodeUserDataHandler
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeUint8Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeUint8Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Yield
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Yield
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/FieldOrMethodRef
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/FieldOrMethodRef
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/CachedPowers$CachedPower
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/v8dtoa/CachedPowers$CachedPower
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel$Builtins
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel$Builtins
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TopLevel$NativeErrors
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TopLevel$NativeErrors
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ClassCache
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ClassCache
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Arguments
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Arguments
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Arguments$1
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/commonjs/module/Require
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/commonjs/module/Require
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/QName
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/QName
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/CatchClause
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/CatchClause
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlMemberGet
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlMemberGet
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/PolicySecurityController
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/SecurityController
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/SecurityController
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field global
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/classfile/ClassFileWriter
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/UintMap
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/UintMap
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field A
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field EMPTY
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DELETED
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field check
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileMethod
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileMethod
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$StackMapTable
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$StackMapTable
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DEBUGSTACKMAP
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/SuperBlock
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/SuperBlock
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/TypeInfo
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/TypeInfo
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TOP
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INTEGER
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FLOAT
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DOUBLE
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LONG
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NULL
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field UNINITIALIZED_THIS
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field OBJECT_TAG
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field UNINITIALIZED_VAR_TAG
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeUint16Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeUint16Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/REGlobalData
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/REGlobalData
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/RECompiled
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/RECompiled
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/LazilyLoadedCtor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/LazilyLoadedCtor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_BEFORE_INIT
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_INITIALIZING
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field STATE_WITH_VALUE
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/XmlNode
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeInt32Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeInt32Array
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ArrayComprehensionLoop
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ArrayComprehensionLoop
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ForInLoop
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ForInLoop
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/BodyCodegen$ExceptionManager
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/BodyCodegen$ExceptionManager
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaArray
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaArray
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/SwitchCase
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/SwitchCase
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/FastDtoa
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/v8dtoa/FastDtoa
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaConstructor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaConstructor
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/BodyCodegen$ExceptionManager$ExceptionInfo
+Jan 10, 2019 11:07:21 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/BodyCodegen$ExceptionManager$ExceptionInfo
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/GlobData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/GlobData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/EmbeddedSlotMap$1
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptableObject$SlotAccess
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ScriptableObject$SlotAccess
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/RECharSet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/RECharSet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Block
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Block
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/VariableInitializer
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/VariableInitializer
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/VariableDeclaration
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/VariableDeclaration
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Decompiler
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Decompiler
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ONLY_BODY_FLAG
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TO_SOURCE_FLAG
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_INDENT_PROP
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INDENT_GAP_PROP
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CASE_GAP_PROP
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field FUNCTION_END
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field printSource
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Namespace
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$Namespace
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/RegExpImpl
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/RegExpImpl
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ThrowStatement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ThrowStatement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeCall
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeCall
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/InterpreterData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/InterpreterData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_MAX_ICODE_LENGTH
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_STRINGTABLE_SIZE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field INITIAL_NUMBERTABLE_SIZE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/NativeRegExp
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/regexp/NativeRegExp
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/NativeRegExpCtor
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/NativeRegExpCtor
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_multiline
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_STAR
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_input
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_UNDERSCORE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_lastMatch
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_AMPERSAND
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_lastParen
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_PLUS
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_leftContext
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_BACK_QUOTE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_rightContext
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_QUOTE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field DOLLAR_ID_BASE
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_1
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_2
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_3
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_4
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_5
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_6
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_7
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_8
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_DOLLAR_9
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_INSTANCE_ID
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Node$PropListItem
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Node$PropListItem
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/CompilerState
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/CompilerState
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/TokenStream
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/TokenStream
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaTopPackage
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeJavaTopPackage
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Parser$ParserException
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Parser$ParserException
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject$KeySet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeObject$KeySet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ArrowFunction
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ArrowFunction
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlDotQuery
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlDotQuery
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ObjToIntMap$Iterator
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ObjToIntMap$Iterator
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/DoLoop
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/DoLoop
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeGlobal
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeGlobal
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ParseProblem
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ParseProblem
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlProcessor$RhinoSAXErrorHandler
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlProcessor$RhinoSAXErrorHandler
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/DoubleHelper
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/v8dtoa/DoubleHelper
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/AstRoot
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/AstRoot
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$InternalList
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$InternalList
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ResolvedOverload
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ResolvedOverload
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptStackElement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptStackElement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/WhileLoop
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/WhileLoop
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeDate
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeDate
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/EmptyStatement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/EmptyStatement
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/BoundFunction
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/BoundFunction
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController$1
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController$2
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/PropertyGet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/PropertyGet
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController$3
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/REBackTrackData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/REBackTrackData
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlPropRef
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlPropRef
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/Environment
+Jan 10, 2019 11:07:22 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/shell/Environment
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Kit$ComplexKey
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Kit$ComplexKey
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Undefined$1
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IdScriptableObject$PrototypeValues
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IdScriptableObject$PrototypeValues
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field NAME_SLOT
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SLOT_SPAN
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/GeneratorExpressionLoop
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/GeneratorExpressionLoop
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/ShellConsole$ConsoleInputStream
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/tools/shell/ShellConsole$ConsoleInputStream
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeFloat64Array
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeFloat64Array
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Undefined
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Undefined
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/serialize/ScriptableInputStream
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/serialize/ScriptableInputStream
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject$EntrySet
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeObject$EntrySet
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ObjectProperty
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ObjectProperty
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$NoSuchMethodShim
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$NoSuchMethodShim
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaAdapter$2
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/SwitchStatement
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/SwitchStatement
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/LetNode
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/LetNode
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$MHandle
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$MHandle
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeTypedArrayIterator
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeTypedArrayIterator
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaMembers
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/JavaMembers
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJSON$StringifyState
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJSON$StringifyState
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ConditionalExpression
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ConditionalExpression
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ContextFactory$1
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeInt8Array
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeInt8Array
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/FastDtoaBuilder
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/v8dtoa/FastDtoaBuilder
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/tools/shell/Global
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/tools/shell/Global
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ExceptionTableEntry
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ExceptionTableEntry
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/CachedPowers
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/v8dtoa/CachedPowers
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Context$1
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlProcessor
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlProcessor
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Context$2
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileWriter$BootstrapEntry
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileWriter$BootstrapEntry
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/optimizer/OptFunctionNode
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/optimizer/OptFunctionNode
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/JavaMembers$MethodSignature
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/JavaMembers$MethodSignature
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeJavaClass
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeJavaClass
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field javaClassPropertyName
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$QName
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$QName
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/WithStatement
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/WithStatement
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/IRFactory
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/IRFactory
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOOP_DO_WHILE
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOOP_WHILE
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field LOOP_FOR
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ALWAYS_TRUE_BOOLEAN
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ALWAYS_FALSE_BOOLEAN
+Jan 10, 2019 11:07:23 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Parser
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Parser
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ARGC_LIMIT
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLEAR_TI_MASK
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TI_AFTER_EOL
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field TI_CHECK_LABEL
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field PROP_ENTRY
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field GET_ENTRY
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field SET_ENTRY
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field METHOD_ENTRY
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ExpressionStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ExpressionStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ErrorNode
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ErrorNode
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/IfStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/IfStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/TryStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/TryStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ContinueStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ContinueStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/KeywordLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/KeywordLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/EmptyExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/EmptyExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/Label
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/Label
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ReturnStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ReturnStatement
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/UnaryExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/UnaryExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ElementGet
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ElementGet
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/FunctionCall
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/FunctionCall
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/NewExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/NewExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlExpression
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/StringLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/StringLiteral
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/XmlElemRef
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/XmlElemRef
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/ArrayComprehension
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ast/ArrayComprehension
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Node$NodeIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Node$NodeIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/SubString
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/SubString
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeStringIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeStringIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ITERATOR_TAG
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/CodeGenerator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/CodeGenerator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MIN_LABEL_TABLE_SIZE
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MIN_FIXUP_TABLE_SIZE
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ECF_TAIL
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeInt16Array
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeInt16Array
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Token$CommentType
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/Token$CommentType
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeUint8ClampedArray
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeUint8ClampedArray
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/ByteIo
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/ByteIo
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeObject$ValueCollection
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeObject$ValueCollection
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ast/FunctionNode$Form
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/ast/FunctionNode$Form
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Synchronizer
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Synchronizer
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Delegator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Delegator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArray$ElementComparator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeArray$ElementComparator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/regexp/RENode
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/regexp/RENode
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/commonjs/module/ModuleScript
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/commonjs/module/ModuleScript
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeArrayIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeArrayIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field ITERATOR_TAG
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/XmlNode$Namespaces
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xmlimpl/XmlNode$Namespaces
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter$ContinuationJump
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Interpreter$ContinuationJump
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeIterator$StopIteration
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/NativeIterator$StopIteration
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeDataView
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeDataView
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_constructor
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getInt8
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getUint8
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getInt16
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getUint16
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getInt32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getUint32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getFloat32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_getFloat64
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setInt8
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setUint8
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setInt16
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setUint16
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setInt32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setUint32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setFloat32
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field Id_setFloat64
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field MAX_PROTOTYPE_ID
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/MemberBox
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/MemberBox
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/Interpreter$GeneratorState
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/Interpreter$GeneratorState
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/ScriptRuntime$IdEnumeration
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/ScriptRuntime$IdEnumeration
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/typedarrays/NativeUint32Array
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/typedarrays/NativeUint32Array
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field CLASS_NAME
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Adding bytecode for initializing field BYTES_PER_ELEMENT
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xmlimpl/Namespace
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/xmlimpl/Namespace
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/BeanProperty
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/BeanProperty
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib$Factory
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/xml/XMLLib$Factory
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/xml/XMLLib$Factory$1
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeScript
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeScript
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/WrapFactory
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/WrapFactory
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/NativeIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/NativeIterator
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/v8dtoa/DiyFp
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter visitMethod
+INFO: Found static initializer in class org/mozilla/javascript/v8dtoa/DiyFp
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/CompilerEnvirons
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/CompilerEnvirons
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/javascript/PolicySecurityController$Loader
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/javascript/PolicySecurityController$Loader
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.MethodCallReplacementClassAdapter visit
+INFO: Adding mock interface to class org/mozilla/classfile/ClassFileField
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.instrumentation.CreateClassResetClassAdapter createEmptyStaticReset
+INFO: Creating brand-new static initializer in class org/mozilla/classfile/ClassFileField
+Jan 10, 2019 11:07:24 AM org.evosuite.runtime.classhandling.ClassStateSupport initialiseJacoco
+SEVERE: Found $jacocoInit in class org.mozilla.javascript.NativeBoolean
+Jan 10, 2019 11:07:25 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+Jan 10, 2019 11:07:25 AM org.evosuite.runtime.thread.ThreadStopper killAndJoinClientThreads
+INFO: Found new thread
+]]></system-err>
+</testsuite>

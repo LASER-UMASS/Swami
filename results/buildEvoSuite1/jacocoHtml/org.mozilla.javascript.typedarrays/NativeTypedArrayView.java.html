@@ -1,0 +1,642 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeTypedArrayView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeTypedArrayView.java</span></div><h1>NativeTypedArrayView.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ExternalArrayData;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.NativeArray;
+import org.mozilla.javascript.NativeArrayIterator;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Symbol;
+import org.mozilla.javascript.SymbolKey;
+import org.mozilla.javascript.Undefined;
+
+import java.lang.reflect.Array;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.RandomAccess;
+
+/**
+ * This class is the abstract parent for all of the various typed arrays. Each one
+ * shows a view of a specific NativeArrayBuffer, and modifications here will affect the rest.
+ */
+
+public abstract class NativeTypedArrayView&lt;T&gt;
+    extends NativeArrayBufferView
+    implements List&lt;T&gt;, RandomAccess, ExternalArrayData
+{
+    /** The length, in elements, of the array */
+    protected final int length;
+
+    protected NativeTypedArrayView()
+    {
+<span class="fc" id="L41">        super();</span>
+<span class="fc" id="L42">        length = 0;</span>
+<span class="fc" id="L43">    }</span>
+
+    protected NativeTypedArrayView(NativeArrayBuffer ab, int off, int len, int byteLen)
+    {
+<span class="fc" id="L47">        super(ab, off, byteLen);</span>
+<span class="fc" id="L48">        length = len;</span>
+<span class="fc" id="L49">    }</span>
+
+    // Array properties implementation
+
+    @Override
+    public Object get(int index, Scriptable start)
+    {
+<span class="fc" id="L56">        return js_get(index);</span>
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start)
+    {
+<span class="pc bpc" id="L62" title="2 of 4 branches missed.">        return ((index &gt; 0) &amp;&amp; (index &lt; length));</span>
+    }
+
+    @Override
+    public void put(int index, Scriptable start, Object val)
+    {
+<span class="fc" id="L68">        js_set(index, val);</span>
+<span class="fc" id="L69">    }</span>
+
+    @Override
+    public void delete(int index)
+    {
+<span class="fc" id="L74">    }</span>
+
+    @Override
+    public Object[] getIds()
+    {
+<span class="fc" id="L79">        Object[] ret = new Object[length];</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="fc" id="L81">            ret[i] = Integer.valueOf(i);</span>
+        }
+<span class="fc" id="L83">        return ret;</span>
+    }
+
+    // Actual functions
+
+    protected boolean checkIndex(int index)
+    {
+<span class="fc bfc" id="L90" title="All 4 branches covered.">       return ((index &lt; 0) || (index &gt;= length));</span>
+    }
+
+    /**
+     * Return the number of bytes represented by each element in the array. This can be useful
+     * when wishing to manipulate the byte array directly from Java.
+     */
+    public abstract int getBytesPerElement();
+
+    protected abstract NativeTypedArrayView construct(NativeArrayBuffer ab, int off, int len);
+    protected abstract Object js_get(int index);
+    protected abstract Object js_set(int index, Object c);
+    protected abstract NativeTypedArrayView realThis(Scriptable thisObj, IdFunctionObject f);
+
+    private NativeArrayBuffer makeArrayBuffer(Context cx, Scriptable scope, int length)
+    {
+<span class="nc" id="L106">        return (NativeArrayBuffer)cx.newObject(scope, NativeArrayBuffer.CLASS_NAME,</span>
+<span class="nc" id="L107">                                               new Object[] { length });</span>
+    }
+
+    private NativeTypedArrayView js_constructor(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (!isArg(args, 0)) {</span>
+<span class="nc" id="L113">            return construct(NativeArrayBuffer.EMPTY_BUFFER, 0, 0);</span>
+
+<span class="nc bnc" id="L115" title="All 4 branches missed.">        } else if ((args[0] instanceof Number) || (args[0] instanceof String)) {</span>
+            // Create a zeroed-out array of a certain length
+<span class="nc" id="L117">            int length = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc" id="L118">            NativeArrayBuffer buffer = makeArrayBuffer(cx, scope, length * getBytesPerElement());</span>
+<span class="nc" id="L119">            return construct(buffer, 0, length);</span>
+
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        } else if (args[0] instanceof NativeTypedArrayView) {</span>
+            // Copy elements from the old array and convert them into our own
+<span class="nc" id="L123">            NativeTypedArrayView src = (NativeTypedArrayView)args[0];</span>
+<span class="nc" id="L124">            NativeArrayBuffer na = makeArrayBuffer(cx, scope, src.length * getBytesPerElement());</span>
+<span class="nc" id="L125">            NativeTypedArrayView v = construct(na, 0, src.length);</span>
+
+<span class="nc bnc" id="L127" title="All 2 branches missed.">            for (int i = 0; i &lt; src.length; i++) {</span>
+<span class="nc" id="L128">                v.js_set(i, src.js_get(i));</span>
+            }
+<span class="nc" id="L130">            return v;</span>
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        } else if (args[0] instanceof NativeArrayBuffer) {</span>
+            // Make a slice of an existing buffer, with shared storage
+<span class="nc" id="L134">            NativeArrayBuffer na = (NativeArrayBuffer)args[0];</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            int byteOff = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : 0;</span>
+
+            int byteLen;
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (isArg(args, 2)) {</span>
+<span class="nc" id="L139">                byteLen = ScriptRuntime.toInt32(args[2]) * getBytesPerElement();</span>
+            } else {
+<span class="nc" id="L141">                byteLen = na.getLength() - byteOff;</span>
+            }
+
+<span class="nc bnc" id="L144" title="All 4 branches missed.">            if ((byteOff &lt; 0) || (byteOff &gt; na.buffer.length)) {</span>
+<span class="nc" id="L145">                throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset out of range&quot;);</span>
+            }
+<span class="nc bnc" id="L147" title="All 4 branches missed.">            if ((byteLen &lt; 0) || ((byteOff + byteLen) &gt; na.buffer.length)) {</span>
+<span class="nc" id="L148">                throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;length out of range&quot;);</span>
+            }
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if ((byteOff % getBytesPerElement()) != 0) {</span>
+<span class="nc" id="L151">                throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset must be a multiple of the byte size&quot;);</span>
+            }
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if ((byteLen % getBytesPerElement()) != 0) {</span>
+<span class="nc" id="L154">                throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset and buffer must be a multiple of the byte size&quot;);</span>
+            }
+
+<span class="nc" id="L157">            return construct(na, byteOff, byteLen / getBytesPerElement());</span>
+
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        } else if (args[0] instanceof NativeArray) {</span>
+            // Copy elements of the array and convert them to the correct type
+<span class="nc" id="L161">            List l = (List)args[0];</span>
+<span class="nc" id="L162">            NativeArrayBuffer na = makeArrayBuffer(cx, scope, l.size() * getBytesPerElement());</span>
+<span class="nc" id="L163">            NativeTypedArrayView v = construct(na, 0, l.size());</span>
+<span class="nc" id="L164">            int p = 0;</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">            for (Object o : l) {</span>
+<span class="nc" id="L166">                v.js_set(p, o);</span>
+<span class="nc" id="L167">                p++;</span>
+<span class="nc" id="L168">            }</span>
+<span class="nc" id="L169">            return v;</span>
+
+        } else {
+<span class="nc" id="L172">            throw ScriptRuntime.constructError(&quot;Error&quot;, &quot;invalid argument&quot;);</span>
+        }
+    }
+
+    private void setRange(NativeTypedArrayView v, int off)
+    {
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (off &gt;= length) {</span>
+<span class="nc" id="L179">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset out of range&quot;);</span>
+        }
+
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (v.length &gt; (length - off)) {</span>
+<span class="nc" id="L183">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;source array too long&quot;);</span>
+        }
+
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if (v.arrayBuffer == arrayBuffer) {</span>
+            // Copy to temporary space first, as per spec, to avoid messing up overlapping copies
+<span class="nc" id="L188">            Object[] tmp = new Object[v.length];</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            for (int i = 0; i &lt; v.length; i++) {</span>
+<span class="nc" id="L190">                tmp[i] = v.js_get(i);</span>
+            }
+<span class="nc bnc" id="L192" title="All 2 branches missed.">            for (int i = 0; i &lt; v.length; i++) {</span>
+<span class="nc" id="L193">                js_set(i + off, tmp[i]);</span>
+            }
+<span class="nc" id="L195">        } else {</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            for (int i = 0; i &lt; v.length; i++) {</span>
+<span class="nc" id="L197">                js_set(i + off, v.js_get(i));</span>
+            }
+        }
+<span class="nc" id="L200">    }</span>
+
+    private void setRange(NativeArray a, int off)
+    {
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        if (off &gt; length) {</span>
+<span class="nc" id="L205">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset out of range&quot;);</span>
+        }
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if ((off + a.size()) &gt; length) {</span>
+<span class="nc" id="L208">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset + length out of range&quot;);</span>
+        }
+
+<span class="nc" id="L211">        int pos = off;</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        for (Object val : a) {</span>
+<span class="nc" id="L213">            js_set(pos, val);</span>
+<span class="nc" id="L214">            pos++;</span>
+<span class="nc" id="L215">        }</span>
+<span class="nc" id="L216">    }</span>
+
+    private Object js_subarray(Context cx, Scriptable scope, int s, int e)
+    {
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        int start = (s &lt; 0 ? length + s : s);</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        int end = (e &lt; 0 ? length + e : e);</span>
+
+        // Clamping behavior as described by the spec.
+<span class="nc" id="L224">        start = Math.max(0, start);</span>
+<span class="nc" id="L225">        end = Math.min(length, end);</span>
+<span class="nc" id="L226">        int len = Math.max(0, (end - start));</span>
+<span class="nc" id="L227">        int byteOff = Math.min(start * getBytesPerElement(), arrayBuffer.getLength());</span>
+
+<span class="nc" id="L229">        return</span>
+<span class="nc" id="L230">            cx.newObject(scope, getClassName(),</span>
+<span class="nc" id="L231">                         new Object[]{arrayBuffer, byteOff, len});</span>
+    }
+
+    // Dispatcher
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">        if (!f.hasTag(getClassName())) {</span>
+<span class="nc" id="L241">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L243">        int id = f.methodId();</span>
+<span class="nc bnc" id="L244" title="All 6 branches missed.">        switch (id) {</span>
+        case Id_constructor:
+<span class="nc" id="L246">            return js_constructor(cx, scope, args);</span>
+
+        case Id_get:
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (args.length &gt; 0) {</span>
+<span class="nc" id="L250">                return realThis(thisObj, f).js_get(ScriptRuntime.toInt32(args[0]));</span>
+            } else {
+<span class="nc" id="L252">                throw ScriptRuntime.constructError(&quot;Error&quot;, &quot;invalid arguments&quot;);</span>
+            }
+
+        case Id_set:
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            if (args.length &gt; 0) {</span>
+<span class="nc" id="L257">                NativeTypedArrayView self = realThis(thisObj, f);</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">                if (args[0] instanceof NativeTypedArrayView) {</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                    int offset = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : 0;</span>
+<span class="nc" id="L260">                    self.setRange((NativeTypedArrayView)args[0], offset);</span>
+<span class="nc" id="L261">                    return Undefined.instance;</span>
+                }
+<span class="nc bnc" id="L263" title="All 2 branches missed.">                if (args[0] instanceof NativeArray) {</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">                    int offset = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : 0;</span>
+<span class="nc" id="L265">                    self.setRange((NativeArray)args[0], offset);</span>
+<span class="nc" id="L266">                    return Undefined.instance;</span>
+                }
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if (args[0] instanceof Scriptable) {</span>
+                    // Tests show that we need to ignore a non-array object
+<span class="nc" id="L270">                    return Undefined.instance;</span>
+                }
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                if (isArg(args, 2)) {</span>
+<span class="nc" id="L273">                    return self.js_set(ScriptRuntime.toInt32(args[0]), args[1]);</span>
+                }
+            }
+<span class="nc" id="L276">            throw ScriptRuntime.constructError(&quot;Error&quot;, &quot;invalid arguments&quot;);</span>
+
+        case Id_subarray:
+<span class="nc bnc" id="L279" title="All 2 branches missed.">            if (args.length &gt; 0) {</span>
+<span class="nc" id="L280">                NativeTypedArrayView self = realThis(thisObj, f);</span>
+<span class="nc" id="L281">                int start = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                int end = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : self.length;</span>
+<span class="nc" id="L283">                return self.js_subarray(cx, scope, start, end);</span>
+            } else {
+<span class="nc" id="L285">                throw ScriptRuntime.constructError(&quot;Error&quot;, &quot;invalid arguments&quot;);</span>
+            }
+
+        case SymbolId_iterator:
+<span class="nc" id="L289">            return new NativeArrayIterator(scope, thisObj);</span>
+        }
+<span class="nc" id="L291">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        if (id == SymbolId_iterator) {</span>
+<span class="nc" id="L298">            initPrototypeMethod(getClassName(), id, SymbolKey.ITERATOR, &quot;[Symbol.iterator]&quot;, 0);</span>
+<span class="nc" id="L299">            return;</span>
+        }
+
+<span class="fc" id="L302">        String s, fnName = null;</span>
+        int arity;
+<span class="pc bpc" id="L304" title="3 of 5 branches missed.">        switch (id) {</span>
+<span class="fc" id="L305">        case Id_constructor:        arity = 1; s = &quot;constructor&quot;; break;</span>
+<span class="nc" id="L306">        case Id_get:                arity = 1; s = &quot;get&quot;; break;</span>
+<span class="nc" id="L307">        case Id_set:                arity = 2; s = &quot;set&quot;; break;</span>
+<span class="nc" id="L308">        case Id_subarray:           arity = 2; s = &quot;subarray&quot;; break;</span>
+<span class="fc" id="L309">        default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L311">        initPrototypeMethod(getClassName(), id, s, fnName, arity);</span>
+<span class="fc" id="L312">    }</span>
+
+    @Override
+    protected int findPrototypeId(Symbol k)
+    {
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        if (SymbolKey.ITERATOR.equals(k)) {</span>
+<span class="fc" id="L318">            return SymbolId_iterator;</span>
+        }
+<span class="fc" id="L320">        return 0;</span>
+    }
+
+    // #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2016-03-04 20:59:23 GMT
+<span class="fc" id="L330">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L331">            int s_length = s.length();</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">            if (s_length==3) {</span>
+<span class="fc" id="L333">                c=s.charAt(0);</span>
+<span class="pc bpc" id="L334" title="5 of 6 branches missed.">                if (c=='g') { if (s.charAt(2)=='t' &amp;&amp; s.charAt(1)=='e') {id=Id_get; break L0;} }</span>
+<span class="pc bpc" id="L335" title="5 of 6 branches missed.">                else if (c=='s') { if (s.charAt(2)=='t' &amp;&amp; s.charAt(1)=='e') {id=Id_set; break L0;} }</span>
+            }
+<span class="pc bpc" id="L337" title="1 of 2 branches missed.">            else if (s_length==8) { X=&quot;subarray&quot;;id=Id_subarray; }</span>
+<span class="pc bpc" id="L338" title="1 of 2 branches missed.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L339" title="3 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L343">        return id;</span>
+    }
+
+    // Table of all functions
+    private static final int
+        Id_constructor          = 1,
+        Id_get                  = 2,
+        Id_set                  = 3,
+        Id_subarray             = 4,
+        SymbolId_iterator       = 5;
+
+    protected static final int
+        MAX_PROTOTYPE_ID        = SymbolId_iterator;
+
+// #/string_id_map#
+
+    // Constructor properties
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L364">        ctor.put(&quot;BYTES_PER_ELEMENT&quot;, ctor, ScriptRuntime.wrapInt(getBytesPerElement()));</span>
+<span class="fc" id="L365">    }</span>
+
+    // Property dispatcher
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L372">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L378" title="1 of 3 branches missed.">        switch (id) {</span>
+<span class="fc" id="L379">        case Id_length: return &quot;length&quot;;</span>
+<span class="fc" id="L380">        case Id_BYTES_PER_ELEMENT: return &quot;BYTES_PER_ELEMENT&quot;;</span>
+<span class="nc" id="L381">        default: return super.getInstanceIdName(id);</span>
+        }
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="fc bfc" id="L388" title="All 3 branches covered.">        switch (id) {</span>
+        case Id_length:
+<span class="fc" id="L390">            return ScriptRuntime.wrapInt(length);</span>
+        case Id_BYTES_PER_ELEMENT:
+<span class="fc" id="L392">            return ScriptRuntime.wrapInt(getBytesPerElement());</span>
+        default:
+<span class="fc" id="L394">            return super.getInstanceIdValue(id);</span>
+        }
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2014-12-08 17:33:28 PST
+<span class="fc" id="L405">        L0: { id = 0; String X = null;</span>
+<span class="fc" id="L406">            int s_length = s.length();</span>
+<span class="fc bfc" id="L407" title="All 2 branches covered.">            if (s_length==6) { X=&quot;length&quot;;id=Id_length; }</span>
+<span class="fc bfc" id="L408" title="All 2 branches covered.">            else if (s_length==17) { X=&quot;BYTES_PER_ELEMENT&quot;;id=Id_BYTES_PER_ELEMENT; }</span>
+<span class="pc bpc" id="L409" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc bfc" id="L413" title="All 2 branches covered.">        if (id == 0) {</span>
+<span class="fc" id="L414">            return super.findInstanceIdInfo(s);</span>
+        }
+<span class="fc" id="L416">        return instanceIdInfo(READONLY | PERMANENT, id);</span>
+    }
+
+    /*
+     * These must not conflict with ids in the parent since we delegate there for property dispatching.
+     */
+    private static final int
+        Id_length               = 10,
+        Id_BYTES_PER_ELEMENT    = 11,
+        MAX_INSTANCE_ID         = Id_BYTES_PER_ELEMENT;
+
+// #/string_id_map#
+
+    // External Array implementation
+
+    @Override
+    public Object getArrayElement(int index)
+    {
+<span class="fc" id="L434">        return js_get(index);</span>
+    }
+
+    @Override
+    public void setArrayElement(int index, Object value)
+    {
+<span class="fc" id="L440">        js_set(index, value);</span>
+<span class="fc" id="L441">    }</span>
+
+    @Override
+    public int getArrayLength() {
+<span class="fc" id="L445">        return length;</span>
+    }
+
+    // Abstract List implementation
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public int size()
+    {
+<span class="fc" id="L453">        return length;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean isEmpty()
+    {
+<span class="fc bfc" id="L459" title="All 2 branches covered.">        return (length == 0);</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean contains(Object o)
+    {
+<span class="fc bfc" id="L465" title="All 2 branches covered.">        return (indexOf(o) &gt;= 0);</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean containsAll(Collection&lt;?&gt; objects)
+    {
+<span class="fc bfc" id="L471" title="All 2 branches covered.">        for (Object o : objects) {</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">            if (!contains(o)) {</span>
+<span class="fc" id="L473">                return false;</span>
+            }
+<span class="fc" id="L475">        }</span>
+<span class="fc" id="L476">        return true;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public int indexOf(Object o)
+    {
+<span class="pc bfc" id="L482" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">            if (o.equals(js_get(i))) {</span>
+<span class="fc" id="L484">                return i;</span>
+            }
+        }
+<span class="fc" id="L487">        return -1;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public int lastIndexOf(Object o)
+    {
+<span class="fc bfc" id="L493" title="All 2 branches covered.">        for (int i = length - 1; i &gt;= 0; i--) {</span>
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">            if (o.equals(js_get(i))) {</span>
+<span class="nc" id="L495">                return i;</span>
+            }
+        }
+<span class="fc" id="L498">        return -1;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public Object[] toArray()
+    {
+<span class="fc" id="L504">        Object[] a = new Object[length];</span>
+<span class="fc bfc" id="L505" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="fc" id="L506">            a[i] = js_get(i);</span>
+        }
+<span class="fc" id="L508">        return a;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public &lt;U&gt; U[] toArray(U[] ts)
+    {
+        U[] a;
+
+<span class="fc bfc" id="L516" title="All 2 branches covered.">        if (ts.length &gt;= length) {</span>
+<span class="fc" id="L517">            a = ts;</span>
+        } else {
+<span class="fc" id="L519">            a = (U[])Array.newInstance(ts.getClass().getComponentType(), length);</span>
+        }
+
+<span class="fc bfc" id="L522" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+            try {
+<span class="fc" id="L524">                a[i] = (U)js_get(i);</span>
+<span class="nc" id="L525">            } catch (ClassCastException cce) {</span>
+<span class="nc" id="L526">                throw new ArrayStoreException();</span>
+<span class="fc" id="L527">            }</span>
+        }
+<span class="fc" id="L529">        return a;</span>
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        try {
+<span class="fc" id="L536">            NativeTypedArrayView&lt;T&gt; v = (NativeTypedArrayView&lt;T&gt;)o;</span>
+<span class="fc bfc" id="L537" title="All 2 branches covered.">            if (length != v.length) {</span>
+<span class="fc" id="L538">                return false;</span>
+            }
+<span class="pc bfc" id="L540" title="All 2 branches covered.">            for (int i = 0; i &lt; length; i++) {</span>
+<span class="pc bpc" id="L541" title="1 of 2 branches missed.">                if (!js_get(i).equals(v.js_get(i))) {</span>
+<span class="fc" id="L542">                    return false;</span>
+                }
+            }
+<span class="fc" id="L545">            return true;</span>
+<span class="fc" id="L546">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L547">            return false;</span>
+        }
+    }
+
+    @Override
+    public int hashCode()
+    {
+<span class="fc" id="L554">        int hc = 0;</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="fc" id="L556">            hc += js_get(i).hashCode();</span>
+        }
+<span class="fc" id="L558">        return hc;</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public Iterator&lt;T&gt; iterator()
+    {
+<span class="fc" id="L564">        return new NativeTypedArrayIterator&lt;T&gt;(this, 0);</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public ListIterator&lt;T&gt; listIterator()
+    {
+<span class="fc" id="L570">        return new NativeTypedArrayIterator&lt;T&gt;(this, 0);</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public ListIterator&lt;T&gt; listIterator(int start)
+    {
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        if (checkIndex(start)) {</span>
+<span class="fc" id="L577">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L579">        return new NativeTypedArrayIterator&lt;T&gt;(this, start);</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public List&lt;T&gt; subList(int i, int i2)
+    {
+<span class="fc" id="L585">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean add(T aByte)
+    {
+<span class="fc" id="L591">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public void add(int i, T aByte)
+    {
+<span class="fc" id="L597">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean addAll(Collection&lt;? extends T&gt; bytes)
+    {
+<span class="fc" id="L603">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean addAll(int i, Collection&lt;? extends T&gt; bytes)
+    {
+<span class="fc" id="L609">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public void clear()
+    {
+<span class="fc" id="L615">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public T remove(int i)
+    {
+<span class="fc" id="L621">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean remove(Object o)
+    {
+<span class="fc" id="L627">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean removeAll(Collection&lt;?&gt; objects)
+    {
+<span class="fc" id="L633">        throw new UnsupportedOperationException();</span>
+    }
+
+    @SuppressWarnings(&quot;unused&quot;)
+    public boolean retainAll(Collection&lt;?&gt; objects)
+    {
+<span class="fc" id="L639">        throw new UnsupportedOperationException();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SoftCachingModuleScriptProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.commonjs.module.provider</a> &gt; <span class="el_source">SoftCachingModuleScriptProvider.java</span></div><h1>SoftCachingModuleScriptProvider.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module.provider;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Script;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.commonjs.module.ModuleScript;
+
+/**
+ * A module script provider that uses a module source provider to load modules
+ * and caches the loaded modules. It softly references the loaded modules'
+ * Rhino {@link Script} objects, thus a module once loaded can become eligible
+ * for garbage collection if it is otherwise unused under memory pressure.
+ * Instances of this class are thread safe.
+ * @author Attila Szegedi
+ * @version $Id: SoftCachingModuleScriptProvider.java,v 1.3 2011/04/07 20:26:12 hannes%helma.at Exp $
+ */
+public class SoftCachingModuleScriptProvider extends CachingModuleScriptProviderBase
+{
+    private static final long serialVersionUID = 1L;
+
+<span class="fc" id="L36">    private transient ReferenceQueue&lt;Script&gt; scriptRefQueue =</span>
+        new ReferenceQueue&lt;Script&gt;();
+
+<span class="fc" id="L39">    private transient ConcurrentMap&lt;String, ScriptReference&gt; scripts =</span>
+        new ConcurrentHashMap&lt;String, ScriptReference&gt;(16, .75f,
+<span class="fc" id="L41">                getConcurrencyLevel());</span>
+
+    /**
+     * Creates a new module provider with the specified module source provider.
+     * @param moduleSourceProvider provider for modules' source code
+     */
+    public SoftCachingModuleScriptProvider(
+            ModuleSourceProvider moduleSourceProvider)
+    {
+<span class="fc" id="L50">        super(moduleSourceProvider);</span>
+<span class="fc" id="L51">    }</span>
+
+    @Override
+    public ModuleScript getModuleScript(Context cx, String moduleId,
+            URI uri, URI base, Scriptable paths)
+            throws Exception
+    {
+        // Overridden to clear the reference queue before retrieving the
+        // script.
+        for(;;) {
+<span class="nc" id="L61">            ScriptReference ref = (ScriptReference)scriptRefQueue.poll();</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">            if(ref == null) {</span>
+<span class="nc" id="L63">                break;</span>
+            }
+<span class="nc" id="L65">            scripts.remove(ref.getModuleId(), ref);</span>
+<span class="nc" id="L66">        }</span>
+<span class="nc" id="L67">        return super.getModuleScript(cx, moduleId, uri, base, paths);</span>
+    }
+
+    @Override
+    protected CachedModuleScript getLoadedModule(String moduleId) {
+<span class="fc" id="L72">        final ScriptReference scriptRef = scripts.get(moduleId);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        return scriptRef != null ? scriptRef.getCachedModuleScript() : null;</span>
+    }
+
+    @Override
+    protected void putLoadedModule(String moduleId, ModuleScript moduleScript,
+            Object validator)
+    {
+<span class="fc" id="L80">        scripts.put(moduleId, new ScriptReference(moduleScript.getScript(),</span>
+<span class="fc" id="L81">                moduleId, moduleScript.getUri(), moduleScript.getBase(),</span>
+                validator, scriptRefQueue));
+<span class="fc" id="L83">    }</span>
+
+    private static class ScriptReference extends SoftReference&lt;Script&gt; {
+        private final String moduleId;
+        private final URI uri;
+        private final URI base;
+        private final Object validator;
+
+        ScriptReference(Script script, String moduleId, URI uri, URI base,
+                Object validator, ReferenceQueue&lt;Script&gt; refQueue) {
+<span class="fc" id="L93">            super(script, refQueue);</span>
+<span class="fc" id="L94">            this.moduleId = moduleId;</span>
+<span class="fc" id="L95">            this.uri = uri;</span>
+<span class="fc" id="L96">            this.base = base;</span>
+<span class="fc" id="L97">            this.validator = validator;</span>
+<span class="fc" id="L98">        }</span>
+
+        CachedModuleScript getCachedModuleScript() {
+<span class="fc" id="L101">            final Script script = get();</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">            if(script == null) {</span>
+<span class="fc" id="L103">                return null;</span>
+            }
+<span class="nc" id="L105">            return new CachedModuleScript(new ModuleScript(script, uri, base),</span>
+                    validator);
+        }
+
+        String getModuleId() {
+<span class="nc" id="L110">            return moduleId;</span>
+        }
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException,
+    ClassNotFoundException
+    {
+<span class="nc" id="L117">        scriptRefQueue = new ReferenceQueue&lt;Script&gt;();</span>
+<span class="nc" id="L118">        scripts = new ConcurrentHashMap&lt;String, ScriptReference&gt;();</span>
+<span class="nc" id="L119">        final Map&lt;String, CachedModuleScript&gt; serScripts = (Map)in.readObject();</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        for(Map.Entry&lt;String, CachedModuleScript&gt; entry: serScripts.entrySet()) {</span>
+<span class="nc" id="L121">            final CachedModuleScript cachedModuleScript = entry.getValue();</span>
+<span class="nc" id="L122">            putLoadedModule(entry.getKey(), cachedModuleScript.getModule(),</span>
+<span class="nc" id="L123">                    cachedModuleScript.getValidator());</span>
+<span class="nc" id="L124">        }</span>
+<span class="nc" id="L125">    }</span>
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+<span class="nc" id="L128">        final Map&lt;String, CachedModuleScript&gt; serScripts =</span>
+            new HashMap&lt;String, CachedModuleScript&gt;();
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for(Map.Entry&lt;String, ScriptReference&gt; entry: scripts.entrySet()) {</span>
+<span class="nc" id="L131">            final CachedModuleScript cachedModuleScript =</span>
+<span class="nc" id="L132">                entry.getValue().getCachedModuleScript();</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if(cachedModuleScript != null) {</span>
+<span class="nc" id="L134">                serScripts.put(entry.getKey(), cachedModuleScript);</span>
+            }
+<span class="nc" id="L136">        }</span>
+<span class="nc" id="L137">        out.writeObject(serScripts);</span>
+<span class="nc" id="L138">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

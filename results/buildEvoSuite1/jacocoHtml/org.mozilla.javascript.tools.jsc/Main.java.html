@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Main.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.jsc</a> &gt; <span class="el_source">Main.java</span></div><h1>Main.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.jsc;
+
+import java.io.*;
+import java.util.*;
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.optimizer.ClassCompiler;
+import org.mozilla.javascript.tools.SourceReader;
+import org.mozilla.javascript.tools.ToolErrorReporter;
+
+/**
+ * @author Norris Boyd
+ */
+public class Main {
+
+    /**
+     * Main entry point.
+     *
+     * Process arguments as would a normal Java program.
+     * Then set up the execution environment and begin to
+     * compile scripts.
+     */
+    public static void main(String args[])
+    {
+<span class="fc" id="L28">        Main main = new Main();</span>
+<span class="fc" id="L29">        args = main.processOptions(args);</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (args == null) {</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">            if (main.printHelp) {</span>
+<span class="fc" id="L32">                System.out.println(ToolErrorReporter.getMessage(</span>
+<span class="fc" id="L33">                    &quot;msg.jsc.usage&quot;, Main.class.getName()));</span>
+<span class="nc" id="L34">                System.exit(0);</span>
+            }
+<span class="nc" id="L36">            System.exit(1);</span>
+        }
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">        if (!main.reporter.hasReportedError()) {</span>
+<span class="fc" id="L39">            main.processSource(args);</span>
+        }
+<span class="fc" id="L41">    }</span>
+
+    public Main()
+<span class="fc" id="L44">    {</span>
+<span class="fc" id="L45">        reporter = new ToolErrorReporter(true);</span>
+<span class="fc" id="L46">        compilerEnv = new CompilerEnvirons();</span>
+<span class="fc" id="L47">        compilerEnv.setErrorReporter(reporter);</span>
+<span class="fc" id="L48">        compiler = new ClassCompiler(compilerEnv);</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Parse arguments.
+     *
+     */
+    public String[] processOptions(String args[])
+    {
+<span class="fc" id="L57">        targetPackage = &quot;&quot;;        // default to no package</span>
+<span class="fc" id="L58">        compilerEnv.setGenerateDebugInfo(false);   // default to no symbols</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        for (int i=0; i &lt; args.length; i++) {</span>
+<span class="fc" id="L60">            String arg = args[i];</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">            if (!arg.startsWith(&quot;-&quot;)) {</span>
+<span class="fc" id="L62">                int tail = args.length - i;</span>
+<span class="pc bpc" id="L63" title="1 of 4 branches missed.">                if (targetName != null &amp;&amp; tail &gt; 1) {</span>
+<span class="fc" id="L64">                    addError(&quot;msg.multiple.js.to.file&quot;, targetName);</span>
+<span class="fc" id="L65">                    return null;</span>
+                }
+<span class="fc" id="L67">                String[] result = new String[tail];</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">                for (int j = 0; j != tail; ++j) {</span>
+<span class="fc" id="L69">                    result[j] = args[i + j];</span>
+                }
+<span class="fc" id="L71">                return result;</span>
+            }
+<span class="pc bpc" id="L73" title="1 of 4 branches missed.">            if (arg.equals(&quot;-help&quot;) || arg.equals(&quot;-h&quot;)</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">                || arg.equals(&quot;--help&quot;))</span>
+            {
+<span class="fc" id="L76">                printHelp = true;</span>
+<span class="fc" id="L77">                return null;</span>
+            }
+
+            try {
+<span class="pc bpc" id="L81" title="1 of 4 branches missed.">                if (arg.equals(&quot;-version&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L82">                    int version = Integer.parseInt(args[i]);</span>
+<span class="nc" id="L83">                    compilerEnv.setLanguageVersion(version);</span>
+<span class="nc" id="L84">                    continue;</span>
+                }
+<span class="pc bpc" id="L86" title="2 of 6 branches missed.">                if ((arg.equals(&quot;-opt&quot;) || arg.equals(&quot;-O&quot;))  &amp;&amp;</span>
+                    ++i &lt; args.length)
+                {
+<span class="nc" id="L89">                    int optLevel = Integer.parseInt(args[i]);</span>
+<span class="nc" id="L90">                    compilerEnv.setOptimizationLevel(optLevel);</span>
+<span class="nc" id="L91">                    continue;</span>
+                }
+            }
+<span class="fc" id="L94">            catch (NumberFormatException e) {</span>
+<span class="fc" id="L95">                badUsage(args[i]);</span>
+<span class="fc" id="L96">                return null;</span>
+<span class="fc" id="L97">            }</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            if (arg.equals(&quot;-nosource&quot;)) {</span>
+<span class="fc" id="L99">                compilerEnv.setGeneratingSource(false);</span>
+<span class="fc" id="L100">                continue;</span>
+            }
+<span class="pc bpc" id="L102" title="1 of 4 branches missed.">            if (arg.equals(&quot;-debug&quot;) || arg.equals(&quot;-g&quot;)) {</span>
+<span class="fc" id="L103">                compilerEnv.setGenerateDebugInfo(true);</span>
+<span class="fc" id="L104">                continue;</span>
+            }
+<span class="pc bpc" id="L106" title="1 of 4 branches missed.">            if (arg.equals(&quot;-main-method-class&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L107">                compiler.setMainMethodClass(args[i]);</span>
+<span class="fc" id="L108">                continue;</span>
+            }
+<span class="pc bpc" id="L110" title="1 of 4 branches missed.">            if (arg.equals(&quot;-encoding&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L111">                characterEncoding = args[i];</span>
+<span class="fc" id="L112">                continue;</span>
+            }
+<span class="pc bpc" id="L114" title="1 of 4 branches missed.">            if (arg.equals(&quot;-o&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L115">                String name = args[i];</span>
+<span class="fc" id="L116">                int end = name.length();</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                if (end == 0</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">                    || !Character.isJavaIdentifierStart(name.charAt(0)))</span>
+                {
+<span class="fc" id="L120">                    addError(&quot;msg.invalid.classfile.name&quot;, name);</span>
+<span class="fc" id="L121">                    continue;</span>
+                }
+<span class="fc bfc" id="L123" title="All 2 branches covered.">                for (int j = 1; j &lt; end; j++) {</span>
+<span class="fc" id="L124">                    char c = name.charAt(j);</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">                    if (!Character.isJavaIdentifierPart(c)) {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                        if (c == '.') {</span>
+                            // check if it is the dot in .class
+<span class="pc bpc" id="L128" title="3 of 4 branches missed.">                            if (j == end - 6 &amp;&amp; name.endsWith(&quot;.class&quot;)) {</span>
+<span class="nc" id="L129">                                name = name.substring(0, j);</span>
+<span class="nc" id="L130">                                break;</span>
+                            }
+                        }
+<span class="fc" id="L133">                        addError(&quot;msg.invalid.classfile.name&quot;, name);</span>
+<span class="fc" id="L134">                        break;</span>
+                    }
+                }
+<span class="fc" id="L137">                targetName = name;</span>
+<span class="fc" id="L138">                continue;</span>
+            }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            if (arg.equals(&quot;-observe-instruction-count&quot;)) {</span>
+<span class="fc" id="L141">                compilerEnv.setGenerateObserverCount(true);</span>
+            }
+<span class="pc bpc" id="L143" title="1 of 4 branches missed.">            if (arg.equals(&quot;-package&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L144">                String pkg = args[i];</span>
+<span class="fc" id="L145">                int end = pkg.length();</span>
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">                for (int j = 0; j != end; ++j) {</span>
+<span class="fc" id="L147">                    char c = pkg.charAt(j);</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">                    if (Character.isJavaIdentifierStart(c)) {</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">                        for (++j; j != end; ++j) {</span>
+<span class="fc" id="L150">                            c = pkg.charAt(j);</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                            if (!Character.isJavaIdentifierPart(c)) {</span>
+<span class="fc" id="L152">                                break;</span>
+                            }
+                        }
+<span class="fc bfc" id="L155" title="All 2 branches covered.">                        if (j == end) {</span>
+<span class="fc" id="L156">                            break;</span>
+                        }
+<span class="pc bpc" id="L158" title="1 of 4 branches missed.">                        if (c == '.' &amp;&amp; j != end - 1) {</span>
+<span class="fc" id="L159">                            continue;</span>
+                        }
+                    }
+<span class="fc" id="L162">                    addError(&quot;msg.package.name&quot;, targetPackage);</span>
+<span class="fc" id="L163">                    return null;</span>
+                }
+<span class="fc" id="L165">                targetPackage = pkg;</span>
+<span class="fc" id="L166">                continue;</span>
+            }
+<span class="pc bpc" id="L168" title="1 of 4 branches missed.">            if (arg.equals(&quot;-extends&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L169">                String targetExtends = args[i];</span>
+                Class&lt;?&gt; superClass;
+                try {
+<span class="fc" id="L172">                    superClass = Class.forName(targetExtends);</span>
+<span class="fc" id="L173">                } catch (ClassNotFoundException e) {</span>
+<span class="fc" id="L174">                    throw new Error(e.toString()); // TODO: better error</span>
+<span class="fc" id="L175">                }</span>
+<span class="fc" id="L176">                compiler.setTargetExtends(superClass);</span>
+<span class="fc" id="L177">                continue;</span>
+            }
+<span class="pc bpc" id="L179" title="1 of 4 branches missed.">            if (arg.equals(&quot;-implements&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+                // TODO: allow for multiple comma-separated interfaces.
+<span class="fc" id="L181">                String targetImplements = args[i];</span>
+<span class="fc" id="L182">                StringTokenizer st = new StringTokenizer(targetImplements,</span>
+                                                         &quot;,&quot;);
+<span class="fc" id="L184">                List&lt;Class&lt;?&gt;&gt; list = new ArrayList&lt;Class&lt;?&gt;&gt;();</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">                while (st.hasMoreTokens()) {</span>
+<span class="fc" id="L186">                    String className = st.nextToken();</span>
+                    try {
+<span class="fc" id="L188">                        list.add(Class.forName(className));</span>
+<span class="fc" id="L189">                    } catch (ClassNotFoundException e) {</span>
+<span class="fc" id="L190">                        throw new Error(e.toString()); // TODO: better error</span>
+<span class="fc" id="L191">                    }</span>
+<span class="fc" id="L192">                }</span>
+<span class="fc" id="L193">                Class&lt;?&gt;[] implementsClasses = list.toArray(new Class&lt;?&gt;[list.size()]);</span>
+<span class="fc" id="L194">                compiler.setTargetImplements(implementsClasses);</span>
+<span class="fc" id="L195">                continue;</span>
+            }
+<span class="pc bpc" id="L197" title="1 of 4 branches missed.">            if (arg.equals(&quot;-d&quot;) &amp;&amp; ++i &lt; args.length) {</span>
+<span class="fc" id="L198">                destinationDir = args[i];</span>
+<span class="fc" id="L199">                continue;</span>
+            }
+<span class="fc" id="L201">            badUsage(arg);</span>
+<span class="fc" id="L202">            return null;</span>
+        }
+        // no file name
+<span class="fc" id="L205">        p(ToolErrorReporter.getMessage(&quot;msg.no.file&quot;));</span>
+<span class="fc" id="L206">        return null;</span>
+    }
+    /**
+     * Print a usage message.
+     */
+    private static void badUsage(String s) {
+<span class="fc" id="L212">        System.err.println(ToolErrorReporter.getMessage(</span>
+<span class="fc" id="L213">            &quot;msg.jsc.bad.usage&quot;, Main.class.getName(), s));</span>
+<span class="fc" id="L214">    }</span>
+
+    /**
+     * Compile JavaScript source.
+     *
+     */
+    public void processSource(String[] filenames)
+    {
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        for (int i = 0; i != filenames.length; ++i) {</span>
+<span class="fc" id="L223">            String filename = filenames[i];</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            if (!filename.endsWith(&quot;.js&quot;)) {</span>
+<span class="fc" id="L225">                addError(&quot;msg.extension.not.js&quot;, filename);</span>
+<span class="fc" id="L226">                return;</span>
+            }
+<span class="fc" id="L228">            File f = new File(filename);</span>
+<span class="fc" id="L229">            String source = readSource(f);</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">            if (source == null) return;</span>
+
+<span class="fc" id="L232">            String mainClassName = targetName;</span>
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">            if (mainClassName == null) {</span>
+<span class="fc" id="L234">                String name = f.getName();</span>
+<span class="fc" id="L235">                String nojs = name.substring(0, name.length() - 3);</span>
+<span class="fc" id="L236">                mainClassName = getClassName(nojs);</span>
+            }
+<span class="pc bpc" id="L238" title="1 of 2 branches missed.">            if (targetPackage.length() != 0) {</span>
+<span class="nc" id="L239">                mainClassName = targetPackage+&quot;.&quot;+mainClassName;</span>
+            }
+
+<span class="fc" id="L242">            Object[] compiled</span>
+<span class="fc" id="L243">                = compiler.compileToClassFiles(source, filename, 1,</span>
+                                               mainClassName);
+<span class="pc bpc" id="L245" title="2 of 4 branches missed.">            if (compiled == null || compiled.length == 0) {</span>
+<span class="nc" id="L246">                return;</span>
+            }
+
+<span class="fc" id="L249">            File targetTopDir = null;</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">            if (destinationDir != null) {</span>
+<span class="nc" id="L251">                targetTopDir = new File(destinationDir);</span>
+            } else {
+<span class="fc" id="L253">                String parent = f.getParent();</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">                if (parent != null) {</span>
+<span class="nc" id="L255">                    targetTopDir = new File(parent);</span>
+                }
+            }
+<span class="fc bfc" id="L258" title="All 2 branches covered.">            for (int j = 0; j != compiled.length; j += 2) {</span>
+<span class="fc" id="L259">                String className = (String)compiled[j];</span>
+<span class="fc" id="L260">                byte[] bytes = (byte[])compiled[j + 1];</span>
+<span class="fc" id="L261">                File outfile = getOutputFile(targetTopDir, className);</span>
+                try {
+<span class="fc" id="L263">                    FileOutputStream os = new FileOutputStream(outfile);</span>
+                    try {
+<span class="fc" id="L265">                        os.write(bytes);</span>
+                    } finally {
+<span class="pc" id="L267">                        os.close();</span>
+<span class="pc" id="L268">                    }</span>
+<span class="fc" id="L269">                } catch (IOException ioe) {</span>
+<span class="fc" id="L270">                    addFormatedError(ioe.toString());</span>
+<span class="fc" id="L271">                }</span>
+            }
+        }
+<span class="fc" id="L274">    }</span>
+
+    private String readSource(File f)
+    {
+<span class="fc" id="L278">        String absPath = f.getAbsolutePath();</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        if (!f.isFile()) {</span>
+<span class="fc" id="L280">            addError(&quot;msg.jsfile.not.found&quot;, absPath);</span>
+<span class="fc" id="L281">            return null;</span>
+        }
+        try {
+<span class="fc" id="L284">            return (String)SourceReader.readFileOrUrl(absPath, true,</span>
+                    characterEncoding);
+<span class="fc" id="L286">        } catch (FileNotFoundException ex) {</span>
+<span class="fc" id="L287">            addError(&quot;msg.couldnt.open&quot;, absPath);</span>
+<span class="fc" id="L288">        } catch (IOException ioe) {</span>
+<span class="fc" id="L289">            addFormatedError(ioe.toString());</span>
+<span class="fc" id="L290">        }</span>
+<span class="fc" id="L291">        return null;</span>
+    }
+
+    private File getOutputFile(File parentDir, String className)
+    {
+<span class="fc" id="L296">        String path = className.replace('.', File.separatorChar);</span>
+<span class="fc" id="L297">        path = path.concat(&quot;.class&quot;);</span>
+<span class="fc" id="L298">        File f = new File(parentDir, path);</span>
+<span class="fc" id="L299">        String dirPath = f.getParent();</span>
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">        if (dirPath != null) {</span>
+<span class="nc" id="L301">            File dir = new File(dirPath);</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">            if (!dir.exists()) {</span>
+<span class="nc" id="L303">                dir.mkdirs();</span>
+            }
+        }
+<span class="fc" id="L306">        return f;</span>
+    }
+
+    /**
+     * Verify that class file names are legal Java identifiers.  Substitute
+     * illegal characters with underscores, and prepend the name with an
+     * underscore if the file name does not begin with a JavaLetter.
+     */
+
+    String getClassName(String name) {
+<span class="fc" id="L316">        char[] s = new char[name.length()+1];</span>
+        char c;
+<span class="fc" id="L318">        int j = 0;</span>
+
+<span class="fc bfc" id="L320" title="All 2 branches covered.">        if (!Character.isJavaIdentifierStart(name.charAt(0))) {</span>
+<span class="fc" id="L321">            s[j++] = '_';</span>
+        }
+<span class="fc bfc" id="L323" title="All 2 branches covered.">        for (int i=0; i &lt; name.length(); i++, j++) {</span>
+<span class="fc" id="L324">            c = name.charAt(i);</span>
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            if ( Character.isJavaIdentifierPart(c) ) {</span>
+<span class="fc" id="L326">                s[j] = c;</span>
+            } else {
+<span class="fc" id="L328">                s[j] = '_';</span>
+            }
+        }
+<span class="fc" id="L331">        return (new String(s)).trim();</span>
+     }
+
+    private static void p(String s) {
+<span class="fc" id="L335">        System.out.println(s);</span>
+<span class="fc" id="L336">    }</span>
+
+    private void addError(String messageId, String arg)
+    {
+        String msg;
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        if (arg == null) {</span>
+<span class="nc" id="L342">            msg = ToolErrorReporter.getMessage(messageId);</span>
+        } else {
+<span class="fc" id="L344">            msg = ToolErrorReporter.getMessage(messageId, arg);</span>
+        }
+<span class="fc" id="L346">        addFormatedError(msg);</span>
+<span class="fc" id="L347">    }</span>
+
+    private void addFormatedError(String message)
+    {
+<span class="fc" id="L351">        reporter.error(message, null, -1, null, -1);</span>
+<span class="fc" id="L352">    }</span>
+
+    private boolean printHelp;
+    private ToolErrorReporter reporter;
+    private CompilerEnvirons compilerEnv;
+    private ClassCompiler compiler;
+    private String targetName;
+    private String targetPackage;
+    private String destinationDir;
+    private String characterEncoding;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

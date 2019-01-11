@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Conversions.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">Conversions.java</span></div><h1>Conversions.java</h1><pre class="source lang-java linenums"> /* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.ScriptRuntime;
+
+/**
+ * Numeric conversions from section 7 of the ECMAScript 6 standard.
+ */
+
+<span class="fc" id="L15">public class Conversions</span>
+{
+    public static final int EIGHT_BIT = 1 &lt;&lt; 8;
+    public static final int SIXTEEN_BIT = 1 &lt;&lt; 16;
+    public static final long THIRTYTWO_BIT = 1L &lt;&lt; 32L;
+
+    public static int toInt8(Object arg)
+    {
+        int iv;
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (arg instanceof Integer) {</span>
+<span class="fc" id="L25">            iv = (Integer)arg;</span>
+        } else {
+<span class="fc" id="L27">            iv = ScriptRuntime.toInt32(arg);</span>
+        }
+
+<span class="fc" id="L30">        int int8Bit = iv % EIGHT_BIT;</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        return (int8Bit &gt;= (1 &lt;&lt; 7)) ? (int8Bit - EIGHT_BIT) : int8Bit;</span>
+    }
+
+    public static int toUint8(Object arg)
+    {
+        int iv;
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (arg instanceof Integer) {</span>
+<span class="fc" id="L38">            iv = ((Integer)arg);</span>
+        } else {
+<span class="fc" id="L40">            iv = ScriptRuntime.toInt32(arg);</span>
+        }
+
+<span class="fc" id="L43">        return iv % EIGHT_BIT;</span>
+    }
+
+    public static int toUint8Clamp(Object arg)
+    {
+<span class="fc" id="L48">        double d = ScriptRuntime.toNumber(arg);</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (d &lt;= 0.0) {</span>
+<span class="fc" id="L50">            return 0;</span>
+        }
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (d &gt;= 255.0) {</span>
+<span class="fc" id="L53">            return 255;</span>
+        }
+
+        // Complex rounding behavior -- see 7.1.11
+<span class="fc" id="L57">        double f = Math.floor(d);</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if ((f + 0.5) &lt; d) {</span>
+<span class="nc" id="L59">            return (int)(f + 1.0);</span>
+        }
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (d &lt; (f + 0.5)) {</span>
+<span class="fc" id="L62">            return (int)f;</span>
+        }
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (((int)f % 2) != 0) {</span>
+<span class="nc" id="L65">            return (int)f + 1;</span>
+        }
+<span class="fc" id="L67">        return (int)f;</span>
+    }
+
+    public static int toInt16(Object arg)
+    {
+        int iv;
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (arg instanceof Integer) {</span>
+<span class="fc" id="L74">            iv = ((Integer)arg);</span>
+        } else {
+<span class="fc" id="L76">            iv = ScriptRuntime.toInt32(arg);</span>
+        }
+
+<span class="fc" id="L79">        int int16Bit = iv % SIXTEEN_BIT;</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        return (int16Bit &gt;= (1 &lt;&lt; 15)) ? (int16Bit - SIXTEEN_BIT) : int16Bit;</span>
+    }
+
+    public static int toUint16(Object arg)
+    {
+        int iv;
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (arg instanceof Integer) {</span>
+<span class="fc" id="L87">            iv = ((Integer)arg);</span>
+        } else {
+<span class="fc" id="L89">            iv = ScriptRuntime.toInt32(arg);</span>
+        }
+
+<span class="fc" id="L92">        return iv % SIXTEEN_BIT;</span>
+    }
+
+    public static int toInt32(Object arg)
+    {
+<span class="fc" id="L97">        long lv = (long)ScriptRuntime.toNumber(arg);</span>
+<span class="fc" id="L98">        long int32Bit = lv % THIRTYTWO_BIT;</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        return (int)((int32Bit &gt;= (1L &lt;&lt; 31L)) ? (int32Bit - THIRTYTWO_BIT) : int32Bit);</span>
+    }
+
+    public static long toUint32(Object arg)
+    {
+<span class="fc" id="L104">        long lv = (long)ScriptRuntime.toNumber(arg);</span>
+<span class="fc" id="L105">        return lv % THIRTYTWO_BIT;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

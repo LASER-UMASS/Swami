@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConstantPool.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.classfile</a> &gt; <span class="el_source">ConstantPool.java</span></div><h1>ConstantPool.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.classfile;
+
+import org.mozilla.javascript.ObjToIntMap;
+import org.mozilla.javascript.UintMap;
+
+final class ConstantPool
+{
+  ConstantPool(ClassFileWriter cfw)
+<span class="fc" id="L15">  {</span>
+<span class="fc" id="L16">    this.cfw = cfw;</span>
+<span class="fc" id="L17">    itsTopIndex = 1;       // the zero'th entry is reserved</span>
+<span class="fc" id="L18">    itsPool = new byte[ConstantPoolSize];</span>
+<span class="fc" id="L19">    itsTop = 0;</span>
+<span class="fc" id="L20">  }</span>
+
+  private static final int ConstantPoolSize = 256;
+  static final byte
+      CONSTANT_Class = 7,
+      CONSTANT_Fieldref = 9,
+      CONSTANT_Methodref = 10,
+      CONSTANT_InterfaceMethodref = 11,
+      CONSTANT_String = 8,
+      CONSTANT_Integer = 3,
+      CONSTANT_Float = 4,
+      CONSTANT_Long = 5,
+      CONSTANT_Double = 6,
+      CONSTANT_NameAndType = 12,
+      CONSTANT_Utf8 = 1,
+      CONSTANT_MethodType = 16,
+      CONSTANT_MethodHandle = 15,
+      CONSTANT_InvokeDynamic = 18;
+
+  int write(byte[] data, int offset)
+  {
+<span class="fc" id="L41">    offset = ClassFileWriter.putInt16((short)itsTopIndex, data, offset);</span>
+<span class="fc" id="L42">    System.arraycopy(itsPool, 0, data, offset, itsTop);</span>
+<span class="fc" id="L43">    offset += itsTop;</span>
+<span class="fc" id="L44">    return offset;</span>
+  }
+
+  int getWriteSize()
+  {
+<span class="fc" id="L49">    return 2 + itsTop;</span>
+  }
+
+  int addConstant(int k)
+  {
+<span class="fc" id="L54">    ensure(5);</span>
+<span class="fc" id="L55">    itsPool[itsTop++] = CONSTANT_Integer;</span>
+<span class="fc" id="L56">    itsTop = ClassFileWriter.putInt32(k, itsPool, itsTop);</span>
+<span class="fc" id="L57">    itsPoolTypes.put(itsTopIndex, CONSTANT_Integer);</span>
+<span class="fc" id="L58">    return (short)(itsTopIndex++);</span>
+  }
+
+  int addConstant(long k)
+  {
+<span class="fc" id="L63">    ensure(9);</span>
+<span class="fc" id="L64">    itsPool[itsTop++] = CONSTANT_Long;</span>
+<span class="fc" id="L65">    itsTop = ClassFileWriter.putInt64(k, itsPool, itsTop);</span>
+<span class="fc" id="L66">    int index = itsTopIndex;</span>
+<span class="fc" id="L67">    itsTopIndex += 2;</span>
+<span class="fc" id="L68">    itsPoolTypes.put(index, CONSTANT_Long);</span>
+<span class="fc" id="L69">    return index;</span>
+  }
+
+  int addConstant(float k)
+  {
+<span class="fc" id="L74">    ensure(5);</span>
+<span class="fc" id="L75">    itsPool[itsTop++] = CONSTANT_Float;</span>
+<span class="fc" id="L76">    int bits = Float.floatToIntBits(k);</span>
+<span class="fc" id="L77">    itsTop = ClassFileWriter.putInt32(bits, itsPool, itsTop);</span>
+<span class="fc" id="L78">    itsPoolTypes.put(itsTopIndex, CONSTANT_Float);</span>
+<span class="fc" id="L79">    return itsTopIndex++;</span>
+  }
+
+  int addConstant(double k)
+  {
+<span class="fc" id="L84">    ensure(9);</span>
+<span class="fc" id="L85">    itsPool[itsTop++] = CONSTANT_Double;</span>
+<span class="fc" id="L86">    long bits = Double.doubleToLongBits(k);</span>
+<span class="fc" id="L87">    itsTop = ClassFileWriter.putInt64(bits, itsPool, itsTop);</span>
+<span class="fc" id="L88">    int index = itsTopIndex;</span>
+<span class="fc" id="L89">    itsTopIndex += 2;</span>
+<span class="fc" id="L90">    itsPoolTypes.put(index, CONSTANT_Double);</span>
+<span class="fc" id="L91">    return index;</span>
+  }
+
+  int addConstant(String k)
+  {
+<span class="fc" id="L96">    int utf8Index = 0xFFFF &amp; addUtf8(k);</span>
+<span class="fc" id="L97">    int theIndex = itsStringConstHash.getInt(utf8Index, -1);</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">    if (theIndex == -1) {</span>
+<span class="fc" id="L99">      theIndex = itsTopIndex++;</span>
+<span class="fc" id="L100">      ensure(3);</span>
+<span class="fc" id="L101">      itsPool[itsTop++] = CONSTANT_String;</span>
+<span class="fc" id="L102">      itsTop = ClassFileWriter.putInt16(utf8Index, itsPool, itsTop);</span>
+<span class="fc" id="L103">      itsStringConstHash.put(utf8Index, theIndex);</span>
+    }
+<span class="fc" id="L105">    itsPoolTypes.put(theIndex, CONSTANT_String);</span>
+<span class="fc" id="L106">    return theIndex;</span>
+  }
+
+  int addConstant(Object value) {
+<span class="pc bpc" id="L110" title="3 of 6 branches missed.">    if (value instanceof Integer || value instanceof Byte</span>
+        || value instanceof Short) {
+<span class="nc" id="L112">      return addConstant(((Number) value).intValue());</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">    } else if (value instanceof Character) {</span>
+<span class="fc" id="L114">      return addConstant(((Character) value).charValue());</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">    } else if (value instanceof Boolean) {</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">      return addConstant(((Boolean) value).booleanValue() ? 1 : 0);</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">    } else if (value instanceof Float) {</span>
+<span class="fc" id="L118">      return addConstant(((Float) value).floatValue());</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">    } else if (value instanceof Long) {</span>
+<span class="fc" id="L120">      return addConstant(((Long) value).longValue());</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">    } else if (value instanceof Double) {</span>
+<span class="fc" id="L122">      return addConstant(((Double) value).doubleValue());</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">    } else if (value instanceof String) {</span>
+<span class="fc" id="L124">      return addConstant((String) value);</span>
+      //} else if (value instanceof ClassFileWriter.MethodType) {
+      //    return addMethodType((ClassFileWriter.MethodType) value);
+<span class="fc bfc" id="L127" title="All 2 branches covered.">    } else if (value instanceof ClassFileWriter.MHandle) {</span>
+<span class="fc" id="L128">      return addMethodHandle((ClassFileWriter.MHandle) value);</span>
+    } else {
+<span class="fc" id="L130">      throw new IllegalArgumentException(&quot;value &quot; + value);</span>
+    }
+  }
+
+
+  boolean isUnderUtfEncodingLimit(String s)
+  {
+<span class="fc" id="L137">    int strLen = s.length();</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">    if (strLen * 3 &lt;= MAX_UTF_ENCODING_SIZE) {</span>
+<span class="fc" id="L139">      return true;</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">    } else if (strLen &gt; MAX_UTF_ENCODING_SIZE) {</span>
+<span class="nc" id="L141">      return false;</span>
+    }
+<span class="nc bnc" id="L143" title="All 2 branches missed.">    return strLen == getUtfEncodingLimit(s, 0, strLen);</span>
+  }
+
+  /**
+   * Get maximum i such that &lt;tt&gt;start &lt;= i &lt;= end&lt;/tt&gt; and
+   * &lt;tt&gt;s.substring(start, i)&lt;/tt&gt; fits JVM UTF string encoding limit.
+   */
+  int getUtfEncodingLimit(String s, int start, int end)
+  {
+<span class="fc bfc" id="L152" title="All 2 branches covered.">    if ((end - start) * 3 &lt;= MAX_UTF_ENCODING_SIZE) {</span>
+<span class="fc" id="L153">      return end;</span>
+    }
+<span class="fc" id="L155">    int limit = MAX_UTF_ENCODING_SIZE;</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">    for (int i = start; i != end; i++) {</span>
+<span class="fc" id="L157">      int c = s.charAt(i);</span>
+<span class="pc bpc" id="L158" title="1 of 4 branches missed.">      if (0 != c &amp;&amp; c &lt;= 0x7F) {</span>
+<span class="fc" id="L159">        --limit;</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">      } else if (c &lt; 0x7FF) {</span>
+<span class="nc" id="L161">        limit -= 2;</span>
+      } else {
+<span class="fc" id="L163">        limit -= 3;</span>
+      }
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">      if (limit &lt; 0) {</span>
+<span class="nc" id="L166">        return i;</span>
+      }
+    }
+<span class="nc" id="L169">    return end;</span>
+  }
+
+  short addUtf8(String k)
+  {
+<span class="fc" id="L174">    int theIndex = itsUtf8Hash.get(k, -1);</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">    if (theIndex == -1) {</span>
+<span class="fc" id="L176">      int strLen = k.length();</span>
+      boolean tooBigString;
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">      if (strLen &gt; MAX_UTF_ENCODING_SIZE) {</span>
+<span class="nc" id="L179">        tooBigString = true;</span>
+      } else {
+<span class="fc" id="L181">        tooBigString = false;</span>
+        // Ask for worst case scenario buffer when each char takes 3
+        // bytes
+<span class="fc" id="L184">        ensure(1 + 2 + strLen * 3);</span>
+<span class="fc" id="L185">        int top = itsTop;</span>
+
+<span class="fc" id="L187">        itsPool[top++] = CONSTANT_Utf8;</span>
+<span class="fc" id="L188">        top += 2; // skip length</span>
+
+<span class="fc" id="L190">        char[] chars = cfw.getCharBuffer(strLen);</span>
+<span class="fc" id="L191">        k.getChars(0, strLen, chars, 0);</span>
+
+<span class="fc bfc" id="L193" title="All 2 branches covered.">        for (int i = 0; i != strLen; i++) {</span>
+<span class="fc" id="L194">          int c = chars[i];</span>
+<span class="pc bpc" id="L195" title="1 of 4 branches missed.">          if (c != 0 &amp;&amp; c &lt;= 0x7F) {</span>
+<span class="fc" id="L196">            itsPool[top++] = (byte)c;</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">          } else if (c &gt; 0x7FF) {</span>
+<span class="fc" id="L198">            itsPool[top++] = (byte)(0xE0 | (c &gt;&gt; 12));</span>
+<span class="fc" id="L199">            itsPool[top++] = (byte)(0x80 | ((c &gt;&gt; 6) &amp; 0x3F));</span>
+<span class="fc" id="L200">            itsPool[top++] = (byte)(0x80 | (c &amp; 0x3F));</span>
+          } else {
+<span class="fc" id="L202">            itsPool[top++] = (byte)(0xC0 | (c &gt;&gt; 6));</span>
+<span class="fc" id="L203">            itsPool[top++] = (byte)(0x80 | (c &amp; 0x3F));</span>
+          }
+        }
+
+<span class="fc" id="L207">        int utfLen = top - (itsTop + 1 + 2);</span>
+<span class="pc bpc" id="L208" title="1 of 2 branches missed.">        if (utfLen &gt; MAX_UTF_ENCODING_SIZE) {</span>
+<span class="nc" id="L209">          tooBigString = true;</span>
+        } else {
+          // Write back length
+<span class="fc" id="L212">          itsPool[itsTop + 1] = (byte)(utfLen &gt;&gt;&gt; 8);</span>
+<span class="fc" id="L213">          itsPool[itsTop + 2] = (byte)utfLen;</span>
+
+<span class="fc" id="L215">          itsTop = top;</span>
+<span class="fc" id="L216">          theIndex = itsTopIndex++;</span>
+<span class="fc" id="L217">          itsUtf8Hash.put(k, theIndex);</span>
+        }
+      }
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">      if (tooBigString) {</span>
+<span class="nc" id="L221">        throw new IllegalArgumentException(&quot;Too big string&quot;);</span>
+      }
+    }
+<span class="fc" id="L224">    setConstantData(theIndex, k);</span>
+<span class="fc" id="L225">    itsPoolTypes.put(theIndex, CONSTANT_Utf8);</span>
+<span class="fc" id="L226">    return (short)theIndex;</span>
+  }
+
+  private short addNameAndType(String name, String type)
+  {
+<span class="fc" id="L231">    short nameIndex = addUtf8(name);</span>
+<span class="fc" id="L232">    short typeIndex = addUtf8(type);</span>
+<span class="fc" id="L233">    ensure(5);</span>
+<span class="fc" id="L234">    itsPool[itsTop++] = CONSTANT_NameAndType;</span>
+<span class="fc" id="L235">    itsTop = ClassFileWriter.putInt16(nameIndex, itsPool, itsTop);</span>
+<span class="fc" id="L236">    itsTop = ClassFileWriter.putInt16(typeIndex, itsPool, itsTop);</span>
+<span class="fc" id="L237">    itsPoolTypes.put(itsTopIndex, CONSTANT_NameAndType);</span>
+<span class="fc" id="L238">    return (short)(itsTopIndex++);</span>
+  }
+
+  short addClass(String className)
+  {
+<span class="fc" id="L243">    int theIndex = itsClassHash.get(className, -1);</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">    if (theIndex == -1) {</span>
+<span class="fc" id="L245">      String slashed = className;</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">      if (className.indexOf('.') &gt; 0) {</span>
+<span class="fc" id="L247">        slashed = ClassFileWriter.getSlashedForm(className);</span>
+<span class="fc" id="L248">        theIndex = itsClassHash.get(slashed, -1);</span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (theIndex != -1) {</span>
+<span class="nc" id="L250">          itsClassHash.put(className, theIndex);</span>
+        }
+      }
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">      if (theIndex == -1) {</span>
+<span class="fc" id="L254">        int utf8Index = addUtf8(slashed);</span>
+<span class="fc" id="L255">        ensure(3);</span>
+<span class="fc" id="L256">        itsPool[itsTop++] = CONSTANT_Class;</span>
+<span class="fc" id="L257">        itsTop = ClassFileWriter.putInt16(utf8Index, itsPool, itsTop);</span>
+<span class="fc" id="L258">        theIndex = itsTopIndex++;</span>
+<span class="fc" id="L259">        itsClassHash.put(slashed, theIndex);</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        if (!className.equals(slashed)) {</span>
+<span class="fc" id="L261">          itsClassHash.put(className, theIndex);</span>
+        }
+      }
+    }
+<span class="fc" id="L265">    setConstantData(theIndex, className);</span>
+<span class="fc" id="L266">    itsPoolTypes.put(theIndex, CONSTANT_Class);</span>
+<span class="fc" id="L267">    return (short)theIndex;</span>
+  }
+
+  short addFieldRef(String className, String fieldName, String fieldType)
+  {
+<span class="fc" id="L272">    FieldOrMethodRef ref = new FieldOrMethodRef(className, fieldName,</span>
+        fieldType);
+
+<span class="fc" id="L275">    int theIndex = itsFieldRefHash.get(ref, -1);</span>
+<span class="pc bpc" id="L276" title="1 of 2 branches missed.">    if (theIndex == -1) {</span>
+<span class="fc" id="L277">      short ntIndex = addNameAndType(fieldName, fieldType);</span>
+<span class="fc" id="L278">      short classIndex = addClass(className);</span>
+<span class="fc" id="L279">      ensure(5);</span>
+<span class="fc" id="L280">      itsPool[itsTop++] = CONSTANT_Fieldref;</span>
+<span class="fc" id="L281">      itsTop = ClassFileWriter.putInt16(classIndex, itsPool, itsTop);</span>
+<span class="fc" id="L282">      itsTop = ClassFileWriter.putInt16(ntIndex, itsPool, itsTop);</span>
+<span class="fc" id="L283">      theIndex = itsTopIndex++;</span>
+<span class="fc" id="L284">      itsFieldRefHash.put(ref, theIndex);</span>
+    }
+<span class="fc" id="L286">    setConstantData(theIndex, ref);</span>
+<span class="fc" id="L287">    itsPoolTypes.put(theIndex, CONSTANT_Fieldref);</span>
+<span class="fc" id="L288">    return (short)theIndex;</span>
+  }
+
+  short addMethodRef(String className, String methodName,
+      String methodType)
+  {
+<span class="fc" id="L294">    FieldOrMethodRef ref = new FieldOrMethodRef(className, methodName,</span>
+        methodType);
+
+<span class="fc" id="L297">    int theIndex = itsMethodRefHash.get(ref, -1);</span>
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">    if (theIndex == -1) {</span>
+<span class="fc" id="L299">      short ntIndex = addNameAndType(methodName, methodType);</span>
+<span class="fc" id="L300">      short classIndex = addClass(className);</span>
+<span class="fc" id="L301">      ensure(5);</span>
+<span class="fc" id="L302">      itsPool[itsTop++] = CONSTANT_Methodref;</span>
+<span class="fc" id="L303">      itsTop = ClassFileWriter.putInt16(classIndex, itsPool, itsTop);</span>
+<span class="fc" id="L304">      itsTop = ClassFileWriter.putInt16(ntIndex, itsPool, itsTop);</span>
+<span class="fc" id="L305">      theIndex = itsTopIndex++;</span>
+<span class="fc" id="L306">      itsMethodRefHash.put(ref, theIndex);</span>
+    }
+<span class="fc" id="L308">    setConstantData(theIndex, ref);</span>
+<span class="fc" id="L309">    itsPoolTypes.put(theIndex, CONSTANT_Methodref);</span>
+<span class="fc" id="L310">    return (short)theIndex;</span>
+  }
+
+  short addInterfaceMethodRef(String className,
+      String methodName, String methodType)
+  {
+<span class="fc" id="L316">    short ntIndex = addNameAndType(methodName, methodType);</span>
+<span class="fc" id="L317">    short classIndex = addClass(className);</span>
+<span class="fc" id="L318">    ensure(5);</span>
+<span class="fc" id="L319">    itsPool[itsTop++] = CONSTANT_InterfaceMethodref;</span>
+<span class="fc" id="L320">    itsTop = ClassFileWriter.putInt16(classIndex, itsPool, itsTop);</span>
+<span class="fc" id="L321">    itsTop = ClassFileWriter.putInt16(ntIndex, itsPool, itsTop);</span>
+<span class="fc" id="L322">    FieldOrMethodRef r = new FieldOrMethodRef(className, methodName,</span>
+        methodType);
+<span class="fc" id="L324">    setConstantData(itsTopIndex, r);</span>
+<span class="fc" id="L325">    itsPoolTypes.put(itsTopIndex, CONSTANT_InterfaceMethodref);</span>
+<span class="fc" id="L326">    return (short)(itsTopIndex++);</span>
+  }
+
+  short addInvokeDynamic(String methodName, String methodType, int bootstrapIndex)
+  {
+<span class="fc" id="L331">    ConstantEntry entry = new ConstantEntry(CONSTANT_InvokeDynamic,</span>
+        bootstrapIndex, methodName, methodType);
+<span class="fc" id="L333">    int theIndex = itsConstantHash.get(entry, -1);</span>
+
+<span class="pc bpc" id="L335" title="1 of 2 branches missed.">    if (theIndex == -1) {</span>
+<span class="fc" id="L336">      short nameTypeIndex = addNameAndType(methodName, methodType);</span>
+<span class="fc" id="L337">      ensure(5);</span>
+<span class="fc" id="L338">      itsPool[itsTop++] = CONSTANT_InvokeDynamic;</span>
+<span class="fc" id="L339">      itsTop = ClassFileWriter.putInt16(bootstrapIndex, itsPool, itsTop);</span>
+<span class="fc" id="L340">      itsTop = ClassFileWriter.putInt16(nameTypeIndex, itsPool, itsTop);</span>
+<span class="fc" id="L341">      theIndex = itsTopIndex++;</span>
+<span class="fc" id="L342">      itsConstantHash.put(entry, theIndex);</span>
+<span class="fc" id="L343">      setConstantData(theIndex, methodType);</span>
+<span class="fc" id="L344">      itsPoolTypes.put(theIndex, CONSTANT_InvokeDynamic);</span>
+    }
+<span class="fc" id="L346">    return (short)(theIndex);</span>
+  }
+
+  short addMethodHandle(ClassFileWriter.MHandle mh)
+  {
+<span class="fc" id="L351">    int theIndex = itsConstantHash.get(mh, -1);</span>
+
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">    if (theIndex == -1) {</span>
+      short ref;
+<span class="fc bfc" id="L355" title="All 2 branches covered.">      if (mh.tag &lt;= ByteCode.MH_PUTSTATIC) {</span>
+<span class="fc" id="L356">        ref = addFieldRef(mh.owner, mh.name, mh.desc);</span>
+<span class="fc bfc" id="L357" title="All 2 branches covered.">      } else if (mh.tag == ByteCode.MH_INVOKEINTERFACE) {</span>
+<span class="fc" id="L358">        ref = addInterfaceMethodRef(mh.owner, mh.name, mh.desc);</span>
+      } else {
+<span class="fc" id="L360">        ref = addMethodRef(mh.owner, mh.name, mh.desc);</span>
+      }
+
+<span class="fc" id="L363">      ensure(4);</span>
+<span class="fc" id="L364">      itsPool[itsTop++] = CONSTANT_MethodHandle;</span>
+<span class="fc" id="L365">      itsPool[itsTop++] = mh.tag;</span>
+<span class="fc" id="L366">      itsTop = ClassFileWriter.putInt16(ref, itsPool, itsTop);</span>
+<span class="fc" id="L367">      theIndex = itsTopIndex++;</span>
+<span class="fc" id="L368">      itsConstantHash.put(mh, theIndex);</span>
+<span class="fc" id="L369">      itsPoolTypes.put(theIndex, CONSTANT_MethodHandle);</span>
+    }
+<span class="fc" id="L371">    return (short)(theIndex);</span>
+  }
+
+  Object getConstantData(int index)
+  {
+<span class="fc" id="L376">    return itsConstantData.getObject(index);</span>
+  }
+
+  void setConstantData(int index, Object data)
+  {
+<span class="fc" id="L381">    itsConstantData.put(index, data);</span>
+<span class="fc" id="L382">  }</span>
+
+  byte getConstantType(int index)
+  {
+<span class="fc" id="L386">    return (byte) itsPoolTypes.getInt(index, 0);</span>
+  }
+
+  private void ensure(int howMuch)
+  {
+<span class="fc bfc" id="L391" title="All 2 branches covered.">    if (itsTop + howMuch &gt; itsPool.length) {</span>
+<span class="fc" id="L392">      int newCapacity = itsPool.length * 2;</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">      if (itsTop + howMuch &gt; newCapacity) {</span>
+<span class="fc" id="L394">        newCapacity = itsTop + howMuch;</span>
+      }
+<span class="fc" id="L396">      byte[] tmp = new byte[newCapacity];</span>
+<span class="fc" id="L397">      System.arraycopy(itsPool, 0, tmp, 0, itsTop);</span>
+<span class="fc" id="L398">      itsPool = tmp;</span>
+    }
+<span class="fc" id="L400">  }</span>
+
+  private ClassFileWriter cfw;
+
+  private static final int MAX_UTF_ENCODING_SIZE = 65535;
+
+<span class="fc" id="L406">  private UintMap itsStringConstHash = new UintMap();</span>
+<span class="fc" id="L407">  private ObjToIntMap itsUtf8Hash = new ObjToIntMap();</span>
+<span class="fc" id="L408">  private ObjToIntMap itsFieldRefHash = new ObjToIntMap();</span>
+<span class="fc" id="L409">  private ObjToIntMap itsMethodRefHash = new ObjToIntMap();</span>
+<span class="fc" id="L410">  private ObjToIntMap itsClassHash = new ObjToIntMap();</span>
+<span class="fc" id="L411">  private ObjToIntMap itsConstantHash = new ObjToIntMap();</span>
+
+  private int itsTop;
+  private int itsTopIndex;
+<span class="fc" id="L415">  private UintMap itsConstantData = new UintMap();</span>
+<span class="fc" id="L416">  private UintMap itsPoolTypes = new UintMap();</span>
+  private byte itsPool[];
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XmlProcessor.java</span></div><h1>XmlProcessor.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.w3c.dom.*;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.LinkedBlockingDeque;
+
+import org.mozilla.javascript.*;
+
+//    Disambiguate from org.mozilla.javascript.Node
+import org.w3c.dom.Node;
+import org.xml.sax.ErrorHandler;
+import org.xml.sax.SAXParseException;
+
+class XmlProcessor implements Serializable {
+
+    private static final long serialVersionUID = 6903514433204808713L;
+
+    private boolean ignoreComments;
+    private boolean ignoreProcessingInstructions;
+    private boolean ignoreWhitespace;
+    private boolean prettyPrint;
+    private int prettyIndent;
+
+    private transient javax.xml.parsers.DocumentBuilderFactory dom;
+    private transient javax.xml.transform.TransformerFactory xform;
+    private transient LinkedBlockingDeque&lt;DocumentBuilder&gt; documentBuilderPool;
+<span class="fc" id="L39">    private RhinoSAXErrorHandler errorHandler = new RhinoSAXErrorHandler();</span>
+
+    private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+<span class="nc" id="L42">        stream.defaultReadObject();</span>
+<span class="nc" id="L43">        this.dom = javax.xml.parsers.DocumentBuilderFactory.newInstance();</span>
+<span class="nc" id="L44">        this.dom.setNamespaceAware(true);</span>
+<span class="nc" id="L45">        this.dom.setIgnoringComments(false);</span>
+<span class="nc" id="L46">        this.xform = javax.xml.transform.TransformerFactory.newInstance();</span>
+<span class="nc" id="L47">        int poolSize = Runtime.getRuntime().availableProcessors() * 2;</span>
+<span class="nc" id="L48">        this.documentBuilderPool = new LinkedBlockingDeque&lt;DocumentBuilder&gt;(poolSize);</span>
+<span class="nc" id="L49">    }</span>
+
+<span class="fc" id="L51">    private static class RhinoSAXErrorHandler implements ErrorHandler, Serializable {</span>
+
+        private static final long serialVersionUID = 6918417235413084055L;
+
+        private void throwError(SAXParseException e) {
+<span class="fc" id="L56">            throw ScriptRuntime.constructError(&quot;TypeError&quot;, e.getMessage(),</span>
+<span class="fc" id="L57">                e.getLineNumber() - 1);</span>
+        }
+
+        public void error(SAXParseException e) {
+<span class="nc" id="L61">            throwError(e);</span>
+<span class="nc" id="L62">        }</span>
+
+        public void fatalError(SAXParseException e) {
+<span class="nc" id="L65">            throwError(e);</span>
+<span class="nc" id="L66">        }</span>
+
+        public void warning(SAXParseException e) {
+<span class="nc" id="L69">            Context.reportWarning(e.getMessage());</span>
+<span class="nc" id="L70">        }</span>
+    }
+
+<span class="fc" id="L73">    XmlProcessor() {</span>
+<span class="fc" id="L74">        setDefault();</span>
+<span class="fc" id="L75">        this.dom = javax.xml.parsers.DocumentBuilderFactory.newInstance();</span>
+<span class="fc" id="L76">        this.dom.setNamespaceAware(true);</span>
+<span class="fc" id="L77">        this.dom.setIgnoringComments(false);</span>
+<span class="fc" id="L78">        this.xform = javax.xml.transform.TransformerFactory.newInstance();</span>
+<span class="fc" id="L79">        int poolSize = Runtime.getRuntime().availableProcessors() * 2;</span>
+<span class="fc" id="L80">        this.documentBuilderPool = new LinkedBlockingDeque&lt;DocumentBuilder&gt;(poolSize);</span>
+<span class="fc" id="L81">    }</span>
+
+    final void setDefault() {
+<span class="fc" id="L84">        this.setIgnoreComments(true);</span>
+<span class="fc" id="L85">        this.setIgnoreProcessingInstructions(true);</span>
+<span class="fc" id="L86">        this.setIgnoreWhitespace(true);</span>
+<span class="fc" id="L87">        this.setPrettyPrinting(true);</span>
+<span class="fc" id="L88">        this.setPrettyIndent(2);</span>
+<span class="fc" id="L89">    }</span>
+
+    final void setIgnoreComments(boolean b) {
+<span class="fc" id="L92">        this.ignoreComments = b;</span>
+<span class="fc" id="L93">    }</span>
+
+    final void setIgnoreWhitespace(boolean b) {
+<span class="fc" id="L96">        this.ignoreWhitespace = b;</span>
+<span class="fc" id="L97">    }</span>
+
+    final void setIgnoreProcessingInstructions(boolean b) {
+<span class="fc" id="L100">        this.ignoreProcessingInstructions = b;</span>
+<span class="fc" id="L101">    }</span>
+
+    final void setPrettyPrinting(boolean b) {
+<span class="fc" id="L104">        this.prettyPrint = b;</span>
+<span class="fc" id="L105">    }</span>
+
+    final void setPrettyIndent(int i) {
+<span class="fc" id="L108">        this.prettyIndent = i;</span>
+<span class="fc" id="L109">    }</span>
+
+    final boolean isIgnoreComments() {
+<span class="fc" id="L112">        return ignoreComments;</span>
+    }
+
+    final boolean isIgnoreProcessingInstructions() {
+<span class="fc" id="L116">        return ignoreProcessingInstructions;</span>
+    }
+
+    final boolean isIgnoreWhitespace() {
+<span class="fc" id="L120">        return ignoreWhitespace;</span>
+    }
+
+    final boolean isPrettyPrinting() {
+<span class="fc" id="L124">        return prettyPrint;</span>
+    }
+
+    final int getPrettyIndent() {
+<span class="fc" id="L128">        return prettyIndent;</span>
+    }
+
+    private String toXmlNewlines(String rv) {
+<span class="fc" id="L132">        StringBuilder nl = new StringBuilder();</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        for (int i=0; i&lt;rv.length(); i++) {</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            if (rv.charAt(i) == '\r') {</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                if (rv.charAt(i+1) == '\n') {</span>
+                    //    DOS, do nothing and skip the \r
+                } else {
+                    //    Macintosh, substitute \n
+<span class="nc" id="L139">                    nl.append('\n');</span>
+                }
+            } else {
+<span class="fc" id="L142">                nl.append(rv.charAt(i));</span>
+            }
+        }
+<span class="fc" id="L145">        return nl.toString();</span>
+    }
+
+    private javax.xml.parsers.DocumentBuilderFactory getDomFactory() {
+<span class="fc" id="L149">        return dom;</span>
+    }
+
+    // Get from pool, or create one without locking, if needed.
+    private DocumentBuilder getDocumentBuilderFromPool()
+            throws ParserConfigurationException {
+<span class="fc" id="L155">        DocumentBuilder builder = documentBuilderPool.pollFirst();</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (builder == null){</span>
+<span class="fc" id="L157">            builder = getDomFactory().newDocumentBuilder();</span>
+        }
+<span class="fc" id="L159">        builder.setErrorHandler(errorHandler);</span>
+<span class="fc" id="L160">        return builder;</span>
+    }
+
+    // Insert into pool, if resettable. Pool capacity is limited to
+    // number of processors * 2.
+    private void returnDocumentBuilderToPool(DocumentBuilder db) {
+        try {
+<span class="fc" id="L167">            db.reset();</span>
+<span class="fc" id="L168">            documentBuilderPool.offerFirst(db);</span>
+<span class="nc" id="L169">        } catch (UnsupportedOperationException e) {</span>
+            // document builders that don't support reset() can't be pooled
+<span class="fc" id="L171">        }</span>
+<span class="fc" id="L172">    }</span>
+
+    private void addProcessingInstructionsTo(List&lt;Node&gt; list, Node node) {
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">        if (node instanceof ProcessingInstruction) {</span>
+<span class="nc" id="L176">            list.add(node);</span>
+        }
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">        if (node.getChildNodes() != null) {</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            for (int i=0; i&lt;node.getChildNodes().getLength(); i++) {</span>
+<span class="fc" id="L180">                addProcessingInstructionsTo(list, node.getChildNodes().item(i));</span>
+            }
+        }
+<span class="fc" id="L183">    }</span>
+
+    private void addCommentsTo(List&lt;Node&gt; list, Node node) {
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        if (node instanceof Comment) {</span>
+<span class="nc" id="L187">            list.add(node);</span>
+        }
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (node.getChildNodes() != null) {</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            for (int i=0; i&lt;node.getChildNodes().getLength(); i++) {</span>
+<span class="fc" id="L191">                addProcessingInstructionsTo(list, node.getChildNodes().item(i));</span>
+            }
+        }
+<span class="fc" id="L194">    }</span>
+
+    private void addTextNodesToRemoveAndTrim(List&lt;Node&gt; toRemove, Node node) {
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        if (node instanceof Text) {</span>
+<span class="fc" id="L198">            Text text = (Text)node;</span>
+<span class="fc" id="L199">            boolean BUG_369394_IS_VALID = false;</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">            if (!BUG_369394_IS_VALID) {</span>
+<span class="fc" id="L201">                text.setData(text.getData().trim());</span>
+            } else {
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                if (text.getData().trim().length() == 0) {</span>
+<span class="nc" id="L204">                    text.setData(&quot;&quot;);</span>
+                }
+            }
+<span class="fc bfc" id="L207" title="All 2 branches covered.">            if (text.getData().length() == 0) {</span>
+<span class="fc" id="L208">                toRemove.add(node);</span>
+            }
+        }
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">        if (node.getChildNodes() != null) {</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">            for (int i=0; i&lt;node.getChildNodes().getLength(); i++) {</span>
+<span class="fc" id="L213">                addTextNodesToRemoveAndTrim(toRemove, node.getChildNodes().item(i));</span>
+            }
+        }
+<span class="fc" id="L216">    }</span>
+
+    final Node toXml(String defaultNamespaceUri, String xml) throws org.xml.sax.SAXException {
+        //    See ECMA357 10.3.1
+<span class="fc" id="L220">        DocumentBuilder builder = null;</span>
+        try {
+<span class="fc" id="L222">            String syntheticXml = &quot;&lt;parent xmlns=\&quot;&quot; + defaultNamespaceUri +</span>
+                &quot;\&quot;&gt;&quot; + xml + &quot;&lt;/parent&gt;&quot;;
+<span class="fc" id="L224">            builder = getDocumentBuilderFromPool();</span>
+<span class="fc" id="L225">            Document document = builder.parse( new org.xml.sax.InputSource(new java.io.StringReader(syntheticXml)) );</span>
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">            if (ignoreProcessingInstructions) {</span>
+<span class="fc" id="L227">                List&lt;Node&gt; list = new java.util.ArrayList&lt;Node&gt;();</span>
+<span class="fc" id="L228">                addProcessingInstructionsTo(list, document);</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">                for (Node node: list) {</span>
+<span class="nc" id="L230">                    node.getParentNode().removeChild(node);</span>
+<span class="nc" id="L231">                }</span>
+            }
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">            if (ignoreComments) {</span>
+<span class="fc" id="L234">                List&lt;Node&gt; list = new java.util.ArrayList&lt;Node&gt;();</span>
+<span class="fc" id="L235">                addCommentsTo(list, document);</span>
+<span class="pc bpc" id="L236" title="1 of 2 branches missed.">                for (Node node: list) {</span>
+<span class="nc" id="L237">                    node.getParentNode().removeChild(node);</span>
+<span class="nc" id="L238">                }</span>
+            }
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            if (ignoreWhitespace) {</span>
+                //    Apparently JAXP setIgnoringElementContentWhitespace() has a different meaning, it appears from the Javadoc
+                //    Refers to element-only content models, which means we would need to have a validating parser and DTD or schema
+                //    so that it would know which whitespace to ignore.
+
+                //    Instead we will try to delete it ourselves.
+<span class="fc" id="L246">                List&lt;Node&gt; list = new java.util.ArrayList&lt;Node&gt;();</span>
+<span class="fc" id="L247">                addTextNodesToRemoveAndTrim(list, document);</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">                for (Node node: list) {</span>
+<span class="fc" id="L249">                    node.getParentNode().removeChild(node);</span>
+<span class="fc" id="L250">                }</span>
+            }
+<span class="fc" id="L252">            NodeList rv = document.getDocumentElement().getChildNodes();</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">            if (rv.getLength() &gt; 1) {</span>
+<span class="fc" id="L254">                throw ScriptRuntime.constructError(&quot;SyntaxError&quot;, &quot;XML objects may contain at most one node.&quot;);</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">            } else if (rv.getLength() == 0) {</span>
+<span class="fc" id="L256">                Node node = document.createTextNode(&quot;&quot;);</span>
+<span class="fc" id="L257">                return node;</span>
+            } else {
+<span class="fc" id="L259">                Node node = rv.item(0);</span>
+<span class="fc" id="L260">                document.getDocumentElement().removeChild(node);</span>
+<span class="fc" id="L261">                return node;</span>
+            }
+<span class="nc" id="L263">        } catch (java.io.IOException e) {</span>
+<span class="nc" id="L264">            throw new RuntimeException(&quot;Unreachable.&quot;);</span>
+<span class="nc" id="L265">        } catch (javax.xml.parsers.ParserConfigurationException e) {</span>
+<span class="nc" id="L266">            throw new RuntimeException(e);</span>
+        } finally {
+<span class="pc bpc" id="L268" title="3 of 6 branches missed.">            if (builder != null)</span>
+<span class="fc" id="L269">                returnDocumentBuilderToPool(builder);</span>
+<span class="fc" id="L270">        }</span>
+    }
+
+    Document newDocument() {
+<span class="fc" id="L274">        DocumentBuilder builder = null;</span>
+        try {
+            //    TODO    Should this use XML settings?
+<span class="fc" id="L277">            builder = getDocumentBuilderFromPool();</span>
+<span class="fc" id="L278">            return builder.newDocument();</span>
+<span class="nc" id="L279">        } catch (javax.xml.parsers.ParserConfigurationException ex) {</span>
+            //    TODO    How to handle these runtime errors?
+<span class="nc" id="L281">            throw new RuntimeException(ex);</span>
+        } finally {
+<span class="pc bpc" id="L283" title="3 of 4 branches missed.">            if (builder != null)</span>
+<span class="pc" id="L284">                returnDocumentBuilderToPool(builder);</span>
+<span class="nc" id="L285">        }</span>
+    }
+
+    //    TODO    Cannot remember what this is for, so whether it should use settings or not
+    private String toString(Node node) {
+<span class="fc" id="L290">        javax.xml.transform.dom.DOMSource source = new javax.xml.transform.dom.DOMSource(node);</span>
+<span class="fc" id="L291">        java.io.StringWriter writer = new java.io.StringWriter();</span>
+<span class="fc" id="L292">        javax.xml.transform.stream.StreamResult result = new javax.xml.transform.stream.StreamResult(writer);</span>
+        try {
+<span class="fc" id="L294">            javax.xml.transform.Transformer transformer = xform.newTransformer();</span>
+<span class="fc" id="L295">            transformer.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, &quot;yes&quot;);</span>
+<span class="fc" id="L296">            transformer.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, &quot;no&quot;);</span>
+<span class="fc" id="L297">            transformer.setOutputProperty(javax.xml.transform.OutputKeys.METHOD, &quot;xml&quot;);</span>
+<span class="fc" id="L298">            transformer.transform(source, result);</span>
+<span class="nc" id="L299">        } catch (javax.xml.transform.TransformerConfigurationException ex) {</span>
+            //    TODO    How to handle these runtime errors?
+<span class="nc" id="L301">            throw new RuntimeException(ex);</span>
+<span class="fc" id="L302">        } catch (javax.xml.transform.TransformerException ex) {</span>
+            //    TODO    How to handle these runtime errors?
+<span class="fc" id="L304">            throw new RuntimeException(ex);</span>
+<span class="fc" id="L305">        }</span>
+<span class="fc" id="L306">        return toXmlNewlines(writer.toString());</span>
+    }
+
+    String escapeAttributeValue(Object value) {
+<span class="fc" id="L310">        String text = ScriptRuntime.toString(value);</span>
+
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">        if (text.length() == 0) return &quot;&quot;;</span>
+
+<span class="fc" id="L314">        Document dom = newDocument();</span>
+<span class="fc" id="L315">        Element e = dom.createElement(&quot;a&quot;);</span>
+<span class="fc" id="L316">        e.setAttribute(&quot;b&quot;, text);</span>
+<span class="fc" id="L317">        String elementText = toString(e);</span>
+<span class="fc" id="L318">        int begin = elementText.indexOf('&quot;');</span>
+<span class="fc" id="L319">        int end = elementText.lastIndexOf('&quot;');</span>
+<span class="fc" id="L320">        return elementText.substring(begin+1,end);</span>
+    }
+
+    String escapeTextValue(Object value) {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">        if (value instanceof XMLObjectImpl) {</span>
+<span class="nc" id="L325">            return ((XMLObjectImpl)value).toXMLString();</span>
+        }
+
+<span class="fc" id="L328">        String text = ScriptRuntime.toString(value);</span>
+
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        if (text.length() == 0) return text;</span>
+
+<span class="fc" id="L332">        Document dom = newDocument();</span>
+<span class="fc" id="L333">        Element e = dom.createElement(&quot;a&quot;);</span>
+<span class="fc" id="L334">        e.setTextContent(text);</span>
+<span class="fc" id="L335">        String elementText = toString(e);</span>
+
+<span class="fc" id="L337">        int begin = elementText.indexOf('&gt;') + 1;</span>
+<span class="fc" id="L338">        int end = elementText.lastIndexOf('&lt;');</span>
+<span class="pc bpc" id="L339" title="1 of 2 branches missed.">        return (begin &lt; end) ? elementText.substring(begin, end) : &quot;&quot;;</span>
+    }
+
+    private String escapeElementValue(String s) {
+        //    TODO    Check this
+<span class="fc" id="L344">        return escapeTextValue(s);</span>
+    }
+
+    private String elementToXmlString(Element element) {
+        //    TODO    My goodness ECMA is complicated (see 10.2.1).  We'll try this first.
+<span class="fc" id="L349">        Element copy = (Element)element.cloneNode(true);</span>
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">        if (prettyPrint) {</span>
+<span class="fc" id="L351">            beautifyElement(copy, 0);</span>
+        }
+<span class="fc" id="L353">        return toString(copy);</span>
+    }
+
+    final String ecmaToXmlString(Node node) {
+        //    See ECMA 357 Section 10.2.1
+<span class="fc" id="L358">        StringBuilder s = new StringBuilder();</span>
+<span class="fc" id="L359">        int indentLevel = 0;</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        if (prettyPrint) {</span>
+<span class="pc bpc" id="L361" title="1 of 2 branches missed.">            for (int i=0; i&lt;indentLevel; i++) {</span>
+<span class="nc" id="L362">                s.append(' ');</span>
+            }
+        }
+<span class="fc bfc" id="L365" title="All 2 branches covered.">        if (node instanceof Text) {</span>
+<span class="fc" id="L366">            String data = ((Text)node).getData();</span>
+            //    TODO Does Java trim() work same as XMLWhitespace?
+<span class="fc bfc" id="L368" title="All 2 branches covered.">            String v = (prettyPrint) ? data.trim() : data;</span>
+<span class="fc" id="L369">            s.append(escapeElementValue(v));</span>
+<span class="fc" id="L370">            return s.toString();</span>
+        }
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">        if (node instanceof Attr) {</span>
+<span class="nc" id="L373">            String value = ((Attr)node).getValue();</span>
+<span class="nc" id="L374">            s.append(escapeAttributeValue(value));</span>
+<span class="nc" id="L375">            return s.toString();</span>
+        }
+<span class="pc bpc" id="L377" title="1 of 2 branches missed.">        if (node instanceof Comment) {</span>
+<span class="nc" id="L378">            s.append(&quot;&lt;!--&quot; + ((Comment)node).getNodeValue() + &quot;--&gt;&quot;);</span>
+<span class="nc" id="L379">            return s.toString();</span>
+        }
+<span class="pc bpc" id="L381" title="1 of 2 branches missed.">        if (node instanceof ProcessingInstruction) {</span>
+<span class="nc" id="L382">            ProcessingInstruction pi = (ProcessingInstruction)node;</span>
+<span class="nc" id="L383">            s.append(&quot;&lt;?&quot; + pi.getTarget() + &quot; &quot; + pi.getData() + &quot;?&gt;&quot;);</span>
+<span class="nc" id="L384">            return s.toString();</span>
+        }
+<span class="fc" id="L386">        s.append(elementToXmlString((Element)node));</span>
+<span class="fc" id="L387">        return s.toString();</span>
+    }
+
+    private void beautifyElement(Element e, int indent) {
+<span class="fc" id="L391">        StringBuilder s = new StringBuilder();</span>
+<span class="fc" id="L392">        s.append('\n');</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">        for (int i=0; i&lt;indent; i++) {</span>
+<span class="fc" id="L394">            s.append(' ');</span>
+        }
+<span class="fc" id="L396">        String afterContent = s.toString();</span>
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        for (int i=0; i&lt;prettyIndent; i++) {</span>
+<span class="fc" id="L398">            s.append(' ');</span>
+        }
+<span class="fc" id="L400">        String beforeContent = s.toString();</span>
+
+        //    We &quot;mark&quot; all the nodes first; if we tried to do this loop otherwise, it would behave unexpectedly (the inserted nodes
+        //    would contribute to the length and it might never terminate).
+<span class="fc" id="L404">        ArrayList&lt;Node&gt; toIndent = new ArrayList&lt;Node&gt;();</span>
+<span class="fc" id="L405">        boolean indentChildren = false;</span>
+<span class="fc bfc" id="L406" title="All 2 branches covered.">        for (int i=0; i&lt;e.getChildNodes().getLength(); i++) {</span>
+<span class="fc bfc" id="L407" title="All 2 branches covered.">            if (i == 1) indentChildren = true;</span>
+<span class="fc bfc" id="L408" title="All 2 branches covered.">            if (e.getChildNodes().item(i) instanceof Text) {</span>
+<span class="fc" id="L409">                toIndent.add(e.getChildNodes().item(i));</span>
+            } else {
+<span class="fc" id="L411">                indentChildren = true;</span>
+<span class="fc" id="L412">                toIndent.add(e.getChildNodes().item(i));</span>
+            }
+        }
+<span class="fc bfc" id="L415" title="All 2 branches covered.">        if (indentChildren) {</span>
+<span class="fc bfc" id="L416" title="All 2 branches covered.">            for (int i=0; i&lt;toIndent.size(); i++) {</span>
+<span class="fc" id="L417">                e.insertBefore(e.getOwnerDocument().createTextNode(beforeContent),</span>
+<span class="fc" id="L418">                        toIndent.get(i));</span>
+            }
+        }
+<span class="fc" id="L421">        NodeList nodes = e.getChildNodes();</span>
+<span class="fc" id="L422">        ArrayList&lt;Element&gt; list = new ArrayList&lt;Element&gt;();</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">        for (int i=0; i &lt; nodes.getLength(); i++) {</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">            if (nodes.item(i) instanceof Element) {</span>
+<span class="fc" id="L425">                list.add((Element)nodes.item(i));</span>
+            }
+        }
+<span class="fc bfc" id="L428" title="All 2 branches covered.">        for (Element elem: list) {</span>
+<span class="fc" id="L429">            beautifyElement(elem, indent + prettyIndent);</span>
+<span class="fc" id="L430">        }</span>
+<span class="fc bfc" id="L431" title="All 2 branches covered.">        if (indentChildren) {</span>
+<span class="fc" id="L432">            e.appendChild(e.getOwnerDocument().createTextNode(afterContent));</span>
+        }
+<span class="fc" id="L434">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

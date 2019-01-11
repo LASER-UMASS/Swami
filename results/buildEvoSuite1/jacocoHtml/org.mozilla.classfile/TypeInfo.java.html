@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TypeInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.classfile</a> &gt; <span class="el_source">TypeInfo.java</span></div><h1>TypeInfo.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.classfile;
+
+/**
+ * Helper class for internal representations of type information. In most
+ * cases, type information can be represented by a constant, but in some
+ * cases, a payload is included. Despite the payload coming after the type
+ * tag in the output, we store it in bits 8-23 for uniformity; the tag is
+ * always in bits 0-7.
+ */
+final class TypeInfo {
+<span class="nc" id="L17">  private TypeInfo() { }</span>
+
+  static final int TOP = 0;
+  static final int INTEGER = 1;
+  static final int FLOAT = 2;
+  static final int DOUBLE = 3;
+  static final int LONG = 4;
+  static final int NULL = 5;
+  static final int UNINITIALIZED_THIS = 6;
+  static final int OBJECT_TAG = 7;
+  static final int UNINITIALIZED_VAR_TAG = 8;
+
+  static final int OBJECT(int constantPoolIndex) {
+<span class="fc" id="L30">    return ((constantPoolIndex &amp; 0xFFFF) &lt;&lt; 8) | OBJECT_TAG;</span>
+  }
+
+  static final int OBJECT(String type, ConstantPool pool) {
+<span class="fc" id="L34">    return OBJECT(pool.addClass(type));</span>
+  }
+
+  static final int UNINITIALIZED_VARIABLE(int bytecodeOffset) {
+<span class="fc" id="L38">    return ((bytecodeOffset &amp; 0xFFFF) &lt;&lt; 8) | UNINITIALIZED_VAR_TAG;</span>
+  }
+
+  static final int getTag(int typeInfo) {
+<span class="fc" id="L42">    return typeInfo &amp; 0xFF;</span>
+  }
+
+  static final int getPayload(int typeInfo) {
+<span class="fc" id="L46">    return typeInfo &gt;&gt;&gt; 8;</span>
+  }
+
+  /**
+   * Treat the result of getPayload as a constant pool index and fetch the
+   * corresponding String mapped to it.
+   *
+   * Only works on OBJECT types.
+   */
+  static final String getPayloadAsType(int typeInfo, ConstantPool pool) {
+<span class="fc bfc" id="L56" title="All 2 branches covered.">    if (getTag(typeInfo) == OBJECT_TAG) {</span>
+<span class="fc" id="L57">      return (String) pool.getConstantData(getPayload(typeInfo));</span>
+    }
+<span class="fc" id="L59">    throw new IllegalArgumentException(&quot;expecting object type&quot;);</span>
+  }
+
+  /**
+   * Create type information from an internal type.
+   */
+  static final int fromType(String type, ConstantPool pool) {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">    if (type.length() == 1) {</span>
+<span class="fc bfc" id="L67" title="All 5 branches covered.">      switch (type.charAt(0)) {</span>
+        case 'B': // sbyte
+        case 'C': // unicode char
+        case 'S': // short
+        case 'Z': // boolean
+        case 'I': // all of the above are verified as integers
+<span class="fc" id="L73">          return INTEGER;</span>
+        case 'D':
+<span class="fc" id="L75">          return DOUBLE;</span>
+        case 'F':
+<span class="fc" id="L77">          return FLOAT;</span>
+        case 'J':
+<span class="fc" id="L79">          return LONG;</span>
+        default:
+<span class="fc" id="L81">          throw new IllegalArgumentException(&quot;bad type&quot;);</span>
+      }
+    }
+<span class="fc" id="L84">    return TypeInfo.OBJECT(type, pool);</span>
+  }
+
+  static boolean isTwoWords(int type) {
+<span class="pc bpc" id="L88" title="1 of 4 branches missed.">    return type == DOUBLE || type == LONG;</span>
+  }
+
+  /**
+   * Merge two verification types.
+   *
+   * In most cases, the verification types must be the same. For example,
+   * INTEGER and DOUBLE cannot be merged and an exception will be thrown.
+   * The basic rules are:
+   *
+   * - If the types are equal, simply return one.
+   * - If either type is TOP, return TOP.
+   * - If either type is NULL, return the other type.
+   * - If both types are objects, find the lowest common ancestor in the
+   *   class hierarchy.
+   *
+   * This method uses reflection to traverse the class hierarchy. Therefore,
+   * it is assumed that the current class being generated is never the target
+   * of a full object-object merge, which would need to load the current
+   * class reflectively.
+   */
+  static int merge(int current, int incoming, ConstantPool pool) {
+<span class="fc" id="L110">    int currentTag = getTag(current);</span>
+<span class="fc" id="L111">    int incomingTag = getTag(incoming);</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">    boolean currentIsObject = currentTag == TypeInfo.OBJECT_TAG;</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">    boolean incomingIsObject = incomingTag == TypeInfo.OBJECT_TAG;</span>
+
+<span class="pc bpc" id="L115" title="1 of 6 branches missed.">    if (current == incoming || (currentIsObject &amp;&amp; incoming == NULL)) {</span>
+<span class="fc" id="L116">      return current;</span>
+<span class="fc bfc" id="L117" title="All 4 branches covered.">    } else if (currentTag == TypeInfo.TOP ||</span>
+        incomingTag == TypeInfo.TOP) {
+<span class="fc" id="L119">      return TypeInfo.TOP;</span>
+<span class="fc bfc" id="L120" title="All 4 branches covered.">    } else if (current == NULL &amp;&amp; incomingIsObject) {</span>
+<span class="fc" id="L121">      return incoming;</span>
+<span class="fc bfc" id="L122" title="All 4 branches covered.">    } else if (currentIsObject &amp;&amp; incomingIsObject) {</span>
+<span class="fc" id="L123">      String currentName = getPayloadAsType(current, pool);</span>
+<span class="fc" id="L124">      String incomingName = getPayloadAsType(incoming, pool);</span>
+      // The class file always has the class and super names in the same
+      // spot. The constant order is: class_data, class_name, super_data,
+      // super_name.
+<span class="fc" id="L128">      String currentlyGeneratedName = (String) pool.getConstantData(2);</span>
+<span class="fc" id="L129">      String currentlyGeneratedSuperName =</span>
+<span class="fc" id="L130">          (String) pool.getConstantData(4);</span>
+
+      // If any of the merged types are the class that's currently being
+      // generated, automatically start at the super class instead. At
+      // this point, we already know the classes are different, so we
+      // don't need to handle that case.
+<span class="fc bfc" id="L136" title="All 2 branches covered.">      if (currentName.equals(currentlyGeneratedName)) {</span>
+<span class="fc" id="L137">        currentName = currentlyGeneratedSuperName;</span>
+      }
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">      if (incomingName.equals(currentlyGeneratedName)) {</span>
+<span class="nc" id="L140">        incomingName = currentlyGeneratedSuperName;</span>
+      }
+
+<span class="fc" id="L143">      Class&lt;?&gt; currentClass = getClassFromInternalName(currentName);</span>
+<span class="fc" id="L144">      Class&lt;?&gt; incomingClass = getClassFromInternalName(incomingName);</span>
+
+<span class="fc bfc" id="L146" title="All 2 branches covered.">      if (currentClass.isAssignableFrom(incomingClass)) {</span>
+<span class="fc" id="L147">        return current;</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">      } else if (incomingClass.isAssignableFrom(currentClass)) {</span>
+<span class="fc" id="L149">        return incoming;</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">      } else if (incomingClass.isInterface() ||</span>
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">          currentClass.isInterface()) {</span>
+        // For verification purposes, Sun specifies that interfaces are
+        // subtypes of Object. Therefore, we know that the merge result
+        // involving interfaces where one is not assignable to the
+        // other results in Object.
+<span class="nc" id="L156">        return OBJECT(&quot;java/lang/Object&quot;, pool);</span>
+      } else {
+<span class="fc" id="L158">        Class&lt;?&gt; commonClass = incomingClass.getSuperclass();</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        while (commonClass != null) {</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">          if (commonClass.isAssignableFrom(currentClass)) {</span>
+<span class="fc" id="L161">            String name = commonClass.getName();</span>
+<span class="fc" id="L162">            name = ClassFileWriter.getSlashedForm(name);</span>
+<span class="fc" id="L163">            return OBJECT(name, pool);</span>
+          }
+<span class="fc" id="L165">          commonClass = commonClass.getSuperclass();</span>
+        }
+      }
+    }
+<span class="fc" id="L169">    throw new IllegalArgumentException(&quot;bad merge attempt between &quot; +</span>
+<span class="fc" id="L170">        toString(current, pool) + &quot; and &quot; +</span>
+<span class="fc" id="L171">        toString(incoming, pool));</span>
+  }
+
+  static String toString(int type, ConstantPool pool) {
+<span class="fc" id="L175">    int tag = getTag(type);</span>
+<span class="fc bfc" id="L176" title="All 8 branches covered.">    switch (tag) {</span>
+      case TypeInfo.TOP:
+<span class="fc" id="L178">        return &quot;top&quot;;</span>
+      case TypeInfo.INTEGER:
+<span class="fc" id="L180">        return &quot;int&quot;;</span>
+      case TypeInfo.FLOAT:
+<span class="fc" id="L182">        return &quot;float&quot;;</span>
+      case TypeInfo.DOUBLE:
+<span class="fc" id="L184">        return &quot;double&quot;;</span>
+      case TypeInfo.LONG:
+<span class="fc" id="L186">        return &quot;long&quot;;</span>
+      case TypeInfo.NULL:
+<span class="fc" id="L188">        return &quot;null&quot;;</span>
+      case TypeInfo.UNINITIALIZED_THIS:
+<span class="fc" id="L190">        return &quot;uninitialized_this&quot;;</span>
+      default:
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        if (tag == TypeInfo.OBJECT_TAG) {</span>
+<span class="fc" id="L193">          return getPayloadAsType(type, pool);</span>
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        } else if (tag == TypeInfo.UNINITIALIZED_VAR_TAG) {</span>
+<span class="fc" id="L195">          return &quot;uninitialized&quot;;</span>
+        } else {
+<span class="fc" id="L197">          throw new IllegalArgumentException(&quot;bad type&quot;);</span>
+        }
+    }
+  }
+
+  /**
+   * Take an internal name and return a java.lang.Class instance that
+   * represents it.
+   *
+   * For example, given &quot;java/lang/Object&quot;, returns the equivalent of
+   * Class.forName(&quot;java.lang.Object&quot;), but also handles exceptions.
+   */
+  private static Class&lt;?&gt; getClassFromInternalName(String internalName) {
+    try {
+<span class="fc" id="L211">      return Class.forName(internalName.replace('/', '.'));</span>
+<span class="nc" id="L212">    } catch (ClassNotFoundException e) {</span>
+<span class="nc" id="L213">      throw new RuntimeException(e);</span>
+    }
+  }
+
+  private static String toString(int[] types, int typesTop, ConstantPool pool) {
+<span class="fc" id="L218">    StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L219">    sb.append(&quot;[&quot;);</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">    for (int i = 0; i &lt; typesTop; i++) {</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">      if (i &gt; 0) {</span>
+<span class="fc" id="L222">        sb.append(&quot;, &quot;);</span>
+      }
+<span class="fc" id="L224">      sb.append(toString(types[i], pool));</span>
+    }
+<span class="fc" id="L226">    sb.append(&quot;]&quot;);</span>
+<span class="fc" id="L227">    return sb.toString();</span>
+  }
+
+  static void print(int[] locals, int[] stack, ConstantPool pool) {
+<span class="fc" id="L231">    print(locals, locals.length, stack, stack.length, pool);</span>
+<span class="fc" id="L232">  }</span>
+
+  static void print(int[] locals, int localsTop, int[] stack, int stackTop,
+      ConstantPool pool) {
+<span class="fc" id="L236">    System.out.print(&quot;locals: &quot;);</span>
+<span class="fc" id="L237">    System.out.println(toString(locals, localsTop, pool));</span>
+<span class="fc" id="L238">    System.out.print(&quot;stack: &quot;);</span>
+<span class="fc" id="L239">    System.out.println(toString(stack, stackTop, pool));</span>
+<span class="fc" id="L240">    System.out.println();</span>
+<span class="fc" id="L241">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IfStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">IfStatement.java</span></div><h1>IfStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * If-else statement.  Node type is {@link Token#IF}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;IfStatement&lt;/i&gt; :
+ *       &lt;b&gt;if&lt;/b&gt; ( Expression ) Statement &lt;b&gt;else&lt;/b&gt; Statement
+ *       &lt;b&gt;if&lt;/b&gt; ( Expression ) Statement&lt;/pre&gt;
+ */
+public class IfStatement extends AstNode {
+
+    private AstNode condition;
+    private AstNode thenPart;
+<span class="fc" id="L22">    private int elsePosition = -1;</span>
+    private AstNode elsePart;
+<span class="fc" id="L24">    private int lp = -1;</span>
+<span class="fc" id="L25">    private int rp = -1;</span>
+
+    {
+<span class="fc" id="L28">        type = Token.IF;</span>
+    }
+
+<span class="fc" id="L31">    public IfStatement() {</span>
+<span class="fc" id="L32">    }</span>
+
+    public IfStatement(int pos) {
+<span class="fc" id="L35">        super(pos);</span>
+<span class="fc" id="L36">    }</span>
+
+    public IfStatement(int pos, int len) {
+<span class="fc" id="L39">        super(pos, len);</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * Returns if condition
+     */
+    public AstNode getCondition() {
+<span class="fc" id="L46">        return condition;</span>
+    }
+
+    /**
+     * Sets if condition.
+     * @throws IllegalArgumentException if {@code condition} is {@code null}.
+     */
+    public void setCondition(AstNode condition) {
+<span class="fc" id="L54">        assertNotNull(condition);</span>
+<span class="fc" id="L55">        this.condition = condition;</span>
+<span class="fc" id="L56">        condition.setParent(this);</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Returns statement to execute if condition is true
+     */
+    public AstNode getThenPart() {
+<span class="fc" id="L63">        return thenPart;</span>
+    }
+
+    /**
+     * Sets statement to execute if condition is true
+     * @throws IllegalArgumentException if thenPart is {@code null}
+     */
+    public void setThenPart(AstNode thenPart) {
+<span class="fc" id="L71">        assertNotNull(thenPart);</span>
+<span class="fc" id="L72">        this.thenPart = thenPart;</span>
+<span class="fc" id="L73">        thenPart.setParent(this);</span>
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * Returns statement to execute if condition is false
+     */
+    public AstNode getElsePart() {
+<span class="fc" id="L80">        return elsePart;</span>
+    }
+
+    /**
+     * Sets statement to execute if condition is false
+     * @param elsePart statement to execute if condition is false.
+     * Can be {@code null}.
+     */
+    public void setElsePart(AstNode elsePart) {
+<span class="fc" id="L89">        this.elsePart = elsePart;</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (elsePart != null)</span>
+<span class="fc" id="L91">            elsePart.setParent(this);</span>
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Returns position of &quot;else&quot; keyword, or -1
+     */
+    public int getElsePosition() {
+<span class="fc" id="L98">        return elsePosition;</span>
+    }
+
+    /**
+     * Sets position of &quot;else&quot; keyword, -1 if not present
+     */
+    public void setElsePosition(int elsePosition) {
+<span class="fc" id="L105">        this.elsePosition = elsePosition;</span>
+<span class="fc" id="L106">    }</span>
+
+    /**
+     * Returns left paren offset
+     */
+    public int getLp() {
+<span class="fc" id="L112">        return lp;</span>
+    }
+
+    /**
+     * Sets left paren offset
+     */
+    public void setLp(int lp) {
+<span class="fc" id="L119">        this.lp = lp;</span>
+<span class="fc" id="L120">    }</span>
+
+    /**
+     * Returns right paren position, -1 if missing
+     */
+    public int getRp() {
+<span class="fc" id="L126">        return rp;</span>
+    }
+
+    /**
+     * Sets right paren position, -1 if missing
+     */
+    public void setRp(int rp) {
+<span class="fc" id="L133">        this.rp = rp;</span>
+<span class="fc" id="L134">    }</span>
+
+    /**
+     * Sets both paren positions
+     */
+    public void setParens(int lp, int rp) {
+<span class="fc" id="L140">        this.lp = lp;</span>
+<span class="fc" id="L141">        this.rp = rp;</span>
+<span class="fc" id="L142">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L146">        String pad = makeIndent(depth);</span>
+<span class="fc" id="L147">        StringBuilder sb = new StringBuilder(32);</span>
+<span class="fc" id="L148">        sb.append(pad);</span>
+<span class="fc" id="L149">        sb.append(&quot;if (&quot;);</span>
+<span class="fc" id="L150">        sb.append(condition.toSource(0));</span>
+<span class="fc" id="L151">        sb.append(&quot;) &quot;);</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        if (thenPart.getType() != Token.BLOCK) {</span>
+<span class="fc" id="L153">            sb.append(&quot;\n&quot;).append(makeIndent(depth + 1));</span>
+        }
+<span class="fc" id="L155">        sb.append(thenPart.toSource(depth).trim());</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        if (elsePart != null) {</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">            if (thenPart.getType() != Token.BLOCK) {</span>
+<span class="fc" id="L158">                sb.append(&quot;\n&quot;).append(pad).append(&quot;else &quot;);</span>
+            } else {
+<span class="fc" id="L160">                sb.append(&quot; else &quot;);</span>
+            }
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            if (elsePart.getType() != Token.BLOCK</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">                    &amp;&amp; elsePart.getType() != Token.IF) {</span>
+<span class="fc" id="L164">                sb.append(&quot;\n&quot;).append(makeIndent(depth + 1));</span>
+            }
+<span class="fc" id="L166">            sb.append(elsePart.toSource(depth).trim());</span>
+        }
+<span class="fc" id="L168">        sb.append(&quot;\n&quot;);</span>
+<span class="fc" id="L169">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the condition, the then-part, and
+     * if supplied, the else-part.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc" id="L179">            condition.visit(v);</span>
+<span class="fc" id="L180">            thenPart.visit(v);</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">            if (elsePart != null) {</span>
+<span class="fc" id="L182">                elsePart.visit(v);</span>
+            }
+        }
+<span class="fc" id="L185">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

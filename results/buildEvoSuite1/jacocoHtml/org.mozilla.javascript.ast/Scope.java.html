@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Scope.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">Scope.java</span></div><h1>Scope.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Node;
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Represents a scope in the lexical scope chain.  Base type for
+ * all {@link AstNode} implementations that can introduce a new scope.
+ */
+public class Scope extends Jump {
+
+    // Use LinkedHashMap so that the iteration order is the insertion order
+    protected Map&lt;String,Symbol&gt; symbolTable;
+    protected Scope parentScope;
+    protected ScriptNode top;     // current script or function scope
+
+    private List&lt;Scope&gt; childScopes;
+
+    {
+<span class="fc" id="L32">        this.type = Token.BLOCK;</span>
+    }
+
+<span class="fc" id="L35">    public Scope() {</span>
+<span class="fc" id="L36">    }</span>
+
+<span class="fc" id="L38">    public Scope(int pos) {</span>
+<span class="fc" id="L39">        this.position = pos;</span>
+<span class="fc" id="L40">    }</span>
+
+    public Scope(int pos, int len) {
+<span class="fc" id="L43">        this(pos);</span>
+<span class="fc" id="L44">        this.length = len;</span>
+<span class="fc" id="L45">    }</span>
+
+    public Scope getParentScope() {
+<span class="fc" id="L48">        return parentScope;</span>
+    }
+
+    /**
+     * Sets parent scope
+     */
+    public void setParentScope(Scope parentScope) {
+<span class="fc" id="L55">        this.parentScope = parentScope;</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        this.top = parentScope == null ? (ScriptNode)this : parentScope.top;</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Used only for code generation.
+     */
+    public void clearParentScope() {
+<span class="fc" id="L63">        this.parentScope = null;</span>
+<span class="fc" id="L64">    }</span>
+
+    /**
+     * Return a list of the scopes whose parent is this scope.
+     * @return the list of scopes we enclose, or {@code null} if none
+     */
+    public List&lt;Scope&gt; getChildScopes() {
+<span class="fc" id="L71">        return childScopes;</span>
+    }
+
+    /**
+     * Add a scope to our list of child scopes.
+     * Sets the child's parent scope to this scope.
+     * @throws IllegalStateException if the child's parent scope is
+     * non-{@code null}
+     */
+    public void addChildScope(Scope child) {
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">        if (childScopes == null) {</span>
+<span class="fc" id="L82">            childScopes = new ArrayList&lt;Scope&gt;();</span>
+        }
+<span class="fc" id="L84">        childScopes.add(child);</span>
+<span class="fc" id="L85">        child.setParentScope(this);</span>
+<span class="fc" id="L86">    }</span>
+
+    /**
+     * Used by the parser; not intended for typical use.
+     * Changes the parent-scope links for this scope's child scopes
+     * to the specified new scope.  Copies symbols from this scope
+     * into new scope.
+     *
+     * @param newScope the scope that will replace this one on the
+     *        scope stack.
+     */
+    public void replaceWith(Scope newScope) {
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (childScopes != null) {</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            for (Scope kid : childScopes) {</span>
+<span class="fc" id="L100">                newScope.addChildScope(kid);  // sets kid's parent</span>
+<span class="fc" id="L101">            }</span>
+<span class="fc" id="L102">            childScopes.clear();</span>
+<span class="fc" id="L103">            childScopes = null;</span>
+        }
+<span class="pc bpc" id="L105" title="1 of 4 branches missed.">        if (symbolTable != null &amp;&amp; !symbolTable.isEmpty()) {</span>
+<span class="fc" id="L106">            joinScopes(this, newScope);</span>
+        }
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * Returns current script or function scope
+     */
+    public ScriptNode getTop() {
+<span class="fc" id="L114">        return top;</span>
+    }
+
+    /**
+     * Sets top current script or function scope
+     */
+    public void setTop(ScriptNode top) {
+<span class="fc" id="L121">        this.top = top;</span>
+<span class="fc" id="L122">    }</span>
+
+    /**
+     * Creates a new scope node, moving symbol table information
+     * from &quot;scope&quot; to the new node, and making &quot;scope&quot; a nested
+     * scope contained by the new node.
+     * Useful for injecting a new scope in a scope chain.
+     */
+    public static Scope splitScope(Scope scope) {
+<span class="fc" id="L131">        Scope result = new Scope(scope.getType());</span>
+<span class="fc" id="L132">        result.symbolTable = scope.symbolTable;</span>
+<span class="fc" id="L133">        scope.symbolTable = null;</span>
+<span class="fc" id="L134">        result.parent = scope.parent;</span>
+<span class="fc" id="L135">        result.setParentScope(scope.getParentScope());</span>
+<span class="fc" id="L136">        result.setParentScope(result);</span>
+<span class="fc" id="L137">        scope.parent = result;</span>
+<span class="fc" id="L138">        result.top = scope.top;</span>
+<span class="fc" id="L139">        return result;</span>
+    }
+
+    /**
+     * Copies all symbols from source scope to dest scope.
+     */
+    public static void joinScopes(Scope source, Scope dest) {
+<span class="fc" id="L146">        Map&lt;String,Symbol&gt; src = source.ensureSymbolTable();</span>
+<span class="fc" id="L147">        Map&lt;String,Symbol&gt; dst = dest.ensureSymbolTable();</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (!Collections.disjoint(src.keySet(), dst.keySet())) {</span>
+<span class="nc" id="L149">            codeBug();</span>
+        }
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        for (Map.Entry&lt;String, Symbol&gt; entry: src.entrySet()) {</span>
+<span class="fc" id="L152">            Symbol sym = entry.getValue();</span>
+<span class="fc" id="L153">            sym.setContainingTable(dest);</span>
+<span class="fc" id="L154">            dst.put(entry.getKey(), sym);</span>
+<span class="fc" id="L155">        }</span>
+<span class="fc" id="L156">    }</span>
+
+    /**
+     * Returns the scope in which this name is defined
+     * @param name the symbol to look up
+     * @return this {@link Scope}, one of its parent scopes, or {@code null} if
+     * the name is not defined any this scope chain
+     */
+    public Scope getDefiningScope(String name) {
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        for (Scope s = this; s != null; s = s.parentScope) {</span>
+<span class="fc" id="L166">            Map&lt;String,Symbol&gt; symbolTable = s.getSymbolTable();</span>
+<span class="pc bpc" id="L167" title="1 of 4 branches missed.">            if (symbolTable != null &amp;&amp; symbolTable.containsKey(name)) {</span>
+<span class="fc" id="L168">                return s;</span>
+            }
+        }
+<span class="fc" id="L171">        return null;</span>
+    }
+
+    /**
+     * Looks up a symbol in this scope.
+     * @param name the symbol name
+     * @return the Symbol, or {@code null} if not found
+     */
+    public Symbol getSymbol(String name) {
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        return symbolTable == null ? null : symbolTable.get(name);</span>
+    }
+
+    /**
+     * Enters a symbol into this scope.
+     */
+    public void putSymbol(Symbol symbol) {
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (symbol.getName() == null)</span>
+<span class="fc" id="L188">            throw new IllegalArgumentException(&quot;null symbol name&quot;);</span>
+<span class="fc" id="L189">        ensureSymbolTable();</span>
+<span class="fc" id="L190">        symbolTable.put(symbol.getName(), symbol);</span>
+<span class="fc" id="L191">        symbol.setContainingTable(this);</span>
+<span class="fc" id="L192">        top.addSymbol(symbol);</span>
+<span class="fc" id="L193">    }</span>
+
+    /**
+     * Returns the symbol table for this scope.
+     * @return the symbol table.  May be {@code null}.
+     */
+    public Map&lt;String,Symbol&gt; getSymbolTable() {
+<span class="fc" id="L200">        return symbolTable;</span>
+    }
+
+    /**
+     * Sets the symbol table for this scope.  May be {@code null}.
+     */
+    public void setSymbolTable(Map&lt;String, Symbol&gt; table) {
+<span class="fc" id="L207">        symbolTable = table;</span>
+<span class="fc" id="L208">    }</span>
+
+    private Map&lt;String,Symbol&gt; ensureSymbolTable() {
+<span class="fc bfc" id="L211" title="All 2 branches covered.">        if (symbolTable == null) {</span>
+<span class="fc" id="L212">            symbolTable = new LinkedHashMap&lt;String,Symbol&gt;(5);</span>
+        }
+<span class="fc" id="L214">        return symbolTable;</span>
+    }
+
+    /**
+     * Returns a copy of the child list, with each child cast to an
+     * {@link AstNode}.
+     * @throws ClassCastException if any non-{@code AstNode} objects are
+     * in the child list, e.g. if this method is called after the code
+     * generator begins the tree transformation.
+     */
+    public List&lt;AstNode&gt; getStatements() {
+<span class="fc" id="L225">        List&lt;AstNode&gt; stmts = new ArrayList&lt;AstNode&gt;();</span>
+<span class="fc" id="L226">        Node n = getFirstChild();</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        while (n != null) {</span>
+<span class="fc" id="L228">            stmts.add((AstNode)n);</span>
+<span class="fc" id="L229">            n = n.getNext();</span>
+        }
+<span class="fc" id="L231">        return stmts;</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L236">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L237">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L238">        sb.append(&quot;{\n&quot;);</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">        for (Node kid : this) {</span>
+<span class="fc" id="L240">            sb.append(((AstNode)kid).toSource(depth+1));</span>
+<span class="fc" id="L241">        }</span>
+<span class="fc" id="L242">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L243">        sb.append(&quot;}\n&quot;);</span>
+<span class="fc" id="L244">        return sb.toString();</span>
+    }
+
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">            for (Node kid : this) {</span>
+<span class="fc" id="L251">                ((AstNode)kid).visit(v);</span>
+<span class="fc" id="L252">            }</span>
+        }
+<span class="fc" id="L254">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

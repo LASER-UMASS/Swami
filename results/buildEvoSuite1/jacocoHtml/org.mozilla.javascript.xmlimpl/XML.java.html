@@ -1,0 +1,738 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XML.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XML.java</span></div><h1>XML.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.xml.XMLObject;
+
+class XML extends XMLObjectImpl {
+    static final long serialVersionUID = -630969919086449092L;
+
+    private XmlNode node;
+
+    XML(XMLLibImpl lib, Scriptable scope, XMLObject prototype, XmlNode node) {
+<span class="fc" id="L18">      super(lib, scope, prototype);</span>
+<span class="fc" id="L19">      initialize(node);</span>
+<span class="fc" id="L20">    }</span>
+
+    void initialize(XmlNode node) {
+<span class="fc" id="L23">        this.node = node;</span>
+<span class="fc" id="L24">        this.node.setXml(this);</span>
+<span class="fc" id="L25">    }</span>
+
+    @Override
+    final XML getXML() {
+<span class="fc" id="L29">        return this;</span>
+    }
+
+    void replaceWith(XML value) {
+        //    We use the underlying document structure if the node is not
+        //    &quot;standalone,&quot; but we need to just replace the XmlNode instance
+        //    otherwise
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">        if (this.node.parent() != null) {</span>
+<span class="nc" id="L37">            this.node.replaceWith(value.node);</span>
+        } else {
+<span class="fc" id="L39">            this.initialize(value.node);</span>
+        }
+<span class="fc" id="L41">    }</span>
+
+    /* TODO: needs encapsulation. */
+    XML makeXmlFromString(XMLName name, String value) {
+        try {
+<span class="nc" id="L46">            return newTextElementXML(this.node, name.toQname(), value);</span>
+<span class="nc" id="L47">        } catch(Exception e) {</span>
+<span class="nc" id="L48">            throw ScriptRuntime.typeError(e.getMessage());</span>
+        }
+    }
+
+    /* TODO: Rename this, at the very least.  But it's not clear it's even necessary */
+    XmlNode getAnnotation() {
+<span class="fc" id="L54">        return node;</span>
+    }
+
+    //
+    //  Methods from ScriptableObject
+    //
+
+    //    TODO Either cross-reference this next comment with the specification or delete it and change the behavior
+    //    The comment: XML[0] should return this, all other indexes are Undefined
+    @Override
+    public Object get(int index, Scriptable start) {
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (index == 0) {</span>
+<span class="nc" id="L66">            return this;</span>
+        } else {
+<span class="nc" id="L68">            return Scriptable.NOT_FOUND;</span>
+        }
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start) {
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        return (index == 0);</span>
+    }
+
+    @Override
+    public void put(int index, Scriptable start, Object value) {
+        //    TODO    Clarify the following comment and add a reference to the spec
+        //    The comment: Spec says assignment to indexed XML object should return type error
+<span class="fc" id="L81">        throw ScriptRuntime.typeError(&quot;Assignment to indexed XML is not allowed&quot;);</span>
+    }
+
+    @Override
+    public Object[] getIds() {
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (isPrototype()) {</span>
+<span class="fc" id="L87">            return new Object[0];</span>
+        } else {
+<span class="fc" id="L89">            return new Object[] { Integer.valueOf(0) };</span>
+        }
+    }
+
+    //    TODO    This is how I found it but I am not sure it makes sense
+    @Override
+    public void delete(int index) {
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        if (index == 0) {</span>
+<span class="fc" id="L97">            this.remove();</span>
+        }
+<span class="fc" id="L99">    }</span>
+
+    //
+    //    Methods from XMLObjectImpl
+    //
+
+    @Override
+    boolean hasXMLProperty(XMLName xmlName) {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        return (getPropertyList(xmlName).length() &gt; 0);</span>
+    }
+
+    @Override
+    Object getXMLProperty(XMLName xmlName) {
+<span class="nc" id="L112">        return getPropertyList(xmlName);</span>
+    }
+
+    //
+    //
+    //    Methods that merit further review
+    //
+    //
+
+    XmlNode.QName getNodeQname() {
+<span class="nc" id="L122">        return this.node.getQname();</span>
+    }
+
+    XML[] getChildren() {
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (!isElement()) return null;</span>
+<span class="nc" id="L127">        XmlNode[] children = this.node.getMatchingChildren(XmlNode.Filter.TRUE);</span>
+<span class="nc" id="L128">        XML[] rv = new XML[children.length];</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        for (int i=0; i&lt;rv.length; i++) {</span>
+<span class="nc" id="L130">            rv[i] = toXML(children[i]);</span>
+        }
+<span class="nc" id="L132">        return rv;</span>
+    }
+
+    XML[] getAttributes() {
+<span class="fc" id="L136">        XmlNode[] attributes = this.node.getAttributes();</span>
+<span class="fc" id="L137">        XML[] rv = new XML[attributes.length];</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        for (int i=0; i&lt;rv.length; i++) {</span>
+<span class="nc" id="L139">            rv[i] = toXML(attributes[i]);</span>
+        }
+<span class="nc" id="L141">        return rv;</span>
+    }
+
+    //    Used only by XML, XMLList
+    XMLList getPropertyList(XMLName name) {
+<span class="nc" id="L146">        return name.getMyValueOn(this);</span>
+    }
+
+    @Override
+    void deleteXMLProperty(XMLName name) {
+<span class="nc" id="L151">        XMLList list = getPropertyList(name);</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        for (int i=0; i&lt;list.length(); i++) {</span>
+<span class="nc" id="L153">            list.item(i).node.deleteMe();</span>
+        }
+<span class="nc" id="L155">    }</span>
+
+    @Override
+    void putXMLProperty(XMLName xmlName, Object value) {
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        if (isPrototype()) {</span>
+            //    TODO    Is this really a no-op?  Check the spec to be sure
+        } else {
+<span class="nc" id="L162">            xmlName.setMyValueOn(this, value);</span>
+        }
+<span class="fc" id="L164">    }</span>
+
+    @Override
+    boolean hasOwnProperty(XMLName xmlName) {
+<span class="fc" id="L168">        boolean hasProperty = false;</span>
+
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (isPrototype()) {</span>
+<span class="fc" id="L171">            String property = xmlName.localName();</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">            hasProperty = (0 != findPrototypeId(property));</span>
+<span class="fc" id="L173">        } else {</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            hasProperty = (getPropertyList(xmlName).length() &gt; 0);</span>
+        }
+
+<span class="fc" id="L177">        return hasProperty;</span>
+    }
+
+    @Override
+    protected Object jsConstructor(Context cx, boolean inNewExpr, Object[] args) {
+<span class="pc bpc" id="L182" title="5 of 6 branches missed.">        if (args.length == 0 || args[0] == null || args[0] == Undefined.instance) {</span>
+<span class="fc" id="L183">            args = new Object[] { &quot;&quot; };</span>
+        }
+        //    ECMA 13.4.2 does not appear to specify what to do if multiple arguments are sent.
+<span class="nc" id="L186">        XML toXml = ecmaToXml(args[0]);</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (inNewExpr) {</span>
+<span class="nc" id="L188">            return toXml.copy();</span>
+        } else {
+<span class="nc" id="L190">            return toXml;</span>
+        }
+    }
+
+    //    See ECMA 357, 11_2_2_1, Semantics, 3_f.
+    @Override
+    public Scriptable getExtraMethodSource(Context cx) {
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (hasSimpleContent()) {</span>
+<span class="nc" id="L198">            String src = toString();</span>
+<span class="nc" id="L199">            return ScriptRuntime.toObjectOrNull(cx, src);</span>
+        }
+<span class="fc" id="L201">        return null;</span>
+    }
+
+    //
+    //    TODO    Miscellaneous methods not yet grouped
+    //
+
+    void removeChild(int index) {
+<span class="nc" id="L209">        this.node.removeChild(index);</span>
+<span class="nc" id="L210">    }</span>
+
+    @Override
+    void normalize() {
+<span class="fc" id="L214">        this.node.normalize();</span>
+<span class="fc" id="L215">    }</span>
+
+    private XML toXML(XmlNode node) {
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (node.getXml() == null) {</span>
+<span class="nc" id="L219">            node.setXml(newXML(node));</span>
+        }
+<span class="nc" id="L221">        return node.getXml();</span>
+    }
+
+    void setAttribute(XMLName xmlName, Object value) {
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">        if (!isElement()) throw new IllegalStateException(&quot;Can only set attributes on elements.&quot;);</span>
+        //    TODO    Is this legal, but just not &quot;supported&quot;?  If so, support it.
+<span class="pc bpc" id="L227" title="1 of 4 branches missed.">        if (xmlName.uri() == null &amp;&amp; xmlName.localName().equals(&quot;*&quot;)) {</span>
+<span class="fc" id="L228">            throw ScriptRuntime.typeError(&quot;@* assignment not supported.&quot;);</span>
+        }
+<span class="fc" id="L230">        this.node.setAttribute(xmlName.toQname(), ScriptRuntime.toString(value));</span>
+<span class="fc" id="L231">    }</span>
+
+    void remove() {
+<span class="fc" id="L234">        this.node.deleteMe();</span>
+<span class="fc" id="L235">    }</span>
+
+    @Override
+    void addMatches(XMLList rv, XMLName name) {
+<span class="nc" id="L239">        name.addMatches(rv, this);</span>
+<span class="nc" id="L240">    }</span>
+
+    @Override
+    XMLList elements(XMLName name) {
+<span class="nc" id="L244">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L245">        rv.setTargets(this, name.toQname());</span>
+        //    TODO    Should have an XMLNode.Filter implementation based on XMLName
+<span class="nc" id="L247">        XmlNode[] elements = this.node.getMatchingChildren(XmlNode.Filter.ELEMENT);</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        for (int i=0; i&lt;elements.length; i++) {</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (name.matches( toXML(elements[i]) )) {</span>
+<span class="nc" id="L250">                rv.addToList( toXML(elements[i]) );</span>
+            }
+        }
+<span class="nc" id="L253">        return rv;</span>
+    }
+
+    @Override
+    XMLList child(XMLName xmlName) {
+        //    TODO    Right now I think this method would allow child( &quot;@xxx&quot; ) to return the xxx attribute, which is wrong
+
+<span class="nc" id="L260">        XMLList rv = newXMLList();</span>
+
+        //    TODO    Should this also match processing instructions?  If so, we have to change the filter and also the XMLName
+        //            class to add an acceptsProcessingInstruction() method
+
+<span class="nc" id="L265">        XmlNode[] elements = this.node.getMatchingChildren(XmlNode.Filter.ELEMENT);</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        for (int i=0; i&lt;elements.length; i++) {</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            if (xmlName.matchesElement(elements[i].getQname())) {</span>
+<span class="nc" id="L268">                rv.addToList( toXML(elements[i]) );</span>
+            }
+        }
+<span class="nc" id="L271">        rv.setTargets(this, xmlName.toQname());</span>
+<span class="nc" id="L272">        return rv;</span>
+    }
+
+    XML replace(XMLName xmlName, Object xml) {
+<span class="fc" id="L276">        putXMLProperty(xmlName, xml);</span>
+<span class="fc" id="L277">        return this;</span>
+    }
+
+    @Override
+    XMLList children() {
+<span class="nc" id="L282">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L283">        XMLName all = XMLName.formStar();</span>
+<span class="nc" id="L284">        rv.setTargets(this, all.toQname());</span>
+<span class="nc" id="L285">        XmlNode[] children = this.node.getMatchingChildren(XmlNode.Filter.TRUE);</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        for (int i=0; i&lt;children.length; i++) {</span>
+<span class="nc" id="L287">            rv.addToList( toXML(children[i]) );</span>
+        }
+<span class="nc" id="L289">        return rv;</span>
+    }
+
+    @Override
+    XMLList child(int index) {
+        //    ECMA357 13.4.4.6 (numeric case)
+<span class="nc" id="L295">        XMLList result = newXMLList();</span>
+<span class="nc" id="L296">        result.setTargets(this, null);</span>
+<span class="nc bnc" id="L297" title="All 4 branches missed.">        if (index &gt;= 0 &amp;&amp; index &lt; this.node.getChildCount()) {</span>
+<span class="nc" id="L298">            result.addToList(getXmlChild(index));</span>
+        }
+<span class="nc" id="L300">        return result;</span>
+    }
+
+    XML getXmlChild(int index) {
+<span class="fc" id="L304">        XmlNode child = this.node.getChild(index);</span>
+<span class="pc bpc" id="L305" title="1 of 2 branches missed.">        if (child.getXml() == null) {</span>
+<span class="nc" id="L306">            child.setXml(newXML(child));</span>
+        }
+<span class="nc" id="L308">        return child.getXml();</span>
+    }
+
+    /* Return the last added element */
+    XML getLastXmlChild() {
+<span class="nc" id="L313">        int pos = this.node.getChildCount() - 1;</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        if (pos &lt; 0) return null;</span>
+<span class="nc" id="L315">        return getXmlChild(pos);</span>
+    }
+
+    int childIndex() {
+<span class="fc" id="L319">        return this.node.getChildIndex();</span>
+    }
+
+    @Override
+    boolean contains(Object xml) {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">        if (xml instanceof XML) {</span>
+<span class="nc" id="L325">            return equivalentXml(xml);</span>
+        } else {
+<span class="fc" id="L327">            return false;</span>
+        }
+    }
+
+    //    Method overriding XMLObjectImpl
+    @Override
+    boolean equivalentXml(Object target) {
+<span class="fc" id="L334">        boolean result = false;</span>
+
+<span class="fc bfc" id="L336" title="All 2 branches covered.">        if (target instanceof XML) {</span>
+            //    TODO    This is a horrifyingly inefficient way to do this so we should make it better.  It may also not work.
+<span class="nc" id="L338">            return this.node.toXmlString(getProcessor()).equals( ((XML)target).node.toXmlString(getProcessor()) );</span>
+<span class="pc bpc" id="L339" title="1 of 2 branches missed.">        } else if (target instanceof XMLList) {</span>
+            //    TODO    Is this right?  Check the spec ...
+<span class="nc" id="L341">            XMLList otherList = (XMLList) target;</span>
+
+<span class="nc bnc" id="L343" title="All 2 branches missed.">            if (otherList.length() == 1) {</span>
+<span class="nc" id="L344">                result = equivalentXml(otherList.getXML());</span>
+            }
+<span class="pc bpc" id="L346" title="1 of 2 branches missed.">        } else if (hasSimpleContent()) {</span>
+<span class="fc" id="L347">            String otherStr = ScriptRuntime.toString(target);</span>
+
+<span class="fc" id="L349">            result = toString().equals(otherStr);</span>
+        }
+
+<span class="fc" id="L352">        return result;</span>
+    }
+
+    @Override
+    XMLObjectImpl copy() {
+<span class="nc" id="L357">        return newXML( this.node.copy() );</span>
+    }
+
+    @Override
+    boolean hasSimpleContent() {
+<span class="pc bpc" id="L362" title="2 of 4 branches missed.">        if (isComment() || isProcessingInstruction()) return false;</span>
+<span class="pc bpc" id="L363" title="1 of 4 branches missed.">        if (isText() || this.node.isAttributeType()) return true;</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">        return !this.node.hasChildElement();</span>
+    }
+
+    @Override
+    boolean hasComplexContent() {
+<span class="pc bpc" id="L369" title="1 of 2 branches missed.">        return !hasSimpleContent();</span>
+    }
+
+    //    TODO Cross-reference comment below with spec
+    //    Comment is: Length of an XML object is always 1, it's a list of XML objects of size 1.
+    @Override
+    int length() {
+<span class="fc" id="L376">        return 1;</span>
+    }
+
+    //    TODO    it is not clear what this method was for ...
+    boolean is(XML other) {
+<span class="fc" id="L381">        return this.node.isSameNode(other.node);</span>
+    }
+
+    Object nodeKind() {
+<span class="fc" id="L385">        return ecmaClass();</span>
+    }
+
+    @Override
+    Object parent() {
+<span class="fc" id="L390">        XmlNode parent = this.node.parent();</span>
+<span class="pc bpc" id="L391" title="1 of 2 branches missed.">        if (parent == null) return null;</span>
+<span class="nc" id="L392">        return newXML(this.node.parent());</span>
+    }
+
+    @Override
+    boolean propertyIsEnumerable(Object name)
+    {
+        boolean result;
+<span class="fc bfc" id="L399" title="All 2 branches covered.">        if (name instanceof Integer) {</span>
+<span class="pc bpc" id="L400" title="1 of 2 branches missed.">            result = (((Integer)name).intValue() == 0);</span>
+<span class="fc bfc" id="L401" title="All 2 branches covered.">        } else if (name instanceof Number) {</span>
+<span class="fc" id="L402">            double x = ((Number)name).doubleValue();</span>
+            // Check that number is positive 0
+<span class="pc bpc" id="L404" title="3 of 4 branches missed.">            result = (x == 0.0 &amp;&amp; 1.0 / x &gt; 0);</span>
+<span class="fc" id="L405">        } else {</span>
+<span class="fc" id="L406">            result = ScriptRuntime.toString(name).equals(&quot;0&quot;);</span>
+        }
+<span class="fc" id="L408">        return result;</span>
+    }
+
+    @Override
+    Object valueOf() {
+<span class="fc" id="L413">        return this;</span>
+    }
+
+    //
+    //    Selection of children
+    //
+
+    @Override
+    XMLList comments() {
+<span class="nc" id="L422">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L423">        this.node.addMatchingChildren(rv, XmlNode.Filter.COMMENT);</span>
+<span class="nc" id="L424">        return rv;</span>
+    }
+
+    @Override
+    XMLList text() {
+<span class="nc" id="L429">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L430">        this.node.addMatchingChildren(rv, XmlNode.Filter.TEXT);</span>
+<span class="nc" id="L431">        return rv;</span>
+    }
+
+    @Override
+    XMLList processingInstructions(XMLName xmlName) {
+<span class="nc" id="L436">        XMLList rv = newXMLList();</span>
+<span class="nc" id="L437">        this.node.addMatchingChildren(rv, XmlNode.Filter.PROCESSING_INSTRUCTION(xmlName));</span>
+<span class="nc" id="L438">        return rv;</span>
+    }
+
+    //
+    //    Methods relating to modification of child nodes
+    //
+
+    //    We create all the nodes we are inserting before doing the insert to
+    //    avoid nasty cycles caused by mutability of these objects.  For example,
+    //    what if the toString() method of value modifies the XML object we were
+    //    going to insert into?  insertAfter might get confused about where to
+    //    insert.  This actually came up with SpiderMonkey, leading to a (very)
+    //    long discussion.  See bug #354145.
+    private XmlNode[] getNodesForInsert(Object value) {
+<span class="fc bfc" id="L452" title="All 2 branches covered.">        if (value instanceof XML) {</span>
+<span class="fc" id="L453">            return new XmlNode[] { ((XML)value).node };</span>
+<span class="pc bpc" id="L454" title="1 of 2 branches missed.">        } else if (value instanceof XMLList) {</span>
+<span class="nc" id="L455">            XMLList list = (XMLList)value;</span>
+<span class="nc" id="L456">            XmlNode[] rv = new XmlNode[list.length()];</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">            for (int i=0; i&lt;list.length(); i++) {</span>
+<span class="nc" id="L458">                rv[i] = list.item(i).node;</span>
+            }
+<span class="nc" id="L460">            return rv;</span>
+        } else {
+<span class="pc" id="L462">            return new XmlNode[] {</span>
+<span class="nc" id="L463">                XmlNode.createText(getProcessor(), ScriptRuntime.toString(value))</span>
+            };
+        }
+    }
+
+    XML replace(int index, Object xml) {
+<span class="nc" id="L469">        XMLList xlChildToReplace = child(index);</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        if (xlChildToReplace.length() &gt; 0) {</span>
+            // One exists an that index
+<span class="nc" id="L472">            XML childToReplace = xlChildToReplace.item(0);</span>
+<span class="nc" id="L473">            insertChildAfter(childToReplace, xml);</span>
+<span class="nc" id="L474">            removeChild(index);</span>
+        }
+<span class="nc" id="L476">        return this;</span>
+    }
+
+    XML prependChild(Object xml) {
+<span class="fc bfc" id="L480" title="All 2 branches covered.">        if (this.node.isParentType()) {</span>
+<span class="nc" id="L481">            this.node.insertChildrenAt(0, getNodesForInsert(xml));</span>
+        }
+<span class="fc" id="L483">        return this;</span>
+    }
+
+    XML appendChild(Object xml) {
+<span class="pc bpc" id="L487" title="1 of 2 branches missed.">        if (this.node.isParentType()) {</span>
+<span class="fc" id="L488">            XmlNode[] nodes = getNodesForInsert(xml);</span>
+<span class="fc" id="L489">            this.node.insertChildrenAt(this.node.getChildCount(), nodes);</span>
+        }
+<span class="fc" id="L491">        return this;</span>
+    }
+
+    private int getChildIndexOf(XML child) {
+<span class="fc bfc" id="L495" title="All 2 branches covered.">        for (int i=0; i&lt;this.node.getChildCount(); i++) {</span>
+<span class="pc bpc" id="L496" title="1 of 2 branches missed.">            if (this.node.getChild(i).isSameNode(child.node)) {</span>
+<span class="nc" id="L497">                return i;</span>
+            }
+        }
+<span class="fc" id="L500">        return -1;</span>
+    }
+
+    XML insertChildBefore(XML child, Object xml) {
+<span class="fc bfc" id="L504" title="All 2 branches covered.">        if (child == null) {</span>
+            // Spec says inserting before nothing is the same as appending
+<span class="fc" id="L506">            appendChild(xml);</span>
+        } else {
+<span class="fc" id="L508">            XmlNode[] toInsert = getNodesForInsert(xml);</span>
+<span class="fc" id="L509">            int index = getChildIndexOf(child);</span>
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">            if (index != -1) {</span>
+<span class="nc" id="L511">                this.node.insertChildrenAt(index, toInsert);</span>
+            }
+        }
+
+<span class="fc" id="L515">        return this;</span>
+    }
+
+    XML insertChildAfter(XML child, Object xml) {
+<span class="pc bpc" id="L519" title="1 of 2 branches missed.">        if (child == null) {</span>
+            // Spec says inserting after nothing is the same as prepending
+<span class="fc" id="L521">            prependChild(xml);</span>
+        } else {
+<span class="nc" id="L523">            XmlNode[] toInsert = getNodesForInsert(xml);</span>
+<span class="nc" id="L524">            int index = getChildIndexOf(child);</span>
+<span class="nc bnc" id="L525" title="All 2 branches missed.">            if (index != -1) {</span>
+<span class="nc" id="L526">                this.node.insertChildrenAt(index+1, toInsert);</span>
+            }
+        }
+
+<span class="fc" id="L530">        return this;</span>
+    }
+
+    XML setChildren(Object xml) {
+        //    TODO    Have not carefully considered the spec but it seems to call for this
+<span class="pc bpc" id="L535" title="1 of 2 branches missed.">        if (!isElement()) return this;</span>
+
+<span class="pc bpc" id="L537" title="1 of 2 branches missed.">        while(this.node.getChildCount() &gt; 0) {</span>
+<span class="fc" id="L538">            this.node.removeChild(0);</span>
+        }
+<span class="nc" id="L540">        XmlNode[] toInsert = getNodesForInsert(xml);</span>
+        // append new children
+<span class="nc" id="L542">        this.node.insertChildrenAt(0, toInsert);</span>
+
+<span class="nc" id="L544">        return this;</span>
+    }
+
+    //
+    //    Name and namespace-related methods
+    //
+
+    private void addInScopeNamespace(Namespace ns) {
+<span class="pc bpc" id="L552" title="1 of 2 branches missed.">        if (!isElement()) {</span>
+<span class="nc" id="L553">            return;</span>
+        }
+        //    See ECMA357 9.1.1.13
+        //    in this implementation null prefix means ECMA undefined
+<span class="pc bpc" id="L557" title="1 of 2 branches missed.">        if (ns.prefix() != null) {</span>
+<span class="pc bpc" id="L558" title="1 of 4 branches missed.">            if (ns.prefix().length() == 0 &amp;&amp; ns.uri().length() == 0) {</span>
+<span class="fc" id="L559">                return;</span>
+            }
+<span class="pc bpc" id="L561" title="1 of 2 branches missed.">            if (node.getQname().getNamespace().getPrefix().equals(ns.prefix())) {</span>
+<span class="nc" id="L562">                node.invalidateNamespacePrefix();</span>
+            }
+<span class="nc" id="L564">            node.declareNamespace(ns.prefix(), ns.uri());</span>
+        } else {
+<span class="nc" id="L566">            return;</span>
+        }
+<span class="nc" id="L568">    }</span>
+
+    Namespace[] inScopeNamespaces() {
+<span class="fc" id="L571">        XmlNode.Namespace[] inScope = this.node.getInScopeNamespaces();</span>
+<span class="nc" id="L572">        return createNamespaces(inScope);</span>
+    }
+
+    private XmlNode.Namespace adapt(Namespace ns) {
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        if (ns.prefix() == null) {</span>
+<span class="fc" id="L577">            return XmlNode.Namespace.create(ns.uri());</span>
+        } else {
+<span class="fc" id="L579">            return XmlNode.Namespace.create(ns.prefix(), ns.uri());</span>
+        }
+    }
+
+    XML removeNamespace(Namespace ns) {
+<span class="pc bpc" id="L584" title="1 of 2 branches missed.">        if (!isElement()) return this;</span>
+<span class="fc" id="L585">        this.node.removeNamespace(adapt(ns));</span>
+<span class="fc" id="L586">        return this;</span>
+    }
+
+    XML addNamespace(Namespace ns) {
+<span class="fc" id="L590">        addInScopeNamespace(ns);</span>
+<span class="fc" id="L591">        return this;</span>
+    }
+
+    QName name() {
+<span class="nc bnc" id="L595" title="All 4 branches missed.">        if (isText() || isComment()) return null;</span>
+<span class="nc bnc" id="L596" title="All 2 branches missed.">        if (isProcessingInstruction()) return newQName(&quot;&quot;, this.node.getQname().getLocalName(), null);</span>
+<span class="nc" id="L597">        return newQName(node.getQname());</span>
+    }
+
+    Namespace[] namespaceDeclarations() {
+<span class="fc" id="L601">        XmlNode.Namespace[] declarations = node.getNamespaceDeclarations();</span>
+<span class="nc" id="L602">        return createNamespaces(declarations);</span>
+    }
+
+    Namespace namespace(String prefix) {
+<span class="fc bfc" id="L606" title="All 2 branches covered.">        if (prefix == null) {</span>
+<span class="nc" id="L607">            return createNamespace( this.node.getNamespaceDeclaration() );</span>
+        } else {
+<span class="fc" id="L609">            return createNamespace( this.node.getNamespaceDeclaration(prefix) );</span>
+        }
+    }
+
+    String localName() {
+<span class="nc bnc" id="L614" title="All 2 branches missed.">        if (name() == null) return null;</span>
+<span class="nc" id="L615">        return name().localName();</span>
+    }
+
+    void setLocalName(String localName) {
+        //    ECMA357 13.4.4.34
+<span class="pc bpc" id="L620" title="2 of 4 branches missed.">        if (isText() || isComment()) return;</span>
+<span class="fc" id="L621">        this.node.setLocalName(localName);</span>
+<span class="fc" id="L622">    }</span>
+
+    void setName(QName name) {
+        //    See ECMA357 13.4.4.35
+<span class="nc bnc" id="L626" title="All 4 branches missed.">        if (isText() || isComment()) return;</span>
+<span class="nc bnc" id="L627" title="All 2 branches missed.">        if (isProcessingInstruction()) {</span>
+            //    Spec says set the name URI to empty string and then set the [[Name]] property, but I understand this to do the same
+            //    thing, unless we allow colons in processing instruction targets, which I think we do not.
+<span class="nc" id="L630">            this.node.setLocalName(name.localName());</span>
+<span class="nc" id="L631">            return;</span>
+        }
+<span class="nc" id="L633">        node.renameNode(name.getDelegate());</span>
+<span class="nc" id="L634">    }</span>
+
+    void setNamespace(Namespace ns) {
+        //    See ECMA357 13.4.4.36
+<span class="nc bnc" id="L638" title="All 6 branches missed.">        if (isText() || isComment() || isProcessingInstruction()) return;</span>
+<span class="nc" id="L639">        setName(newQName(ns.uri(), localName(), ns.prefix()));</span>
+<span class="nc" id="L640">    }</span>
+
+    final String ecmaClass() {
+        //    See ECMA357 9.1
+
+        //    TODO    See ECMA357 9.1.1 last paragraph for what defaults should be
+
+<span class="fc bfc" id="L647" title="All 2 branches covered.">        if (node.isTextType()) {</span>
+<span class="fc" id="L648">            return &quot;text&quot;;</span>
+<span class="pc bpc" id="L649" title="1 of 2 branches missed.">        } else if (node.isAttributeType()) {</span>
+<span class="nc" id="L650">            return &quot;attribute&quot;;</span>
+<span class="pc bpc" id="L651" title="1 of 2 branches missed.">        } else if (node.isCommentType()) {</span>
+<span class="nc" id="L652">            return &quot;comment&quot;;</span>
+<span class="pc bpc" id="L653" title="1 of 2 branches missed.">        } else if (node.isProcessingInstructionType()) {</span>
+<span class="nc" id="L654">            return &quot;processing-instruction&quot;;</span>
+<span class="pc bpc" id="L655" title="1 of 2 branches missed.">        } else if (node.isElementType()) {</span>
+<span class="fc" id="L656">            return &quot;element&quot;;</span>
+        } else {
+<span class="nc" id="L658">            throw new RuntimeException(&quot;Unrecognized type: &quot; + node);</span>
+        }
+    }
+
+    @Override
+    public String getClassName() {
+        //    TODO:    This appears to confuse the interpreter if we use the &quot;real&quot; class property from ECMA.  Otherwise this code
+        //    would be:
+        //    return ecmaClass();
+<span class="fc" id="L667">        return &quot;XML&quot;;</span>
+    }
+
+    private String ecmaValue() {
+<span class="fc" id="L671">        return node.ecmaValue();</span>
+    }
+
+    private String ecmaToString() {
+        //    See ECMA357 10.1.1
+<span class="pc bpc" id="L676" title="1 of 4 branches missed.">        if (isAttribute() || isText()) {</span>
+<span class="fc" id="L677">            return ecmaValue();</span>
+        }
+<span class="pc bpc" id="L679" title="1 of 2 branches missed.">        if (this.hasSimpleContent()) {</span>
+<span class="fc" id="L680">            StringBuilder rv = new StringBuilder();</span>
+<span class="fc bfc" id="L681" title="All 2 branches covered.">            for (int i=0; i &lt; this.node.getChildCount(); i++) {</span>
+<span class="fc" id="L682">                XmlNode child = this.node.getChild(i);</span>
+<span class="pc bpc" id="L683" title="1 of 2 branches missed.">                if (!child.isProcessingInstructionType() &amp;&amp;</span>
+<span class="pc bpc" id="L684" title="1 of 2 branches missed.">                    !child.isCommentType())</span>
+                {
+                    // TODO: Probably inefficient; taking clean non-optimized
+                    // solution for now
+<span class="fc" id="L688">                    XML x = new XML(getLib(), getParentScope(),</span>
+<span class="fc" id="L689">                                    (XMLObject)getPrototype(), child);</span>
+<span class="fc" id="L690">                    rv.append(x.toString());</span>
+                }
+            }
+<span class="fc" id="L693">            return rv.toString();</span>
+        }
+<span class="nc" id="L695">        return toXMLString();</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L700">        return ecmaToString();</span>
+    }
+
+    @Override
+    String toSource(int indent) {
+<span class="nc" id="L705">        return toXMLString();</span>
+    }
+
+    @Override
+    String toXMLString() {
+<span class="nc" id="L710">        return this.node.ecmaToXMLString(getProcessor());</span>
+    }
+
+    final boolean isAttribute() {
+<span class="fc" id="L714">        return node.isAttributeType();</span>
+    }
+
+    final boolean isComment() {
+<span class="fc" id="L718">        return node.isCommentType();</span>
+    }
+
+    final boolean isText() {
+<span class="fc" id="L722">        return node.isTextType();</span>
+    }
+
+    final boolean isElement() {
+<span class="fc" id="L726">        return node.isElementType();</span>
+    }
+
+    final boolean isProcessingInstruction() {
+<span class="fc" id="L730">        return node.isProcessingInstructionType();</span>
+    }
+
+    //    Support experimental Java interface
+    org.w3c.dom.Node toDomNode() {
+<span class="fc" id="L735">        return node.toDomNode();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

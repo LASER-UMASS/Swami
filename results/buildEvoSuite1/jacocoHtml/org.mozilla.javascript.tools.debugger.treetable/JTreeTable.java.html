@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JTreeTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.debugger.treetable</a> &gt; <span class="el_source">JTreeTable.java</span></div><h1>JTreeTable.java</h1><pre class="source lang-java linenums">/*
+ * @(#)JTreeTable.java  1.2 98/10/27
+ *
+ * Copyright 1997, 1998 Sun Microsystems, Inc.  All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *   - Neither the name of Sun Microsystems nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS
+ * IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package org.mozilla.javascript.tools.debugger.treetable;
+
+import javax.swing.*;
+import javax.swing.event.*;
+import javax.swing.tree.*;
+import javax.swing.table.*;
+
+import java.awt.Dimension;
+import java.awt.Component;
+import java.awt.Graphics;
+
+import java.awt.event.MouseEvent;
+
+import java.util.EventObject;
+
+/**
+ * This example shows how to create a simple JTreeTable component,
+ * by using a JTree as a renderer (and editor) for the cells in a
+ * particular column in the JTable.
+ *
+ * @version 1.2 10/27/98
+ *
+ * @author Philip Milne
+ * @author Scott Violet
+ */
+public class JTreeTable extends JTable {
+    /**
+     *
+     */
+    private static final long serialVersionUID = -2103973006456695515L;
+    /** A subclass of JTree. */
+    protected TreeTableCellRenderer tree;
+
+    public JTreeTable(TreeTableModel treeTableModel) {
+<span class="fc" id="L68">        super();</span>
+
+        // Create the tree. It will be used as a renderer and editor.
+<span class="fc" id="L71">        tree = new TreeTableCellRenderer(treeTableModel);</span>
+
+        // Install a tableModel representing the visible rows in the tree.
+<span class="fc" id="L74">        super.setModel(new TreeTableModelAdapter(treeTableModel, tree));</span>
+
+        // Force the JTable and JTree to share their row selection models.
+<span class="fc" id="L77">        ListToTreeSelectionModelWrapper selectionWrapper = new</span>
+                                ListToTreeSelectionModelWrapper();
+<span class="fc" id="L79">        tree.setSelectionModel(selectionWrapper);</span>
+<span class="fc" id="L80">        setSelectionModel(selectionWrapper.getListSelectionModel());</span>
+
+        // Install the tree editor renderer and editor.
+<span class="fc" id="L83">        setDefaultRenderer(TreeTableModel.class, tree);</span>
+<span class="fc" id="L84">        setDefaultEditor(TreeTableModel.class, new TreeTableCellEditor());</span>
+
+        // No grid.
+<span class="fc" id="L87">        setShowGrid(false);</span>
+
+        // No intercell spacing
+<span class="fc" id="L90">        setIntercellSpacing(new Dimension(0, 0));</span>
+
+        // And update the height of the trees row to match that of
+        // the table.
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        if (tree.getRowHeight() &lt; 1) {</span>
+            // Metal looks better like this.
+<span class="nc" id="L96">            setRowHeight(18);</span>
+        }
+<span class="fc" id="L98">    }</span>
+
+    /**
+     * Overridden to message super and forward the method to the tree.
+     * Since the tree is not actually in the component hierarchy it will
+     * never receive this unless we forward it in this manner.
+     */
+    @Override
+    public void updateUI() {
+<span class="fc" id="L107">        super.updateUI();</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if(tree != null) {</span>
+<span class="fc" id="L109">            tree.updateUI();</span>
+        }
+        // Use the tree's default foreground and background colors in the
+        // table.
+<span class="fc" id="L113">        LookAndFeel.installColorsAndFont(this, &quot;Tree.background&quot;,</span>
+                                         &quot;Tree.foreground&quot;, &quot;Tree.font&quot;);
+<span class="fc" id="L115">    }</span>
+
+    /* Workaround for BasicTableUI anomaly. Make sure the UI never tries to
+     * paint the editor. The UI currently uses different techniques to
+     * paint the renderers and editors and overriding setBounds() below
+     * is not the right thing to do for an editor. Returning -1 for the
+     * editing row in this case, ensures the editor is never painted.
+     */
+    @Override
+    public int getEditingRow() {
+<span class="pc bpc" id="L125" title="1 of 2 branches missed.">        return (getColumnClass(editingColumn) == TreeTableModel.class) ? -1 :</span>
+                editingRow;
+    }
+
+    /**
+     * Overridden to pass the new rowHeight to the tree.
+     */
+    @Override
+    public void setRowHeight(int rowHeight) {
+<span class="fc" id="L134">        super.setRowHeight(rowHeight);</span>
+<span class="pc bpc" id="L135" title="3 of 4 branches missed.">        if (tree != null &amp;&amp; tree.getRowHeight() != rowHeight) {</span>
+<span class="nc" id="L136">            tree.setRowHeight(getRowHeight());</span>
+        }
+<span class="fc" id="L138">    }</span>
+
+    /**
+     * Returns the tree that is being shared between the model.
+     */
+    public JTree getTree() {
+<span class="fc" id="L144">        return tree;</span>
+    }
+
+    /**
+     * A TreeCellRenderer that displays a JTree.
+     */
+    public class TreeTableCellRenderer extends JTree implements TableCellRenderer {
+        private static final long serialVersionUID = -193867880014600717L;
+        /** Last table/tree row asked to renderer. */
+        protected int visibleRow;
+
+<span class="fc" id="L155">        public TreeTableCellRenderer(TreeModel model) {</span>
+<span class="fc" id="L156">            super(model);</span>
+<span class="fc" id="L157">        }</span>
+
+        /**
+         * updateUI is overridden to set the colors of the Tree's renderer
+         * to match that of the table.
+         */
+        @Override
+        public void updateUI() {
+<span class="fc" id="L165">            super.updateUI();</span>
+            // Make the tree's cell renderer use the table's cell selection
+            // colors.
+<span class="fc" id="L168">            TreeCellRenderer tcr = getCellRenderer();</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">            if (tcr instanceof DefaultTreeCellRenderer) {</span>
+<span class="fc" id="L170">                DefaultTreeCellRenderer dtcr = ((DefaultTreeCellRenderer)tcr);</span>
+                // For 1.1 uncomment this, 1.2 has a bug that will cause an
+                // exception to be thrown if the border selection color is
+                // null.
+                // dtcr.setBorderSelectionColor(null);
+<span class="fc" id="L175">                dtcr.setTextSelectionColor(UIManager.getColor</span>
+<span class="fc" id="L176">                                           (&quot;Table.selectionForeground&quot;));</span>
+<span class="fc" id="L177">                dtcr.setBackgroundSelectionColor(UIManager.getColor</span>
+<span class="fc" id="L178">                                                (&quot;Table.selectionBackground&quot;));</span>
+            }
+<span class="fc" id="L180">        }</span>
+
+        /**
+         * Sets the row height of the tree, and forwards the row height to
+         * the table.
+         */
+        @Override
+        public void setRowHeight(int rowHeight) {
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">            if (rowHeight &gt; 0) {</span>
+<span class="nc" id="L189">                super.setRowHeight(rowHeight);</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">                if (JTreeTable.this != null &amp;&amp;</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                    JTreeTable.this.getRowHeight() != rowHeight) {</span>
+<span class="nc" id="L192">                    JTreeTable.this.setRowHeight(getRowHeight());</span>
+                }
+            }
+<span class="fc" id="L195">        }</span>
+
+        /**
+         * This is overridden to set the height to match that of the JTable.
+         */
+        @Override
+        public void setBounds(int x, int y, int w, int h) {
+<span class="fc" id="L202">            super.setBounds(x, 0, w, JTreeTable.this.getHeight());</span>
+<span class="fc" id="L203">        }</span>
+
+        /**
+         * Sublcassed to translate the graphics such that the last visible
+         * row will be drawn at 0,0.
+         */
+        @Override
+        public void paint(Graphics g) {
+<span class="fc" id="L211">            g.translate(0, -visibleRow * getRowHeight());</span>
+<span class="fc" id="L212">            super.paint(g);</span>
+<span class="fc" id="L213">        }</span>
+
+        /**
+         * TreeCellRenderer method. Overridden to update the visible row.
+         */
+        public Component getTableCellRendererComponent(JTable table,
+                                                       Object value,
+                                                       boolean isSelected,
+                                                       boolean hasFocus,
+                                                       int row, int column) {
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">            if(isSelected)</span>
+<span class="nc" id="L224">                setBackground(table.getSelectionBackground());</span>
+            else
+<span class="fc" id="L226">                setBackground(table.getBackground());</span>
+
+<span class="fc" id="L228">            visibleRow = row;</span>
+<span class="fc" id="L229">            return this;</span>
+        }
+    }
+
+
+    /**
+     * TreeTableCellEditor implementation. Component returned is the
+     * JTree.
+     */
+<span class="fc" id="L238">    public class TreeTableCellEditor extends AbstractCellEditor implements</span>
+                 TableCellEditor {
+        public Component getTableCellEditorComponent(JTable table,
+                                                     Object value,
+                                                     boolean isSelected,
+                                                     int r, int c) {
+<span class="fc" id="L244">            return tree;</span>
+        }
+
+        /**
+         * Overridden to return false, and if the event is a mouse event
+         * it is forwarded to the tree.&lt;p&gt;
+         * The behavior for this is debatable, and should really be offered
+         * as a property. By returning false, all keyboard actions are
+         * implemented in terms of the table. By returning true, the
+         * tree would get a chance to do something with the keyboard
+         * events. For the most part this is ok. But for certain keys,
+         * such as left/right, the tree will expand/collapse where as
+         * the table focus should really move to a different column. Page
+         * up/down should also be implemented in terms of the table.
+         * By returning false this also has the added benefit that clicking
+         * outside of the bounds of the tree node, but still in the tree
+         * column will select the row, whereas if this returned true
+         * that wouldn't be the case.
+         * &lt;p&gt;By returning false we are also enforcing the policy that
+         * the tree will never be editable (at least by a key sequence).
+         */
+        @Override
+        public boolean isCellEditable(EventObject e) {
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">            if (e instanceof MouseEvent) {</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">                for (int counter = getColumnCount() - 1; counter &gt;= 0;</span>
+<span class="fc" id="L269">                     counter--) {</span>
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">                    if (getColumnClass(counter) == TreeTableModel.class) {</span>
+<span class="nc" id="L271">                        MouseEvent me = (MouseEvent)e;</span>
+<span class="nc" id="L272">                        MouseEvent newME = new MouseEvent(tree, me.getID(),</span>
+<span class="nc" id="L273">                                   me.getWhen(), me.getModifiers(),</span>
+<span class="nc" id="L274">                                   me.getX() - getCellRect(0, counter, true).x,</span>
+<span class="nc" id="L275">                                   me.getY(), me.getClickCount(),</span>
+<span class="nc" id="L276">                                   me.isPopupTrigger());</span>
+<span class="nc" id="L277">                        tree.dispatchEvent(newME);</span>
+<span class="nc" id="L278">                        break;</span>
+                    }
+                }
+            }
+<span class="fc" id="L282">            return false;</span>
+        }
+    }
+
+
+    /**
+     * ListToTreeSelectionModelWrapper extends DefaultTreeSelectionModel
+     * to listen for changes in the ListSelectionModel it maintains. Once
+     * a change in the ListSelectionModel happens, the paths are updated
+     * in the DefaultTreeSelectionModel.
+     */
+    public class ListToTreeSelectionModelWrapper
+        extends DefaultTreeSelectionModel
+    {
+        private static final long serialVersionUID = 8168140829623071131L;
+
+        /** Set to true when we are updating the ListSelectionModel. */
+        protected boolean         updatingListSelectionModel;
+
+<span class="fc" id="L301">        public ListToTreeSelectionModelWrapper() {</span>
+<span class="fc" id="L302">            super();</span>
+<span class="fc" id="L303">            getListSelectionModel().addListSelectionListener</span>
+<span class="fc" id="L304">                                    (createListSelectionListener());</span>
+<span class="fc" id="L305">        }</span>
+
+        /**
+         * Returns the list selection model. ListToTreeSelectionModelWrapper
+         * listens for changes to this model and updates the selected paths
+         * accordingly.
+         */
+        public ListSelectionModel getListSelectionModel() {
+<span class="fc" id="L313">            return listSelectionModel;</span>
+        }
+
+        /**
+         * This is overridden to set &lt;code&gt;updatingListSelectionModel&lt;/code&gt;
+         * and message super. This is the only place DefaultTreeSelectionModel
+         * alters the ListSelectionModel.
+         */
+        @Override
+        public void resetRowSelection() {
+<span class="fc bfc" id="L323" title="All 2 branches covered.">            if(!updatingListSelectionModel) {</span>
+<span class="fc" id="L324">                updatingListSelectionModel = true;</span>
+                try {
+<span class="fc" id="L326">                    super.resetRowSelection();</span>
+                }
+                finally {
+<span class="pc" id="L329">                    updatingListSelectionModel = false;</span>
+<span class="pc" id="L330">                }</span>
+            }
+            // Notice how we don't message super if
+            // updatingListSelectionModel is true. If
+            // updatingListSelectionModel is true, it implies the
+            // ListSelectionModel has already been updated and the
+            // paths are the only thing that needs to be updated.
+<span class="fc" id="L337">        }</span>
+
+        /**
+         * Creates and returns an instance of ListSelectionHandler.
+         */
+        protected ListSelectionListener createListSelectionListener() {
+<span class="fc" id="L343">            return new ListSelectionHandler();</span>
+        }
+
+        /**
+         * If &lt;code&gt;updatingListSelectionModel&lt;/code&gt; is false, this will
+         * reset the selected paths from the selected rows in the list
+         * selection model.
+         */
+        protected void updateSelectedPathsFromSelectedRows() {
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">            if(!updatingListSelectionModel) {</span>
+<span class="fc" id="L353">                updatingListSelectionModel = true;</span>
+                try {
+                    // This is way expensive, ListSelectionModel needs an
+                    // enumerator for iterating.
+<span class="fc" id="L357">                    int        min = listSelectionModel.getMinSelectionIndex();</span>
+<span class="fc" id="L358">                    int        max = listSelectionModel.getMaxSelectionIndex();</span>
+
+<span class="fc" id="L360">                    clearSelection();</span>
+<span class="pc bpc" id="L361" title="2 of 4 branches missed.">                    if(min != -1 &amp;&amp; max != -1) {</span>
+<span class="fc bfc" id="L362" title="All 2 branches covered.">                        for(int counter = min; counter &lt;= max; counter++) {</span>
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">                            if(listSelectionModel.isSelectedIndex(counter)) {</span>
+<span class="fc" id="L364">                                TreePath     selPath = tree.getPathForRow</span>
+<span class="fc" id="L365">                                                            (counter);</span>
+
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">                                if(selPath != null) {</span>
+<span class="fc" id="L368">                                    addSelectionPath(selPath);</span>
+                                }
+                            }
+                        }
+                    }
+                }
+                finally {
+<span class="pc" id="L375">                    updatingListSelectionModel = false;</span>
+<span class="pc" id="L376">                }</span>
+            }
+<span class="fc" id="L378">        }</span>
+
+        /**
+         * Class responsible for calling updateSelectedPathsFromSelectedRows
+         * when the selection of the list changse.
+         */
+<span class="fc" id="L384">        class ListSelectionHandler implements ListSelectionListener {</span>
+            public void valueChanged(ListSelectionEvent e) {
+<span class="fc" id="L386">                updateSelectedPathsFromSelectedRows();</span>
+<span class="fc" id="L387">            }</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

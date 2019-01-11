@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConstantEntry.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.classfile</a> &gt; <span class="el_source">ConstantEntry.java</span></div><h1>ConstantEntry.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.classfile;
+
+final class ConstantEntry {
+  private int type;
+  private int intval;
+  private long longval;
+  private String str1;
+  private String str2;
+  private int hashcode;
+
+<span class="fc" id="L17">  ConstantEntry(int type, int intval, String str1, String str2) {</span>
+<span class="fc" id="L18">    this.type = type;</span>
+<span class="fc" id="L19">    this.intval = intval;</span>
+<span class="fc" id="L20">    this.str1 = str1;</span>
+<span class="fc" id="L21">    this.str2 = str2;</span>
+<span class="fc" id="L22">    hashcode = type ^ intval + str1.hashCode() * str2.hashCode();</span>
+<span class="fc" id="L23">  }</span>
+
+  @Override
+  public int hashCode() {
+<span class="fc" id="L27">    return hashcode;</span>
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+<span class="fc bfc" id="L32" title="All 2 branches covered.">    if (!(obj instanceof ConstantEntry)) {</span>
+<span class="fc" id="L33">      return false;</span>
+    }
+<span class="fc" id="L35">    ConstantEntry entry = (ConstantEntry) obj;</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">    if (type != entry.type) {</span>
+<span class="fc" id="L37">      return false;</span>
+    }
+<span class="fc bfc" id="L39" title="All 5 branches covered.">    switch (type) {</span>
+      case ConstantPool.CONSTANT_Integer:
+      case ConstantPool.CONSTANT_Float:
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        return intval == entry.intval;</span>
+      case ConstantPool.CONSTANT_Long:
+      case ConstantPool.CONSTANT_Double:
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        return longval == entry.longval;</span>
+      case ConstantPool.CONSTANT_NameAndType:
+<span class="pc bpc" id="L47" title="2 of 4 branches missed.">        return str1.equals(entry.str1) &amp;&amp; str2.equals(entry.str2);</span>
+      case ConstantPool.CONSTANT_InvokeDynamic:
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        return intval == entry.intval</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">            &amp;&amp; str1.equals(entry.str1)</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">            &amp;&amp; str2.equals(entry.str2);</span>
+      default:
+<span class="fc" id="L53">        throw new RuntimeException(&quot;unsupported constant type&quot;);</span>
+
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

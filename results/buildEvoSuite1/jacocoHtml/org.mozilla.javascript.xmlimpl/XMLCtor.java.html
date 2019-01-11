@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLCtor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLCtor.java</span></div><h1>XMLCtor.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+
+class XMLCtor extends IdFunctionObject
+{
+    static final long serialVersionUID = -8708195078359817341L;
+
+<span class="fc" id="L15">    private static final Object XMLCTOR_TAG = &quot;XMLCtor&quot;;</span>
+
+    private XmlProcessor options;
+//    private XMLLibImpl lib;
+
+    XMLCtor(XML xml, Object tag, int id, int arity)
+    {
+<span class="fc" id="L22">        super(xml, tag, id, arity);</span>
+//        this.lib = xml.lib;
+<span class="fc" id="L24">        this.options = xml.getProcessor();</span>
+<span class="fc" id="L25">        activatePrototypeMap(MAX_FUNCTION_ID);</span>
+<span class="fc" id="L26">    }</span>
+
+    private void writeSetting(Scriptable target)
+    {
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        for (int i = 1; i &lt;= MAX_INSTANCE_ID; ++i) {</span>
+<span class="nc" id="L31">            int id = super.getMaxInstanceId() + i;</span>
+<span class="nc" id="L32">            String name = getInstanceIdName(id);</span>
+<span class="nc" id="L33">            Object value = getInstanceIdValue(id);</span>
+<span class="nc" id="L34">            ScriptableObject.putProperty(target, name, value);</span>
+        }
+<span class="nc" id="L36">    }</span>
+
+    private void readSettings(Scriptable source)
+    {
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        for (int i = 1; i &lt;= MAX_INSTANCE_ID; ++i) {</span>
+<span class="nc" id="L41">            int id = super.getMaxInstanceId() + i;</span>
+<span class="nc" id="L42">            String name = getInstanceIdName(id);</span>
+<span class="nc" id="L43">            Object value = ScriptableObject.getProperty(source, name);</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">            if (value == Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L45">                continue;</span>
+            }
+<span class="nc bnc" id="L47" title="All 3 branches missed.">            switch (i) {</span>
+              case Id_ignoreComments:
+              case Id_ignoreProcessingInstructions:
+              case Id_ignoreWhitespace:
+              case Id_prettyPrinting:
+<span class="nc bnc" id="L52" title="All 2 branches missed.">                if (!(value instanceof Boolean)) {</span>
+<span class="nc" id="L53">                    continue;</span>
+                }
+                break;
+              case Id_prettyIndent:
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                if (!(value instanceof Number)) {</span>
+<span class="nc" id="L58">                    continue;</span>
+                }
+                break;
+              default:
+<span class="nc" id="L62">                throw new IllegalStateException();</span>
+            }
+<span class="nc" id="L64">            setInstanceIdValue(id, value);</span>
+        }
+<span class="nc" id="L66">    }</span>
+
+// #string_id_map#
+
+    private static final int
+        Id_ignoreComments               = 1,
+        Id_ignoreProcessingInstructions = 2,
+        Id_ignoreWhitespace             = 3,
+        Id_prettyIndent                 = 4,
+        Id_prettyPrinting               = 5,
+
+        MAX_INSTANCE_ID                 = 5;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L82">        return super.getMaxInstanceId() + MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s) {
+        int id;
+// #generated# Last update: 2007-08-20 09:01:10 EDT
+<span class="nc" id="L89">        L0: { id = 0; String X = null; int c;</span>
+<span class="nc bnc" id="L90" title="All 5 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L91">            case 12: X=&quot;prettyIndent&quot;;id=Id_prettyIndent; break L;</span>
+<span class="nc" id="L92">            case 14: c=s.charAt(0);</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">                if (c=='i') { X=&quot;ignoreComments&quot;;id=Id_ignoreComments; }</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                else if (c=='p') { X=&quot;prettyPrinting&quot;;id=Id_prettyPrinting; }</span>
+                break L;
+<span class="nc" id="L96">            case 16: X=&quot;ignoreWhitespace&quot;;id=Id_ignoreWhitespace; break L;</span>
+<span class="nc" id="L97">            case 28: X=&quot;ignoreProcessingInstructions&quot;;id=Id_ignoreProcessingInstructions; break L;</span>
+            }
+<span class="nc bnc" id="L99" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        switch (id) {</span>
+          case Id_ignoreComments:
+          case Id_ignoreProcessingInstructions:
+          case Id_ignoreWhitespace:
+          case Id_prettyIndent:
+          case Id_prettyPrinting:
+<span class="nc" id="L113">            attr = PERMANENT | DONTENUM;</span>
+<span class="nc" id="L114">            break;</span>
+<span class="nc" id="L115">          default: throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L117">        return instanceIdInfo(attr, super.getMaxInstanceId() + id);</span>
+    }
+
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc bnc" id="L125" title="All 6 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+<span class="nc" id="L126">          case Id_ignoreComments:               return &quot;ignoreComments&quot;;</span>
+<span class="nc" id="L127">          case Id_ignoreProcessingInstructions: return &quot;ignoreProcessingInstructions&quot;;</span>
+<span class="nc" id="L128">          case Id_ignoreWhitespace:             return &quot;ignoreWhitespace&quot;;</span>
+<span class="nc" id="L129">          case Id_prettyIndent:                 return &quot;prettyIndent&quot;;</span>
+<span class="nc" id="L130">          case Id_prettyPrinting:               return &quot;prettyPrinting&quot;;</span>
+        }
+<span class="nc" id="L132">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="nc bnc" id="L138" title="All 6 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+          case Id_ignoreComments:
+<span class="nc" id="L140">            return ScriptRuntime.wrapBoolean(options.isIgnoreComments());</span>
+          case Id_ignoreProcessingInstructions:
+<span class="nc" id="L142">            return ScriptRuntime.wrapBoolean(options.isIgnoreProcessingInstructions());</span>
+          case Id_ignoreWhitespace:
+<span class="nc" id="L144">            return ScriptRuntime.wrapBoolean(options.isIgnoreWhitespace());</span>
+          case Id_prettyIndent:
+<span class="nc" id="L146">            return ScriptRuntime.wrapInt(options.getPrettyIndent());</span>
+          case Id_prettyPrinting:
+<span class="nc" id="L148">            return ScriptRuntime.wrapBoolean(options.isPrettyPrinting());</span>
+        }
+<span class="nc" id="L150">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value) {
+<span class="nc bnc" id="L155" title="All 6 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+            case Id_ignoreComments:
+<span class="nc" id="L157">                options.setIgnoreComments(ScriptRuntime.toBoolean(value));</span>
+<span class="nc" id="L158">                return;</span>
+            case Id_ignoreProcessingInstructions:
+<span class="nc" id="L160">                options.setIgnoreProcessingInstructions(ScriptRuntime.toBoolean(value));</span>
+<span class="nc" id="L161">                return;</span>
+            case Id_ignoreWhitespace:
+<span class="nc" id="L163">                options.setIgnoreWhitespace(ScriptRuntime.toBoolean(value));</span>
+<span class="nc" id="L164">                return;</span>
+            case Id_prettyIndent:
+<span class="nc" id="L166">                options.setPrettyIndent(ScriptRuntime.toInt32(value));</span>
+<span class="nc" id="L167">                return;</span>
+            case Id_prettyPrinting:
+<span class="nc" id="L169">                options.setPrettyPrinting(ScriptRuntime.toBoolean(value));</span>
+<span class="nc" id="L170">                return;</span>
+        }
+<span class="nc" id="L172">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L173">    }</span>
+
+// #string_id_map#
+    private static final int
+        Id_defaultSettings              = 1,
+        Id_settings                     = 2,
+        Id_setSettings                  = 3,
+        MAX_FUNCTION_ID                 = 3;
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-08-20 09:01:10 EDT
+<span class="nc" id="L187">        L0: { id = 0; String X = null;</span>
+<span class="nc" id="L188">            int s_length = s.length();</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            if (s_length==8) { X=&quot;settings&quot;;id=Id_settings; }</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">            else if (s_length==11) { X=&quot;setSettings&quot;;id=Id_setSettings; }</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            else if (s_length==15) { X=&quot;defaultSettings&quot;;id=Id_defaultSettings; }</span>
+<span class="nc bnc" id="L192" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L196">        return id;</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="nc bnc" id="L205" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L206">          case Id_defaultSettings:  arity=0; s=&quot;defaultSettings&quot;;  break;</span>
+<span class="nc" id="L207">          case Id_settings:         arity=0; s=&quot;settings&quot;;         break;</span>
+<span class="nc" id="L208">          case Id_setSettings:      arity=1; s=&quot;setSettings&quot;;      break;</span>
+<span class="nc" id="L209">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L211">        initPrototypeMethod(XMLCTOR_TAG, id, s, arity);</span>
+<span class="nc" id="L212">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (!f.hasTag(XMLCTOR_TAG)) {</span>
+<span class="nc" id="L219">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L221">        int id = f.methodId();</span>
+<span class="nc bnc" id="L222" title="All 4 branches missed.">        switch (id) {</span>
+          case Id_defaultSettings: {
+<span class="nc" id="L224">            options.setDefault();</span>
+<span class="nc" id="L225">            Scriptable obj = cx.newObject(scope);</span>
+<span class="nc" id="L226">            writeSetting(obj);</span>
+<span class="nc" id="L227">            return obj;</span>
+          }
+          case Id_settings: {
+<span class="nc" id="L230">            Scriptable obj = cx.newObject(scope);</span>
+<span class="nc" id="L231">            writeSetting(obj);</span>
+<span class="nc" id="L232">            return obj;</span>
+          }
+          case Id_setSettings: {
+<span class="nc bnc" id="L235" title="All 6 branches missed.">            if (args.length == 0</span>
+                || args[0] == null
+                || args[0] == Undefined.instance)
+            {
+<span class="nc" id="L239">                options.setDefault();</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            } else if (args[0] instanceof Scriptable) {</span>
+<span class="nc" id="L241">                readSettings((Scriptable)args[0]);</span>
+            }
+<span class="nc" id="L243">            return Undefined.instance;</span>
+          }
+        }
+<span class="nc" id="L246">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    /**
+        hasInstance for XML objects works differently than other objects; see ECMA357 13.4.3.10.
+     */
+    @Override
+    public boolean hasInstance(Scriptable instance) {
+<span class="nc bnc" id="L254" title="All 4 branches missed.">        return (instance instanceof XML || instance instanceof XMLList);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

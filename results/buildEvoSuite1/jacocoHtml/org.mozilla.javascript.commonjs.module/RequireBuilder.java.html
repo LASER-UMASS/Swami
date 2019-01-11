@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RequireBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.commonjs.module</a> &gt; <span class="el_source">RequireBuilder.java</span></div><h1>RequireBuilder.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module;
+
+import java.io.Serializable;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Script;
+import org.mozilla.javascript.Scriptable;
+
+/**
+ * A builder for {@link Require} instances. Useful when you're creating many
+ * instances of {@link Require} that are identical except for their top-level
+ * scope and current {@link Context}. Also useful if you prefer configuring it
+ * using named setters instead of passing many parameters in a constructor.
+ * Every setter returns &quot;this&quot;, so you can easily chain their invocations for
+ * additional convenience.
+ * @author Attila Szegedi
+ * @version $Id: RequireBuilder.java,v 1.4 2011/04/07 20:26:11 hannes%helma.at Exp $
+ */
+<span class="fc" id="L23">public class RequireBuilder implements Serializable</span>
+{
+    private static final long serialVersionUID = 1L;
+
+<span class="fc" id="L27">    private boolean sandboxed = true;</span>
+    private ModuleScriptProvider moduleScriptProvider;
+    private Script preExec;
+    private Script postExec;
+
+    /**
+     * Sets the {@link ModuleScriptProvider} for the {@link Require} instances
+     * that this builder builds.
+     * @param moduleScriptProvider the module script provider for the
+     * {@link Require} instances that this builder builds.
+     * @return this, so you can chain (&quot;fluidize&quot;) setter invocations
+     */
+    public RequireBuilder setModuleScriptProvider(
+            ModuleScriptProvider moduleScriptProvider)
+    {
+<span class="fc" id="L42">        this.moduleScriptProvider = moduleScriptProvider;</span>
+<span class="fc" id="L43">        return this;</span>
+    }
+
+    /**
+     * Sets the script that should execute in every module's scope after the
+     * module's own script has executed.
+     * @param postExec the post-exec script.
+     * @return this, so you can chain (&quot;fluidize&quot;) setter invocations
+     */
+    public RequireBuilder setPostExec(Script postExec) {
+<span class="fc" id="L53">        this.postExec = postExec;</span>
+<span class="fc" id="L54">        return this;</span>
+    }
+
+    /**
+     * Sets the script that should execute in every module's scope before the
+     * module's own script has executed.
+     * @param preExec the pre-exec script.
+     * @return this, so you can chain (&quot;fluidize&quot;) setter invocations
+     */
+    public RequireBuilder setPreExec(Script preExec) {
+<span class="fc" id="L64">        this.preExec = preExec;</span>
+<span class="fc" id="L65">        return this;</span>
+    }
+
+    /**
+     * Sets whether the created require() instances will be sandboxed.
+     * See {@link Require#Require(Context, Scriptable, ModuleScriptProvider,
+     * Script, Script, boolean)} for explanation.
+     * @param sandboxed true if the created require() instances will be
+     * sandboxed.
+     * @return this, so you can chain (&quot;fluidize&quot;) setter invocations
+     */
+    public RequireBuilder setSandboxed(boolean sandboxed) {
+<span class="fc" id="L77">        this.sandboxed = sandboxed;</span>
+<span class="fc" id="L78">        return this;</span>
+    }
+
+    /**
+     * Creates a new require() function. You are still responsible for invoking
+     * either {@link Require#install(Scriptable)} or
+     * {@link Require#requireMain(Context, String)} to effectively make it
+     * available to its JavaScript program.
+     * @param cx the current context
+     * @param globalScope the global scope containing the JS standard natives.
+     * @return a new Require instance.
+     */
+    public Require createRequire(Context cx, Scriptable globalScope) {
+<span class="fc" id="L91">        return new Require(cx, globalScope, moduleScriptProvider, preExec,</span>
+                postExec, sandboxed);
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

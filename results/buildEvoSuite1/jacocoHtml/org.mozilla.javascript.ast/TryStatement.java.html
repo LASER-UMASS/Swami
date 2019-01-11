@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TryStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">TryStatement.java</span></div><h1>TryStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Try/catch/finally statement.  Node type is {@link Token#TRY}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;TryStatement&lt;/i&gt; :
+ *        &lt;b&gt;try&lt;/b&gt; Block Catch
+ *        &lt;b&gt;try&lt;/b&gt; Block Finally
+ *        &lt;b&gt;try&lt;/b&gt; Block Catch Finally
+ * &lt;i&gt;Catch&lt;/i&gt; :
+ *        &lt;b&gt;catch&lt;/b&gt; ( &lt;i&gt;&lt;b&gt;Identifier&lt;/b&gt;&lt;/i&gt; ) Block
+ * &lt;i&gt;Finally&lt;/i&gt; :
+ *        &lt;b&gt;finally&lt;/b&gt; Block&lt;/pre&gt;
+ */
+public class TryStatement extends AstNode {
+
+<span class="fc" id="L29">    private static final List&lt;CatchClause&gt; NO_CATCHES =</span>
+<span class="fc" id="L30">        Collections.unmodifiableList(new ArrayList&lt;CatchClause&gt;());</span>
+
+    private AstNode tryBlock;
+    private List&lt;CatchClause&gt; catchClauses;
+    private AstNode finallyBlock;
+<span class="fc" id="L35">    private int finallyPosition = -1;</span>
+
+    {
+<span class="fc" id="L38">        type = Token.TRY;</span>
+    }
+
+<span class="fc" id="L41">    public TryStatement() {</span>
+<span class="fc" id="L42">    }</span>
+
+    public TryStatement(int pos) {
+<span class="fc" id="L45">        super(pos);</span>
+<span class="fc" id="L46">    }</span>
+
+    public TryStatement(int pos, int len) {
+<span class="fc" id="L49">        super(pos, len);</span>
+<span class="fc" id="L50">    }</span>
+
+    public AstNode getTryBlock() {
+<span class="fc" id="L53">        return tryBlock;</span>
+    }
+
+    /**
+     * Sets try block.  Also sets its parent to this node.
+     * @throws IllegalArgumentException} if {@code tryBlock} is {@code null}
+     */
+    public void setTryBlock(AstNode tryBlock) {
+<span class="fc" id="L61">        assertNotNull(tryBlock);</span>
+<span class="fc" id="L62">        this.tryBlock = tryBlock;</span>
+<span class="fc" id="L63">        tryBlock.setParent(this);</span>
+<span class="fc" id="L64">    }</span>
+
+    /**
+     * Returns list of {@link CatchClause} nodes.  If there are no catch
+     * clauses, returns an immutable empty list.
+     */
+    public List&lt;CatchClause&gt; getCatchClauses() {
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        return catchClauses != null ? catchClauses : NO_CATCHES;</span>
+    }
+
+    /**
+     * Sets list of {@link CatchClause} nodes.  Also sets their parents
+     * to this node.  May be {@code null}.  Replaces any existing catch
+     * clauses for this node.
+     */
+    public void setCatchClauses(List&lt;CatchClause&gt; catchClauses) {
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (catchClauses == null) {</span>
+<span class="fc" id="L81">            this.catchClauses = null;</span>
+        } else {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">            if (this.catchClauses != null)</span>
+<span class="fc" id="L84">                this.catchClauses.clear();</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            for (CatchClause cc : catchClauses) {</span>
+<span class="fc" id="L86">                addCatchClause(cc);</span>
+<span class="fc" id="L87">            }</span>
+        }
+<span class="fc" id="L89">    }</span>
+
+    /**
+     * Add a catch-clause to the end of the list, and sets its parent to
+     * this node.
+     * @throws IllegalArgumentException} if {@code clause} is {@code null}
+     */
+    public void addCatchClause(CatchClause clause) {
+<span class="fc" id="L97">        assertNotNull(clause);</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (catchClauses == null) {</span>
+<span class="fc" id="L99">            catchClauses = new ArrayList&lt;CatchClause&gt;();</span>
+        }
+<span class="fc" id="L101">        catchClauses.add(clause);</span>
+<span class="fc" id="L102">        clause.setParent(this);</span>
+<span class="fc" id="L103">    }</span>
+
+    /**
+     * Returns finally block, or {@code null} if not present
+     */
+    public AstNode getFinallyBlock() {
+<span class="fc" id="L109">        return finallyBlock;</span>
+    }
+
+    /**
+     * Sets finally block, and sets its parent to this node.
+     * May be {@code null}.
+     */
+    public void setFinallyBlock(AstNode finallyBlock) {
+<span class="fc" id="L117">        this.finallyBlock = finallyBlock;</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        if (finallyBlock != null)</span>
+<span class="fc" id="L119">            finallyBlock.setParent(this);</span>
+<span class="fc" id="L120">    }</span>
+
+    /**
+     * Returns position of {@code finally} keyword, if present, or -1
+     */
+    public int getFinallyPosition() {
+<span class="fc" id="L126">        return finallyPosition;</span>
+    }
+
+    /**
+     * Sets position of {@code finally} keyword, if present, or -1
+     */
+    public void setFinallyPosition(int finallyPosition) {
+<span class="fc" id="L133">        this.finallyPosition = finallyPosition;</span>
+<span class="fc" id="L134">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L138">        StringBuilder sb = new StringBuilder(250);</span>
+<span class="fc" id="L139">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L140">        sb.append(&quot;try &quot;);</span>
+<span class="fc" id="L141">        sb.append(tryBlock.toSource(depth).trim());</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        for (CatchClause cc : getCatchClauses()) {</span>
+<span class="nc" id="L143">            sb.append(cc.toSource(depth));</span>
+<span class="nc" id="L144">        }</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (finallyBlock != null) {</span>
+<span class="fc" id="L146">            sb.append(&quot; finally &quot;);</span>
+<span class="nc" id="L147">            sb.append(finallyBlock.toSource(depth));</span>
+        }
+<span class="fc" id="L149">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the try-block, then any catch clauses,
+     * and then any finally block.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc" id="L159">            tryBlock.visit(v);</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            for (CatchClause cc : getCatchClauses()) {</span>
+<span class="nc" id="L161">                cc.visit(v);</span>
+<span class="nc" id="L162">            }</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">            if (finallyBlock != null) {</span>
+<span class="fc" id="L164">                finallyBlock.visit(v);</span>
+            }
+        }
+<span class="fc" id="L167">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

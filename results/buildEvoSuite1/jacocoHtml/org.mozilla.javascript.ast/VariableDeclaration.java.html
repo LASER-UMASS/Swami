@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VariableDeclaration.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">VariableDeclaration.java</span></div><h1>VariableDeclaration.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A list of one or more var, const or let declarations.
+ * Node type is {@link Token#VAR}, {@link Token#CONST} or
+ * {@link Token#LET}.&lt;p&gt;
+ *
+ * If the node is for {@code var} or {@code const}, the node position
+ * is the beginning of the {@code var} or {@code const} keyword.
+ * For {@code let} declarations, the node position coincides with the
+ * first {@link VariableInitializer} child.&lt;p&gt;
+ *
+ * A standalone variable declaration in a statement context returns {@code true}
+ * from its {@link #isStatement()} method.
+ */
+public class VariableDeclaration extends AstNode {
+
+<span class="fc" id="L29">    private List&lt;VariableInitializer&gt; variables = new ArrayList&lt;VariableInitializer&gt;();</span>
+    private boolean isStatement;
+
+    {
+<span class="fc" id="L33">        type = Token.VAR;</span>
+    }
+
+<span class="fc" id="L36">    public VariableDeclaration() {</span>
+<span class="fc" id="L37">    }</span>
+
+    public VariableDeclaration(int pos) {
+<span class="fc" id="L40">        super(pos);</span>
+<span class="fc" id="L41">    }</span>
+
+    public VariableDeclaration(int pos, int len) {
+<span class="fc" id="L44">        super(pos, len);</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Returns variable list.  Never {@code null}.
+     */
+    public List&lt;VariableInitializer&gt; getVariables() {
+<span class="fc" id="L51">        return variables;</span>
+    }
+
+    /**
+     * Sets variable list
+     * @throws IllegalArgumentException if variables list is {@code null}
+     */
+    public void setVariables(List&lt;VariableInitializer&gt; variables) {
+<span class="fc" id="L59">        assertNotNull(variables);</span>
+<span class="fc" id="L60">        this.variables.clear();</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        for (VariableInitializer vi : variables) {</span>
+<span class="fc" id="L62">            addVariable(vi);</span>
+<span class="fc" id="L63">        }</span>
+<span class="fc" id="L64">    }</span>
+
+    /**
+     * Adds a variable initializer node to the child list.
+     * Sets initializer node's parent to this node.
+     * @throws IllegalArgumentException if v is {@code null}
+     */
+    public void addVariable(VariableInitializer v) {
+<span class="fc" id="L72">        assertNotNull(v);</span>
+<span class="fc" id="L73">        variables.add(v);</span>
+<span class="fc" id="L74">        v.setParent(this);</span>
+<span class="fc" id="L75">    }</span>
+
+    /**
+     * Sets the node type and returns this node.
+     * @throws IllegalArgumentException if {@code declType} is invalid
+     */
+    @Override
+    public org.mozilla.javascript.Node setType(int type) {
+<span class="pc bpc" id="L83" title="2 of 6 branches missed.">        if (type != Token.VAR</span>
+            &amp;&amp; type != Token.CONST
+            &amp;&amp; type != Token.LET)
+<span class="fc" id="L86">            throw new IllegalArgumentException(&quot;invalid decl type: &quot; + type);</span>
+<span class="fc" id="L87">        return super.setType(type);</span>
+    }
+
+    /**
+     * Returns true if this is a {@code var} (not
+     * {@code const} or {@code let}) declaration.
+     * @return true if {@code declType} is {@link Token#VAR}
+     */
+    public boolean isVar() {
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        return type == Token.VAR;</span>
+    }
+
+    /**
+     * Returns true if this is a {@link Token#CONST} declaration.
+     */
+    public boolean isConst() {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        return type == Token.CONST;</span>
+    }
+
+    /**
+     * Returns true if this is a {@link Token#LET} declaration.
+     */
+    public boolean isLet() {
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        return type == Token.LET;</span>
+    }
+
+    /**
+     * Returns true if this node represents a statement.
+     */
+    public boolean isStatement() {
+<span class="fc" id="L117">        return isStatement;</span>
+    }
+
+    /**
+     * Set or unset the statement flag.
+     */
+    public void setIsStatement(boolean isStatement) {
+<span class="fc" id="L124">        this.isStatement = isStatement;</span>
+<span class="fc" id="L125">    }</span>
+
+    private String declTypeName() {
+<span class="fc" id="L128">        return Token.typeToName(type).toLowerCase();</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L133">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L134">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L135">        sb.append(declTypeName());</span>
+<span class="fc" id="L136">        sb.append(&quot; &quot;);</span>
+<span class="fc" id="L137">        printList(variables, sb);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        if (isStatement()) {</span>
+<span class="fc" id="L139">            sb.append(&quot;;\n&quot;);</span>
+        }
+<span class="fc" id="L141">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then each {@link VariableInitializer} child.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            for (AstNode var : variables) {</span>
+<span class="fc" id="L151">                var.visit(v);</span>
+<span class="fc" id="L152">            }</span>
+        }
+<span class="fc" id="L154">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Require.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.commonjs.module</a> &gt; <span class="el_source">Require.java</span></div><h1>Require.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.commonjs.module;
+
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.mozilla.javascript.BaseFunction;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Script;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
+
+/**
+ * Implements the require() function as defined by
+ * &lt;a href=&quot;http://wiki.commonjs.org/wiki/Modules/1.1&quot;&gt;Common JS modules&lt;/a&gt;.
+ * &lt;h1&gt;Thread safety&lt;/h1&gt;
+ * You will ordinarily create one instance of require() for every top-level
+ * scope. This ordinarily means one instance per program execution, except if
+ * you use shared top-level scopes and installing most objects into them.
+ * Module loading is thread safe, so using a single require() in a shared
+ * top-level scope is also safe.
+ * &lt;h1&gt;Creation&lt;/h1&gt;
+ * If you need to create many otherwise identical require() functions for
+ * different scopes, you might want to use {@link RequireBuilder} for
+ * convenience.
+ * &lt;h1&gt;Making it available&lt;/h1&gt;
+ * In order to make the require() function available to your JavaScript
+ * program, you need to invoke either {@link #install(Scriptable)} or
+ * {@link #requireMain(Context, String)}.
+ * @author Attila Szegedi
+ * @version $Id: Require.java,v 1.4 2011/04/07 20:26:11 hannes%helma.at Exp $
+ */
+public class Require extends BaseFunction
+{
+    private static final long serialVersionUID = 1L;
+
+    private final ModuleScriptProvider moduleScriptProvider;
+    private final Scriptable nativeScope;
+    private final Scriptable paths;
+    private final boolean sandboxed;
+    private final Script preExec;
+    private final Script postExec;
+<span class="fc" id="L51">    private String mainModuleId = null;</span>
+    private Scriptable mainExports;
+
+    // Modules that completed loading; visible to all threads
+<span class="fc" id="L55">    private final Map&lt;String, Scriptable&gt; exportedModuleInterfaces =</span>
+        new ConcurrentHashMap&lt;String, Scriptable&gt;();
+<span class="fc" id="L57">    private final Object loadLock = new Object();</span>
+    // Modules currently being loaded on the thread. Used to resolve circular
+    // dependencies while loading.
+    private static final ThreadLocal&lt;Map&lt;String, Scriptable&gt;&gt;
+<span class="fc" id="L61">        loadingModuleInterfaces = new ThreadLocal&lt;Map&lt;String,Scriptable&gt;&gt;();</span>
+
+    /**
+     * Creates a new instance of the require() function. Upon constructing it,
+     * you will either want to install it in the global (or some other) scope
+     * using {@link #install(Scriptable)}, or alternatively, you can load the
+     * program's main module using {@link #requireMain(Context, String)} and
+     * then act on the main module's exports.
+     * @param cx the current context
+     * @param nativeScope a scope that provides the standard native JavaScript
+     * objects.
+     * @param moduleScriptProvider a provider for module scripts
+     * @param preExec an optional script that is executed in every module's
+     * scope before its module script is run.
+     * @param postExec an optional script that is executed in every module's
+     * scope after its module script is run.
+     * @param sandboxed if set to true, the require function will be sandboxed.
+     * This means that it doesn't have the &quot;paths&quot; property, and also that the
+     * modules it loads don't export the &quot;module.uri&quot; property.
+     */
+    public Require(Context cx, Scriptable nativeScope,
+            ModuleScriptProvider moduleScriptProvider, Script preExec,
+<span class="fc" id="L83">            Script postExec, boolean sandboxed) {</span>
+<span class="fc" id="L84">        this.moduleScriptProvider = moduleScriptProvider;</span>
+<span class="fc" id="L85">        this.nativeScope = nativeScope;</span>
+<span class="fc" id="L86">        this.sandboxed = sandboxed;</span>
+<span class="fc" id="L87">        this.preExec = preExec;</span>
+<span class="fc" id="L88">        this.postExec = postExec;</span>
+<span class="fc" id="L89">        setPrototype(ScriptableObject.getFunctionPrototype(nativeScope));</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if(!sandboxed) {</span>
+<span class="fc" id="L91">            paths = cx.newArray(nativeScope, 0);</span>
+<span class="fc" id="L92">            defineReadOnlyProperty(this, &quot;paths&quot;, paths);</span>
+        }
+        else {
+<span class="fc" id="L95">            paths = null;</span>
+        }
+<span class="fc" id="L97">    }</span>
+
+    /**
+     * Calling this method establishes a module as being the main module of the
+     * program to which this require() instance belongs. The module will be
+     * loaded as if require()'d and its &quot;module&quot; property will be set as the
+     * &quot;main&quot; property of this require() instance. You have to call this method
+     * before the module has been loaded (that is, the call to this method must
+     * be the first to require the module and thus trigger its loading). Note
+     * that the main module will execute in its own scope and not in the global
+     * scope. Since all other modules see the global scope, executing the main
+     * module in the global scope would open it for tampering by other modules.
+     * @param cx the current context
+     * @param mainModuleId the ID of the main module
+     * @return the &quot;exports&quot; property of the main module
+     * @throws IllegalStateException if the main module is already loaded when
+     * required, or if this require() instance already has a different main
+     * module set.
+     */
+    public Scriptable requireMain(Context cx, String mainModuleId) {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if(this.mainModuleId != null) {</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            if (!this.mainModuleId.equals(mainModuleId)) {</span>
+<span class="fc" id="L119">                throw new IllegalStateException(&quot;Main module already set to &quot; +</span>
+                    this.mainModuleId);
+            }
+<span class="fc" id="L122">            return mainExports;</span>
+        }
+
+        ModuleScript moduleScript;
+        try {
+            // try to get the module script to see if it is on the module path
+<span class="fc" id="L128">            moduleScript = moduleScriptProvider.getModuleScript(</span>
+                    cx, mainModuleId, null, null, paths);
+<span class="nc" id="L130">        } catch (RuntimeException x) {</span>
+<span class="nc" id="L131">            throw x;</span>
+<span class="nc" id="L132">        } catch (Exception x) {</span>
+<span class="nc" id="L133">            throw new RuntimeException(x);</span>
+<span class="fc" id="L134">        }</span>
+
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">        if (moduleScript != null) {</span>
+<span class="nc" id="L137">            mainExports = getExportedModuleInterface(cx, mainModuleId,</span>
+                    null, null, true);
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        } else if (!sandboxed) {</span>
+
+<span class="fc" id="L141">            URI mainUri = null;</span>
+
+            // try to resolve to an absolute URI or file path
+            try {
+<span class="nc" id="L145">                mainUri = new URI(mainModuleId);</span>
+<span class="fc" id="L146">            } catch (URISyntaxException usx) {</span>
+                // fall through
+<span class="nc" id="L148">            }</span>
+
+            // if not an absolute uri resolve to a file path
+<span class="pc bpc" id="L151" title="3 of 4 branches missed.">            if (mainUri == null || !mainUri.isAbsolute()) {</span>
+<span class="fc" id="L152">                File file = new File(mainModuleId);</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">                if (!file.isFile()) {</span>
+<span class="nc" id="L154">                    throw ScriptRuntime.throwError(cx, nativeScope,</span>
+                            &quot;Module \&quot;&quot; + mainModuleId + &quot;\&quot; not found.&quot;);
+                }
+<span class="fc" id="L157">                mainUri = file.toURI();</span>
+            }
+<span class="nc" id="L159">            mainExports = getExportedModuleInterface(cx, mainUri.toString(),</span>
+                    mainUri, null, true);
+        }
+
+<span class="fc" id="L163">        this.mainModuleId = mainModuleId;</span>
+<span class="fc" id="L164">        return mainExports;</span>
+    }
+
+    /**
+     * Binds this instance of require() into the specified scope under the
+     * property name &quot;require&quot;.
+     * @param scope the scope where the require() function is to be installed.
+     */
+    public void install(Scriptable scope) {
+<span class="fc" id="L173">        ScriptableObject.putProperty(scope, &quot;require&quot;, this);</span>
+<span class="fc" id="L174">    }</span>
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+            Object[] args)
+    {
+<span class="pc bpc" id="L180" title="2 of 4 branches missed.">        if(args == null || args.length &lt; 1) {</span>
+<span class="fc" id="L181">            throw ScriptRuntime.throwError(cx, scope,</span>
+                    &quot;require() needs one argument&quot;);
+        }
+
+<span class="nc" id="L185">        String id = (String)Context.jsToJava(args[0], String.class);</span>
+<span class="nc" id="L186">        URI uri = null;</span>
+<span class="nc" id="L187">        URI base = null;</span>
+<span class="nc bnc" id="L188" title="All 4 branches missed.">        if (id.startsWith(&quot;./&quot;) || id.startsWith(&quot;../&quot;)) {</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            if (!(thisObj instanceof ModuleScope)) {</span>
+<span class="nc" id="L190">                throw ScriptRuntime.throwError(cx, scope,</span>
+                        &quot;Can't resolve relative module ID \&quot;&quot; + id +
+                                &quot;\&quot; when require() is used outside of a module&quot;);
+            }
+
+<span class="nc" id="L195">            ModuleScope moduleScope = (ModuleScope) thisObj;</span>
+<span class="nc" id="L196">            base = moduleScope.getBase();</span>
+<span class="nc" id="L197">            URI current = moduleScope.getUri();</span>
+<span class="nc" id="L198">            uri = current.resolve(id);</span>
+
+<span class="nc bnc" id="L200" title="All 2 branches missed.">            if (base == null) {</span>
+                // calling module is absolute, resolve to absolute URI
+                // (but without file extension)
+<span class="nc" id="L203">                id = uri.toString();</span>
+            } else {
+                // try to convert to a relative URI rooted on base
+<span class="nc" id="L206">                id = base.relativize(current).resolve(id).toString();</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">                if (id.charAt(0) == '.') {</span>
+                    // resulting URI is not contained in base,
+                    // throw error or make absolute depending on sandbox flag.
+<span class="nc bnc" id="L210" title="All 2 branches missed.">                    if (sandboxed) {</span>
+<span class="nc" id="L211">                        throw ScriptRuntime.throwError(cx, scope,</span>
+                            &quot;Module \&quot;&quot; + id + &quot;\&quot; is not contained in sandbox.&quot;);
+                    } else {
+<span class="nc" id="L214">                        id = uri.toString();</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L219">        return getExportedModuleInterface(cx, id, uri, base, false);</span>
+    }
+
+    @Override
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
+<span class="nc" id="L224">        throw ScriptRuntime.throwError(cx, scope,</span>
+                &quot;require() can not be invoked as a constructor&quot;);
+    }
+
+    private Scriptable getExportedModuleInterface(Context cx, String id,
+            URI uri, URI base, boolean isMain)
+    {
+        // Check if the requested module is already completely loaded
+<span class="fc" id="L232">        Scriptable exports = exportedModuleInterfaces.get(id);</span>
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">        if(exports != null) {</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if(isMain) {</span>
+<span class="nc" id="L235">                throw new IllegalStateException(</span>
+                        &quot;Attempt to set main module after it was loaded&quot;);
+            }
+<span class="nc" id="L238">            return exports;</span>
+        }
+        // Check if it is currently being loaded on the current thread
+        // (supporting circular dependencies).
+<span class="fc" id="L242">        Map&lt;String, Scriptable&gt; threadLoadingModules =</span>
+<span class="fc" id="L243">            loadingModuleInterfaces.get();</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">        if(threadLoadingModules != null) {</span>
+<span class="nc" id="L245">            exports = threadLoadingModules.get(id);</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            if(exports != null) {</span>
+<span class="nc" id="L247">                return exports;</span>
+            }
+        }
+        // The requested module is neither already loaded, nor is it being
+        // loaded on the current thread. End of fast path. We must synchronize
+        // now, as we have to guarantee that at most one thread can load
+        // modules at any one time. Otherwise, two threads could end up
+        // attempting to load two circularly dependent modules in opposite
+        // order, which would lead to either unacceptable non-determinism or
+        // deadlock, depending on whether we underprotected or overprotected it
+        // with locks.
+<span class="fc" id="L258">        synchronized(loadLock) {</span>
+            // Recheck if it is already loaded - other thread might've
+            // completed loading it just as we entered the synchronized block.
+<span class="fc" id="L261">            exports = exportedModuleInterfaces.get(id);</span>
+<span class="pc bpc" id="L262" title="1 of 2 branches missed.">            if(exports != null) {</span>
+<span class="nc" id="L263">                return exports;</span>
+            }
+            // Nope, still not loaded; we're loading it then.
+<span class="nc" id="L266">            final ModuleScript moduleScript = getModule(cx, id, uri, base);</span>
+<span class="nc bnc" id="L267" title="All 4 branches missed.">            if (sandboxed &amp;&amp; !moduleScript.isSandboxed()) {</span>
+<span class="nc" id="L268">                throw ScriptRuntime.throwError(cx, nativeScope, &quot;Module \&quot;&quot;</span>
+                        + id + &quot;\&quot; is not contained in sandbox.&quot;);
+            }
+<span class="nc" id="L271">            exports = cx.newObject(nativeScope);</span>
+            // Are we the outermost locked invocation on this thread?
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            final boolean outermostLocked = threadLoadingModules == null;</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">            if(outermostLocked) {</span>
+<span class="nc" id="L275">                threadLoadingModules = new HashMap&lt;String, Scriptable&gt;();</span>
+<span class="nc" id="L276">                loadingModuleInterfaces.set(threadLoadingModules);</span>
+            }
+            // Must make the module exports available immediately on the
+            // current thread, to satisfy the CommonJS Modules/1.1 requirement
+            // that &quot;If there is a dependency cycle, the foreign module may not
+            // have finished executing at the time it is required by one of its
+            // transitive dependencies; in this case, the object returned by
+            // &quot;require&quot; must contain at least the exports that the foreign
+            // module has prepared before the call to require that led to the
+            // current module's execution.&quot;
+<span class="nc" id="L286">            threadLoadingModules.put(id, exports);</span>
+            try {
+                // Support non-standard Node.js feature to allow modules to
+                // replace the exports object by setting module.exports.
+<span class="nc" id="L290">                Scriptable newExports = executeModuleScript(cx, id, exports,</span>
+                        moduleScript, isMain);
+<span class="nc bnc" id="L292" title="All 2 branches missed.">                if (exports != newExports) {</span>
+<span class="nc" id="L293">                    threadLoadingModules.put(id, newExports);</span>
+<span class="nc" id="L294">                    exports = newExports;</span>
+                }
+            }
+<span class="nc" id="L297">            catch(RuntimeException e) {</span>
+                // Throw loaded module away if there was an exception
+<span class="nc" id="L299">                threadLoadingModules.remove(id);</span>
+<span class="nc" id="L300">                throw e;</span>
+            }
+            finally {
+<span class="nc bnc" id="L303" title="All 4 branches missed.">                if(outermostLocked) {</span>
+                    // Make loaded modules visible to other threads only after
+                    // the topmost triggering load has completed. This strategy
+                    // (compared to the one where we'd make each module
+                    // globally available as soon as it loads) prevents other
+                    // threads from observing a partially loaded circular
+                    // dependency of a module that completed loading.
+<span class="nc" id="L310">                    exportedModuleInterfaces.putAll(threadLoadingModules);</span>
+<span class="nc" id="L311">                    loadingModuleInterfaces.set(null);</span>
+                }
+<span class="nc" id="L313">            }</span>
+<span class="pc" id="L314">        }</span>
+<span class="nc" id="L315">        return exports;</span>
+    }
+
+    private Scriptable executeModuleScript(Context cx, String id,
+            Scriptable exports, ModuleScript moduleScript, boolean isMain)
+    {
+<span class="nc" id="L321">        final ScriptableObject moduleObject = (ScriptableObject)cx.newObject(</span>
+                nativeScope);
+<span class="nc" id="L323">        URI uri = moduleScript.getUri();</span>
+<span class="nc" id="L324">        URI base = moduleScript.getBase();</span>
+<span class="nc" id="L325">        defineReadOnlyProperty(moduleObject, &quot;id&quot;, id);</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        if(!sandboxed) {</span>
+<span class="nc" id="L327">            defineReadOnlyProperty(moduleObject, &quot;uri&quot;, uri.toString());</span>
+        }
+<span class="nc" id="L329">        final Scriptable executionScope = new ModuleScope(nativeScope, uri, base);</span>
+        // Set this so it can access the global JS environment objects.
+        // This means we're currently using the &quot;MGN&quot; approach (ModuleScript
+        // with Global Natives) as specified here:
+        // &lt;http://wiki.commonjs.org/wiki/Modules/ProposalForNativeExtension&gt;
+<span class="nc" id="L334">        executionScope.put(&quot;exports&quot;, executionScope, exports);</span>
+<span class="nc" id="L335">        executionScope.put(&quot;module&quot;, executionScope, moduleObject);</span>
+<span class="nc" id="L336">        moduleObject.put(&quot;exports&quot;, moduleObject, exports);</span>
+<span class="nc" id="L337">        install(executionScope);</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if(isMain) {</span>
+<span class="nc" id="L339">            defineReadOnlyProperty(this, &quot;main&quot;, moduleObject);</span>
+        }
+<span class="nc" id="L341">        executeOptionalScript(preExec, cx, executionScope);</span>
+<span class="nc" id="L342">        moduleScript.getScript().exec(cx, executionScope);</span>
+<span class="nc" id="L343">        executeOptionalScript(postExec, cx, executionScope);</span>
+<span class="nc" id="L344">        return ScriptRuntime.toObject(cx, nativeScope,</span>
+<span class="nc" id="L345">                ScriptableObject.getProperty(moduleObject, &quot;exports&quot;));</span>
+    }
+
+    private static void executeOptionalScript(Script script, Context cx,
+            Scriptable executionScope)
+    {
+<span class="nc bnc" id="L351" title="All 2 branches missed.">        if(script != null) {</span>
+<span class="nc" id="L352">            script.exec(cx, executionScope);</span>
+        }
+<span class="nc" id="L354">    }</span>
+
+    private static void defineReadOnlyProperty(ScriptableObject obj,
+            String name, Object value) {
+<span class="fc" id="L358">        ScriptableObject.putProperty(obj, name, value);</span>
+<span class="fc" id="L359">        obj.setAttributes(name, ScriptableObject.READONLY |</span>
+                ScriptableObject.PERMANENT);
+<span class="fc" id="L361">    }</span>
+
+    private ModuleScript getModule(Context cx, String id, URI uri, URI base) {
+        try {
+<span class="fc" id="L365">            final ModuleScript moduleScript =</span>
+<span class="fc" id="L366">                    moduleScriptProvider.getModuleScript(cx, id, uri, base, paths);</span>
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">            if (moduleScript == null) {</span>
+<span class="nc" id="L368">                throw ScriptRuntime.throwError(cx, nativeScope, &quot;Module \&quot;&quot;</span>
+                        + id + &quot;\&quot; not found.&quot;);
+            }
+<span class="nc" id="L371">            return moduleScript;</span>
+        }
+<span class="fc" id="L373">        catch(RuntimeException e) {</span>
+<span class="fc" id="L374">            throw e;</span>
+        }
+<span class="nc" id="L376">        catch(Exception e) {</span>
+<span class="nc" id="L377">            throw Context.throwAsScriptRuntimeEx(e);</span>
+        }
+    }
+
+    @Override
+    public String getFunctionName() {
+<span class="fc" id="L383">        return &quot;require&quot;;</span>
+    }
+
+    @Override
+    public int getArity() {
+<span class="nc" id="L388">        return 1;</span>
+    }
+
+    @Override
+    public int getLength() {
+<span class="fc" id="L393">        return 1;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

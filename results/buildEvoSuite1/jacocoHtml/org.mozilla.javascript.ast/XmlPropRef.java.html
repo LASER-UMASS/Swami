@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlPropRef.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">XmlPropRef.java</span></div><h1>XmlPropRef.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for an E4X XML {@code [expr]} property-ref expression.
+ * The node type is {@link Token#REF_NAME}.&lt;p&gt;
+ *
+ * Syntax:&lt;p&gt;
+ *
+ * &lt;pre&gt; @&lt;i&gt;&lt;sub&gt;opt&lt;/sub&gt;&lt;/i&gt; ns:: &lt;i&gt;&lt;sub&gt;opt&lt;/sub&gt;&lt;/i&gt; name&lt;/pre&gt;
+ *
+ * Examples include {@code name}, {@code ns::name}, {@code ns::*},
+ * {@code *::name}, {@code *::*}, {@code @attr}, {@code @ns::attr},
+ * {@code @ns::*}, {@code @*::attr}, {@code @*::*} and {@code @*}.&lt;p&gt;
+ *
+ * The node starts at the {@code @} token, if present.  Otherwise it starts
+ * at the namespace name.  The node bounds extend through the closing
+ * right-bracket, or if it is missing due to a syntax error, through the
+ * end of the index expression.&lt;p&gt;
+ */
+public class XmlPropRef extends XmlRef {
+
+    private Name propName;
+
+    {
+<span class="fc" id="L33">        type = Token.REF_NAME;</span>
+    }
+
+<span class="fc" id="L36">    public XmlPropRef() {</span>
+<span class="fc" id="L37">    }</span>
+
+    public XmlPropRef(int pos) {
+<span class="fc" id="L40">        super(pos);</span>
+<span class="fc" id="L41">    }</span>
+
+    public XmlPropRef(int pos, int len) {
+<span class="fc" id="L44">        super(pos, len);</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Returns property name.
+     */
+    public Name getPropName() {
+<span class="fc" id="L51">        return propName;</span>
+    }
+
+    /**
+     * Sets property name, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code propName} is {@code null}
+     */
+    public void setPropName(Name propName) {
+<span class="fc" id="L59">        assertNotNull(propName);</span>
+<span class="fc" id="L60">        this.propName = propName;</span>
+<span class="fc" id="L61">        propName.setParent(this);</span>
+<span class="fc" id="L62">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L66">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L67">        sb.append(makeIndent(depth));</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (isAttributeAccess()) {</span>
+<span class="fc" id="L69">            sb.append(&quot;@&quot;);</span>
+        }
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (namespace != null) {</span>
+<span class="fc" id="L72">            sb.append(namespace.toSource(0));</span>
+<span class="fc" id="L73">            sb.append(&quot;::&quot;);</span>
+        }
+<span class="fc" id="L75">        sb.append(propName.toSource(0));</span>
+<span class="fc" id="L76">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the namespace if present, then the property name.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if (namespace != null) {</span>
+<span class="fc" id="L86">                namespace.visit(v);</span>
+            }
+<span class="fc" id="L88">            propName.visit(v);</span>
+        }
+<span class="fc" id="L90">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

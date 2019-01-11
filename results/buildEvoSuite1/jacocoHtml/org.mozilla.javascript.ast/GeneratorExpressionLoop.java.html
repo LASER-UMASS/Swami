@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeneratorExpressionLoop.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">GeneratorExpressionLoop.java</span></div><h1>GeneratorExpressionLoop.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+/**
+ */
+public class GeneratorExpressionLoop extends ForInLoop {
+    
+<span class="fc" id="L13">    public GeneratorExpressionLoop() {</span>
+<span class="fc" id="L14">    }</span>
+
+    public GeneratorExpressionLoop(int pos) {
+<span class="fc" id="L17">        super(pos);</span>
+<span class="fc" id="L18">    }</span>
+
+    public GeneratorExpressionLoop(int pos, int len) {
+<span class="fc" id="L21">        super(pos, len);</span>
+<span class="fc" id="L22">    }</span>
+    
+    /**
+     * Returns whether the loop is a for-each loop
+     */
+    @Override
+    public boolean isForEach() {
+<span class="fc" id="L29">        return false;</span>
+    }
+
+    /**
+     * Sets whether the loop is a for-each loop
+     */
+    @Override
+    public void setIsForEach(boolean isForEach) {
+<span class="fc" id="L37">        throw new UnsupportedOperationException(&quot;this node type does not support for each&quot;);</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="pc" id="L42">        return makeIndent(depth)</span>
+                + &quot; for &quot;
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">                + (isForEach()?&quot;each &quot;:&quot;&quot;)</span>
+                + &quot;(&quot;
+<span class="fc" id="L46">                + iterator.toSource(0)</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">                + (isForOf()?&quot; of &quot;:&quot; in &quot;)</span>
+<span class="nc" id="L48">                + iteratedObject.toSource(0)</span>
+                + &quot;)&quot;;
+    }
+
+    /**
+     * Visits the iterator expression and the iterated object expression.
+     * There is no body-expression for this loop type.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc" id="L59">            iterator.visit(v);</span>
+<span class="fc" id="L60">            iteratedObject.visit(v);</span>
+        }
+<span class="fc" id="L62">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

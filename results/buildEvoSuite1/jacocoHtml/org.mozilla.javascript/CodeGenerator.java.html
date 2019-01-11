@@ -1,0 +1,1479 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CodeGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">CodeGenerator.java</span></div><h1>CodeGenerator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.FunctionNode;
+
+/**
+ * Generates bytecode for the Interpreter.
+ */
+<span class="fc" id="L16">class CodeGenerator extends Icode {</span>
+
+    private static final int MIN_LABEL_TABLE_SIZE = 32;
+    private static final int MIN_FIXUP_TABLE_SIZE = 40;
+
+    private CompilerEnvirons compilerEnv;
+
+    private boolean itsInFunctionFlag;
+    private boolean itsInTryFlag;
+
+    private InterpreterData itsData;
+
+    private ScriptNode scriptOrFn;
+    private int iCodeTop;
+    private int stackDepth;
+    private int lineNumber;
+    private int doubleTableTop;
+
+<span class="fc" id="L34">    private ObjToIntMap strings = new ObjToIntMap(20);</span>
+    private int localTop;
+    private int[] labelTable;
+    private int labelTableTop;
+
+    // fixupTable[i] = (label_index &lt;&lt; 32) | fixup_site
+    private long[] fixupTable;
+    private int fixupTableTop;
+<span class="fc" id="L42">    private ObjArray literalIds = new ObjArray();</span>
+
+    private int exceptionTableTop;
+
+    // ECF_ or Expression Context Flags constants: for now only TAIL
+    private static final int ECF_TAIL = 1 &lt;&lt; 0;
+
+    public InterpreterData compile(CompilerEnvirons compilerEnv,
+                                   ScriptNode tree,
+                                   String encodedSource,
+                                   boolean returnFunction)
+    {
+<span class="fc" id="L54">        this.compilerEnv = compilerEnv;</span>
+
+        if (Token.printTrees) {
+            System.out.println(&quot;before transform:&quot;);
+            System.out.println(tree.toStringTree(tree));
+        }
+
+<span class="fc" id="L61">        new NodeTransformer().transform(tree, compilerEnv);</span>
+
+        if (Token.printTrees) {
+            System.out.println(&quot;after transform:&quot;);
+            System.out.println(tree.toStringTree(tree));
+        }
+
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (returnFunction) {</span>
+<span class="nc" id="L69">            scriptOrFn = tree.getFunctionNode(0);</span>
+        } else {
+<span class="fc" id="L71">            scriptOrFn = tree;</span>
+        }
+
+<span class="fc" id="L74">        itsData = new InterpreterData(compilerEnv.getLanguageVersion(),</span>
+<span class="fc" id="L75">                                      scriptOrFn.getSourceName(),</span>
+                                      encodedSource,
+<span class="fc" id="L77">                                      scriptOrFn.isInStrictMode());</span>
+<span class="fc" id="L78">        itsData.topLevel = true;</span>
+
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (returnFunction) {</span>
+<span class="nc" id="L81">            generateFunctionICode();</span>
+        } else {
+<span class="fc" id="L83">            generateICodeFromTree(scriptOrFn);</span>
+        }
+<span class="fc" id="L85">        return itsData;</span>
+    }
+
+    private void generateFunctionICode()
+    {
+<span class="nc" id="L90">        itsInFunctionFlag = true;</span>
+
+<span class="nc" id="L92">        FunctionNode theFunction = (FunctionNode)scriptOrFn;</span>
+
+<span class="nc" id="L94">        itsData.itsFunctionType = theFunction.getFunctionType();</span>
+<span class="nc" id="L95">        itsData.itsNeedsActivation = theFunction.requiresActivation();</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (theFunction.getFunctionName() != null) {</span>
+<span class="nc" id="L97">            itsData.itsName = theFunction.getName();</span>
+        }
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (theFunction.isGenerator()) {</span>
+<span class="nc" id="L100">          addIcode(Icode_GENERATOR);</span>
+<span class="nc" id="L101">          addUint16(theFunction.getBaseLineno() &amp; 0xFFFF);</span>
+        }
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (theFunction.isInStrictMode()) {</span>
+<span class="nc" id="L104">            itsData.isStrict = true;</span>
+        }
+
+<span class="nc" id="L107">        generateICodeFromTree(theFunction.getLastChild());</span>
+<span class="nc" id="L108">    }</span>
+
+    private void generateICodeFromTree(Node tree)
+    {
+<span class="fc" id="L112">        generateNestedFunctions();</span>
+
+<span class="fc" id="L114">        generateRegExpLiterals();</span>
+
+<span class="fc" id="L116">        visitStatement(tree, 0);</span>
+<span class="fc" id="L117">        fixLabelGotos();</span>
+        // add RETURN_RESULT only to scripts as function always ends with RETURN
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (itsData.itsFunctionType == 0) {</span>
+<span class="fc" id="L120">            addToken(Token.RETURN_RESULT);</span>
+        }
+
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        if (itsData.itsICode.length != iCodeTop) {</span>
+            // Make itsData.itsICode length exactly iCodeTop to save memory
+            // and catch bugs with jumps beyond icode as early as possible
+<span class="fc" id="L126">            byte[] tmp = new byte[iCodeTop];</span>
+<span class="fc" id="L127">            System.arraycopy(itsData.itsICode, 0, tmp, 0, iCodeTop);</span>
+<span class="fc" id="L128">            itsData.itsICode = tmp;</span>
+        }
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if (strings.size() == 0) {</span>
+<span class="nc" id="L131">            itsData.itsStringTable = null;</span>
+        } else {
+<span class="fc" id="L133">            itsData.itsStringTable = new String[strings.size()];</span>
+<span class="fc" id="L134">            ObjToIntMap.Iterator iter = strings.newIterator();</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">            for (iter.start(); !iter.done(); iter.next()) {</span>
+<span class="fc" id="L136">                String str = (String)iter.getKey();</span>
+<span class="fc" id="L137">                int index = iter.getValue();</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">                if (itsData.itsStringTable[index] != null) Kit.codeBug();</span>
+<span class="fc" id="L139">                itsData.itsStringTable[index] = str;</span>
+            }
+        }
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        if (doubleTableTop == 0) {</span>
+<span class="fc" id="L143">            itsData.itsDoubleTable = null;</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        } else if (itsData.itsDoubleTable.length != doubleTableTop) {</span>
+<span class="nc" id="L145">            double[] tmp = new double[doubleTableTop];</span>
+<span class="nc" id="L146">            System.arraycopy(itsData.itsDoubleTable, 0, tmp, 0,</span>
+                             doubleTableTop);
+<span class="nc" id="L148">            itsData.itsDoubleTable = tmp;</span>
+        }
+<span class="pc bpc" id="L150" title="3 of 4 branches missed.">        if (exceptionTableTop != 0</span>
+            &amp;&amp; itsData.itsExceptionTable.length != exceptionTableTop)
+        {
+<span class="nc" id="L153">            int[] tmp = new int[exceptionTableTop];</span>
+<span class="nc" id="L154">            System.arraycopy(itsData.itsExceptionTable, 0, tmp, 0,</span>
+                             exceptionTableTop);
+<span class="nc" id="L156">            itsData.itsExceptionTable = tmp;</span>
+        }
+
+<span class="fc" id="L159">        itsData.itsMaxVars = scriptOrFn.getParamAndVarCount();</span>
+        // itsMaxFrameArray: interpret method needs this amount for its
+        // stack and sDbl arrays
+<span class="fc" id="L162">        itsData.itsMaxFrameArray = itsData.itsMaxVars</span>
+                                   + itsData.itsMaxLocals
+                                   + itsData.itsMaxStack;
+
+<span class="fc" id="L166">        itsData.argNames = scriptOrFn.getParamAndVarNames();</span>
+<span class="fc" id="L167">        itsData.argIsConst = scriptOrFn.getParamAndVarConst();</span>
+<span class="fc" id="L168">        itsData.argCount = scriptOrFn.getParamCount();</span>
+
+<span class="fc" id="L170">        itsData.encodedSourceStart = scriptOrFn.getEncodedSourceStart();</span>
+<span class="fc" id="L171">        itsData.encodedSourceEnd = scriptOrFn.getEncodedSourceEnd();</span>
+
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        if (literalIds.size() != 0) {</span>
+<span class="nc" id="L174">            itsData.literalIds = literalIds.toArray();</span>
+        }
+
+        if (Token.printICode) Interpreter.dumpICode(itsData);
+<span class="fc" id="L178">    }</span>
+
+    private void generateNestedFunctions()
+    {
+<span class="fc" id="L182">        int functionCount = scriptOrFn.getFunctionCount();</span>
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">        if (functionCount == 0) return;</span>
+
+<span class="nc" id="L185">        InterpreterData[] array = new InterpreterData[functionCount];</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        for (int i = 0; i != functionCount; i++) {</span>
+<span class="nc" id="L187">            FunctionNode fn = scriptOrFn.getFunctionNode(i);</span>
+<span class="nc" id="L188">            CodeGenerator gen = new CodeGenerator();</span>
+<span class="nc" id="L189">            gen.compilerEnv = compilerEnv;</span>
+<span class="nc" id="L190">            gen.scriptOrFn = fn;</span>
+<span class="nc" id="L191">            gen.itsData = new InterpreterData(itsData);</span>
+<span class="nc" id="L192">            gen.generateFunctionICode();</span>
+<span class="nc" id="L193">            array[i] = gen.itsData;</span>
+        }
+<span class="nc" id="L195">        itsData.itsNestedFunctions = array;</span>
+<span class="nc" id="L196">    }</span>
+
+    private void generateRegExpLiterals()
+    {
+<span class="fc" id="L200">        int N = scriptOrFn.getRegexpCount();</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        if (N == 0) return;</span>
+
+<span class="nc" id="L203">        Context cx = Context.getContext();</span>
+<span class="nc" id="L204">        RegExpProxy rep = ScriptRuntime.checkRegExpProxy(cx);</span>
+<span class="nc" id="L205">        Object[] array = new Object[N];</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        for (int i = 0; i != N; i++) {</span>
+<span class="nc" id="L207">            String string = scriptOrFn.getRegexpString(i);</span>
+<span class="nc" id="L208">            String flags = scriptOrFn.getRegexpFlags(i);</span>
+<span class="nc" id="L209">            array[i] = rep.compileRegExp(cx, string, flags);</span>
+        }
+<span class="nc" id="L211">        itsData.itsRegExpLiterals = array;</span>
+<span class="nc" id="L212">    }</span>
+
+    private void updateLineNumber(Node node)
+    {
+<span class="fc" id="L216">        int lineno = node.getLineno();</span>
+<span class="pc bpc" id="L217" title="2 of 4 branches missed.">        if (lineno != lineNumber &amp;&amp; lineno &gt;= 0) {</span>
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">            if (itsData.firstLinePC &lt; 0) {</span>
+<span class="fc" id="L219">                itsData.firstLinePC = lineno;</span>
+            }
+<span class="fc" id="L221">            lineNumber = lineno;</span>
+<span class="fc" id="L222">            addIcode(Icode_LINE);</span>
+<span class="fc" id="L223">            addUint16(lineno &amp; 0xFFFF);</span>
+        }
+<span class="fc" id="L225">    }</span>
+
+    private RuntimeException badTree(Node node)
+    {
+<span class="nc" id="L229">        throw new RuntimeException(node.toString());</span>
+    }
+
+    private void visitStatement(Node node, int initialStackDepth)
+    {
+<span class="fc" id="L234">        int type = node.getType();</span>
+<span class="fc" id="L235">        Node child = node.getFirstChild();</span>
+<span class="pc bpc" id="L236" title="21 of 23 branches missed.">        switch (type) {</span>
+
+          case Token.FUNCTION:
+            {
+<span class="nc" id="L240">                int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);</span>
+<span class="nc" id="L241">                int fnType = scriptOrFn.getFunctionNode(fnIndex).</span>
+<span class="nc" id="L242">                                 getFunctionType();</span>
+                // Only function expressions or function expression
+                // statements need closure code creating new function
+                // object on stack as function statements are initialized
+                // at script/function start.
+                // In addition, function expressions can not be present here
+                // at statement level, they must only be present as expressions.
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                if (fnType == FunctionNode.FUNCTION_EXPRESSION_STATEMENT) {</span>
+<span class="nc" id="L250">                    addIndexOp(Icode_CLOSURE_STMT, fnIndex);</span>
+                } else {
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                    if (fnType != FunctionNode.FUNCTION_STATEMENT) {</span>
+<span class="nc" id="L253">                        throw Kit.codeBug();</span>
+                    }
+                }
+                // For function statements or function expression statements
+                // in scripts, we need to ensure that the result of the script
+                // is the function if it is the last statement in the script.
+                // For example, eval(&quot;function () {}&quot;) should return a
+                // function, not undefined.
+<span class="nc bnc" id="L261" title="All 2 branches missed.">                if (!itsInFunctionFlag) {</span>
+<span class="nc" id="L262">                    addIndexOp(Icode_CLOSURE_EXPR, fnIndex);</span>
+<span class="nc" id="L263">                    stackChange(1);</span>
+<span class="nc" id="L264">                    addIcode(Icode_POP_RESULT);</span>
+<span class="nc" id="L265">                    stackChange(-1);</span>
+                }
+            }
+<span class="nc" id="L268">            break;</span>
+
+          case Token.LABEL:
+          case Token.LOOP:
+          case Token.BLOCK:
+          case Token.EMPTY:
+          case Token.WITH:
+<span class="nc" id="L275">            updateLineNumber(node);</span>
+            // fallthru
+          case Token.SCRIPT:
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            while (child != null) {</span>
+<span class="fc" id="L279">                visitStatement(child, initialStackDepth);</span>
+<span class="fc" id="L280">                child = child.getNext();</span>
+            }
+            break;
+
+          case Token.ENTERWITH:
+<span class="nc" id="L285">            visitExpression(child, 0);</span>
+<span class="nc" id="L286">            addToken(Token.ENTERWITH);</span>
+<span class="nc" id="L287">            stackChange(-1);</span>
+<span class="nc" id="L288">            break;</span>
+
+          case Token.LEAVEWITH:
+<span class="nc" id="L291">            addToken(Token.LEAVEWITH);</span>
+<span class="nc" id="L292">            break;</span>
+
+          case Token.LOCAL_BLOCK:
+            {
+<span class="nc" id="L296">                int local = allocLocal();</span>
+<span class="nc" id="L297">                node.putIntProp(Node.LOCAL_PROP, local);</span>
+<span class="nc" id="L298">                updateLineNumber(node);</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                while (child != null) {</span>
+<span class="nc" id="L300">                    visitStatement(child, initialStackDepth);</span>
+<span class="nc" id="L301">                    child = child.getNext();</span>
+                }
+<span class="nc" id="L303">                addIndexOp(Icode_LOCAL_CLEAR, local);</span>
+<span class="nc" id="L304">                releaseLocal(local);</span>
+            }
+<span class="nc" id="L306">            break;</span>
+
+          case Token.DEBUGGER:
+<span class="nc" id="L309">            addIcode(Icode_DEBUGGER);</span>
+<span class="nc" id="L310">            break;</span>
+
+          case Token.SWITCH:
+<span class="nc" id="L313">            updateLineNumber(node);</span>
+            // See comments in IRFactory.createSwitch() for description
+            // of SWITCH node
+            {
+<span class="nc" id="L317">                visitExpression(child, 0);</span>
+<span class="nc" id="L318">                for (Jump caseNode = (Jump)child.getNext();</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                     caseNode != null;</span>
+<span class="nc" id="L320">                     caseNode = (Jump)caseNode.getNext())</span>
+                {
+<span class="nc bnc" id="L322" title="All 2 branches missed.">                    if (caseNode.getType() != Token.CASE)</span>
+<span class="nc" id="L323">                        throw badTree(caseNode);</span>
+<span class="nc" id="L324">                    Node test = caseNode.getFirstChild();</span>
+<span class="nc" id="L325">                    addIcode(Icode_DUP);</span>
+<span class="nc" id="L326">                    stackChange(1);</span>
+<span class="nc" id="L327">                    visitExpression(test, 0);</span>
+<span class="nc" id="L328">                    addToken(Token.SHEQ);</span>
+<span class="nc" id="L329">                    stackChange(-1);</span>
+                    // If true, Icode_IFEQ_POP will jump and remove case
+                    // value from stack
+<span class="nc" id="L332">                    addGoto(caseNode.target, Icode_IFEQ_POP);</span>
+<span class="nc" id="L333">                    stackChange(-1);</span>
+                }
+<span class="nc" id="L335">                addIcode(Icode_POP);</span>
+<span class="nc" id="L336">                stackChange(-1);</span>
+            }
+<span class="nc" id="L338">            break;</span>
+
+          case Token.TARGET:
+<span class="nc" id="L341">            markTargetLabel(node);</span>
+<span class="nc" id="L342">            break;</span>
+
+          case Token.IFEQ :
+          case Token.IFNE :
+            {
+<span class="nc" id="L347">                Node target = ((Jump)node).target;</span>
+<span class="nc" id="L348">                visitExpression(child, 0);</span>
+<span class="nc" id="L349">                addGoto(target, type);</span>
+<span class="nc" id="L350">                stackChange(-1);</span>
+            }
+<span class="nc" id="L352">            break;</span>
+
+          case Token.GOTO:
+            {
+<span class="nc" id="L356">                Node target = ((Jump)node).target;</span>
+<span class="nc" id="L357">                addGoto(target, type);</span>
+            }
+<span class="nc" id="L359">            break;</span>
+
+          case Token.JSR:
+            {
+<span class="nc" id="L363">                Node target = ((Jump)node).target;</span>
+<span class="nc" id="L364">                addGoto(target, Icode_GOSUB);</span>
+            }
+<span class="nc" id="L366">            break;</span>
+
+          case Token.FINALLY:
+            {
+                // Account for incomming GOTOSUB address
+<span class="nc" id="L371">                stackChange(1);</span>
+<span class="nc" id="L372">                int finallyRegister = getLocalBlockRef(node);</span>
+<span class="nc" id="L373">                addIndexOp(Icode_STARTSUB, finallyRegister);</span>
+<span class="nc" id="L374">                stackChange(-1);</span>
+<span class="nc bnc" id="L375" title="All 2 branches missed.">                while (child != null) {</span>
+<span class="nc" id="L376">                    visitStatement(child, initialStackDepth);</span>
+<span class="nc" id="L377">                    child = child.getNext();</span>
+                }
+<span class="nc" id="L379">                addIndexOp(Icode_RETSUB, finallyRegister);</span>
+            }
+<span class="nc" id="L381">            break;</span>
+
+          case Token.EXPR_VOID:
+          case Token.EXPR_RESULT:
+<span class="fc" id="L385">            updateLineNumber(node);</span>
+<span class="fc" id="L386">            visitExpression(child, 0);</span>
+<span class="pc bpc" id="L387" title="1 of 2 branches missed.">            addIcode((type == Token.EXPR_VOID) ? Icode_POP : Icode_POP_RESULT);</span>
+<span class="fc" id="L388">            stackChange(-1);</span>
+<span class="fc" id="L389">            break;</span>
+
+          case Token.TRY:
+            {
+<span class="nc" id="L393">                Jump tryNode = (Jump)node;</span>
+<span class="nc" id="L394">                int exceptionObjectLocal = getLocalBlockRef(tryNode);</span>
+<span class="nc" id="L395">                int scopeLocal = allocLocal();</span>
+
+<span class="nc" id="L397">                addIndexOp(Icode_SCOPE_SAVE, scopeLocal);</span>
+
+<span class="nc" id="L399">                int tryStart = iCodeTop;</span>
+<span class="nc" id="L400">                boolean savedFlag = itsInTryFlag;</span>
+<span class="nc" id="L401">                itsInTryFlag = true;</span>
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                while (child != null) {</span>
+<span class="nc" id="L403">                    visitStatement(child, initialStackDepth);</span>
+<span class="nc" id="L404">                    child = child.getNext();</span>
+                }
+<span class="nc" id="L406">                itsInTryFlag = savedFlag;</span>
+
+<span class="nc" id="L408">                Node catchTarget = tryNode.target;</span>
+<span class="nc bnc" id="L409" title="All 2 branches missed.">                if (catchTarget != null) {</span>
+<span class="nc" id="L410">                    int catchStartPC</span>
+<span class="nc" id="L411">                        = labelTable[getTargetLabel(catchTarget)];</span>
+<span class="nc" id="L412">                    addExceptionHandler(</span>
+                        tryStart, catchStartPC, catchStartPC,
+                        false, exceptionObjectLocal, scopeLocal);
+                }
+<span class="nc" id="L416">                Node finallyTarget = tryNode.getFinally();</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                if (finallyTarget != null) {</span>
+<span class="nc" id="L418">                    int finallyStartPC</span>
+<span class="nc" id="L419">                        = labelTable[getTargetLabel(finallyTarget)];</span>
+<span class="nc" id="L420">                    addExceptionHandler(</span>
+                        tryStart, finallyStartPC, finallyStartPC,
+                        true, exceptionObjectLocal, scopeLocal);
+                }
+
+<span class="nc" id="L425">                addIndexOp(Icode_LOCAL_CLEAR, scopeLocal);</span>
+<span class="nc" id="L426">                releaseLocal(scopeLocal);</span>
+            }
+<span class="nc" id="L428">            break;</span>
+
+          case Token.CATCH_SCOPE:
+            {
+<span class="nc" id="L432">                int localIndex = getLocalBlockRef(node);</span>
+<span class="nc" id="L433">                int scopeIndex = node.getExistingIntProp(Node.CATCH_SCOPE_PROP);</span>
+<span class="nc" id="L434">                String name = child.getString();</span>
+<span class="nc" id="L435">                child = child.getNext();</span>
+<span class="nc" id="L436">                visitExpression(child, 0); // load expression object</span>
+<span class="nc" id="L437">                addStringPrefix(name);</span>
+<span class="nc" id="L438">                addIndexPrefix(localIndex);</span>
+<span class="nc" id="L439">                addToken(Token.CATCH_SCOPE);</span>
+<span class="nc bnc" id="L440" title="All 2 branches missed.">                addUint8(scopeIndex != 0 ? 1 : 0);</span>
+<span class="nc" id="L441">                stackChange(-1);</span>
+            }
+<span class="nc" id="L443">            break;</span>
+
+          case Token.THROW:
+<span class="nc" id="L446">            updateLineNumber(node);</span>
+<span class="nc" id="L447">            visitExpression(child, 0);</span>
+<span class="nc" id="L448">            addToken(Token.THROW);</span>
+<span class="nc" id="L449">            addUint16(lineNumber &amp; 0xFFFF);</span>
+<span class="nc" id="L450">            stackChange(-1);</span>
+<span class="nc" id="L451">            break;</span>
+
+          case Token.RETHROW:
+<span class="nc" id="L454">            updateLineNumber(node);</span>
+<span class="nc" id="L455">            addIndexOp(Token.RETHROW, getLocalBlockRef(node));</span>
+<span class="nc" id="L456">            break;</span>
+
+          case Token.RETURN:
+<span class="nc" id="L459">            updateLineNumber(node);</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">            if (node.getIntProp(Node.GENERATOR_END_PROP, 0) != 0) {</span>
+                // We're in a generator, so change RETURN to GENERATOR_END
+<span class="nc" id="L462">                addIcode(Icode_GENERATOR_END);</span>
+<span class="nc" id="L463">                addUint16(lineNumber &amp; 0xFFFF);</span>
+<span class="nc bnc" id="L464" title="All 2 branches missed.">            } else if (child != null) {</span>
+<span class="nc" id="L465">                visitExpression(child, ECF_TAIL);</span>
+<span class="nc" id="L466">                addToken(Token.RETURN);</span>
+<span class="nc" id="L467">                stackChange(-1);</span>
+            } else {
+<span class="nc" id="L469">                addIcode(Icode_RETUNDEF);</span>
+            }
+<span class="nc" id="L471">            break;</span>
+
+          case Token.RETURN_RESULT:
+<span class="nc" id="L474">            updateLineNumber(node);</span>
+<span class="nc" id="L475">            addToken(Token.RETURN_RESULT);</span>
+<span class="nc" id="L476">            break;</span>
+
+          case Token.ENUM_INIT_KEYS:
+          case Token.ENUM_INIT_VALUES:
+          case Token.ENUM_INIT_ARRAY:
+          case Token.ENUM_INIT_VALUES_IN_ORDER:
+<span class="nc" id="L482">            visitExpression(child, 0);</span>
+<span class="nc" id="L483">            addIndexOp(type, getLocalBlockRef(node));</span>
+<span class="nc" id="L484">            stackChange(-1);</span>
+<span class="nc" id="L485">            break;</span>
+
+          case Icode_GENERATOR:
+<span class="nc" id="L488">            break;</span>
+
+          default:
+<span class="nc" id="L491">            throw badTree(node);</span>
+        }
+
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">        if (stackDepth != initialStackDepth) {</span>
+<span class="nc" id="L495">            throw Kit.codeBug();</span>
+        }
+<span class="fc" id="L497">    }</span>
+
+    private void visitExpression(Node node, int contextFlags)
+    {
+<span class="fc" id="L501">        int type = node.getType();</span>
+<span class="fc" id="L502">        Node child = node.getFirstChild();</span>
+<span class="fc" id="L503">        int savedStackDepth = stackDepth;</span>
+<span class="pc bpc" id="L504" title="35 of 36 branches missed.">        switch (type) {</span>
+
+          case Token.FUNCTION:
+            {
+<span class="nc" id="L508">                int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);</span>
+<span class="nc" id="L509">                FunctionNode fn = scriptOrFn.getFunctionNode(fnIndex);</span>
+                // See comments in visitStatement for Token.FUNCTION case
+<span class="nc bnc" id="L511" title="All 2 branches missed.">                if (fn.getFunctionType() != FunctionNode.FUNCTION_EXPRESSION &amp;&amp;</span>
+<span class="nc bnc" id="L512" title="All 2 branches missed.">                    fn.getFunctionType() != FunctionNode.ARROW_FUNCTION) {</span>
+<span class="nc" id="L513">                    throw Kit.codeBug();</span>
+                }
+<span class="nc" id="L515">                addIndexOp(Icode_CLOSURE_EXPR, fnIndex);</span>
+<span class="nc" id="L516">                stackChange(1);</span>
+            }
+<span class="nc" id="L518">            break;</span>
+
+          case Token.LOCAL_LOAD:
+            {
+<span class="nc" id="L522">                int localIndex = getLocalBlockRef(node);</span>
+<span class="nc" id="L523">                addIndexOp(Token.LOCAL_LOAD, localIndex);</span>
+<span class="nc" id="L524">                stackChange(1);</span>
+            }
+<span class="nc" id="L526">            break;</span>
+
+          case Token.COMMA:
+            {
+<span class="nc" id="L530">                Node lastChild = node.getLastChild();</span>
+<span class="nc bnc" id="L531" title="All 2 branches missed.">                while (child != lastChild) {</span>
+<span class="nc" id="L532">                    visitExpression(child, 0);</span>
+<span class="nc" id="L533">                    addIcode(Icode_POP);</span>
+<span class="nc" id="L534">                    stackChange(-1);</span>
+<span class="nc" id="L535">                    child = child.getNext();</span>
+                }
+                // Preserve tail context flag if any
+<span class="nc" id="L538">                visitExpression(child, contextFlags &amp; ECF_TAIL);</span>
+            }
+<span class="nc" id="L540">            break;</span>
+
+          case Token.USE_STACK:
+            // Indicates that stack was modified externally,
+            // like placed catch object
+<span class="nc" id="L545">            stackChange(1);</span>
+<span class="nc" id="L546">            break;</span>
+
+          case Token.REF_CALL:
+          case Token.CALL:
+          case Token.NEW:
+            {
+<span class="nc bnc" id="L552" title="All 2 branches missed.">                if (type == Token.NEW) {</span>
+<span class="nc" id="L553">                    visitExpression(child, 0);</span>
+                } else {
+<span class="nc" id="L555">                    generateCallFunAndThis(child);</span>
+                }
+<span class="nc" id="L557">                int argCount = 0;</span>
+<span class="nc bnc" id="L558" title="All 2 branches missed.">                while ((child = child.getNext()) != null) {</span>
+<span class="nc" id="L559">                    visitExpression(child, 0);</span>
+<span class="nc" id="L560">                    ++argCount;</span>
+                }
+<span class="nc" id="L562">                int callType = node.getIntProp(Node.SPECIALCALL_PROP,</span>
+                                               Node.NON_SPECIALCALL);
+<span class="nc bnc" id="L564" title="All 4 branches missed.">                if (type != Token.REF_CALL &amp;&amp; callType != Node.NON_SPECIALCALL) {</span>
+                    // embed line number and source filename
+<span class="nc" id="L566">                    addIndexOp(Icode_CALLSPECIAL, argCount);</span>
+<span class="nc" id="L567">                    addUint8(callType);</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">                    addUint8(type == Token.NEW ? 1 : 0);</span>
+<span class="nc" id="L569">                    addUint16(lineNumber &amp; 0xFFFF);</span>
+                } else {
+                    // Only use the tail call optimization if we're not in a try
+                    // or we're not generating debug info (since the
+                    // optimization will confuse the debugger)
+<span class="nc bnc" id="L574" title="All 4 branches missed.">                    if (type == Token.CALL &amp;&amp; (contextFlags &amp; ECF_TAIL) != 0 &amp;&amp;</span>
+<span class="nc bnc" id="L575" title="All 4 branches missed.">                        !compilerEnv.isGenerateDebugInfo() &amp;&amp; !itsInTryFlag)</span>
+                    {
+<span class="nc" id="L577">                        type = Icode_TAIL_CALL;</span>
+                    }
+<span class="nc" id="L579">                    addIndexOp(type, argCount);</span>
+                }
+                // adjust stack
+<span class="nc bnc" id="L582" title="All 2 branches missed.">                if (type == Token.NEW) {</span>
+                    // new: f, args -&gt; result
+<span class="nc" id="L584">                    stackChange(-argCount);</span>
+                } else {
+                    // call: f, thisObj, args -&gt; result
+                    // ref_call: f, thisObj, args -&gt; ref
+<span class="nc" id="L588">                    stackChange(-1 - argCount);</span>
+                }
+<span class="nc bnc" id="L590" title="All 2 branches missed.">                if (argCount &gt; itsData.itsMaxCalleeArgs) {</span>
+<span class="nc" id="L591">                    itsData.itsMaxCalleeArgs = argCount;</span>
+                }
+            }
+<span class="nc" id="L594">            break;</span>
+
+          case Token.AND:
+          case Token.OR:
+            {
+<span class="nc" id="L599">                visitExpression(child, 0);</span>
+<span class="nc" id="L600">                addIcode(Icode_DUP);</span>
+<span class="nc" id="L601">                stackChange(1);</span>
+<span class="nc" id="L602">                int afterSecondJumpStart = iCodeTop;</span>
+<span class="nc bnc" id="L603" title="All 2 branches missed.">                int jump = (type == Token.AND) ? Token.IFNE : Token.IFEQ;</span>
+<span class="nc" id="L604">                addGotoOp(jump);</span>
+<span class="nc" id="L605">                stackChange(-1);</span>
+<span class="nc" id="L606">                addIcode(Icode_POP);</span>
+<span class="nc" id="L607">                stackChange(-1);</span>
+<span class="nc" id="L608">                child = child.getNext();</span>
+                // Preserve tail context flag if any
+<span class="nc" id="L610">                visitExpression(child, contextFlags &amp; ECF_TAIL);</span>
+<span class="nc" id="L611">                resolveForwardGoto(afterSecondJumpStart);</span>
+            }
+<span class="nc" id="L613">            break;</span>
+
+          case Token.HOOK:
+            {
+<span class="nc" id="L617">                Node ifThen = child.getNext();</span>
+<span class="nc" id="L618">                Node ifElse = ifThen.getNext();</span>
+<span class="nc" id="L619">                visitExpression(child, 0);</span>
+<span class="nc" id="L620">                int elseJumpStart = iCodeTop;</span>
+<span class="nc" id="L621">                addGotoOp(Token.IFNE);</span>
+<span class="nc" id="L622">                stackChange(-1);</span>
+                // Preserve tail context flag if any
+<span class="nc" id="L624">                visitExpression(ifThen, contextFlags &amp; ECF_TAIL);</span>
+<span class="nc" id="L625">                int afterElseJumpStart = iCodeTop;</span>
+<span class="nc" id="L626">                addGotoOp(Token.GOTO);</span>
+<span class="nc" id="L627">                resolveForwardGoto(elseJumpStart);</span>
+<span class="nc" id="L628">                stackDepth = savedStackDepth;</span>
+                // Preserve tail context flag if any
+<span class="nc" id="L630">                visitExpression(ifElse, contextFlags &amp; ECF_TAIL);</span>
+<span class="nc" id="L631">                resolveForwardGoto(afterElseJumpStart);</span>
+            }
+<span class="nc" id="L633">            break;</span>
+
+          case Token.GETPROP:
+          case Token.GETPROPNOWARN:
+<span class="nc" id="L637">            visitExpression(child, 0);</span>
+<span class="nc" id="L638">            child = child.getNext();</span>
+<span class="nc" id="L639">            addStringOp(type, child.getString());</span>
+<span class="nc" id="L640">            break;</span>
+
+          case Token.DELPROP:
+<span class="nc bnc" id="L643" title="All 2 branches missed.">            boolean isName = child.getType() == Token.BINDNAME;</span>
+<span class="nc" id="L644">            visitExpression(child, 0);</span>
+<span class="nc" id="L645">            child = child.getNext();</span>
+<span class="nc" id="L646">            visitExpression(child, 0);</span>
+<span class="nc bnc" id="L647" title="All 2 branches missed.">            if (isName) {</span>
+                // special handling for delete name
+<span class="nc" id="L649">                addIcode(Icode_DELNAME);</span>
+            } else {
+<span class="nc" id="L651">                addToken(Token.DELPROP);</span>
+            }
+<span class="nc" id="L653">            stackChange(-1);</span>
+<span class="nc" id="L654">            break;</span>
+
+          case Token.GETELEM:
+          case Token.BITAND:
+          case Token.BITOR:
+          case Token.BITXOR:
+          case Token.LSH:
+          case Token.RSH:
+          case Token.URSH:
+          case Token.ADD:
+          case Token.SUB:
+          case Token.MOD:
+          case Token.DIV:
+          case Token.MUL:
+          case Token.EQ:
+          case Token.NE:
+          case Token.SHEQ:
+          case Token.SHNE:
+          case Token.IN:
+          case Token.INSTANCEOF:
+          case Token.LE:
+          case Token.LT:
+          case Token.GE:
+          case Token.GT:
+<span class="nc" id="L678">            visitExpression(child, 0);</span>
+<span class="nc" id="L679">            child = child.getNext();</span>
+<span class="nc" id="L680">            visitExpression(child, 0);</span>
+<span class="nc" id="L681">            addToken(type);</span>
+<span class="nc" id="L682">            stackChange(-1);</span>
+<span class="nc" id="L683">            break;</span>
+
+          case Token.POS:
+          case Token.NEG:
+          case Token.NOT:
+          case Token.BITNOT:
+          case Token.TYPEOF:
+          case Token.VOID:
+<span class="nc" id="L691">            visitExpression(child, 0);</span>
+<span class="nc bnc" id="L692" title="All 2 branches missed.">            if (type == Token.VOID) {</span>
+<span class="nc" id="L693">                addIcode(Icode_POP);</span>
+<span class="nc" id="L694">                addIcode(Icode_UNDEF);</span>
+            } else {
+<span class="nc" id="L696">                addToken(type);</span>
+            }
+<span class="nc" id="L698">            break;</span>
+
+          case Token.GET_REF:
+          case Token.DEL_REF:
+<span class="nc" id="L702">            visitExpression(child, 0);</span>
+<span class="nc" id="L703">            addToken(type);</span>
+<span class="nc" id="L704">            break;</span>
+
+          case Token.SETPROP:
+          case Token.SETPROP_OP:
+            {
+<span class="nc" id="L709">                visitExpression(child, 0);</span>
+<span class="nc" id="L710">                child = child.getNext();</span>
+<span class="nc" id="L711">                String property = child.getString();</span>
+<span class="nc" id="L712">                child = child.getNext();</span>
+<span class="nc bnc" id="L713" title="All 2 branches missed.">                if (type == Token.SETPROP_OP) {</span>
+<span class="nc" id="L714">                    addIcode(Icode_DUP);</span>
+<span class="nc" id="L715">                    stackChange(1);</span>
+<span class="nc" id="L716">                    addStringOp(Token.GETPROP, property);</span>
+                    // Compensate for the following USE_STACK
+<span class="nc" id="L718">                    stackChange(-1);</span>
+                }
+<span class="nc" id="L720">                visitExpression(child, 0);</span>
+<span class="nc" id="L721">                addStringOp(Token.SETPROP, property);</span>
+<span class="nc" id="L722">                stackChange(-1);</span>
+            }
+<span class="nc" id="L724">            break;</span>
+
+          case Token.SETELEM:
+          case Token.SETELEM_OP:
+<span class="nc" id="L728">            visitExpression(child, 0);</span>
+<span class="nc" id="L729">            child = child.getNext();</span>
+<span class="nc" id="L730">            visitExpression(child, 0);</span>
+<span class="nc" id="L731">            child = child.getNext();</span>
+<span class="nc bnc" id="L732" title="All 2 branches missed.">            if (type == Token.SETELEM_OP) {</span>
+<span class="nc" id="L733">                addIcode(Icode_DUP2);</span>
+<span class="nc" id="L734">                stackChange(2);</span>
+<span class="nc" id="L735">                addToken(Token.GETELEM);</span>
+<span class="nc" id="L736">                stackChange(-1);</span>
+                // Compensate for the following USE_STACK
+<span class="nc" id="L738">                stackChange(-1);</span>
+            }
+<span class="nc" id="L740">            visitExpression(child, 0);</span>
+<span class="nc" id="L741">            addToken(Token.SETELEM);</span>
+<span class="nc" id="L742">            stackChange(-2);</span>
+<span class="nc" id="L743">            break;</span>
+
+          case Token.SET_REF:
+          case Token.SET_REF_OP:
+<span class="nc" id="L747">            visitExpression(child, 0);</span>
+<span class="nc" id="L748">            child = child.getNext();</span>
+<span class="nc bnc" id="L749" title="All 2 branches missed.">            if (type == Token.SET_REF_OP) {</span>
+<span class="nc" id="L750">                addIcode(Icode_DUP);</span>
+<span class="nc" id="L751">                stackChange(1);</span>
+<span class="nc" id="L752">                addToken(Token.GET_REF);</span>
+                // Compensate for the following USE_STACK
+<span class="nc" id="L754">                stackChange(-1);</span>
+            }
+<span class="nc" id="L756">            visitExpression(child, 0);</span>
+<span class="nc" id="L757">            addToken(Token.SET_REF);</span>
+<span class="nc" id="L758">            stackChange(-1);</span>
+<span class="nc" id="L759">            break;</span>
+
+          case Token.STRICT_SETNAME:
+          case Token.SETNAME:
+            {
+<span class="nc" id="L764">                String name = child.getString();</span>
+<span class="nc" id="L765">                visitExpression(child, 0);</span>
+<span class="nc" id="L766">                child = child.getNext();</span>
+<span class="nc" id="L767">                visitExpression(child, 0);</span>
+<span class="nc" id="L768">                addStringOp(type, name);</span>
+<span class="nc" id="L769">                stackChange(-1);</span>
+            }
+<span class="nc" id="L771">            break;</span>
+
+          case Token.SETCONST:
+            {
+<span class="nc" id="L775">                String name = child.getString();</span>
+<span class="nc" id="L776">                visitExpression(child, 0);</span>
+<span class="nc" id="L777">                child = child.getNext();</span>
+<span class="nc" id="L778">                visitExpression(child, 0);</span>
+<span class="nc" id="L779">                addStringOp(Icode_SETCONST, name);</span>
+<span class="nc" id="L780">                stackChange(-1);</span>
+            }
+<span class="nc" id="L782">            break;</span>
+
+          case Token.TYPEOFNAME:
+            {
+<span class="nc" id="L786">                int index = -1;</span>
+                // use typeofname if an activation frame exists
+                // since the vars all exist there instead of in jregs
+<span class="nc bnc" id="L789" title="All 4 branches missed.">                if (itsInFunctionFlag &amp;&amp; !itsData.itsNeedsActivation)</span>
+<span class="nc" id="L790">                    index = scriptOrFn.getIndexForNameNode(node);</span>
+<span class="nc bnc" id="L791" title="All 2 branches missed.">                if (index == -1) {</span>
+<span class="nc" id="L792">                    addStringOp(Icode_TYPEOFNAME, node.getString());</span>
+<span class="nc" id="L793">                    stackChange(1);</span>
+                } else {
+<span class="nc" id="L795">                    addVarOp(Token.GETVAR, index);</span>
+<span class="nc" id="L796">                    stackChange(1);</span>
+<span class="nc" id="L797">                    addToken(Token.TYPEOF);</span>
+                }
+            }
+<span class="nc" id="L800">            break;</span>
+
+          case Token.BINDNAME:
+          case Token.NAME:
+          case Token.STRING:
+<span class="fc" id="L805">            addStringOp(type, node.getString());</span>
+<span class="fc" id="L806">            stackChange(1);</span>
+<span class="fc" id="L807">            break;</span>
+
+          case Token.INC:
+          case Token.DEC:
+<span class="nc" id="L811">            visitIncDec(node, child);</span>
+<span class="nc" id="L812">            break;</span>
+
+          case Token.NUMBER:
+            {
+<span class="nc" id="L816">                double num = node.getDouble();</span>
+<span class="nc" id="L817">                int inum = (int)num;</span>
+<span class="nc bnc" id="L818" title="All 2 branches missed.">                if (inum == num) {</span>
+<span class="nc bnc" id="L819" title="All 2 branches missed.">                    if (inum == 0) {</span>
+<span class="nc" id="L820">                        addIcode(Icode_ZERO);</span>
+                        // Check for negative zero
+<span class="nc bnc" id="L822" title="All 2 branches missed.">                        if (1.0 / num &lt; 0.0) {</span>
+<span class="nc" id="L823">                            addToken(Token.NEG);</span>
+                        }
+<span class="nc bnc" id="L825" title="All 2 branches missed.">                    } else if (inum == 1) {</span>
+<span class="nc" id="L826">                        addIcode(Icode_ONE);</span>
+<span class="nc bnc" id="L827" title="All 2 branches missed.">                    } else if ((short)inum == inum) {</span>
+<span class="nc" id="L828">                        addIcode(Icode_SHORTNUMBER);</span>
+                        // write short as uin16 bit pattern
+<span class="nc" id="L830">                        addUint16(inum &amp; 0xFFFF);</span>
+                    } else {
+<span class="nc" id="L832">                        addIcode(Icode_INTNUMBER);</span>
+<span class="nc" id="L833">                        addInt(inum);</span>
+                    }
+                } else {
+<span class="nc" id="L836">                    int index = getDoubleIndex(num);</span>
+<span class="nc" id="L837">                    addIndexOp(Token.NUMBER, index);</span>
+                }
+<span class="nc" id="L839">                stackChange(1);</span>
+            }
+<span class="nc" id="L841">            break;</span>
+
+          case Token.GETVAR:
+            {
+<span class="nc bnc" id="L845" title="All 2 branches missed.">                if (itsData.itsNeedsActivation) Kit.codeBug();</span>
+<span class="nc" id="L846">                int index = scriptOrFn.getIndexForNameNode(node);</span>
+<span class="nc" id="L847">                addVarOp(Token.GETVAR, index);</span>
+<span class="nc" id="L848">                stackChange(1);</span>
+            }
+<span class="nc" id="L850">            break;</span>
+
+          case Token.SETVAR:
+            {
+<span class="nc bnc" id="L854" title="All 2 branches missed.">                if (itsData.itsNeedsActivation) Kit.codeBug();</span>
+<span class="nc" id="L855">                int index = scriptOrFn.getIndexForNameNode(child);</span>
+<span class="nc" id="L856">                child = child.getNext();</span>
+<span class="nc" id="L857">                visitExpression(child, 0);</span>
+<span class="nc" id="L858">                addVarOp(Token.SETVAR, index);</span>
+            }
+<span class="nc" id="L860">            break;</span>
+
+          case Token.SETCONSTVAR:
+            {
+<span class="nc bnc" id="L864" title="All 2 branches missed.">                if (itsData.itsNeedsActivation) Kit.codeBug();</span>
+<span class="nc" id="L865">                int index = scriptOrFn.getIndexForNameNode(child);</span>
+<span class="nc" id="L866">                child = child.getNext();</span>
+<span class="nc" id="L867">                visitExpression(child, 0);</span>
+<span class="nc" id="L868">                addVarOp(Token.SETCONSTVAR, index);</span>
+            }
+<span class="nc" id="L870">            break;</span>
+
+          case Token.NULL:
+          case Token.THIS:
+          case Token.THISFN:
+          case Token.FALSE:
+          case Token.TRUE:
+<span class="nc" id="L877">            addToken(type);</span>
+<span class="nc" id="L878">            stackChange(1);</span>
+<span class="nc" id="L879">            break;</span>
+
+          case Token.ENUM_NEXT:
+          case Token.ENUM_ID:
+<span class="nc" id="L883">            addIndexOp(type, getLocalBlockRef(node));</span>
+<span class="nc" id="L884">            stackChange(1);</span>
+<span class="nc" id="L885">            break;</span>
+
+          case Token.REGEXP:
+            {
+<span class="nc" id="L889">                int index = node.getExistingIntProp(Node.REGEXP_PROP);</span>
+<span class="nc" id="L890">                addIndexOp(Token.REGEXP, index);</span>
+<span class="nc" id="L891">                stackChange(1);</span>
+            }
+<span class="nc" id="L893">            break;</span>
+
+          case Token.ARRAYLIT:
+          case Token.OBJECTLIT:
+<span class="nc" id="L897">            visitLiteral(node, child);</span>
+<span class="nc" id="L898">            break;</span>
+
+          case Token.ARRAYCOMP:
+<span class="nc" id="L901">            visitArrayComprehension(node, child, child.getNext());</span>
+<span class="nc" id="L902">            break;</span>
+
+          case Token.REF_SPECIAL:
+<span class="nc" id="L905">            visitExpression(child, 0);</span>
+<span class="nc" id="L906">            addStringOp(type, (String)node.getProp(Node.NAME_PROP));</span>
+<span class="nc" id="L907">            break;</span>
+
+          case Token.REF_MEMBER:
+          case Token.REF_NS_MEMBER:
+          case Token.REF_NAME:
+          case Token.REF_NS_NAME:
+            {
+<span class="nc" id="L914">                int memberTypeFlags = node.getIntProp(Node.MEMBER_TYPE_PROP, 0);</span>
+                // generate possible target, possible namespace and member
+<span class="nc" id="L916">                int childCount = 0;</span>
+                do {
+<span class="nc" id="L918">                    visitExpression(child, 0);</span>
+<span class="nc" id="L919">                    ++childCount;</span>
+<span class="nc" id="L920">                    child = child.getNext();</span>
+<span class="nc bnc" id="L921" title="All 2 branches missed.">                } while (child != null);</span>
+<span class="nc" id="L922">                addIndexOp(type, memberTypeFlags);</span>
+<span class="nc" id="L923">                stackChange(1 - childCount);</span>
+            }
+<span class="nc" id="L925">            break;</span>
+
+          case Token.DOTQUERY:
+            {
+                int queryPC;
+<span class="nc" id="L930">                updateLineNumber(node);</span>
+<span class="nc" id="L931">                visitExpression(child, 0);</span>
+<span class="nc" id="L932">                addIcode(Icode_ENTERDQ);</span>
+<span class="nc" id="L933">                stackChange(-1);</span>
+<span class="nc" id="L934">                queryPC = iCodeTop;</span>
+<span class="nc" id="L935">                visitExpression(child.getNext(), 0);</span>
+<span class="nc" id="L936">                addBackwardGoto(Icode_LEAVEDQ, queryPC);</span>
+            }
+<span class="nc" id="L938">            break;</span>
+
+          case Token.DEFAULTNAMESPACE :
+          case Token.ESCXMLATTR :
+          case Token.ESCXMLTEXT :
+<span class="nc" id="L943">            visitExpression(child, 0);</span>
+<span class="nc" id="L944">            addToken(type);</span>
+<span class="nc" id="L945">            break;</span>
+
+          case Token.YIELD:
+<span class="nc bnc" id="L948" title="All 2 branches missed.">            if (child != null) {</span>
+<span class="nc" id="L949">                visitExpression(child, 0);</span>
+            } else {
+<span class="nc" id="L951">                addIcode(Icode_UNDEF);</span>
+<span class="nc" id="L952">                stackChange(1);</span>
+            }
+<span class="nc" id="L954">            addToken(Token.YIELD);</span>
+<span class="nc" id="L955">            addUint16(node.getLineno() &amp; 0xFFFF);</span>
+<span class="nc" id="L956">            break;</span>
+
+          case Token.WITHEXPR: {
+<span class="nc" id="L959">            Node enterWith = node.getFirstChild();</span>
+<span class="nc" id="L960">            Node with = enterWith.getNext();</span>
+<span class="nc" id="L961">            visitExpression(enterWith.getFirstChild(), 0);</span>
+<span class="nc" id="L962">            addToken(Token.ENTERWITH);</span>
+<span class="nc" id="L963">            stackChange(-1);</span>
+<span class="nc" id="L964">            visitExpression(with.getFirstChild(), 0);</span>
+<span class="nc" id="L965">            addToken(Token.LEAVEWITH);</span>
+<span class="nc" id="L966">            break;</span>
+          }
+
+          default:
+<span class="nc" id="L970">            throw badTree(node);</span>
+        }
+<span class="pc bpc" id="L972" title="1 of 2 branches missed.">        if (savedStackDepth + 1 != stackDepth) {</span>
+<span class="nc" id="L973">            Kit.codeBug();</span>
+        }
+<span class="fc" id="L975">    }</span>
+
+    private void generateCallFunAndThis(Node left)
+    {
+        // Generate code to place on stack function and thisObj
+<span class="nc" id="L980">        int type = left.getType();</span>
+<span class="nc bnc" id="L981" title="All 3 branches missed.">        switch (type) {</span>
+          case Token.NAME: {
+<span class="nc" id="L983">            String name = left.getString();</span>
+            // stack: ... -&gt; ... function thisObj
+<span class="nc" id="L985">            addStringOp(Icode_NAME_AND_THIS, name);</span>
+<span class="nc" id="L986">            stackChange(2);</span>
+<span class="nc" id="L987">            break;</span>
+          }
+          case Token.GETPROP:
+          case Token.GETELEM: {
+<span class="nc" id="L991">            Node target = left.getFirstChild();</span>
+<span class="nc" id="L992">            visitExpression(target, 0);</span>
+<span class="nc" id="L993">            Node id = target.getNext();</span>
+<span class="nc bnc" id="L994" title="All 2 branches missed.">            if (type == Token.GETPROP) {</span>
+<span class="nc" id="L995">                String property = id.getString();</span>
+                // stack: ... target -&gt; ... function thisObj
+<span class="nc" id="L997">                addStringOp(Icode_PROP_AND_THIS, property);</span>
+<span class="nc" id="L998">                stackChange(1);</span>
+<span class="nc" id="L999">            } else {</span>
+<span class="nc" id="L1000">                visitExpression(id, 0);</span>
+                // stack: ... target id -&gt; ... function thisObj
+<span class="nc" id="L1002">                addIcode(Icode_ELEM_AND_THIS);</span>
+            }
+<span class="nc" id="L1004">            break;</span>
+          }
+          default:
+            // Including Token.GETVAR
+<span class="nc" id="L1008">            visitExpression(left, 0);</span>
+            // stack: ... value -&gt; ... function thisObj
+<span class="nc" id="L1010">            addIcode(Icode_VALUE_AND_THIS);</span>
+<span class="nc" id="L1011">            stackChange(1);</span>
+            break;
+        }
+<span class="nc" id="L1014">    }</span>
+
+
+    private void visitIncDec(Node node, Node child)
+    {
+<span class="nc" id="L1019">        int incrDecrMask = node.getExistingIntProp(Node.INCRDECR_PROP);</span>
+<span class="nc" id="L1020">        int childType = child.getType();</span>
+<span class="nc bnc" id="L1021" title="All 6 branches missed.">        switch (childType) {</span>
+          case Token.GETVAR : {
+<span class="nc bnc" id="L1023" title="All 2 branches missed.">            if (itsData.itsNeedsActivation) Kit.codeBug();</span>
+<span class="nc" id="L1024">            int i = scriptOrFn.getIndexForNameNode(child);</span>
+<span class="nc" id="L1025">            addVarOp(Icode_VAR_INC_DEC, i);</span>
+<span class="nc" id="L1026">            addUint8(incrDecrMask);</span>
+<span class="nc" id="L1027">            stackChange(1);</span>
+<span class="nc" id="L1028">            break;</span>
+          }
+          case Token.NAME : {
+<span class="nc" id="L1031">            String name = child.getString();</span>
+<span class="nc" id="L1032">            addStringOp(Icode_NAME_INC_DEC, name);</span>
+<span class="nc" id="L1033">            addUint8(incrDecrMask);</span>
+<span class="nc" id="L1034">            stackChange(1);</span>
+<span class="nc" id="L1035">            break;</span>
+          }
+          case Token.GETPROP : {
+<span class="nc" id="L1038">            Node object = child.getFirstChild();</span>
+<span class="nc" id="L1039">            visitExpression(object, 0);</span>
+<span class="nc" id="L1040">            String property = object.getNext().getString();</span>
+<span class="nc" id="L1041">            addStringOp(Icode_PROP_INC_DEC, property);</span>
+<span class="nc" id="L1042">            addUint8(incrDecrMask);</span>
+<span class="nc" id="L1043">            break;</span>
+          }
+          case Token.GETELEM : {
+<span class="nc" id="L1046">            Node object = child.getFirstChild();</span>
+<span class="nc" id="L1047">            visitExpression(object, 0);</span>
+<span class="nc" id="L1048">            Node index = object.getNext();</span>
+<span class="nc" id="L1049">            visitExpression(index, 0);</span>
+<span class="nc" id="L1050">            addIcode(Icode_ELEM_INC_DEC);</span>
+<span class="nc" id="L1051">            addUint8(incrDecrMask);</span>
+<span class="nc" id="L1052">            stackChange(-1);</span>
+<span class="nc" id="L1053">            break;</span>
+          }
+          case Token.GET_REF : {
+<span class="nc" id="L1056">            Node ref = child.getFirstChild();</span>
+<span class="nc" id="L1057">            visitExpression(ref, 0);</span>
+<span class="nc" id="L1058">            addIcode(Icode_REF_INC_DEC);</span>
+<span class="nc" id="L1059">            addUint8(incrDecrMask);</span>
+<span class="nc" id="L1060">            break;</span>
+          }
+          default : {
+<span class="nc" id="L1063">            throw badTree(node);</span>
+          }
+        }
+<span class="nc" id="L1066">    }</span>
+
+    private void visitLiteral(Node node, Node child)
+    {
+<span class="nc" id="L1070">        int type = node.getType();</span>
+        int count;
+<span class="nc" id="L1072">        Object[] propertyIds = null;</span>
+<span class="nc bnc" id="L1073" title="All 2 branches missed.">        if (type == Token.ARRAYLIT) {</span>
+<span class="nc" id="L1074">            count = 0;</span>
+<span class="nc bnc" id="L1075" title="All 2 branches missed.">            for (Node n = child; n != null; n = n.getNext()) {</span>
+<span class="nc" id="L1076">                ++count;</span>
+            }
+<span class="nc bnc" id="L1078" title="All 2 branches missed.">        } else if (type == Token.OBJECTLIT) {</span>
+<span class="nc" id="L1079">            propertyIds = (Object[])node.getProp(Node.OBJECT_IDS_PROP);</span>
+<span class="nc" id="L1080">            count = propertyIds.length;</span>
+        } else {
+<span class="nc" id="L1082">            throw badTree(node);</span>
+        }
+<span class="nc" id="L1084">        addIndexOp(Icode_LITERAL_NEW, count);</span>
+<span class="nc" id="L1085">        stackChange(2);</span>
+<span class="nc bnc" id="L1086" title="All 2 branches missed.">        while (child != null) {</span>
+<span class="nc" id="L1087">            int childType = child.getType();</span>
+<span class="nc bnc" id="L1088" title="All 2 branches missed.">            if (childType == Token.GET) {</span>
+<span class="nc" id="L1089">                visitExpression(child.getFirstChild(), 0);</span>
+<span class="nc" id="L1090">                addIcode(Icode_LITERAL_GETTER);</span>
+<span class="nc bnc" id="L1091" title="All 2 branches missed.">            } else if (childType == Token.SET) {</span>
+<span class="nc" id="L1092">                visitExpression(child.getFirstChild(), 0);</span>
+<span class="nc" id="L1093">                addIcode(Icode_LITERAL_SETTER);</span>
+<span class="nc bnc" id="L1094" title="All 2 branches missed.">            } else if (childType == Token.METHOD) {</span>
+<span class="nc" id="L1095">                visitExpression(child.getFirstChild(), 0);</span>
+<span class="nc" id="L1096">                addIcode(Icode_LITERAL_SET);</span>
+            } else {
+<span class="nc" id="L1098">                visitExpression(child, 0);</span>
+<span class="nc" id="L1099">                addIcode(Icode_LITERAL_SET);</span>
+            }
+<span class="nc" id="L1101">            stackChange(-1);</span>
+<span class="nc" id="L1102">            child = child.getNext();</span>
+<span class="nc" id="L1103">        }</span>
+<span class="nc bnc" id="L1104" title="All 2 branches missed.">        if (type == Token.ARRAYLIT) {</span>
+<span class="nc" id="L1105">            int[] skipIndexes = (int[])node.getProp(Node.SKIP_INDEXES_PROP);</span>
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">            if (skipIndexes == null) {</span>
+<span class="nc" id="L1107">                addToken(Token.ARRAYLIT);</span>
+            } else {
+<span class="nc" id="L1109">                int index = literalIds.size();</span>
+<span class="nc" id="L1110">                literalIds.add(skipIndexes);</span>
+<span class="nc" id="L1111">                addIndexOp(Icode_SPARE_ARRAYLIT, index);</span>
+            }
+<span class="nc" id="L1113">        } else {</span>
+<span class="nc" id="L1114">            int index = literalIds.size();</span>
+<span class="nc" id="L1115">            literalIds.add(propertyIds);</span>
+<span class="nc" id="L1116">            addIndexOp(Token.OBJECTLIT, index);</span>
+        }
+<span class="nc" id="L1118">        stackChange(-1);</span>
+<span class="nc" id="L1119">    }</span>
+
+    private void visitArrayComprehension(Node node, Node initStmt, Node expr)
+    {
+        // A bit of a hack: array comprehensions are implemented using
+        // statement nodes for the iteration, yet they appear in an
+        // expression context. So we pass the current stack depth to
+        // visitStatement so it can check that the depth is not altered
+        // by statements.
+<span class="nc" id="L1128">        visitStatement(initStmt, stackDepth);</span>
+<span class="nc" id="L1129">        visitExpression(expr, 0);</span>
+<span class="nc" id="L1130">    }</span>
+
+    private int getLocalBlockRef(Node node)
+    {
+<span class="nc" id="L1134">        Node localBlock = (Node)node.getProp(Node.LOCAL_BLOCK_PROP);</span>
+<span class="nc" id="L1135">        return localBlock.getExistingIntProp(Node.LOCAL_PROP);</span>
+    }
+
+    private int getTargetLabel(Node target)
+    {
+<span class="nc" id="L1140">        int label = target.labelId();</span>
+<span class="nc bnc" id="L1141" title="All 2 branches missed.">        if (label != -1) {</span>
+<span class="nc" id="L1142">            return label;</span>
+        }
+<span class="nc" id="L1144">        label = labelTableTop;</span>
+<span class="nc bnc" id="L1145" title="All 4 branches missed.">        if (labelTable == null || label == labelTable.length) {</span>
+<span class="nc bnc" id="L1146" title="All 2 branches missed.">            if (labelTable == null) {</span>
+<span class="nc" id="L1147">                labelTable = new int[MIN_LABEL_TABLE_SIZE];</span>
+            }else {
+<span class="nc" id="L1149">                int[] tmp = new int[labelTable.length * 2];</span>
+<span class="nc" id="L1150">                System.arraycopy(labelTable, 0, tmp, 0, label);</span>
+<span class="nc" id="L1151">                labelTable = tmp;</span>
+            }
+        }
+<span class="nc" id="L1154">        labelTableTop = label + 1;</span>
+<span class="nc" id="L1155">        labelTable[label] = -1;</span>
+
+<span class="nc" id="L1157">        target.labelId(label);</span>
+<span class="nc" id="L1158">        return label;</span>
+    }
+
+    private void markTargetLabel(Node target)
+    {
+<span class="nc" id="L1163">        int label = getTargetLabel(target);</span>
+<span class="nc bnc" id="L1164" title="All 2 branches missed.">        if (labelTable[label] != -1) {</span>
+            // Can mark label only once
+<span class="nc" id="L1166">            Kit.codeBug();</span>
+        }
+<span class="nc" id="L1168">        labelTable[label] = iCodeTop;</span>
+<span class="nc" id="L1169">    }</span>
+
+    private void addGoto(Node target, int gotoOp)
+    {
+<span class="nc" id="L1173">        int label = getTargetLabel(target);</span>
+<span class="nc bnc" id="L1174" title="All 2 branches missed.">        if (!(label &lt; labelTableTop)) Kit.codeBug();</span>
+<span class="nc" id="L1175">        int targetPC = labelTable[label];</span>
+
+<span class="nc bnc" id="L1177" title="All 2 branches missed.">        if (targetPC != -1) {</span>
+<span class="nc" id="L1178">            addBackwardGoto(gotoOp, targetPC);</span>
+        } else {
+<span class="nc" id="L1180">            int gotoPC = iCodeTop;</span>
+<span class="nc" id="L1181">            addGotoOp(gotoOp);</span>
+<span class="nc" id="L1182">            int top = fixupTableTop;</span>
+<span class="nc bnc" id="L1183" title="All 4 branches missed.">            if (fixupTable == null || top == fixupTable.length) {</span>
+<span class="nc bnc" id="L1184" title="All 2 branches missed.">                if (fixupTable == null) {</span>
+<span class="nc" id="L1185">                    fixupTable = new long[MIN_FIXUP_TABLE_SIZE];</span>
+                } else {
+<span class="nc" id="L1187">                    long[] tmp = new long[fixupTable.length * 2];</span>
+<span class="nc" id="L1188">                    System.arraycopy(fixupTable, 0, tmp, 0, top);</span>
+<span class="nc" id="L1189">                    fixupTable = tmp;</span>
+                }
+            }
+<span class="nc" id="L1192">            fixupTableTop = top + 1;</span>
+<span class="nc" id="L1193">            fixupTable[top] = ((long)label &lt;&lt; 32) | gotoPC;</span>
+        }
+<span class="nc" id="L1195">    }</span>
+
+    private void fixLabelGotos()
+    {
+<span class="pc bpc" id="L1199" title="1 of 2 branches missed.">        for (int i = 0; i &lt; fixupTableTop; i++) {</span>
+<span class="nc" id="L1200">            long fixup = fixupTable[i];</span>
+<span class="nc" id="L1201">            int label = (int)(fixup &gt;&gt; 32);</span>
+<span class="nc" id="L1202">            int jumpSource = (int)fixup;</span>
+<span class="nc" id="L1203">            int pc = labelTable[label];</span>
+<span class="nc bnc" id="L1204" title="All 2 branches missed.">            if (pc == -1) {</span>
+                // Unlocated label
+<span class="nc" id="L1206">                throw Kit.codeBug();</span>
+            }
+<span class="nc" id="L1208">            resolveGoto(jumpSource, pc);</span>
+        }
+<span class="fc" id="L1210">        fixupTableTop = 0;</span>
+<span class="fc" id="L1211">    }</span>
+
+    private void addBackwardGoto(int gotoOp, int jumpPC)
+    {
+<span class="nc" id="L1215">        int fromPC = iCodeTop;</span>
+        // Ensure that this is a jump backward
+<span class="nc bnc" id="L1217" title="All 2 branches missed.">        if (fromPC &lt;= jumpPC) throw Kit.codeBug();</span>
+<span class="nc" id="L1218">        addGotoOp(gotoOp);</span>
+<span class="nc" id="L1219">        resolveGoto(fromPC, jumpPC);</span>
+<span class="nc" id="L1220">    }</span>
+
+    private void resolveForwardGoto(int fromPC)
+    {
+        // Ensure that forward jump skips at least self bytecode
+<span class="nc bnc" id="L1225" title="All 2 branches missed.">        if (iCodeTop &lt; fromPC + 3) throw Kit.codeBug();</span>
+<span class="nc" id="L1226">        resolveGoto(fromPC, iCodeTop);</span>
+<span class="nc" id="L1227">    }</span>
+
+    private void resolveGoto(int fromPC, int jumpPC)
+    {
+<span class="nc" id="L1231">        int offset = jumpPC - fromPC;</span>
+        // Ensure that jumps do not overlap
+<span class="nc bnc" id="L1233" title="All 4 branches missed.">        if (0 &lt;= offset &amp;&amp; offset &lt;= 2) throw Kit.codeBug();</span>
+<span class="nc" id="L1234">        int offsetSite = fromPC + 1;</span>
+<span class="nc bnc" id="L1235" title="All 2 branches missed.">        if (offset != (short)offset) {</span>
+<span class="nc bnc" id="L1236" title="All 2 branches missed.">            if (itsData.longJumps == null) {</span>
+<span class="nc" id="L1237">                itsData.longJumps = new UintMap();</span>
+            }
+<span class="nc" id="L1239">            itsData.longJumps.put(offsetSite, jumpPC);</span>
+<span class="nc" id="L1240">            offset = 0;</span>
+        }
+<span class="nc" id="L1242">        byte[] array = itsData.itsICode;</span>
+<span class="nc" id="L1243">        array[offsetSite] = (byte)(offset &gt;&gt; 8);</span>
+<span class="nc" id="L1244">        array[offsetSite + 1] = (byte)offset;</span>
+<span class="nc" id="L1245">    }</span>
+
+    private void addToken(int token)
+    {
+<span class="pc bpc" id="L1249" title="1 of 2 branches missed.">        if (!Icode.validTokenCode(token)) throw Kit.codeBug();</span>
+<span class="fc" id="L1250">        addUint8(token);</span>
+<span class="fc" id="L1251">    }</span>
+
+    private void addIcode(int icode)
+    {
+<span class="pc bpc" id="L1255" title="1 of 2 branches missed.">        if (!Icode.validIcode(icode)) throw Kit.codeBug();</span>
+        // Write negative icode as uint8 bits
+<span class="fc" id="L1257">        addUint8(icode &amp; 0xFF);</span>
+<span class="fc" id="L1258">    }</span>
+
+    private void addUint8(int value)
+    {
+<span class="pc bpc" id="L1262" title="1 of 2 branches missed.">        if ((value &amp; ~0xFF) != 0) throw Kit.codeBug();</span>
+<span class="fc" id="L1263">        byte[] array = itsData.itsICode;</span>
+<span class="fc" id="L1264">        int top = iCodeTop;</span>
+<span class="pc bpc" id="L1265" title="1 of 2 branches missed.">        if (top == array.length) {</span>
+<span class="nc" id="L1266">            array = increaseICodeCapacity(1);</span>
+        }
+<span class="fc" id="L1268">        array[top] = (byte)value;</span>
+<span class="fc" id="L1269">        iCodeTop = top + 1;</span>
+<span class="fc" id="L1270">    }</span>
+
+    private void addUint16(int value)
+    {
+<span class="pc bpc" id="L1274" title="1 of 2 branches missed.">        if ((value &amp; ~0xFFFF) != 0) throw Kit.codeBug();</span>
+<span class="fc" id="L1275">        byte[] array = itsData.itsICode;</span>
+<span class="fc" id="L1276">        int top = iCodeTop;</span>
+<span class="pc bpc" id="L1277" title="1 of 2 branches missed.">        if (top + 2 &gt; array.length) {</span>
+<span class="nc" id="L1278">            array = increaseICodeCapacity(2);</span>
+        }
+<span class="fc" id="L1280">        array[top] = (byte)(value &gt;&gt;&gt; 8);</span>
+<span class="fc" id="L1281">        array[top + 1] = (byte)value;</span>
+<span class="fc" id="L1282">        iCodeTop = top + 2;</span>
+<span class="fc" id="L1283">    }</span>
+
+    private void addInt(int i)
+    {
+<span class="nc" id="L1287">        byte[] array = itsData.itsICode;</span>
+<span class="nc" id="L1288">        int top = iCodeTop;</span>
+<span class="nc bnc" id="L1289" title="All 2 branches missed.">        if (top + 4 &gt; array.length) {</span>
+<span class="nc" id="L1290">            array = increaseICodeCapacity(4);</span>
+        }
+<span class="nc" id="L1292">        array[top] = (byte)(i &gt;&gt;&gt; 24);</span>
+<span class="nc" id="L1293">        array[top + 1] = (byte)(i &gt;&gt;&gt; 16);</span>
+<span class="nc" id="L1294">        array[top + 2] = (byte)(i &gt;&gt;&gt; 8);</span>
+<span class="nc" id="L1295">        array[top + 3] = (byte)i;</span>
+<span class="nc" id="L1296">        iCodeTop = top + 4;</span>
+<span class="nc" id="L1297">    }</span>
+
+    private int getDoubleIndex(double num)
+    {
+<span class="nc" id="L1301">        int index = doubleTableTop;</span>
+<span class="nc bnc" id="L1302" title="All 2 branches missed.">        if (index == 0) {</span>
+<span class="nc" id="L1303">            itsData.itsDoubleTable = new double[64];</span>
+<span class="nc bnc" id="L1304" title="All 2 branches missed.">        } else if (itsData.itsDoubleTable.length == index) {</span>
+<span class="nc" id="L1305">            double[] na = new double[index * 2];</span>
+<span class="nc" id="L1306">            System.arraycopy(itsData.itsDoubleTable, 0, na, 0, index);</span>
+<span class="nc" id="L1307">            itsData.itsDoubleTable = na;</span>
+        }
+<span class="nc" id="L1309">        itsData.itsDoubleTable[index] = num;</span>
+<span class="nc" id="L1310">        doubleTableTop = index + 1;</span>
+<span class="nc" id="L1311">        return index;</span>
+    }
+
+    private void addGotoOp(int gotoOp)
+    {
+<span class="nc" id="L1316">        byte[] array = itsData.itsICode;</span>
+<span class="nc" id="L1317">        int top = iCodeTop;</span>
+<span class="nc bnc" id="L1318" title="All 2 branches missed.">        if (top + 3 &gt; array.length) {</span>
+<span class="nc" id="L1319">            array = increaseICodeCapacity(3);</span>
+        }
+<span class="nc" id="L1321">        array[top] = (byte)gotoOp;</span>
+        // Offset would written later
+<span class="nc" id="L1323">        iCodeTop = top + 1 + 2;</span>
+<span class="nc" id="L1324">    }</span>
+
+    private void addVarOp(int op, int varIndex)
+    {
+<span class="nc bnc" id="L1328" title="All 4 branches missed.">        switch (op) {</span>
+          case Token.SETCONSTVAR:
+<span class="nc bnc" id="L1330" title="All 2 branches missed.">            if (varIndex &lt; 128) {</span>
+<span class="nc" id="L1331">                addIcode(Icode_SETCONSTVAR1);</span>
+<span class="nc" id="L1332">                addUint8(varIndex);</span>
+<span class="nc" id="L1333">                return;</span>
+            }
+<span class="nc" id="L1335">            addIndexOp(Icode_SETCONSTVAR, varIndex);</span>
+<span class="nc" id="L1336">            return;</span>
+          case Token.GETVAR:
+          case Token.SETVAR:
+<span class="nc bnc" id="L1339" title="All 2 branches missed.">            if (varIndex &lt; 128) {</span>
+<span class="nc bnc" id="L1340" title="All 2 branches missed.">                addIcode(op == Token.GETVAR ? Icode_GETVAR1 : Icode_SETVAR1);</span>
+<span class="nc" id="L1341">                addUint8(varIndex);</span>
+<span class="nc" id="L1342">                return;</span>
+            }
+            // fallthrough
+          case Icode_VAR_INC_DEC:
+<span class="nc" id="L1346">            addIndexOp(op, varIndex);</span>
+<span class="nc" id="L1347">            return;</span>
+        }
+<span class="nc" id="L1349">        throw Kit.codeBug();</span>
+    }
+
+    private void addStringOp(int op, String str)
+    {
+<span class="fc" id="L1354">        addStringPrefix(str);</span>
+<span class="pc bpc" id="L1355" title="1 of 2 branches missed.">        if (Icode.validIcode(op)) {</span>
+<span class="nc" id="L1356">            addIcode(op);</span>
+        } else {
+<span class="fc" id="L1358">            addToken(op);</span>
+        }
+<span class="fc" id="L1360">    }</span>
+
+    private void addIndexOp(int op, int index)
+    {
+<span class="nc" id="L1364">        addIndexPrefix(index);</span>
+<span class="nc bnc" id="L1365" title="All 2 branches missed.">        if (Icode.validIcode(op)) {</span>
+<span class="nc" id="L1366">            addIcode(op);</span>
+        } else {
+<span class="nc" id="L1368">            addToken(op);</span>
+        }
+<span class="nc" id="L1370">    }</span>
+
+    private void addStringPrefix(String str)
+    {
+<span class="fc" id="L1374">        int index = strings.get(str, -1);</span>
+<span class="pc bpc" id="L1375" title="1 of 2 branches missed.">        if (index == -1) {</span>
+<span class="fc" id="L1376">            index = strings.size();</span>
+<span class="fc" id="L1377">            strings.put(str, index);</span>
+        }
+<span class="pc bpc" id="L1379" title="1 of 2 branches missed.">        if (index &lt; 4) {</span>
+<span class="fc" id="L1380">            addIcode(Icode_REG_STR_C0 - index);</span>
+<span class="nc bnc" id="L1381" title="All 2 branches missed.">        } else if (index &lt;= 0xFF) {</span>
+<span class="nc" id="L1382">            addIcode(Icode_REG_STR1);</span>
+<span class="nc" id="L1383">            addUint8(index);</span>
+<span class="nc bnc" id="L1384" title="All 2 branches missed.">         } else if (index &lt;= 0xFFFF) {</span>
+<span class="nc" id="L1385">            addIcode(Icode_REG_STR2);</span>
+<span class="nc" id="L1386">            addUint16(index);</span>
+         } else {
+<span class="nc" id="L1388">            addIcode(Icode_REG_STR4);</span>
+<span class="nc" id="L1389">            addInt(index);</span>
+        }
+<span class="fc" id="L1391">    }</span>
+
+    private void addIndexPrefix(int index)
+    {
+<span class="nc bnc" id="L1395" title="All 2 branches missed.">        if (index &lt; 0) Kit.codeBug();</span>
+<span class="nc bnc" id="L1396" title="All 2 branches missed.">        if (index &lt; 6) {</span>
+<span class="nc" id="L1397">            addIcode(Icode_REG_IND_C0 - index);</span>
+<span class="nc bnc" id="L1398" title="All 2 branches missed.">        } else if (index &lt;= 0xFF) {</span>
+<span class="nc" id="L1399">            addIcode(Icode_REG_IND1);</span>
+<span class="nc" id="L1400">            addUint8(index);</span>
+<span class="nc bnc" id="L1401" title="All 2 branches missed.">         } else if (index &lt;= 0xFFFF) {</span>
+<span class="nc" id="L1402">            addIcode(Icode_REG_IND2);</span>
+<span class="nc" id="L1403">            addUint16(index);</span>
+         } else {
+<span class="nc" id="L1405">            addIcode(Icode_REG_IND4);</span>
+<span class="nc" id="L1406">            addInt(index);</span>
+        }
+<span class="nc" id="L1408">    }</span>
+
+    private void addExceptionHandler(int icodeStart, int icodeEnd,
+                                     int handlerStart, boolean isFinally,
+                                     int exceptionObjectLocal, int scopeLocal)
+    {
+<span class="nc" id="L1414">        int top = exceptionTableTop;</span>
+<span class="nc" id="L1415">        int[] table = itsData.itsExceptionTable;</span>
+<span class="nc bnc" id="L1416" title="All 2 branches missed.">        if (table == null) {</span>
+<span class="nc bnc" id="L1417" title="All 2 branches missed.">            if (top != 0) Kit.codeBug();</span>
+<span class="nc" id="L1418">            table = new int[Interpreter.EXCEPTION_SLOT_SIZE * 2];</span>
+<span class="nc" id="L1419">            itsData.itsExceptionTable = table;</span>
+<span class="nc bnc" id="L1420" title="All 2 branches missed.">        } else if (table.length == top) {</span>
+<span class="nc" id="L1421">            table = new int[table.length * 2];</span>
+<span class="nc" id="L1422">            System.arraycopy(itsData.itsExceptionTable, 0, table, 0, top);</span>
+<span class="nc" id="L1423">            itsData.itsExceptionTable = table;</span>
+        }
+<span class="nc" id="L1425">        table[top + Interpreter.EXCEPTION_TRY_START_SLOT]  = icodeStart;</span>
+<span class="nc" id="L1426">        table[top + Interpreter.EXCEPTION_TRY_END_SLOT]    = icodeEnd;</span>
+<span class="nc" id="L1427">        table[top + Interpreter.EXCEPTION_HANDLER_SLOT]    = handlerStart;</span>
+<span class="nc bnc" id="L1428" title="All 2 branches missed.">        table[top + Interpreter.EXCEPTION_TYPE_SLOT]     = isFinally ? 1 : 0;</span>
+<span class="nc" id="L1429">        table[top + Interpreter.EXCEPTION_LOCAL_SLOT]    = exceptionObjectLocal;</span>
+<span class="nc" id="L1430">        table[top + Interpreter.EXCEPTION_SCOPE_SLOT]    = scopeLocal;</span>
+
+<span class="nc" id="L1432">        exceptionTableTop = top + Interpreter.EXCEPTION_SLOT_SIZE;</span>
+<span class="nc" id="L1433">    }</span>
+
+    private byte[] increaseICodeCapacity(int extraSize)
+    {
+<span class="nc" id="L1437">        int capacity = itsData.itsICode.length;</span>
+<span class="nc" id="L1438">        int top = iCodeTop;</span>
+<span class="nc bnc" id="L1439" title="All 2 branches missed.">        if (top + extraSize &lt;= capacity) throw Kit.codeBug();</span>
+<span class="nc" id="L1440">        capacity *= 2;</span>
+<span class="nc bnc" id="L1441" title="All 2 branches missed.">        if (top + extraSize &gt; capacity) {</span>
+<span class="nc" id="L1442">            capacity = top + extraSize;</span>
+        }
+<span class="nc" id="L1444">        byte[] array = new byte[capacity];</span>
+<span class="nc" id="L1445">        System.arraycopy(itsData.itsICode, 0, array, 0, top);</span>
+<span class="nc" id="L1446">        itsData.itsICode = array;</span>
+<span class="nc" id="L1447">        return array;</span>
+    }
+
+    private void stackChange(int change)
+    {
+<span class="fc bfc" id="L1452" title="All 2 branches covered.">        if (change &lt;= 0) {</span>
+<span class="fc" id="L1453">            stackDepth += change;</span>
+        } else {
+<span class="fc" id="L1455">            int newDepth = stackDepth + change;</span>
+<span class="pc bpc" id="L1456" title="1 of 2 branches missed.">            if (newDepth &gt; itsData.itsMaxStack) {</span>
+<span class="fc" id="L1457">                itsData.itsMaxStack = newDepth;</span>
+            }
+<span class="fc" id="L1459">            stackDepth = newDepth;</span>
+        }
+<span class="fc" id="L1461">    }</span>
+
+    private int allocLocal()
+    {
+<span class="nc" id="L1465">        int localSlot = localTop;</span>
+<span class="nc" id="L1466">        ++localTop;</span>
+<span class="nc bnc" id="L1467" title="All 2 branches missed.">        if (localTop &gt; itsData.itsMaxLocals) {</span>
+<span class="nc" id="L1468">            itsData.itsMaxLocals = localTop;</span>
+        }
+<span class="nc" id="L1470">        return localSlot;</span>
+    }
+
+    private void releaseLocal(int localSlot)
+    {
+<span class="nc" id="L1475">        --localTop;</span>
+<span class="nc bnc" id="L1476" title="All 2 branches missed.">        if (localSlot != localTop) Kit.codeBug();</span>
+<span class="nc" id="L1477">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

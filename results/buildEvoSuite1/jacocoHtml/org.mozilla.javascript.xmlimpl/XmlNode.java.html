@@ -1,0 +1,884 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XmlNode.java</span></div><h1>XmlNode.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.mozilla.javascript.Undefined;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.ProcessingInstruction;
+import org.w3c.dom.UserDataHandler;
+
+class XmlNode implements Serializable {
+    private static final String XML_NAMESPACES_NAMESPACE_URI = &quot;http://www.w3.org/2000/xmlns/&quot;;
+
+<span class="fc" id="L26">    private static final String USER_DATA_XMLNODE_KEY = XmlNode.class.getName();</span>
+
+    private static final boolean DOM_LEVEL_3 = true;
+
+    private static XmlNode getUserData(Node node) {
+        if (DOM_LEVEL_3) {
+<span class="fc" id="L32">            return (XmlNode)node.getUserData(USER_DATA_XMLNODE_KEY);</span>
+        }
+        return null;
+    }
+
+    private static void setUserData(Node node, XmlNode wrap) {
+        if (DOM_LEVEL_3) {
+<span class="fc" id="L39">            node.setUserData(USER_DATA_XMLNODE_KEY, wrap, wrap.events);</span>
+        }
+<span class="fc" id="L41">    }</span>
+
+    private static XmlNode createImpl(Node node) {
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">        if (node instanceof Document) throw new IllegalArgumentException();</span>
+<span class="fc" id="L45">        XmlNode rv = null;</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (getUserData(node) == null) {</span>
+<span class="fc" id="L47">            rv = new XmlNode();</span>
+<span class="fc" id="L48">            rv.dom = node;</span>
+<span class="fc" id="L49">            setUserData(node, rv);</span>
+        } else {
+<span class="nc" id="L51">            rv = getUserData(node);</span>
+        }
+<span class="fc" id="L53">        return rv;</span>
+    }
+
+    static XmlNode newElementWithText(XmlProcessor processor, XmlNode reference, XmlNode.QName qname, String value) {
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (reference instanceof org.w3c.dom.Document) throw new IllegalArgumentException(&quot;Cannot use Document node as reference&quot;);</span>
+<span class="fc" id="L58">        Document document = null;</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (reference != null) {</span>
+<span class="fc" id="L60">            document = reference.dom.getOwnerDocument();</span>
+        } else {
+<span class="fc" id="L62">            document = processor.newDocument();</span>
+        }
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        Node referenceDom = (reference != null) ? reference.dom : null;</span>
+<span class="fc" id="L65">        Namespace ns = qname.getNamespace();</span>
+<span class="pc bpc" id="L66" title="1 of 4 branches missed.">        Element e = (ns == null || ns.getUri().length() == 0)</span>
+<span class="fc" id="L67">            ? document.createElementNS(null, qname.getLocalName())</span>
+<span class="fc" id="L68">            : document.createElementNS(ns.getUri(),</span>
+<span class="fc" id="L69">                                       qname.qualify(referenceDom));</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (value != null) {</span>
+<span class="fc" id="L71">            e.appendChild(document.createTextNode(value));</span>
+        }
+<span class="fc" id="L73">        return XmlNode.createImpl(e);</span>
+    }
+
+    static XmlNode createText(XmlProcessor processor, String value) {
+<span class="fc" id="L77">        return createImpl( processor.newDocument().createTextNode(value) );</span>
+    }
+
+    static XmlNode createElementFromNode(Node node) {
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (node instanceof Document)</span>
+<span class="fc" id="L82">            node = ((Document) node).getDocumentElement();</span>
+<span class="fc" id="L83">        return createImpl(node);</span>
+    }
+
+    static XmlNode createElement(XmlProcessor processor, String namespaceUri, String xml) throws org.xml.sax.SAXException {
+<span class="fc" id="L87">        return createImpl( processor.toXml(namespaceUri, xml) );</span>
+    }
+
+    static XmlNode createEmpty(XmlProcessor processor) {
+<span class="fc" id="L91">        return createText(processor, &quot;&quot;);</span>
+    }
+
+    private static XmlNode copy(XmlNode other) {
+<span class="fc" id="L95">        return createImpl( other.dom.cloneNode(true) );</span>
+    }
+
+    private static final long serialVersionUID = 1L;
+
+<span class="fc" id="L100">    private UserDataHandler events = new XmlNodeUserDataHandler();</span>
+
+    private Node dom;
+
+    private XML xml;
+
+<span class="fc" id="L106">    private XmlNode() {</span>
+<span class="fc" id="L107">    }</span>
+
+    String debug() {
+<span class="fc" id="L110">        XmlProcessor raw = new XmlProcessor();</span>
+<span class="fc" id="L111">        raw.setIgnoreComments(false);</span>
+<span class="fc" id="L112">        raw.setIgnoreProcessingInstructions(false);</span>
+<span class="fc" id="L113">        raw.setIgnoreWhitespace(false);</span>
+<span class="fc" id="L114">        raw.setPrettyPrinting(false);</span>
+<span class="fc" id="L115">        return raw.ecmaToXmlString(this.dom);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L120">        return &quot;XmlNode: type=&quot; + dom.getNodeType() + &quot; dom=&quot; + dom.toString();</span>
+    }
+
+    XML getXml() {
+<span class="fc" id="L124">        return xml;</span>
+    }
+
+    void setXml(XML xml) {
+<span class="fc" id="L128">        this.xml = xml;</span>
+<span class="fc" id="L129">    }</span>
+
+    int getChildCount() {
+<span class="fc" id="L132">        return this.dom.getChildNodes().getLength();</span>
+    }
+
+    XmlNode parent() {
+<span class="fc" id="L136">        Node domParent = dom.getParentNode();</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">        if (domParent instanceof Document) return null;</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        if (domParent == null) return null;</span>
+<span class="nc" id="L139">        return createImpl(domParent);</span>
+    }
+
+    int getChildIndex() {
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (this.isAttributeType()) return -1;</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (parent() == null) return -1;</span>
+<span class="nc" id="L145">        org.w3c.dom.NodeList siblings = this.dom.getParentNode().getChildNodes();</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        for (int i=0; i&lt;siblings.getLength(); i++) {</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (siblings.item(i) == dom) {</span>
+<span class="nc" id="L148">                return i;</span>
+            }
+        }
+        //    Either the parent is -1 or one of the this node's parent's children is this node.
+<span class="nc" id="L152">        throw new RuntimeException(&quot;Unreachable.&quot;);</span>
+    }
+
+    void removeChild(int index) {
+<span class="fc" id="L156">        this.dom.removeChild( this.dom.getChildNodes().item(index) );</span>
+<span class="fc" id="L157">    }</span>
+
+    String toXmlString(XmlProcessor processor) {
+<span class="fc" id="L160">        return processor.ecmaToXmlString(this.dom);</span>
+    }
+
+    String ecmaValue() {
+        //    TODO    See ECMA 357 Section 9.1
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        if (isTextType()) {</span>
+<span class="fc" id="L166">            return ((org.w3c.dom.Text)dom).getData();</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">        } else if (isAttributeType()) {</span>
+<span class="nc" id="L168">            return ((org.w3c.dom.Attr)dom).getValue();</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        } else if (isProcessingInstructionType()) {</span>
+<span class="nc" id="L170">            return ((org.w3c.dom.ProcessingInstruction)dom).getData();</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        } else if (isCommentType()) {</span>
+<span class="nc" id="L172">            return ((org.w3c.dom.Comment)dom).getNodeValue();</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        } else if (isElementType()) {</span>
+<span class="fc" id="L174">            throw new RuntimeException(&quot;Unimplemented ecmaValue() for elements.&quot;);</span>
+        } else {
+<span class="nc" id="L176">            throw new RuntimeException(&quot;Unimplemented for node &quot; + dom);</span>
+        }
+    }
+
+    void deleteMe() {
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">        if (dom instanceof Attr) {</span>
+<span class="nc" id="L182">            Attr attr = (Attr)this.dom;</span>
+<span class="nc" id="L183">            attr.getOwnerElement().getAttributes().removeNamedItemNS(attr.getNamespaceURI(), attr.getLocalName());</span>
+<span class="nc" id="L184">        } else {</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            if (this.dom.getParentNode() != null) {</span>
+<span class="nc" id="L186">                this.dom.getParentNode().removeChild(this.dom);</span>
+            } else {
+                //    This case can be exercised at least when executing the regression
+                //    tests under https://bugzilla.mozilla.org/show_bug.cgi?id=354145
+            }
+        }
+<span class="fc" id="L192">    }</span>
+
+    void normalize() {
+<span class="fc" id="L195">        this.dom.normalize();</span>
+<span class="fc" id="L196">    }</span>
+
+    void insertChildAt(int index, XmlNode node) {
+<span class="fc" id="L199">        Node parent = this.dom;</span>
+<span class="fc" id="L200">        Node child = parent.getOwnerDocument().importNode( node.dom, true );</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        if (parent.getChildNodes().getLength() &lt; index) {</span>
+            //    TODO    Check ECMA for what happens here
+<span class="fc" id="L203">            throw new IllegalArgumentException(&quot;index=&quot; + index + &quot; length=&quot; + parent.getChildNodes().getLength());</span>
+        }
+<span class="fc bfc" id="L205" title="All 2 branches covered.">        if (parent.getChildNodes().getLength() == index) {</span>
+<span class="fc" id="L206">            parent.appendChild(child);</span>
+        } else {
+<span class="fc" id="L208">            parent.insertBefore(child, parent.getChildNodes().item(index));</span>
+        }
+<span class="fc" id="L210">    }</span>
+
+    void insertChildrenAt(int index, XmlNode[] nodes) {
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        for (int i=0; i&lt;nodes.length; i++) {</span>
+<span class="fc" id="L214">            insertChildAt(index+i, nodes[i]);</span>
+        }
+<span class="fc" id="L216">    }</span>
+
+    XmlNode getChild(int index) {
+<span class="fc" id="L219">        Node child = dom.getChildNodes().item(index);</span>
+<span class="fc" id="L220">        return createImpl(child);</span>
+    }
+
+    //    Helper method for XML.hasSimpleContent()
+    boolean hasChildElement() {
+<span class="fc" id="L225">        org.w3c.dom.NodeList nodes = this.dom.getChildNodes();</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        for (int i=0; i&lt;nodes.getLength(); i++) {</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">            if (nodes.item(i).getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) return true;</span>
+        }
+<span class="fc" id="L229">        return false;</span>
+    }
+
+    boolean isSameNode(XmlNode other) {
+        //    TODO    May need to be changed if we allow XmlNode to refer to several Node objects
+<span class="fc bfc" id="L234" title="All 2 branches covered.">        return this.dom == other.dom;</span>
+    }
+
+    private String toUri(String ns) {
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        return (ns == null) ? &quot;&quot; : ns;</span>
+    }
+
+    private void addNamespaces(Namespaces rv, Element element) {
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        if (element == null) throw new RuntimeException(&quot;element must not be null&quot;);</span>
+<span class="fc" id="L243">        String myDefaultNamespace = toUri(element.lookupNamespaceURI(null));</span>
+<span class="fc" id="L244">        String parentDefaultNamespace = &quot;&quot;;</span>
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if (element.getParentNode() != null) {</span>
+<span class="nc" id="L246">            parentDefaultNamespace = toUri(element.getParentNode().lookupNamespaceURI(null));</span>
+        }
+<span class="pc bpc" id="L248" title="1 of 4 branches missed.">        if (!myDefaultNamespace.equals(parentDefaultNamespace) || !(element.getParentNode() instanceof Element) ) {</span>
+<span class="fc" id="L249">            rv.declare(Namespace.create(&quot;&quot;, myDefaultNamespace));</span>
+        }
+<span class="fc" id="L251">        NamedNodeMap attributes = element.getAttributes();</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">        for (int i=0; i&lt;attributes.getLength(); i++) {</span>
+<span class="fc" id="L253">            Attr attr = (Attr)attributes.item(i);</span>
+<span class="pc bpc" id="L254" title="2 of 4 branches missed.">            if (attr.getPrefix() != null &amp;&amp; attr.getPrefix().equals(&quot;xmlns&quot;)) {</span>
+<span class="fc" id="L255">                rv.declare(Namespace.create(attr.getLocalName(), attr.getValue()));</span>
+            }
+        }
+<span class="fc" id="L258">    }</span>
+
+    private Namespaces getAllNamespaces() {
+<span class="fc" id="L261">        Namespaces rv = new Namespaces();</span>
+
+<span class="fc" id="L263">        Node target = this.dom;</span>
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">        if (target instanceof Attr) {</span>
+<span class="nc" id="L265">            target = ((Attr)target).getOwnerElement();</span>
+        }
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        while(target != null) {</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">            if (target instanceof Element) {</span>
+<span class="fc" id="L269">                addNamespaces(rv, (Element)target);</span>
+            }
+<span class="fc" id="L271">            target = target.getParentNode();</span>
+        }
+        //    Fallback in case no namespace was declared
+<span class="fc" id="L274">        rv.declare(Namespace.create(&quot;&quot;, &quot;&quot;));</span>
+<span class="fc" id="L275">        return rv;</span>
+    }
+
+    Namespace[] getInScopeNamespaces() {
+<span class="fc" id="L279">        Namespaces rv = getAllNamespaces();</span>
+<span class="fc" id="L280">        return rv.getNamespaces();</span>
+    }
+
+    Namespace[] getNamespaceDeclarations() {
+        //    ECMA357 13.4.4.24
+<span class="fc bfc" id="L285" title="All 2 branches covered.">        if (this.dom instanceof Element) {</span>
+<span class="fc" id="L286">            Namespaces rv = new Namespaces();</span>
+<span class="fc" id="L287">            addNamespaces( rv, (Element)this.dom );</span>
+<span class="fc" id="L288">            return rv.getNamespaces();</span>
+        } else {
+<span class="fc" id="L290">            return new Namespace[0];</span>
+        }
+    }
+
+    Namespace getNamespaceDeclaration(String prefix) {
+<span class="pc bpc" id="L295" title="1 of 4 branches missed.">        if (prefix.equals(&quot;&quot;) &amp;&amp; dom instanceof Attr) {</span>
+            //    Default namespaces do not apply to attributes; see XML Namespaces section 5.2
+<span class="nc" id="L297">            return Namespace.create(&quot;&quot;, &quot;&quot;);</span>
+        }
+<span class="fc" id="L299">        Namespaces rv = getAllNamespaces();</span>
+<span class="fc" id="L300">        return rv.getNamespace(prefix);</span>
+    }
+
+    Namespace getNamespaceDeclaration() {
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">        if (dom.getPrefix() == null) return getNamespaceDeclaration(&quot;&quot;);</span>
+<span class="nc" id="L305">        return getNamespaceDeclaration(dom.getPrefix());</span>
+    }
+
+<span class="fc" id="L308">    static class XmlNodeUserDataHandler implements UserDataHandler, Serializable {</span>
+        private static final long serialVersionUID = 4666895518900769588L;
+
+        public void handle(short operation, String key, Object data, Node src, Node dest) {
+<span class="fc" id="L312">        }</span>
+    }
+
+    private static class Namespaces {
+<span class="fc" id="L316">        private Map&lt;String,String&gt; map = new HashMap&lt;String,String&gt;();</span>
+<span class="fc" id="L317">        private Map&lt;String,String&gt; uriToPrefix = new HashMap&lt;String,String&gt;();</span>
+
+<span class="fc" id="L319">        Namespaces() {</span>
+<span class="fc" id="L320">        }</span>
+
+        void declare(Namespace n) {
+<span class="fc bfc" id="L323" title="All 2 branches covered.">            if (map.get(n.prefix) == null) {</span>
+<span class="fc" id="L324">                map.put(n.prefix, n.uri);</span>
+            }
+            //    TODO    I think this is analogous to the other way, but have not really thought it through ... should local scope
+            //            matter more than outer scope?
+<span class="fc bfc" id="L328" title="All 2 branches covered.">            if (uriToPrefix.get(n.uri) == null) {</span>
+<span class="fc" id="L329">                uriToPrefix.put(n.uri, n.prefix);</span>
+            }
+<span class="fc" id="L331">        }</span>
+
+        Namespace getNamespaceByUri(String uri) {
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            if (uriToPrefix.get(uri) == null) return null;</span>
+<span class="nc" id="L335">            return Namespace.create(uri, uriToPrefix.get(uri));</span>
+        }
+
+        Namespace getNamespace(String prefix) {
+<span class="fc bfc" id="L339" title="All 2 branches covered.">            if (map.get(prefix) == null) return null;</span>
+<span class="fc" id="L340">            return Namespace.create(prefix, map.get(prefix));</span>
+        }
+
+        Namespace[] getNamespaces() {
+<span class="fc" id="L344">            ArrayList&lt;Namespace&gt; rv = new ArrayList&lt;Namespace&gt;();</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">            for (String prefix: map.keySet()) {</span>
+<span class="fc" id="L346">                String uri = map.get(prefix);</span>
+<span class="fc" id="L347">                Namespace n = Namespace.create(prefix, uri);</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">                if (!n.isEmpty()) {</span>
+<span class="fc" id="L349">                    rv.add(n);</span>
+                }
+<span class="fc" id="L351">            }</span>
+<span class="fc" id="L352">            return rv.toArray(new Namespace[rv.size()]);</span>
+        }
+    }
+
+    final XmlNode copy() {
+<span class="fc" id="L357">        return copy( this );</span>
+    }
+
+    //    Returns whether this node is capable of being a parent
+    final boolean isParentType() {
+<span class="fc" id="L362">        return isElementType();</span>
+    }
+
+    final boolean isTextType() {
+<span class="pc bpc" id="L366" title="1 of 4 branches missed.">        return dom.getNodeType() == Node.TEXT_NODE || dom.getNodeType() == Node.CDATA_SECTION_NODE;</span>
+    }
+
+    final boolean isAttributeType() {
+<span class="pc bpc" id="L370" title="1 of 2 branches missed.">        return dom.getNodeType() == Node.ATTRIBUTE_NODE;</span>
+    }
+
+    final boolean isProcessingInstructionType() {
+<span class="pc bpc" id="L374" title="1 of 2 branches missed.">        return dom.getNodeType() == Node.PROCESSING_INSTRUCTION_NODE;</span>
+    }
+
+    final boolean isCommentType() {
+<span class="pc bpc" id="L378" title="1 of 2 branches missed.">        return dom.getNodeType() == Node.COMMENT_NODE;</span>
+    }
+
+    final boolean isElementType() {
+<span class="fc bfc" id="L382" title="All 2 branches covered.">        return dom.getNodeType() == Node.ELEMENT_NODE;</span>
+    }
+
+    final void renameNode(QName qname) {
+<span class="fc" id="L386">        this.dom = dom.getOwnerDocument().renameNode(dom, qname.getNamespace().getUri(), qname.qualify(dom));</span>
+<span class="fc" id="L387">    }</span>
+
+    void invalidateNamespacePrefix() {
+<span class="pc bpc" id="L390" title="1 of 2 branches missed.">        if (!(dom instanceof Element)) throw new IllegalStateException();</span>
+<span class="fc" id="L391">        String prefix = this.dom.getPrefix();</span>
+<span class="nc" id="L392">        QName after = QName.create(this.dom.getNamespaceURI(), this.dom.getLocalName(), null);</span>
+<span class="nc" id="L393">        renameNode(after);</span>
+<span class="nc" id="L394">        NamedNodeMap attrs = this.dom.getAttributes();</span>
+<span class="nc bnc" id="L395" title="All 2 branches missed.">        for (int i=0; i&lt;attrs.getLength(); i++) {</span>
+<span class="nc bnc" id="L396" title="All 2 branches missed.">            if (attrs.item(i).getPrefix().equals(prefix)) {</span>
+<span class="nc" id="L397">                createImpl( attrs.item(i) ).renameNode( QName.create(attrs.item(i).getNamespaceURI(), attrs.item(i).getLocalName(), null) );</span>
+            }
+        }
+<span class="nc" id="L400">    }</span>
+
+    private void declareNamespace(Element e, String prefix, String uri) {
+<span class="fc bfc" id="L403" title="All 2 branches covered.">        if (prefix.length() &gt; 0) {</span>
+<span class="fc" id="L404">            e.setAttributeNS(XML_NAMESPACES_NAMESPACE_URI, &quot;xmlns:&quot; + prefix, uri);</span>
+        } else {
+<span class="fc" id="L406">            e.setAttribute(&quot;xmlns&quot;, uri);</span>
+        }
+<span class="fc" id="L408">    }</span>
+
+    void declareNamespace(String prefix, String uri) {
+<span class="pc bpc" id="L411" title="1 of 2 branches missed.">        if (!(dom instanceof Element)) throw new IllegalStateException();</span>
+<span class="pc bpc" id="L412" title="3 of 4 branches missed.">        if (dom.lookupNamespaceURI(uri) != null &amp;&amp; dom.lookupNamespaceURI(uri).equals(prefix)) {</span>
+            //    do nothing
+        } else {
+<span class="fc" id="L415">            Element e = (Element)dom;</span>
+<span class="fc" id="L416">            declareNamespace(e, prefix, uri);</span>
+        }
+<span class="fc" id="L418">    }</span>
+
+    private Namespace getDefaultNamespace() {
+<span class="fc" id="L421">        String prefix = &quot;&quot;;</span>
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">        String uri = (dom.lookupNamespaceURI(null) == null) ? &quot;&quot; : dom.lookupNamespaceURI(null);</span>
+<span class="fc" id="L423">        return Namespace.create(prefix, uri);</span>
+    }
+
+    private String getExistingPrefixFor(Namespace namespace) {
+<span class="pc bpc" id="L427" title="1 of 2 branches missed.">        if (getDefaultNamespace().getUri().equals(namespace.getUri())) {</span>
+<span class="nc" id="L428">            return &quot;&quot;;</span>
+        }
+<span class="fc" id="L430">        return dom.lookupPrefix(namespace.getUri());</span>
+    }
+
+    private Namespace getNodeNamespace() {
+<span class="fc" id="L434">        String uri = dom.getNamespaceURI();</span>
+<span class="fc" id="L435">        String prefix = dom.getPrefix();</span>
+<span class="fc bfc" id="L436" title="All 2 branches covered.">        if (uri == null) uri = &quot;&quot;;</span>
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">        if (prefix == null) prefix = &quot;&quot;;</span>
+<span class="fc" id="L438">        return Namespace.create(prefix, uri);</span>
+    }
+
+    Namespace getNamespace() {
+<span class="fc" id="L442">        return getNodeNamespace();</span>
+    }
+
+    void removeNamespace(Namespace namespace) {
+<span class="fc" id="L446">        Namespace current = getNodeNamespace();</span>
+
+        //    Do not remove in-use namespace
+<span class="fc bfc" id="L449" title="All 2 branches covered.">        if (namespace.is(current)) return;</span>
+<span class="fc" id="L450">        NamedNodeMap attrs = this.dom.getAttributes();</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">        for (int i=0; i&lt;attrs.getLength(); i++) {</span>
+<span class="fc" id="L452">            XmlNode attr = XmlNode.createImpl(attrs.item(i));</span>
+<span class="pc bpc" id="L453" title="1 of 2 branches missed.">            if (namespace.is(attr.getNodeNamespace())) return;</span>
+        }
+
+        //    TODO    I must confess I am not sure I understand the spec fully.  See ECMA357 13.4.4.31
+<span class="fc" id="L457">        String existingPrefix = getExistingPrefixFor(namespace);</span>
+<span class="pc bpc" id="L458" title="1 of 2 branches missed.">        if (existingPrefix != null) {</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (namespace.isUnspecifiedPrefix()) {</span>
+                //    we should remove any namespace with this URI from scope; we do this by declaring a namespace with the same
+                //    prefix as the existing prefix and setting its URI to the default namespace
+<span class="nc" id="L462">                declareNamespace(existingPrefix, getDefaultNamespace().getUri());</span>
+            } else {
+<span class="nc bnc" id="L464" title="All 2 branches missed.">                if (existingPrefix.equals(namespace.getPrefix())) {</span>
+<span class="nc" id="L465">                    declareNamespace(existingPrefix, getDefaultNamespace().getUri());</span>
+                }
+            }
+        } else {
+            //    the argument namespace is not declared in this scope, so do nothing.
+        }
+<span class="fc" id="L471">    }</span>
+
+    private void setProcessingInstructionName(String localName) {
+<span class="nc" id="L474">        org.w3c.dom.ProcessingInstruction pi = (ProcessingInstruction)this.dom;</span>
+        //    We cannot set the node name; Document.renameNode() only supports elements and attributes.  So we replace it
+<span class="nc" id="L476">        pi.getParentNode().replaceChild(</span>
+            pi,
+<span class="nc" id="L478">            pi.getOwnerDocument().createProcessingInstruction(localName, pi.getData())</span>
+        );
+<span class="nc" id="L480">    }</span>
+
+    final void setLocalName(String localName) {
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">        if (dom instanceof ProcessingInstruction) {</span>
+<span class="nc" id="L484">            setProcessingInstructionName(localName);</span>
+        } else {
+<span class="fc" id="L486">            String prefix = dom.getPrefix();</span>
+<span class="pc bpc" id="L487" title="1 of 2 branches missed.">            if (prefix == null) prefix = &quot;&quot;;</span>
+<span class="fc" id="L488">            this.dom = dom.getOwnerDocument().renameNode(dom, dom.getNamespaceURI(), QName.qualify(prefix, localName));</span>
+        }
+<span class="fc" id="L490">    }</span>
+
+    final QName getQname() {
+<span class="fc bfc" id="L493" title="All 2 branches covered.">        String uri = (dom.getNamespaceURI()) == null ? &quot;&quot; : dom.getNamespaceURI();</span>
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">        String prefix = (dom.getPrefix() == null) ? &quot;&quot; : dom.getPrefix();</span>
+<span class="fc" id="L495">        return QName.create( uri, dom.getLocalName(), prefix );</span>
+    }
+
+    void addMatchingChildren(XMLList result, XmlNode.Filter filter) {
+<span class="nc" id="L499">        Node node = this.dom;</span>
+<span class="nc" id="L500">        NodeList children = node.getChildNodes();</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">        for(int i=0; i&lt;children.getLength(); i++) {</span>
+<span class="nc" id="L502">            Node childnode = children.item(i);</span>
+<span class="nc" id="L503">            XmlNode child = XmlNode.createImpl(childnode);</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">            if (filter.accept(childnode)) {</span>
+<span class="nc" id="L505">                result.addToList(child);</span>
+            }
+        }
+<span class="nc" id="L508">    }</span>
+
+    XmlNode[] getMatchingChildren(Filter filter) {
+<span class="fc" id="L511">        ArrayList&lt;XmlNode&gt; rv = new ArrayList&lt;XmlNode&gt;();</span>
+<span class="fc" id="L512">        NodeList nodes = this.dom.getChildNodes();</span>
+<span class="fc bfc" id="L513" title="All 2 branches covered.">        for (int i=0; i&lt;nodes.getLength(); i++) {</span>
+<span class="fc" id="L514">            Node node = nodes.item(i);</span>
+<span class="pc bpc" id="L515" title="1 of 2 branches missed.">            if (filter.accept(node)) {</span>
+<span class="nc" id="L516">                rv.add(createImpl(node));</span>
+            }
+        }
+<span class="fc" id="L519">        return rv.toArray(new XmlNode[rv.size()]);</span>
+    }
+
+    XmlNode[] getAttributes() {
+<span class="fc" id="L523">        NamedNodeMap attrs = this.dom.getAttributes();</span>
+        //    TODO    Or could make callers handle null?
+<span class="pc bpc" id="L525" title="1 of 2 branches missed.">        if (attrs == null) throw new IllegalStateException(&quot;Must be element.&quot;);</span>
+<span class="fc" id="L526">        XmlNode[] rv = new XmlNode[attrs.getLength()];</span>
+<span class="fc bfc" id="L527" title="All 2 branches covered.">        for (int i=0; i&lt;attrs.getLength(); i++) {</span>
+<span class="fc" id="L528">            rv[i] = createImpl( attrs.item(i) );</span>
+        }
+<span class="fc" id="L530">        return rv;</span>
+    }
+
+    String getAttributeValue() {
+<span class="nc" id="L534">        return ((Attr)dom).getValue();</span>
+    }
+
+    void setAttribute(QName name, String value) {
+<span class="pc bpc" id="L538" title="1 of 2 branches missed.">        if (!(dom instanceof Element)) throw new IllegalStateException(&quot;Can only set attribute on elements.&quot;);</span>
+<span class="fc" id="L539">        name.setAttribute( (Element)dom, value );</span>
+<span class="fc" id="L540">    }</span>
+
+    void replaceWith(XmlNode other) {
+<span class="fc" id="L543">        Node replacement = other.dom;</span>
+<span class="pc bpc" id="L544" title="1 of 2 branches missed.">        if (replacement.getOwnerDocument() != this.dom.getOwnerDocument()) {</span>
+<span class="fc" id="L545">            replacement = this.dom.getOwnerDocument().importNode(replacement, true);</span>
+        }
+<span class="nc" id="L547">        this.dom.getParentNode().replaceChild(replacement, this.dom);</span>
+<span class="nc" id="L548">    }</span>
+
+    String ecmaToXMLString(XmlProcessor processor) {
+<span class="fc bfc" id="L551" title="All 2 branches covered.">        if (this.isElementType()) {</span>
+<span class="fc" id="L552">            Element copy = (Element)this.dom.cloneNode(true);</span>
+<span class="fc" id="L553">            Namespace[] inScope = this.getInScopeNamespaces();</span>
+<span class="fc bfc" id="L554" title="All 2 branches covered.">            for (int i=0; i&lt;inScope.length; i++) {</span>
+<span class="fc" id="L555">                declareNamespace(copy, inScope[i].getPrefix(), inScope[i].getUri());</span>
+            }
+<span class="fc" id="L557">            return processor.ecmaToXmlString(copy);</span>
+        } else {
+<span class="fc" id="L559">            return processor.ecmaToXmlString(dom);</span>
+        }
+    }
+
+    static class Namespace implements Serializable {
+
+        /**
+         * Serial version id for Namespace with fields prefix and uri
+         */
+        private static final long serialVersionUID = 4073904386884677090L;
+
+        static Namespace create(String prefix, String uri) {
+<span class="fc bfc" id="L571" title="All 2 branches covered.">            if (prefix == null) {</span>
+<span class="fc" id="L572">                throw new IllegalArgumentException(</span>
+                        &quot;Empty string represents default namespace prefix&quot;);
+            }
+<span class="fc bfc" id="L575" title="All 2 branches covered.">            if (uri == null) {</span>
+<span class="fc" id="L576">                throw new IllegalArgumentException(</span>
+                        &quot;Namespace may not lack a URI&quot;);
+            }
+<span class="fc" id="L579">            Namespace rv = new Namespace();</span>
+<span class="fc" id="L580">            rv.prefix = prefix;</span>
+<span class="fc" id="L581">            rv.uri = uri;</span>
+<span class="fc" id="L582">            return rv;</span>
+        }
+
+        static Namespace create(String uri) {
+<span class="fc" id="L586">            Namespace rv = new Namespace();</span>
+<span class="fc" id="L587">            rv.uri = uri;</span>
+
+            // Avoid null prefix for &quot;&quot; namespace
+<span class="fc bfc" id="L590" title="All 4 branches covered.">            if (uri == null || uri.length() == 0) {</span>
+<span class="fc" id="L591">                rv.prefix = &quot;&quot;;</span>
+            }
+
+<span class="fc" id="L594">            return rv;</span>
+        }
+
+<span class="fc" id="L597">        static final Namespace GLOBAL = create(&quot;&quot;, &quot;&quot;);</span>
+
+        private String prefix;
+        private String uri;
+
+<span class="fc" id="L602">        private Namespace() {</span>
+<span class="fc" id="L603">        }</span>
+
+        @Override
+        public String toString() {
+<span class="pc bpc" id="L607" title="1 of 2 branches missed.">            if (prefix == null) return &quot;XmlNode.Namespace [&quot; + uri + &quot;]&quot;;</span>
+<span class="fc" id="L608">            return &quot;XmlNode.Namespace [&quot; + prefix + &quot;{&quot; + uri + &quot;}]&quot;;</span>
+        }
+
+        boolean isUnspecifiedPrefix() {
+<span class="pc bpc" id="L612" title="1 of 2 branches missed.">            return prefix == null;</span>
+        }
+
+        boolean is(Namespace other) {
+<span class="pc bpc" id="L616" title="2 of 8 branches missed.">            return this.prefix != null &amp;&amp; other.prefix != null &amp;&amp; this.prefix.equals(other.prefix) &amp;&amp; this.uri.equals(other.uri);</span>
+        }
+
+        boolean isEmpty() {
+<span class="pc bpc" id="L620" title="2 of 6 branches missed.">            return prefix != null &amp;&amp; prefix.equals(&quot;&quot;) &amp;&amp; uri.equals(&quot;&quot;);</span>
+        }
+
+        boolean isDefault() {
+<span class="pc bpc" id="L624" title="2 of 4 branches missed.">            return prefix != null &amp;&amp; prefix.equals(&quot;&quot;);</span>
+        }
+
+        boolean isGlobal() {
+<span class="pc bpc" id="L628" title="2 of 4 branches missed.">            return uri != null &amp;&amp; uri.equals(&quot;&quot;);</span>
+        }
+
+        //    Called by QName
+        //    TODO    Move functionality from QName lookupPrefix to here
+        private void setPrefix(String prefix) {
+<span class="pc bpc" id="L634" title="1 of 2 branches missed.">            if (prefix == null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L635">            this.prefix = prefix;</span>
+<span class="fc" id="L636">        }</span>
+
+        String getPrefix() {
+<span class="fc" id="L639">            return prefix;</span>
+        }
+
+        String getUri() {
+<span class="fc" id="L643">            return uri;</span>
+        }
+    }
+
+    //    TODO    Where is this class used?  No longer using it in QName implementation
+    static class QName implements Serializable {
+        private static final long serialVersionUID = -6587069811691451077L;
+
+        static QName create(Namespace namespace, String localName) {
+            //    A null namespace indicates a wild-card match for any namespace
+            //    A null localName indicates &quot;*&quot; from the point of view of ECMA357
+<span class="pc bpc" id="L654" title="1 of 4 branches missed.">            if (localName != null &amp;&amp; localName.equals(&quot;*&quot;)) throw new RuntimeException(&quot;* is not valid localName&quot;);</span>
+<span class="fc" id="L655">            QName rv = new QName();</span>
+<span class="fc" id="L656">            rv.namespace = namespace;</span>
+<span class="fc" id="L657">            rv.localName = localName;</span>
+<span class="fc" id="L658">            return rv;</span>
+        }
+
+        /** @deprecated */
+        @Deprecated
+        static QName create(String uri, String localName, String prefix) {
+<span class="fc" id="L664">            return create(Namespace.create(prefix, uri), localName);</span>
+        }
+
+        static String qualify(String prefix, String localName) {
+<span class="pc bpc" id="L668" title="1 of 2 branches missed.">            if (prefix == null) throw new IllegalArgumentException(&quot;prefix must not be null&quot;);</span>
+<span class="pc bpc" id="L669" title="1 of 2 branches missed.">            if (prefix.length() &gt; 0) return prefix + &quot;:&quot; + localName;</span>
+<span class="fc" id="L670">            return localName;</span>
+        }
+
+        private Namespace namespace;
+        private String localName;
+
+<span class="fc" id="L676">        private QName() {</span>
+<span class="fc" id="L677">        }</span>
+
+        @Override
+        public String toString() {
+<span class="fc" id="L681">            return &quot;XmlNode.QName [&quot; + localName + &quot;,&quot; + namespace + &quot;]&quot;;</span>
+        }
+
+        private boolean equals(String one, String two) {
+<span class="pc bpc" id="L685" title="3 of 4 branches missed.">            if (one == null &amp;&amp; two == null) return true;</span>
+<span class="pc bpc" id="L686" title="2 of 4 branches missed.">            if (one == null || two == null) return false;</span>
+<span class="fc" id="L687">            return one.equals(two);</span>
+        }
+
+        private boolean namespacesEqual(Namespace one, Namespace two) {
+<span class="pc bpc" id="L691" title="1 of 4 branches missed.">            if (one == null &amp;&amp; two == null) return true;</span>
+<span class="pc bpc" id="L692" title="1 of 4 branches missed.">            if (one == null || two == null) return false;</span>
+<span class="fc" id="L693">            return equals(one.getUri(), two.getUri());</span>
+        }
+
+        final boolean equals(QName other) {
+<span class="fc bfc" id="L697" title="All 2 branches covered.">            if (!namespacesEqual(this.namespace, other.namespace)) return false;</span>
+<span class="pc bpc" id="L698" title="1 of 2 branches missed.">            if (!equals(this.localName, other.localName)) return false;</span>
+<span class="fc" id="L699">            return true;</span>
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+<span class="pc bpc" id="L704" title="1 of 2 branches missed.">            if(!(obj instanceof QName)) {</span>
+<span class="fc" id="L705">                return false;</span>
+            }
+<span class="nc" id="L707">            return equals((QName)obj);</span>
+        }
+
+        @Override
+        public int hashCode() {
+<span class="nc bnc" id="L712" title="All 2 branches missed.">            return localName == null ? 0 : localName.hashCode();</span>
+        }
+
+        void lookupPrefix(org.w3c.dom.Node node) {
+<span class="pc bpc" id="L716" title="1 of 2 branches missed.">            if (node == null) throw new IllegalArgumentException(&quot;node must not be null&quot;);</span>
+<span class="fc" id="L717">            String prefix = node.lookupPrefix(namespace.getUri());</span>
+<span class="pc bpc" id="L718" title="1 of 2 branches missed.">            if (prefix == null) {</span>
+                //    check to see if we match the default namespace
+<span class="fc" id="L720">                String defaultNamespace = node.lookupNamespaceURI(null);</span>
+<span class="fc bfc" id="L721" title="All 2 branches covered.">                if (defaultNamespace == null) defaultNamespace = &quot;&quot;;</span>
+<span class="fc" id="L722">                String nodeNamespace = namespace.getUri();</span>
+<span class="fc bfc" id="L723" title="All 2 branches covered.">                if (nodeNamespace.equals(defaultNamespace)) {</span>
+<span class="fc" id="L724">                    prefix = &quot;&quot;;</span>
+                }
+            }
+<span class="fc" id="L727">            int i = 0;</span>
+<span class="fc bfc" id="L728" title="All 2 branches covered.">            while(prefix == null) {</span>
+<span class="fc" id="L729">                String generatedPrefix = &quot;e4x_&quot; + i++;</span>
+<span class="fc" id="L730">                String generatedUri = node.lookupNamespaceURI(generatedPrefix);</span>
+<span class="pc bpc" id="L731" title="1 of 2 branches missed.">                if (generatedUri == null) {</span>
+<span class="fc" id="L732">                    prefix = generatedPrefix;</span>
+<span class="fc" id="L733">                    org.w3c.dom.Node top = node;</span>
+<span class="pc bpc" id="L734" title="3 of 4 branches missed.">                    while(top.getParentNode() != null &amp;&amp; top.getParentNode() instanceof org.w3c.dom.Element) {</span>
+<span class="nc" id="L735">                        top = top.getParentNode();</span>
+                    }
+<span class="nc" id="L737">                    ((org.w3c.dom.Element)top).setAttributeNS(&quot;http://www.w3.org/2000/xmlns/&quot;, &quot;xmlns:&quot; + prefix, namespace.getUri());</span>
+                }
+<span class="nc" id="L739">            }</span>
+<span class="fc" id="L740">            namespace.setPrefix(prefix);</span>
+<span class="fc" id="L741">        }</span>
+
+        String qualify(org.w3c.dom.Node node) {
+<span class="fc bfc" id="L744" title="All 2 branches covered.">            if (namespace.getPrefix() == null) {</span>
+<span class="fc bfc" id="L745" title="All 2 branches covered.">                if (node != null) {</span>
+<span class="nc" id="L746">                    lookupPrefix(node);</span>
+                } else {
+<span class="pc bpc" id="L748" title="1 of 2 branches missed.">                    if (namespace.getUri().equals(&quot;&quot;)) {</span>
+<span class="nc" id="L749">                        namespace.setPrefix(&quot;&quot;);</span>
+                    } else {
+                        //    TODO    I am not sure this is right, but if we are creating a standalone node, I think we can set the
+                        //            default namespace on the node itself and not worry about setting a prefix for that namespace.
+<span class="fc" id="L753">                        namespace.setPrefix(&quot;&quot;);</span>
+                    }
+                }
+            }
+<span class="fc" id="L757">            return qualify(namespace.getPrefix(), localName);</span>
+        }
+
+        void setAttribute(org.w3c.dom.Element element, String value) {
+<span class="fc bfc" id="L761" title="All 2 branches covered.">            if (namespace.getPrefix() == null) lookupPrefix(element);</span>
+<span class="fc" id="L762">            element.setAttributeNS(namespace.getUri(), qualify(namespace.getPrefix(), localName), value);</span>
+<span class="fc" id="L763">        }</span>
+
+        Namespace getNamespace() {
+<span class="fc" id="L766">            return namespace;</span>
+        }
+
+        String getLocalName() {
+<span class="fc" id="L770">            return localName;</span>
+        }
+    }
+
+    static class InternalList implements Serializable {
+        private static final long serialVersionUID = -3633151157292048978L;
+        private List&lt;XmlNode&gt; list;
+
+<span class="fc" id="L778">        InternalList() {</span>
+<span class="fc" id="L779">            list = new ArrayList&lt;XmlNode&gt;();</span>
+<span class="fc" id="L780">        }</span>
+
+        private void _add(XmlNode n) {
+<span class="fc" id="L783">            list.add(n);</span>
+<span class="fc" id="L784">        }</span>
+
+        XmlNode item(int index) {
+<span class="fc" id="L787">            return list.get(index);</span>
+        }
+
+        void remove(int index) {
+<span class="nc" id="L791">            list.remove(index);</span>
+<span class="nc" id="L792">        }</span>
+
+        void add(InternalList other) {
+<span class="fc bfc" id="L795" title="All 2 branches covered.">            for (int i=0; i&lt;other.length(); i++) {</span>
+<span class="fc" id="L796">                _add(other.item(i));</span>
+            }
+<span class="fc" id="L798">        }</span>
+
+        void add(InternalList from, int startInclusive, int endExclusive) {
+<span class="pc bfc" id="L801" title="All 2 branches covered.">            for (int i=startInclusive; i&lt;endExclusive; i++) {</span>
+<span class="nc" id="L802">                _add(from.item(i));</span>
+            }
+<span class="fc" id="L804">        }</span>
+
+        void add(XmlNode node) {
+<span class="fc" id="L807">            _add(node);</span>
+<span class="fc" id="L808">        }</span>
+
+        /* TODO: was marked deprecated by original author */
+        void add(XML xml) {
+<span class="fc" id="L812">            _add(xml.getAnnotation());</span>
+<span class="fc" id="L813">        }</span>
+
+        /* TODO: was marked deprecated by original author */
+        void addToList(Object toAdd) {
+<span class="nc bnc" id="L817" title="All 2 branches missed.">            if (toAdd instanceof Undefined) {</span>
+                // Missing argument do nothing...
+<span class="nc" id="L819">                return;</span>
+            }
+
+<span class="nc bnc" id="L822" title="All 2 branches missed.">            if (toAdd instanceof XMLList) {</span>
+<span class="nc" id="L823">                XMLList xmlSrc = (XMLList)toAdd;</span>
+<span class="nc bnc" id="L824" title="All 2 branches missed.">                for (int i = 0; i &lt; xmlSrc.length(); i++) {</span>
+<span class="nc" id="L825">                    this._add((xmlSrc.item(i)).getAnnotation());</span>
+                }
+<span class="nc bnc" id="L827" title="All 2 branches missed.">            } else if (toAdd instanceof XML) {</span>
+<span class="nc" id="L828">                this._add(((XML)(toAdd)).getAnnotation());</span>
+<span class="nc bnc" id="L829" title="All 2 branches missed.">            } else if (toAdd instanceof XmlNode) {</span>
+<span class="nc" id="L830">                this._add((XmlNode)toAdd);</span>
+            }
+<span class="nc" id="L832">        }</span>
+
+        int length() {
+<span class="fc" id="L835">            return list.size();</span>
+        }
+    }
+
+<span class="fc" id="L839">    static abstract class Filter {</span>
+<span class="fc" id="L840">        static final Filter COMMENT = new Filter() {</span>
+            @Override
+            boolean accept(Node node) {
+<span class="nc bnc" id="L843" title="All 2 branches missed.">                return node.getNodeType() == Node.COMMENT_NODE;</span>
+            }
+        };
+<span class="fc" id="L846">        static final Filter TEXT = new Filter() {</span>
+            @Override
+            boolean accept(Node node) {
+<span class="nc bnc" id="L849" title="All 2 branches missed.">                return node.getNodeType() == Node.TEXT_NODE;</span>
+            }
+        };
+        static Filter PROCESSING_INSTRUCTION(final XMLName name) {
+<span class="fc" id="L853">            return new Filter() {</span>
+                @Override
+                boolean accept(Node node) {
+<span class="pc bpc" id="L856" title="1 of 2 branches missed.">                    if (node.getNodeType() == Node.PROCESSING_INSTRUCTION_NODE) {</span>
+<span class="nc" id="L857">                        ProcessingInstruction pi = (ProcessingInstruction)node;</span>
+<span class="nc" id="L858">                        return name.matchesLocalName(pi.getTarget());</span>
+                    }
+<span class="fc" id="L860">                    return false;</span>
+                }
+            };
+        }
+<span class="fc" id="L864">        static Filter ELEMENT = new Filter() {</span>
+            @Override
+            boolean accept(Node node) {
+<span class="nc bnc" id="L867" title="All 2 branches missed.">                return node.getNodeType() == Node.ELEMENT_NODE;</span>
+            }
+        };
+<span class="fc" id="L870">        static Filter TRUE = new Filter() {</span>
+            @Override
+            boolean accept(Node node) {
+<span class="nc" id="L873">                return true;</span>
+            }
+        };
+        abstract boolean accept(Node node);
+    }
+
+    //    Support experimental Java interface
+    org.w3c.dom.Node toDomNode() {
+<span class="fc" id="L881">        return this.dom;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

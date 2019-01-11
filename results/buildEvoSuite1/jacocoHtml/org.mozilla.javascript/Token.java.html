@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Token.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Token.java</span></div><h1>Token.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the JavaScript scanner.
+ *
+ * It is based on the C source files jsscan.c and jsscan.h
+ * in the jsref package.
+ *
+ * @see org.mozilla.javascript.Parser
+ *
+ * @author Mike McCabe
+ * @author Brendan Eich
+ */
+
+<span class="fc" id="L21">public class Token</span>
+{
+<span class="pc" id="L23">    public static enum CommentType {</span>
+<span class="fc" id="L24">        LINE, BLOCK_COMMENT, JSDOC, HTML</span>
+    }
+
+    // debug flags
+    public static final boolean printTrees = false;
+    static final boolean printICode = false;
+    static final boolean printNames = printTrees || printICode;
+
+    /**
+     * Token types.  These values correspond to JSTokenType values in
+     * jsscan.c.
+     */
+
+    public final static int
+    // start enum
+        ERROR          = -1, // well-known as the only code &lt; EOF
+        EOF            = 0,  // end of file token - (not EOF_CHAR)
+        EOL            = 1,  // end of line
+
+        // Interpreter reuses the following as bytecodes
+        FIRST_BYTECODE_TOKEN    = 2,
+
+        ENTERWITH      = 2,
+        LEAVEWITH      = 3,
+        RETURN         = 4,
+        GOTO           = 5,
+        IFEQ           = 6,
+        IFNE           = 7,
+        SETNAME        = 8,
+        BITOR          = 9,
+        BITXOR         = 10,
+        BITAND         = 11,
+        EQ             = 12,
+        NE             = 13,
+        LT             = 14,
+        LE             = 15,
+        GT             = 16,
+        GE             = 17,
+        LSH            = 18,
+        RSH            = 19,
+        URSH           = 20,
+        ADD            = 21,
+        SUB            = 22,
+        MUL            = 23,
+        DIV            = 24,
+        MOD            = 25,
+        NOT            = 26,
+        BITNOT         = 27,
+        POS            = 28,
+        NEG            = 29,
+        NEW            = 30,
+        DELPROP        = 31,
+        TYPEOF         = 32,
+        GETPROP        = 33,
+        GETPROPNOWARN  = 34,
+        SETPROP        = 35,
+        GETELEM        = 36,
+        SETELEM        = 37,
+        CALL           = 38,
+        NAME           = 39,
+        NUMBER         = 40,
+        STRING         = 41,
+        NULL           = 42,
+        THIS           = 43,
+        FALSE          = 44,
+        TRUE           = 45,
+        SHEQ           = 46,   // shallow equality (===)
+        SHNE           = 47,   // shallow inequality (!==)
+        REGEXP         = 48,
+        BINDNAME       = 49,
+        THROW          = 50,
+        RETHROW        = 51, // rethrow caught exception: catch (e if ) use it
+        IN             = 52,
+        INSTANCEOF     = 53,
+        LOCAL_LOAD     = 54,
+        GETVAR         = 55,
+        SETVAR         = 56,
+        CATCH_SCOPE    = 57,
+        ENUM_INIT_KEYS = 58,
+        ENUM_INIT_VALUES = 59,
+        ENUM_INIT_ARRAY= 60,
+        ENUM_INIT_VALUES_IN_ORDER = 61,
+        ENUM_NEXT      = 62,
+        ENUM_ID        = 63,
+        THISFN         = 64,
+        RETURN_RESULT  = 65, // to return previously stored return result
+        ARRAYLIT       = 66, // array literal
+        OBJECTLIT      = 67, // object literal
+        GET_REF        = 68, // *reference
+        SET_REF        = 69, // *reference    = something
+        DEL_REF        = 70, // delete reference
+        REF_CALL       = 71, // f(args)    = something or f(args)++
+        REF_SPECIAL    = 72, // reference for special properties like __proto
+        YIELD          = 73,  // JS 1.7 yield pseudo keyword
+        STRICT_SETNAME = 74,
+
+        // For XML support:
+        DEFAULTNAMESPACE = 75, // default xml namespace =
+        ESCXMLATTR     = 76,
+        ESCXMLTEXT     = 77,
+        REF_MEMBER     = 78, // Reference for x.@y, x..y etc.
+        REF_NS_MEMBER  = 79, // Reference for x.ns::y, x..ns::y etc.
+        REF_NAME       = 80, // Reference for @y, @[y] etc.
+        REF_NS_NAME    = 81; // Reference for ns::y, @ns::y@[y] etc.
+
+        // End of interpreter bytecodes
+    public final static int
+        LAST_BYTECODE_TOKEN    = REF_NS_NAME,
+
+        TRY            = 82,
+        SEMI           = 83,  // semicolon
+        LB             = 84,  // left and right brackets
+        RB             = 85,
+        LC             = 86,  // left and right curlies (braces)
+        RC             = 87,
+        LP             = 88,  // left and right parentheses
+        RP             = 89,
+        COMMA          = 90,  // comma operator
+
+        ASSIGN         = 91,  // simple assignment  (=)
+        ASSIGN_BITOR   = 92,  // |=
+        ASSIGN_BITXOR  = 93,  // ^=
+        ASSIGN_BITAND  = 94,  // |=
+        ASSIGN_LSH     = 95,  // &lt;&lt;=
+        ASSIGN_RSH     = 96,  // &gt;&gt;=
+        ASSIGN_URSH    = 97,  // &gt;&gt;&gt;=
+        ASSIGN_ADD     = 98,  // +=
+        ASSIGN_SUB     = 99,  // -=
+        ASSIGN_MUL     = 100,  // *=
+        ASSIGN_DIV     = 101,  // /=
+        ASSIGN_MOD     = 102;  // %=
+
+    public final static int
+        FIRST_ASSIGN   = ASSIGN,
+        LAST_ASSIGN    = ASSIGN_MOD,
+
+        HOOK           = 103, // conditional (?:)
+        COLON          = 104,
+        OR             = 105, // logical or (||)
+        AND            = 106, // logical and (&amp;&amp;)
+        INC            = 107, // increment/decrement (++ --)
+        DEC            = 108,
+        DOT            = 109, // member operator (.)
+        FUNCTION       = 110, // function keyword
+        EXPORT         = 111, // export keyword
+        IMPORT         = 112, // import keyword
+        IF             = 113, // if keyword
+        ELSE           = 114, // else keyword
+        SWITCH         = 115, // switch keyword
+        CASE           = 116, // case keyword
+        DEFAULT        = 117, // default keyword
+        WHILE          = 118, // while keyword
+        DO             = 119, // do keyword
+        FOR            = 120, // for keyword
+        BREAK          = 121, // break keyword
+        CONTINUE       = 122, // continue keyword
+        VAR            = 123, // var keyword
+        WITH           = 124, // with keyword
+        CATCH          = 125, // catch keyword
+        FINALLY        = 126, // finally keyword
+        VOID           = 127, // void keyword
+        RESERVED       = 128, // reserved keywords
+
+        EMPTY          = 129,
+
+        /* types used for the parse tree - these never get returned
+         * by the scanner.
+         */
+
+        BLOCK          = 130, // statement block
+        LABEL          = 131, // label
+        TARGET         = 132,
+        LOOP           = 133,
+        EXPR_VOID      = 134, // expression statement in functions
+        EXPR_RESULT    = 135, // expression statement in scripts
+        JSR            = 136,
+        SCRIPT         = 137, // top-level node for entire script
+        TYPEOFNAME     = 138, // for typeof(simple-name)
+        USE_STACK      = 139,
+        SETPROP_OP     = 140, // x.y op= something
+        SETELEM_OP     = 141, // x[y] op= something
+        LOCAL_BLOCK    = 142,
+        SET_REF_OP     = 143, // *reference op= something
+
+        // For XML support:
+        DOTDOT         = 144,  // member operator (..)
+        COLONCOLON     = 145,  // namespace::name
+        XML            = 146,  // XML type
+        DOTQUERY       = 147,  // .() -- e.g., x.emps.emp.(name == &quot;terry&quot;)
+        XMLATTR        = 148,  // @
+        XMLEND         = 149,
+
+        // Optimizer-only-tokens
+        TO_OBJECT      = 150,
+        TO_DOUBLE      = 151,
+
+        GET            = 152,  // JS 1.5 get pseudo keyword
+        SET            = 153,  // JS 1.5 set pseudo keyword
+        LET            = 154,  // JS 1.7 let pseudo keyword
+        CONST          = 155,
+        SETCONST       = 156,
+        SETCONSTVAR    = 157,
+        ARRAYCOMP      = 158,  // array comprehension
+        LETEXPR        = 159,
+        WITHEXPR       = 160,
+        DEBUGGER       = 161,
+        COMMENT        = 162,
+        GENEXPR        = 163,
+        METHOD         = 164,  // ES6 MethodDefinition
+        ARROW          = 165,  // ES6 ArrowFunction
+        LAST_TOKEN     = 166;
+
+    /**
+     * Returns a name for the token.  If Rhino is compiled with certain
+     * hardcoded debugging flags in this file, it calls {@code #typeToName};
+     * otherwise it returns a string whose value is the token number.
+     */
+    public static String name(int token)
+    {
+        if (!printNames) {
+<span class="fc" id="L244">            return String.valueOf(token);</span>
+        }
+        return typeToName(token);
+    }
+
+    /**
+     * Always returns a human-readable string for the token name.
+     * For instance, {@link #FINALLY} has the name &quot;FINALLY&quot;.
+     * @param token the token code
+     * @return the actual name for the token code
+     */
+    public static String typeToName(int token) {
+<span class="fc bfc" id="L256" title="All 166 branches covered.">        switch (token) {</span>
+<span class="fc" id="L257">          case ERROR:           return &quot;ERROR&quot;;</span>
+<span class="fc" id="L258">          case EOF:             return &quot;EOF&quot;;</span>
+<span class="fc" id="L259">          case EOL:             return &quot;EOL&quot;;</span>
+<span class="fc" id="L260">          case ENTERWITH:       return &quot;ENTERWITH&quot;;</span>
+<span class="fc" id="L261">          case LEAVEWITH:       return &quot;LEAVEWITH&quot;;</span>
+<span class="fc" id="L262">          case RETURN:          return &quot;RETURN&quot;;</span>
+<span class="fc" id="L263">          case GOTO:            return &quot;GOTO&quot;;</span>
+<span class="fc" id="L264">          case IFEQ:            return &quot;IFEQ&quot;;</span>
+<span class="fc" id="L265">          case IFNE:            return &quot;IFNE&quot;;</span>
+<span class="fc" id="L266">          case SETNAME:         return &quot;SETNAME&quot;;</span>
+<span class="fc" id="L267">          case BITOR:           return &quot;BITOR&quot;;</span>
+<span class="fc" id="L268">          case BITXOR:          return &quot;BITXOR&quot;;</span>
+<span class="fc" id="L269">          case BITAND:          return &quot;BITAND&quot;;</span>
+<span class="fc" id="L270">          case EQ:              return &quot;EQ&quot;;</span>
+<span class="fc" id="L271">          case NE:              return &quot;NE&quot;;</span>
+<span class="fc" id="L272">          case LT:              return &quot;LT&quot;;</span>
+<span class="fc" id="L273">          case LE:              return &quot;LE&quot;;</span>
+<span class="fc" id="L274">          case GT:              return &quot;GT&quot;;</span>
+<span class="fc" id="L275">          case GE:              return &quot;GE&quot;;</span>
+<span class="fc" id="L276">          case LSH:             return &quot;LSH&quot;;</span>
+<span class="fc" id="L277">          case RSH:             return &quot;RSH&quot;;</span>
+<span class="fc" id="L278">          case URSH:            return &quot;URSH&quot;;</span>
+<span class="fc" id="L279">          case ADD:             return &quot;ADD&quot;;</span>
+<span class="fc" id="L280">          case SUB:             return &quot;SUB&quot;;</span>
+<span class="fc" id="L281">          case MUL:             return &quot;MUL&quot;;</span>
+<span class="fc" id="L282">          case DIV:             return &quot;DIV&quot;;</span>
+<span class="fc" id="L283">          case MOD:             return &quot;MOD&quot;;</span>
+<span class="fc" id="L284">          case NOT:             return &quot;NOT&quot;;</span>
+<span class="fc" id="L285">          case BITNOT:          return &quot;BITNOT&quot;;</span>
+<span class="fc" id="L286">          case POS:             return &quot;POS&quot;;</span>
+<span class="fc" id="L287">          case NEG:             return &quot;NEG&quot;;</span>
+<span class="fc" id="L288">          case NEW:             return &quot;NEW&quot;;</span>
+<span class="fc" id="L289">          case DELPROP:         return &quot;DELPROP&quot;;</span>
+<span class="fc" id="L290">          case TYPEOF:          return &quot;TYPEOF&quot;;</span>
+<span class="fc" id="L291">          case GETPROP:         return &quot;GETPROP&quot;;</span>
+<span class="fc" id="L292">          case GETPROPNOWARN:   return &quot;GETPROPNOWARN&quot;;</span>
+<span class="fc" id="L293">          case SETPROP:         return &quot;SETPROP&quot;;</span>
+<span class="fc" id="L294">          case GETELEM:         return &quot;GETELEM&quot;;</span>
+<span class="fc" id="L295">          case SETELEM:         return &quot;SETELEM&quot;;</span>
+<span class="fc" id="L296">          case CALL:            return &quot;CALL&quot;;</span>
+<span class="fc" id="L297">          case NAME:            return &quot;NAME&quot;;</span>
+<span class="fc" id="L298">          case NUMBER:          return &quot;NUMBER&quot;;</span>
+<span class="fc" id="L299">          case STRING:          return &quot;STRING&quot;;</span>
+<span class="fc" id="L300">          case NULL:            return &quot;NULL&quot;;</span>
+<span class="fc" id="L301">          case THIS:            return &quot;THIS&quot;;</span>
+<span class="fc" id="L302">          case FALSE:           return &quot;FALSE&quot;;</span>
+<span class="fc" id="L303">          case TRUE:            return &quot;TRUE&quot;;</span>
+<span class="fc" id="L304">          case SHEQ:            return &quot;SHEQ&quot;;</span>
+<span class="fc" id="L305">          case SHNE:            return &quot;SHNE&quot;;</span>
+<span class="fc" id="L306">          case REGEXP:          return &quot;REGEXP&quot;;</span>
+<span class="fc" id="L307">          case BINDNAME:        return &quot;BINDNAME&quot;;</span>
+<span class="fc" id="L308">          case THROW:           return &quot;THROW&quot;;</span>
+<span class="fc" id="L309">          case RETHROW:         return &quot;RETHROW&quot;;</span>
+<span class="fc" id="L310">          case IN:              return &quot;IN&quot;;</span>
+<span class="fc" id="L311">          case INSTANCEOF:      return &quot;INSTANCEOF&quot;;</span>
+<span class="fc" id="L312">          case LOCAL_LOAD:      return &quot;LOCAL_LOAD&quot;;</span>
+<span class="fc" id="L313">          case GETVAR:          return &quot;GETVAR&quot;;</span>
+<span class="fc" id="L314">          case SETVAR:          return &quot;SETVAR&quot;;</span>
+<span class="fc" id="L315">          case CATCH_SCOPE:     return &quot;CATCH_SCOPE&quot;;</span>
+<span class="fc" id="L316">          case ENUM_INIT_KEYS:  return &quot;ENUM_INIT_KEYS&quot;;</span>
+<span class="fc" id="L317">          case ENUM_INIT_VALUES:return &quot;ENUM_INIT_VALUES&quot;;</span>
+<span class="fc" id="L318">          case ENUM_INIT_ARRAY: return &quot;ENUM_INIT_ARRAY&quot;;</span>
+<span class="fc" id="L319">          case ENUM_INIT_VALUES_IN_ORDER: return &quot;ENUM_INIT_VALUES_IN_ORDER&quot;;</span>
+<span class="fc" id="L320">          case ENUM_NEXT:       return &quot;ENUM_NEXT&quot;;</span>
+<span class="fc" id="L321">          case ENUM_ID:         return &quot;ENUM_ID&quot;;</span>
+<span class="fc" id="L322">          case THISFN:          return &quot;THISFN&quot;;</span>
+<span class="fc" id="L323">          case RETURN_RESULT:   return &quot;RETURN_RESULT&quot;;</span>
+<span class="fc" id="L324">          case ARRAYLIT:        return &quot;ARRAYLIT&quot;;</span>
+<span class="fc" id="L325">          case OBJECTLIT:       return &quot;OBJECTLIT&quot;;</span>
+<span class="fc" id="L326">          case GET_REF:         return &quot;GET_REF&quot;;</span>
+<span class="fc" id="L327">          case SET_REF:         return &quot;SET_REF&quot;;</span>
+<span class="fc" id="L328">          case DEL_REF:         return &quot;DEL_REF&quot;;</span>
+<span class="fc" id="L329">          case REF_CALL:        return &quot;REF_CALL&quot;;</span>
+<span class="fc" id="L330">          case REF_SPECIAL:     return &quot;REF_SPECIAL&quot;;</span>
+<span class="fc" id="L331">          case DEFAULTNAMESPACE:return &quot;DEFAULTNAMESPACE&quot;;</span>
+<span class="fc" id="L332">          case ESCXMLTEXT:      return &quot;ESCXMLTEXT&quot;;</span>
+<span class="fc" id="L333">          case ESCXMLATTR:      return &quot;ESCXMLATTR&quot;;</span>
+<span class="fc" id="L334">          case REF_MEMBER:      return &quot;REF_MEMBER&quot;;</span>
+<span class="fc" id="L335">          case REF_NS_MEMBER:   return &quot;REF_NS_MEMBER&quot;;</span>
+<span class="fc" id="L336">          case REF_NAME:        return &quot;REF_NAME&quot;;</span>
+<span class="fc" id="L337">          case REF_NS_NAME:     return &quot;REF_NS_NAME&quot;;</span>
+<span class="fc" id="L338">          case TRY:             return &quot;TRY&quot;;</span>
+<span class="fc" id="L339">          case SEMI:            return &quot;SEMI&quot;;</span>
+<span class="fc" id="L340">          case LB:              return &quot;LB&quot;;</span>
+<span class="fc" id="L341">          case RB:              return &quot;RB&quot;;</span>
+<span class="fc" id="L342">          case LC:              return &quot;LC&quot;;</span>
+<span class="fc" id="L343">          case RC:              return &quot;RC&quot;;</span>
+<span class="fc" id="L344">          case LP:              return &quot;LP&quot;;</span>
+<span class="fc" id="L345">          case RP:              return &quot;RP&quot;;</span>
+<span class="fc" id="L346">          case COMMA:           return &quot;COMMA&quot;;</span>
+<span class="fc" id="L347">          case ASSIGN:          return &quot;ASSIGN&quot;;</span>
+<span class="fc" id="L348">          case ASSIGN_BITOR:    return &quot;ASSIGN_BITOR&quot;;</span>
+<span class="fc" id="L349">          case ASSIGN_BITXOR:   return &quot;ASSIGN_BITXOR&quot;;</span>
+<span class="fc" id="L350">          case ASSIGN_BITAND:   return &quot;ASSIGN_BITAND&quot;;</span>
+<span class="fc" id="L351">          case ASSIGN_LSH:      return &quot;ASSIGN_LSH&quot;;</span>
+<span class="fc" id="L352">          case ASSIGN_RSH:      return &quot;ASSIGN_RSH&quot;;</span>
+<span class="fc" id="L353">          case ASSIGN_URSH:     return &quot;ASSIGN_URSH&quot;;</span>
+<span class="fc" id="L354">          case ASSIGN_ADD:      return &quot;ASSIGN_ADD&quot;;</span>
+<span class="fc" id="L355">          case ASSIGN_SUB:      return &quot;ASSIGN_SUB&quot;;</span>
+<span class="fc" id="L356">          case ASSIGN_MUL:      return &quot;ASSIGN_MUL&quot;;</span>
+<span class="fc" id="L357">          case ASSIGN_DIV:      return &quot;ASSIGN_DIV&quot;;</span>
+<span class="fc" id="L358">          case ASSIGN_MOD:      return &quot;ASSIGN_MOD&quot;;</span>
+<span class="fc" id="L359">          case HOOK:            return &quot;HOOK&quot;;</span>
+<span class="fc" id="L360">          case COLON:           return &quot;COLON&quot;;</span>
+<span class="fc" id="L361">          case OR:              return &quot;OR&quot;;</span>
+<span class="fc" id="L362">          case AND:             return &quot;AND&quot;;</span>
+<span class="fc" id="L363">          case INC:             return &quot;INC&quot;;</span>
+<span class="fc" id="L364">          case DEC:             return &quot;DEC&quot;;</span>
+<span class="fc" id="L365">          case DOT:             return &quot;DOT&quot;;</span>
+<span class="fc" id="L366">          case FUNCTION:        return &quot;FUNCTION&quot;;</span>
+<span class="fc" id="L367">          case EXPORT:          return &quot;EXPORT&quot;;</span>
+<span class="fc" id="L368">          case IMPORT:          return &quot;IMPORT&quot;;</span>
+<span class="fc" id="L369">          case IF:              return &quot;IF&quot;;</span>
+<span class="fc" id="L370">          case ELSE:            return &quot;ELSE&quot;;</span>
+<span class="fc" id="L371">          case SWITCH:          return &quot;SWITCH&quot;;</span>
+<span class="fc" id="L372">          case CASE:            return &quot;CASE&quot;;</span>
+<span class="fc" id="L373">          case DEFAULT:         return &quot;DEFAULT&quot;;</span>
+<span class="fc" id="L374">          case WHILE:           return &quot;WHILE&quot;;</span>
+<span class="fc" id="L375">          case DO:              return &quot;DO&quot;;</span>
+<span class="fc" id="L376">          case FOR:             return &quot;FOR&quot;;</span>
+<span class="fc" id="L377">          case BREAK:           return &quot;BREAK&quot;;</span>
+<span class="fc" id="L378">          case CONTINUE:        return &quot;CONTINUE&quot;;</span>
+<span class="fc" id="L379">          case VAR:             return &quot;VAR&quot;;</span>
+<span class="fc" id="L380">          case WITH:            return &quot;WITH&quot;;</span>
+<span class="fc" id="L381">          case CATCH:           return &quot;CATCH&quot;;</span>
+<span class="fc" id="L382">          case FINALLY:         return &quot;FINALLY&quot;;</span>
+<span class="fc" id="L383">          case VOID:            return &quot;VOID&quot;;</span>
+<span class="fc" id="L384">          case RESERVED:        return &quot;RESERVED&quot;;</span>
+<span class="fc" id="L385">          case EMPTY:           return &quot;EMPTY&quot;;</span>
+<span class="fc" id="L386">          case BLOCK:           return &quot;BLOCK&quot;;</span>
+<span class="fc" id="L387">          case LABEL:           return &quot;LABEL&quot;;</span>
+<span class="fc" id="L388">          case TARGET:          return &quot;TARGET&quot;;</span>
+<span class="fc" id="L389">          case LOOP:            return &quot;LOOP&quot;;</span>
+<span class="fc" id="L390">          case EXPR_VOID:       return &quot;EXPR_VOID&quot;;</span>
+<span class="fc" id="L391">          case EXPR_RESULT:     return &quot;EXPR_RESULT&quot;;</span>
+<span class="fc" id="L392">          case JSR:             return &quot;JSR&quot;;</span>
+<span class="fc" id="L393">          case SCRIPT:          return &quot;SCRIPT&quot;;</span>
+<span class="fc" id="L394">          case TYPEOFNAME:      return &quot;TYPEOFNAME&quot;;</span>
+<span class="fc" id="L395">          case USE_STACK:       return &quot;USE_STACK&quot;;</span>
+<span class="fc" id="L396">          case SETPROP_OP:      return &quot;SETPROP_OP&quot;;</span>
+<span class="fc" id="L397">          case SETELEM_OP:      return &quot;SETELEM_OP&quot;;</span>
+<span class="fc" id="L398">          case LOCAL_BLOCK:     return &quot;LOCAL_BLOCK&quot;;</span>
+<span class="fc" id="L399">          case SET_REF_OP:      return &quot;SET_REF_OP&quot;;</span>
+<span class="fc" id="L400">          case DOTDOT:          return &quot;DOTDOT&quot;;</span>
+<span class="fc" id="L401">          case COLONCOLON:      return &quot;COLONCOLON&quot;;</span>
+<span class="fc" id="L402">          case XML:             return &quot;XML&quot;;</span>
+<span class="fc" id="L403">          case DOTQUERY:        return &quot;DOTQUERY&quot;;</span>
+<span class="fc" id="L404">          case XMLATTR:         return &quot;XMLATTR&quot;;</span>
+<span class="fc" id="L405">          case XMLEND:          return &quot;XMLEND&quot;;</span>
+<span class="fc" id="L406">          case TO_OBJECT:       return &quot;TO_OBJECT&quot;;</span>
+<span class="fc" id="L407">          case TO_DOUBLE:       return &quot;TO_DOUBLE&quot;;</span>
+<span class="fc" id="L408">          case GET:             return &quot;GET&quot;;</span>
+<span class="fc" id="L409">          case SET:             return &quot;SET&quot;;</span>
+<span class="fc" id="L410">          case LET:             return &quot;LET&quot;;</span>
+<span class="fc" id="L411">          case YIELD:           return &quot;YIELD&quot;;</span>
+<span class="fc" id="L412">          case CONST:           return &quot;CONST&quot;;</span>
+<span class="fc" id="L413">          case SETCONST:        return &quot;SETCONST&quot;;</span>
+<span class="fc" id="L414">          case ARRAYCOMP:       return &quot;ARRAYCOMP&quot;;</span>
+<span class="fc" id="L415">          case WITHEXPR:        return &quot;WITHEXPR&quot;;</span>
+<span class="fc" id="L416">          case LETEXPR:         return &quot;LETEXPR&quot;;</span>
+<span class="fc" id="L417">          case DEBUGGER:        return &quot;DEBUGGER&quot;;</span>
+<span class="fc" id="L418">          case COMMENT:         return &quot;COMMENT&quot;;</span>
+<span class="fc" id="L419">          case GENEXPR:         return &quot;GENEXPR&quot;;</span>
+<span class="fc" id="L420">          case METHOD:          return &quot;METHOD&quot;;</span>
+<span class="fc" id="L421">          case ARROW:           return &quot;ARROW&quot;;</span>
+        }
+
+        // Token without name
+<span class="fc" id="L425">        throw new IllegalStateException(String.valueOf(token));</span>
+    }
+
+    /**
+     * Convert a keyword token to a name string for use with the
+     * {@link Context#FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER} feature.
+     * @param token A token
+     * @return the corresponding name string
+     */
+    public static String keywordToName(int token) {
+<span class="fc bfc" id="L435" title="All 33 branches covered.">        switch (token) {</span>
+<span class="fc" id="L436">            case Token.BREAK:      return &quot;break&quot;;</span>
+<span class="fc" id="L437">            case Token.CASE:       return &quot;case&quot;;</span>
+<span class="fc" id="L438">            case Token.CONTINUE:   return &quot;continue&quot;;</span>
+<span class="fc" id="L439">            case Token.DEFAULT:    return &quot;default&quot;;</span>
+<span class="fc" id="L440">            case Token.DELPROP:    return &quot;delete&quot;;</span>
+<span class="fc" id="L441">            case Token.DO:         return &quot;do&quot;;</span>
+<span class="fc" id="L442">            case Token.ELSE:       return &quot;else&quot;;</span>
+<span class="fc" id="L443">            case Token.FALSE:      return &quot;false&quot;;</span>
+<span class="fc" id="L444">            case Token.FOR:        return &quot;for&quot;;</span>
+<span class="fc" id="L445">            case Token.FUNCTION:   return &quot;function&quot;;</span>
+<span class="fc" id="L446">            case Token.IF:         return &quot;if&quot;;</span>
+<span class="fc" id="L447">            case Token.IN:         return &quot;in&quot;;</span>
+<span class="fc" id="L448">            case Token.LET:        return &quot;let&quot;;</span>
+<span class="fc" id="L449">            case Token.NEW:        return &quot;new&quot;;</span>
+<span class="fc" id="L450">            case Token.NULL:       return &quot;null&quot;;</span>
+<span class="fc" id="L451">            case Token.RETURN:     return &quot;return&quot;;</span>
+<span class="fc" id="L452">            case Token.SWITCH:     return &quot;switch&quot;;</span>
+<span class="fc" id="L453">            case Token.THIS:       return &quot;this&quot;;</span>
+<span class="fc" id="L454">            case Token.TRUE:       return &quot;true&quot;;</span>
+<span class="fc" id="L455">            case Token.TYPEOF:     return &quot;typeof&quot;;</span>
+<span class="fc" id="L456">            case Token.VAR:        return &quot;var&quot;;</span>
+<span class="fc" id="L457">            case Token.VOID:       return &quot;void&quot;;</span>
+<span class="fc" id="L458">            case Token.WHILE:      return &quot;while&quot;;</span>
+<span class="fc" id="L459">            case Token.WITH:       return &quot;with&quot;;</span>
+<span class="fc" id="L460">            case Token.YIELD:      return &quot;yield&quot;;</span>
+<span class="fc" id="L461">            case Token.CATCH:      return &quot;catch&quot;;</span>
+<span class="fc" id="L462">            case Token.CONST:      return &quot;const&quot;;</span>
+<span class="fc" id="L463">            case Token.DEBUGGER:   return &quot;debugger&quot;;</span>
+<span class="fc" id="L464">            case Token.FINALLY:    return &quot;finally&quot;;</span>
+<span class="fc" id="L465">            case Token.INSTANCEOF: return &quot;instanceof&quot;;</span>
+<span class="fc" id="L466">            case Token.THROW:      return &quot;throw&quot;;</span>
+<span class="fc" id="L467">            case Token.TRY:        return &quot;try&quot;;</span>
+<span class="fc" id="L468">            default:               return null;</span>
+        }
+    }
+
+    /**
+     * Return true if the passed code is a valid Token constant.
+     * @param code a potential token code
+     * @return true if it's a known token
+     */
+    public static boolean isValidToken(int code) {
+<span class="fc bfc" id="L478" title="All 4 branches covered.">        return code &gt;= ERROR</span>
+                &amp;&amp; code &lt;= LAST_TOKEN;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
