@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaPackage.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaPackage.java</span></div><h1>NativeJavaPackage.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * This class reflects Java packages into the JavaScript environment.  We
+ * lazily reflect classes and subpackages, and use a caching/sharing
+ * system to ensure that members reflected into one JavaPackage appear
+ * in all other references to the same package (as with Packages.java.lang
+ * and java.lang).
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaObject
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaPackage extends ScriptableObject
+{
+    static final long serialVersionUID = 7445054382212031523L;
+
+    NativeJavaPackage(boolean internalUsage, String packageName,
+                      ClassLoader classLoader)
+<span class="fc" id="L33">    {</span>
+<span class="fc" id="L34">        this.packageName = packageName;</span>
+<span class="fc" id="L35">        this.classLoader = classLoader;</span>
+<span class="fc" id="L36">    }</span>
+
+    /**
+     * @deprecated NativeJavaPackage is an internal class, do not use
+     * it directly.
+     */
+    @Deprecated
+    public NativeJavaPackage(String packageName, ClassLoader classLoader) {
+<span class="fc" id="L44">        this(false, packageName, classLoader);</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * @deprecated NativeJavaPackage is an internal class, do not use
+     * it directly.
+     */
+    @Deprecated
+    public NativeJavaPackage(String packageName) {
+<span class="pc" id="L53">        this(false, packageName,</span>
+<span class="nc" id="L54">             Context.getCurrentContext().getApplicationClassLoader());</span>
+<span class="nc" id="L55">    }</span>
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L59">        return &quot;JavaPackage&quot;;</span>
+    }
+
+    @Override
+    public boolean has(String id, Scriptable start) {
+<span class="fc" id="L64">        return true;</span>
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start) {
+<span class="nc" id="L69">        return false;</span>
+    }
+
+    @Override
+    public void put(String id, Scriptable start, Object value) {
+        // Can't add properties to Java packages.  Sorry.
+<span class="nc" id="L75">    }</span>
+
+    @Override
+    public void put(int index, Scriptable start, Object value) {
+<span class="nc" id="L79">        throw Context.reportRuntimeError0(&quot;msg.pkg.int&quot;);</span>
+    }
+
+    @Override
+    public Object get(String id, Scriptable start) {
+<span class="nc" id="L84">        return getPkgProperty(id, start, true);</span>
+    }
+
+    @Override
+    public Object get(int index, Scriptable start) {
+<span class="nc" id="L89">        return NOT_FOUND;</span>
+    }
+
+    // set up a name which is known to be a package so we don't
+    // need to look for a class by that name
+    NativeJavaPackage forcePackage(String name, Scriptable scope)
+    {
+<span class="fc" id="L96">        Object cached = super.get(name, this);</span>
+<span class="pc bpc" id="L97" title="2 of 4 branches missed.">        if (cached != null &amp;&amp; cached instanceof NativeJavaPackage) {</span>
+<span class="nc" id="L98">            return (NativeJavaPackage) cached;</span>
+        } else {
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            String newPackage = packageName.length() == 0</span>
+                                ? name
+                                : packageName + &quot;.&quot; + name;
+<span class="fc" id="L103">            NativeJavaPackage pkg = new NativeJavaPackage(true, newPackage, classLoader);</span>
+<span class="fc" id="L104">            ScriptRuntime.setObjectProtoAndParent(pkg, scope);</span>
+<span class="fc" id="L105">            super.put(name, this, pkg);</span>
+<span class="fc" id="L106">            return pkg;</span>
+        }
+    }
+
+    synchronized Object getPkgProperty(String name, Scriptable start,
+                                       boolean createPkg)
+    {
+<span class="fc" id="L113">        Object cached = super.get(name, start);</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        if (cached != NOT_FOUND)</span>
+<span class="nc" id="L115">            return cached;</span>
+<span class="pc bpc" id="L116" title="3 of 4 branches missed.">        if (negativeCache != null &amp;&amp; negativeCache.contains(name)) {</span>
+            // Performance optimization: see bug 421071
+<span class="nc" id="L118">            return null;</span>
+        }
+
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        String className = (packageName.length() == 0)</span>
+                               ? name : packageName + '.' + name;
+<span class="nc" id="L123">        Context cx = Context.getContext();</span>
+<span class="nc" id="L124">        ClassShutter shutter = cx.getClassShutter();</span>
+<span class="nc" id="L125">        Scriptable newValue = null;</span>
+<span class="nc bnc" id="L126" title="All 4 branches missed.">        if (shutter == null || shutter.visibleToScripts(className)) {</span>
+<span class="nc" id="L127">            Class&lt;?&gt; cl = null;</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (classLoader != null) {</span>
+<span class="nc" id="L129">                cl = Kit.classOrNull(classLoader, className);</span>
+            } else {
+<span class="nc" id="L131">                cl = Kit.classOrNull(className);</span>
+            }
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if (cl != null) {</span>
+<span class="nc" id="L134">                WrapFactory wrapFactory = cx.getWrapFactory();</span>
+<span class="nc" id="L135">                newValue = wrapFactory.wrapJavaClass(cx, getTopLevelScope(this), cl);</span>
+<span class="nc" id="L136">                newValue.setPrototype(getPrototype());</span>
+            }
+        }
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        if (newValue == null) {</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">            if (createPkg) {</span>
+                NativeJavaPackage pkg;
+<span class="nc" id="L142">                pkg = new NativeJavaPackage(true, className, classLoader);</span>
+<span class="nc" id="L143">                ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());</span>
+<span class="nc" id="L144">                newValue = pkg;</span>
+<span class="nc" id="L145">            } else {</span>
+                // add to negative cache
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                if (negativeCache == null)</span>
+<span class="nc" id="L148">                    negativeCache = new HashSet&lt;String&gt;();</span>
+<span class="nc" id="L149">                negativeCache.add(name);</span>
+            }
+        }
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (newValue != null) {</span>
+            // Make it available for fast lookup and sharing of
+            // lazily-reflected constructors and static members.
+<span class="nc" id="L155">            super.put(name, start, newValue);</span>
+        }
+<span class="nc" id="L157">        return newValue;</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; ignored) {
+<span class="fc" id="L162">        return toString();</span>
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+<span class="nc" id="L166">        in.defaultReadObject();</span>
+<span class="nc" id="L167">        this.classLoader = Context.getCurrentContext().getApplicationClassLoader();</span>
+<span class="nc" id="L168">    }</span>
+
+    @Override
+    public String toString() {
+<span class="fc" id="L172">        return &quot;[JavaPackage &quot; + packageName + &quot;]&quot;;</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">        if(obj instanceof NativeJavaPackage) {</span>
+<span class="nc" id="L178">            NativeJavaPackage njp = (NativeJavaPackage)obj;</span>
+<span class="nc bnc" id="L179" title="All 4 branches missed.">            return packageName.equals(njp.packageName) &amp;&amp;</span>
+                   classLoader == njp.classLoader;
+        }
+<span class="fc" id="L182">        return false;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        return packageName.hashCode() ^</span>
+<span class="nc" id="L188">               (classLoader == null ? 0 : classLoader.hashCode());</span>
+    }
+
+    private String packageName;
+    private transient ClassLoader classLoader;
+<span class="fc" id="L193">    private Set&lt;String&gt; negativeCache = null;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

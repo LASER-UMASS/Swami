@@ -1,0 +1,774 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeGlobal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeGlobal.java</span></div><h1>NativeGlobal.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+import org.mozilla.javascript.xml.XMLLib;
+import static org.mozilla.javascript.ScriptableObject.DONTENUM;
+import static org.mozilla.javascript.ScriptableObject.READONLY;
+import static org.mozilla.javascript.ScriptableObject.PERMANENT;
+
+/**
+ * This class implements the global native object (function and value
+ * properties only).
+ *
+ * See ECMA 15.1.[12].
+ *
+ * @author Mike Shaver
+ */
+
+<span class="fc" id="L25">public class NativeGlobal implements Serializable, IdFunctionCall</span>
+{
+    static final long serialVersionUID = 6080442165748707530L;
+
+    public static void init(Context cx, Scriptable scope, boolean sealed) {
+<span class="fc" id="L30">        NativeGlobal obj = new NativeGlobal();</span>
+
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        for (int id = 1; id &lt;= LAST_SCOPE_FUNCTION_ID; ++id) {</span>
+            String name;
+<span class="fc" id="L34">            int arity = 1;</span>
+<span class="pc bpc" id="L35" title="1 of 14 branches missed.">            switch (id) {</span>
+              case Id_decodeURI:
+<span class="fc" id="L37">                name = &quot;decodeURI&quot;;</span>
+<span class="fc" id="L38">                break;</span>
+              case Id_decodeURIComponent:
+<span class="fc" id="L40">                name = &quot;decodeURIComponent&quot;;</span>
+<span class="fc" id="L41">                break;</span>
+              case Id_encodeURI:
+<span class="fc" id="L43">                name = &quot;encodeURI&quot;;</span>
+<span class="fc" id="L44">                break;</span>
+              case Id_encodeURIComponent:
+<span class="fc" id="L46">                name = &quot;encodeURIComponent&quot;;</span>
+<span class="fc" id="L47">                break;</span>
+              case Id_escape:
+<span class="fc" id="L49">                name = &quot;escape&quot;;</span>
+<span class="fc" id="L50">                break;</span>
+              case Id_eval:
+<span class="fc" id="L52">                name = &quot;eval&quot;;</span>
+<span class="fc" id="L53">                break;</span>
+              case Id_isFinite:
+<span class="fc" id="L55">                name = &quot;isFinite&quot;;</span>
+<span class="fc" id="L56">                break;</span>
+              case Id_isNaN:
+<span class="fc" id="L58">                name = &quot;isNaN&quot;;</span>
+<span class="fc" id="L59">                break;</span>
+              case Id_isXMLName:
+<span class="fc" id="L61">                name = &quot;isXMLName&quot;;</span>
+<span class="fc" id="L62">                break;</span>
+              case Id_parseFloat:
+<span class="fc" id="L64">                name = &quot;parseFloat&quot;;</span>
+<span class="fc" id="L65">                break;</span>
+              case Id_parseInt:
+<span class="fc" id="L67">                name = &quot;parseInt&quot;;</span>
+<span class="fc" id="L68">                arity = 2;</span>
+<span class="fc" id="L69">                break;</span>
+              case Id_unescape:
+<span class="fc" id="L71">                name = &quot;unescape&quot;;</span>
+<span class="fc" id="L72">                break;</span>
+              case Id_uneval:
+<span class="fc" id="L74">                name = &quot;uneval&quot;;</span>
+<span class="fc" id="L75">                break;</span>
+              default:
+<span class="nc" id="L77">                  throw Kit.codeBug();</span>
+            }
+<span class="fc" id="L79">            IdFunctionObject f = new IdFunctionObject(obj, FTAG, id, name,</span>
+                                                      arity, scope);
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            if (sealed) {</span>
+<span class="fc" id="L82">                f.sealObject();</span>
+            }
+<span class="fc" id="L84">            f.exportAsScopeProperty();</span>
+        }
+
+<span class="fc" id="L87">        ScriptableObject.defineProperty(</span>
+            scope, &quot;NaN&quot;, ScriptRuntime.NaNobj,
+            READONLY|DONTENUM|PERMANENT);
+<span class="fc" id="L90">        ScriptableObject.defineProperty(</span>
+            scope, &quot;Infinity&quot;,
+<span class="fc" id="L92">            ScriptRuntime.wrapNumber(Double.POSITIVE_INFINITY),</span>
+            READONLY|DONTENUM|PERMANENT);
+<span class="fc" id="L94">        ScriptableObject.defineProperty(</span>
+            scope, &quot;undefined&quot;, Undefined.instance,
+            READONLY|DONTENUM|PERMANENT);
+
+        /*
+            Each error constructor gets its own Error object as a prototype,
+            with the 'name' property set to the name of the error.
+        */
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        for (TopLevel.NativeErrors error : TopLevel.NativeErrors.values()) {</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if (error == TopLevel.NativeErrors.Error) {</span>
+                // Error is initialized elsewhere and we should not overwrite it.
+<span class="fc" id="L105">                continue;</span>
+            }
+<span class="fc" id="L107">            String name = error.name();</span>
+<span class="fc" id="L108">            ScriptableObject errorProto =</span>
+<span class="fc" id="L109">              (ScriptableObject) ScriptRuntime.newBuiltinObject(cx, scope,</span>
+                                                  TopLevel.Builtins.Error,
+                                                  ScriptRuntime.emptyArgs);
+<span class="fc" id="L112">            errorProto.put(&quot;name&quot;, errorProto, name);</span>
+<span class="fc" id="L113">            errorProto.put(&quot;message&quot;, errorProto, &quot;&quot;);</span>
+<span class="fc" id="L114">            IdFunctionObject ctor = new IdFunctionObject(obj, FTAG,</span>
+                                                         Id_new_CommonError,
+                                                         name, 1, scope);
+<span class="fc" id="L117">            ctor.markAsConstructor(errorProto);</span>
+<span class="fc" id="L118">            errorProto.put(&quot;constructor&quot;, errorProto, ctor);</span>
+<span class="fc" id="L119">            errorProto.setAttributes(&quot;constructor&quot;, ScriptableObject.DONTENUM);</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">            if (sealed) {</span>
+<span class="fc" id="L121">                errorProto.sealObject();</span>
+<span class="fc" id="L122">                ctor.sealObject();</span>
+            }
+<span class="fc" id="L124">            ctor.exportAsScopeProperty();</span>
+        }
+<span class="fc" id="L126">    }</span>
+
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (f.hasTag(FTAG)) {</span>
+<span class="fc" id="L132">            int methodId = f.methodId();</span>
+<span class="pc bpc" id="L133" title="12 of 13 branches missed.">            switch (methodId) {</span>
+                case Id_decodeURI:
+                case Id_decodeURIComponent: {
+<span class="nc" id="L136">                    String str = ScriptRuntime.toString(args, 0);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                    return decode(str, methodId == Id_decodeURI);</span>
+                }
+
+                case Id_encodeURI:
+                case Id_encodeURIComponent: {
+<span class="nc" id="L142">                    String str = ScriptRuntime.toString(args, 0);</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                    return encode(str, methodId == Id_encodeURI);</span>
+                }
+
+                case Id_escape:
+<span class="nc" id="L147">                    return js_escape(args);</span>
+
+                case Id_eval:
+<span class="nc" id="L150">                    return js_eval(cx, scope, args);</span>
+
+                case Id_isFinite: {
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                    if (args.length &lt; 1) {</span>
+<span class="nc" id="L154">                        return Boolean.FALSE;</span>
+                    }
+<span class="nc" id="L156">                    return NativeNumber.isFinite(args[0]);</span>
+                }
+
+                case Id_isNaN: {
+                    // The global method isNaN, as per ECMA-262 15.1.2.6.
+                    boolean result;
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                    if (args.length &lt; 1) {</span>
+<span class="nc" id="L163">                        result = true;</span>
+                    } else {
+<span class="nc" id="L165">                        double d = ScriptRuntime.toNumber(args[0]);</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                        result = (d != d);</span>
+                    }
+<span class="nc" id="L168">                    return ScriptRuntime.wrapBoolean(result);</span>
+                }
+
+                case Id_isXMLName: {
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                    Object name = (args.length == 0)</span>
+                                  ? Undefined.instance : args[0];
+<span class="nc" id="L174">                    XMLLib xmlLib = XMLLib.extractFromScope(scope);</span>
+<span class="nc" id="L175">                    return ScriptRuntime.wrapBoolean(</span>
+<span class="nc" id="L176">                        xmlLib.isXMLName(cx, name));</span>
+                }
+
+                case Id_parseFloat:
+<span class="nc" id="L180">                    return js_parseFloat(args);</span>
+
+                case Id_parseInt:
+<span class="nc" id="L183">                    return js_parseInt(args);</span>
+
+                case Id_unescape:
+<span class="nc" id="L186">                    return js_unescape(args);</span>
+
+                case Id_uneval: {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">                    Object value = (args.length != 0)</span>
+                                   ? args[0] : Undefined.instance;
+<span class="nc" id="L191">                    return ScriptRuntime.uneval(cx, scope, value);</span>
+                }
+
+                case Id_new_CommonError:
+                    // The implementation of all the ECMA error constructors
+                    // (SyntaxError, TypeError, etc.)
+<span class="fc" id="L197">                    return NativeError.make(cx, scope, f, args);</span>
+            }
+        }
+<span class="fc" id="L200">        throw f.unknown();</span>
+    }
+
+    /**
+     * The global method parseInt, as per ECMA-262 15.1.2.2.
+     */
+    static Object js_parseInt(Object[] args) {
+<span class="fc" id="L207">        String s = ScriptRuntime.toString(args, 0);</span>
+<span class="fc" id="L208">        int radix = ScriptRuntime.toInt32(args, 1);</span>
+
+<span class="fc" id="L210">        int len = s.length();</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">        if (len == 0)</span>
+<span class="fc" id="L212">            return ScriptRuntime.NaNobj;</span>
+
+<span class="fc" id="L214">        boolean negative = false;</span>
+<span class="fc" id="L215">        int start = 0;</span>
+        char c;
+        do {
+<span class="fc" id="L218">            c = s.charAt(start);</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            if (!ScriptRuntime.isStrWhiteSpaceChar(c))</span>
+<span class="fc" id="L220">                break;</span>
+<span class="fc" id="L221">            start++;</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">        } while (start &lt; len);</span>
+
+<span class="pc bpc" id="L224" title="1 of 6 branches missed.">        if (c == '+' || (negative = (c == '-')))</span>
+<span class="fc" id="L225">            start++;</span>
+
+<span class="fc" id="L227">        final int NO_RADIX = -1;</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        if (radix == 0) {</span>
+<span class="fc" id="L229">            radix = NO_RADIX;</span>
+<span class="pc bpc" id="L230" title="1 of 4 branches missed.">        } else if (radix &lt; 2 || radix &gt; 36) {</span>
+<span class="fc" id="L231">            return ScriptRuntime.NaNobj;</span>
+<span class="pc bpc" id="L232" title="3 of 6 branches missed.">        } else if (radix == 16 &amp;&amp; len - start &gt; 1 &amp;&amp; s.charAt(start) == '0') {</span>
+<span class="nc" id="L233">            c = s.charAt(start+1);</span>
+<span class="nc bnc" id="L234" title="All 4 branches missed.">            if (c == 'x' || c == 'X')</span>
+<span class="nc" id="L235">                start += 2;</span>
+        }
+
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        if (radix == NO_RADIX) {</span>
+<span class="fc" id="L239">            radix = 10;</span>
+<span class="pc bpc" id="L240" title="1 of 4 branches missed.">            if (len - start &gt; 1 &amp;&amp; s.charAt(start) == '0') {</span>
+<span class="fc" id="L241">                c = s.charAt(start+1);</span>
+<span class="pc bpc" id="L242" title="2 of 4 branches missed.">                if (c == 'x' || c == 'X') {</span>
+<span class="nc" id="L243">                    radix = 16;</span>
+<span class="nc" id="L244">                    start += 2;</span>
+<span class="pc bpc" id="L245" title="2 of 4 branches missed.">                } else if ('0' &lt;= c &amp;&amp; c &lt;= '9') {</span>
+<span class="nc" id="L246">                    radix = 8;</span>
+<span class="nc" id="L247">                    start++;</span>
+                }
+            }
+        }
+
+<span class="fc" id="L252">        double d = ScriptRuntime.stringPrefixToNumber(s, start, radix);</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        return ScriptRuntime.wrapNumber(negative ? -d : d);</span>
+    }
+
+    /**
+     * The global method parseFloat, as per ECMA-262 15.1.2.3.
+     *
+     * @param args the arguments to parseFloat, ignoring args[&gt;=1]
+     */
+    static Object js_parseFloat(Object[] args)
+    {
+<span class="fc bfc" id="L263" title="All 2 branches covered.">        if (args.length &lt; 1)</span>
+<span class="fc" id="L264">            return ScriptRuntime.NaNobj;</span>
+
+<span class="fc" id="L266">        String s = ScriptRuntime.toString(args[0]);</span>
+<span class="fc" id="L267">        int len = s.length();</span>
+<span class="fc" id="L268">        int start = 0;</span>
+        // Scan forward to skip whitespace
+        char c;
+        for (;;) {
+<span class="fc bfc" id="L272" title="All 2 branches covered.">            if (start == len) {</span>
+<span class="fc" id="L273">                return ScriptRuntime.NaNobj;</span>
+            }
+<span class="fc" id="L275">            c = s.charAt(start);</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">            if (!ScriptRuntime.isStrWhiteSpaceChar(c)) {</span>
+<span class="fc" id="L277">                break;</span>
+            }
+<span class="fc" id="L279">            ++start;</span>
+        }
+
+<span class="fc" id="L282">        int i = start;</span>
+<span class="pc bpc" id="L283" title="1 of 4 branches missed.">        if (c == '+' || c == '-') {</span>
+<span class="fc" id="L284">            ++i;</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">            if (i == len) {</span>
+<span class="nc" id="L286">                return ScriptRuntime.NaNobj;</span>
+            }
+<span class="fc" id="L288">            c = s.charAt(i);</span>
+        }
+
+<span class="fc bfc" id="L291" title="All 2 branches covered.">        if (c == 'I') {</span>
+            // check for &quot;Infinity&quot;
+<span class="pc bpc" id="L293" title="1 of 4 branches missed.">            if (i+8 &lt;= len &amp;&amp; s.regionMatches(i, &quot;Infinity&quot;, 0, 8)) {</span>
+                double d;
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">                if (s.charAt(start) == '-') {</span>
+<span class="nc" id="L296">                    d = Double.NEGATIVE_INFINITY;</span>
+                } else {
+<span class="fc" id="L298">                    d = Double.POSITIVE_INFINITY;</span>
+                }
+<span class="fc" id="L300">                return ScriptRuntime.wrapNumber(d);</span>
+            }
+<span class="fc" id="L302">            return ScriptRuntime.NaNobj;</span>
+        }
+
+        // Find the end of the legal bit
+<span class="fc" id="L306">        int decimal = -1;</span>
+<span class="fc" id="L307">        int exponent = -1;</span>
+<span class="fc" id="L308">        boolean exponentValid = false;</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        for (; i &lt; len; i++) {</span>
+<span class="fc bfc" id="L310" title="All 5 branches covered.">            switch (s.charAt(i)) {</span>
+              case '.':
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">                if (decimal != -1) // Only allow a single decimal point.</span>
+<span class="nc" id="L313">                    break;</span>
+<span class="fc" id="L314">                decimal = i;</span>
+<span class="fc" id="L315">                continue;</span>
+
+              case 'e':
+              case 'E':
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">                if (exponent != -1) {</span>
+<span class="nc" id="L320">                    break;</span>
+<span class="pc bpc" id="L321" title="1 of 2 branches missed.">                } else if (i == len - 1) {</span>
+<span class="nc" id="L322">                    break;</span>
+                }
+<span class="fc" id="L324">                exponent = i;</span>
+<span class="fc" id="L325">                continue;</span>
+
+              case '+':
+              case '-':
+                 // Only allow '+' or '-' after 'e' or 'E'
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">                if (exponent != i-1) {</span>
+<span class="nc" id="L331">                    break;</span>
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">                } else if (i == len - 1) {</span>
+<span class="nc" id="L333">                    --i;</span>
+<span class="nc" id="L334">                    break;</span>
+                }
+                continue;
+
+              case '0': case '1': case '2': case '3': case '4':
+              case '5': case '6': case '7': case '8': case '9':
+<span class="fc bfc" id="L340" title="All 2 branches covered.">                if (exponent != -1) {</span>
+<span class="fc" id="L341">                    exponentValid = true;</span>
+                }
+                continue;
+
+              default:
+<span class="fc" id="L346">                break;</span>
+            }
+            break;
+        }
+<span class="fc bfc" id="L350" title="All 4 branches covered.">        if (exponent != -1 &amp;&amp; !exponentValid) {</span>
+<span class="fc" id="L351">            i = exponent;</span>
+        }
+<span class="fc" id="L353">        s = s.substring(start, i);</span>
+        try {
+<span class="fc" id="L355">            return Double.valueOf(s);</span>
+        }
+<span class="fc" id="L357">        catch (NumberFormatException ex) {</span>
+<span class="fc" id="L358">            return ScriptRuntime.NaNobj;</span>
+        }
+    }
+
+    /**
+     * The global method escape, as per ECMA-262 15.1.2.4.
+
+     * Includes code for the 'mask' argument supported by the C escape
+     * method, which used to be part of the browser imbedding.  Blame
+     * for the strange constant names should be directed there.
+     */
+
+    private Object js_escape(Object[] args) {
+        final int
+<span class="nc" id="L372">            URL_XALPHAS = 1,</span>
+<span class="nc" id="L373">            URL_XPALPHAS = 2,</span>
+<span class="nc" id="L374">            URL_PATH = 4;</span>
+
+<span class="nc" id="L376">        String s = ScriptRuntime.toString(args, 0);</span>
+
+<span class="nc" id="L378">        int mask = URL_XALPHAS | URL_XPALPHAS | URL_PATH;</span>
+<span class="nc bnc" id="L379" title="All 2 branches missed.">        if (args.length &gt; 1) { // the 'mask' argument.  Non-ECMA.</span>
+<span class="nc" id="L380">            double d = ScriptRuntime.toNumber(args[1]);</span>
+<span class="nc bnc" id="L381" title="All 6 branches missed.">            if (d != d || ((mask = (int) d) != d) ||</span>
+                0 != (mask &amp; ~(URL_XALPHAS | URL_XPALPHAS | URL_PATH)))
+            {
+<span class="nc" id="L384">                throw Context.reportRuntimeError0(&quot;msg.bad.esc.mask&quot;);</span>
+            }
+        }
+
+<span class="nc" id="L388">        StringBuilder sb = null;</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">        for (int k = 0, L = s.length(); k != L; ++k) {</span>
+<span class="nc" id="L390">            int c = s.charAt(k);</span>
+<span class="nc bnc" id="L391" title="All 30 branches missed.">            if (mask != 0</span>
+                &amp;&amp; ((c &gt;= '0' &amp;&amp; c &lt;= '9')
+                    || (c &gt;= 'A' &amp;&amp; c &lt;= 'Z') || (c &gt;= 'a' &amp;&amp; c &lt;= 'z')
+                    || c == '@' || c == '*' || c == '_' || c == '-' || c == '.'
+                    || (0 != (mask &amp; URL_PATH) &amp;&amp; (c == '/' || c == '+'))))
+            {
+<span class="nc bnc" id="L397" title="All 2 branches missed.">                if (sb != null) {</span>
+<span class="nc" id="L398">                    sb.append((char)c);</span>
+                }
+            } else {
+<span class="nc bnc" id="L401" title="All 2 branches missed.">                if (sb == null) {</span>
+<span class="nc" id="L402">                    sb = new StringBuilder(L + 3);</span>
+<span class="nc" id="L403">                    sb.append(s);</span>
+<span class="nc" id="L404">                    sb.setLength(k);</span>
+                }
+
+                int hexSize;
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                if (c &lt; 256) {</span>
+<span class="nc bnc" id="L409" title="All 4 branches missed.">                    if (c == ' ' &amp;&amp; mask == URL_XPALPHAS) {</span>
+<span class="nc" id="L410">                        sb.append('+');</span>
+<span class="nc" id="L411">                        continue;</span>
+                    }
+<span class="nc" id="L413">                    sb.append('%');</span>
+<span class="nc" id="L414">                    hexSize = 2;</span>
+                } else {
+<span class="nc" id="L416">                    sb.append('%');</span>
+<span class="nc" id="L417">                    sb.append('u');</span>
+<span class="nc" id="L418">                    hexSize = 4;</span>
+                }
+
+                // append hexadecimal form of c left-padded with 0
+<span class="nc bnc" id="L422" title="All 2 branches missed.">                for (int shift = (hexSize - 1) * 4; shift &gt;= 0; shift -= 4) {</span>
+<span class="nc" id="L423">                    int digit = 0xf &amp; (c &gt;&gt; shift);</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">                    int hc = (digit &lt; 10) ? '0' + digit : 'A' - 10 + digit;</span>
+<span class="nc" id="L425">                    sb.append((char)hc);</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        return (sb == null) ? s : sb.toString();</span>
+    }
+
+    /**
+     * The global unescape method, as per ECMA-262 15.1.2.5.
+     */
+
+    private Object js_unescape(Object[] args)
+    {
+<span class="nc" id="L439">        String s = ScriptRuntime.toString(args, 0);</span>
+<span class="nc" id="L440">        int firstEscapePos = s.indexOf('%');</span>
+<span class="nc bnc" id="L441" title="All 2 branches missed.">        if (firstEscapePos &gt;= 0) {</span>
+<span class="nc" id="L442">            int L = s.length();</span>
+<span class="nc" id="L443">            char[] buf = s.toCharArray();</span>
+<span class="nc" id="L444">            int destination = firstEscapePos;</span>
+<span class="nc bnc" id="L445" title="All 2 branches missed.">            for (int k = firstEscapePos; k != L;) {</span>
+<span class="nc" id="L446">                char c = buf[k];</span>
+<span class="nc" id="L447">                ++k;</span>
+<span class="nc bnc" id="L448" title="All 4 branches missed.">                if (c == '%' &amp;&amp; k != L) {</span>
+                    int end, start;
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                    if (buf[k] == 'u') {</span>
+<span class="nc" id="L451">                        start = k + 1;</span>
+<span class="nc" id="L452">                        end = k + 5;</span>
+                    } else {
+<span class="nc" id="L454">                        start = k;</span>
+<span class="nc" id="L455">                        end = k + 2;</span>
+                    }
+<span class="nc bnc" id="L457" title="All 2 branches missed.">                    if (end &lt;= L) {</span>
+<span class="nc" id="L458">                        int x = 0;</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                        for (int i = start; i != end; ++i) {</span>
+<span class="nc" id="L460">                            x = Kit.xDigitToInt(buf[i], x);</span>
+                        }
+<span class="nc bnc" id="L462" title="All 2 branches missed.">                        if (x &gt;= 0) {</span>
+<span class="nc" id="L463">                            c = (char)x;</span>
+<span class="nc" id="L464">                            k = end;</span>
+                        }
+                    }
+                }
+<span class="nc" id="L468">                buf[destination] = c;</span>
+<span class="nc" id="L469">                ++destination;</span>
+<span class="nc" id="L470">            }</span>
+<span class="nc" id="L471">            s = new String(buf, 0, destination);</span>
+        }
+<span class="nc" id="L473">        return s;</span>
+    }
+
+    /**
+     * This is an indirect call to eval, and thus uses the global environment.
+     * Direct calls are executed via ScriptRuntime.callSpecial().
+     */
+    private Object js_eval(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L482">        Scriptable global = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="nc" id="L483">        return ScriptRuntime.evalSpecial(cx, global, global, args, &quot;eval code&quot;, 1);</span>
+    }
+
+    static boolean isEvalFunction(Object functionObj)
+    {
+<span class="pc bpc" id="L488" title="1 of 2 branches missed.">        if (functionObj instanceof IdFunctionObject) {</span>
+<span class="fc" id="L489">            IdFunctionObject function = (IdFunctionObject)functionObj;</span>
+<span class="pc bpc" id="L490" title="1 of 4 branches missed.">            if (function.hasTag(FTAG) &amp;&amp; function.methodId() == Id_eval) {</span>
+<span class="fc" id="L491">                return true;</span>
+            }
+        }
+<span class="fc" id="L494">        return false;</span>
+    }
+
+    /**
+     * @deprecated Use {@link ScriptRuntime#constructError(String,String)}
+     * instead.
+     */
+    @Deprecated
+    public static EcmaError constructError(Context cx,
+                                           String error,
+                                           String message,
+                                           Scriptable scope)
+    {
+<span class="fc" id="L507">        return ScriptRuntime.constructError(error, message);</span>
+    }
+
+    /**
+     * @deprecated Use
+     * {@link ScriptRuntime#constructError(String,String,String,int,String,int)}
+     * instead.
+     */
+    @Deprecated
+    public static EcmaError constructError(Context cx,
+                                           String error,
+                                           String message,
+                                           Scriptable scope,
+                                           String sourceName,
+                                           int lineNumber,
+                                           int columnNumber,
+                                           String lineSource)
+    {
+<span class="fc" id="L525">        return ScriptRuntime.constructError(error, message,</span>
+                                            sourceName, lineNumber,
+                                            lineSource, columnNumber);
+    }
+
+    /*
+    *   ECMA 3, 15.1.3 URI Handling Function Properties
+    *
+    *   The following are implementations of the algorithms
+    *   given in the ECMA specification for the hidden functions
+    *   'Encode' and 'Decode'.
+    */
+    private static String encode(String str, boolean fullUri) {
+<span class="nc" id="L538">        byte[] utf8buf = null;</span>
+<span class="nc" id="L539">        StringBuilder sb = null;</span>
+
+<span class="nc bnc" id="L541" title="All 2 branches missed.">        for (int k = 0, length = str.length(); k != length; ++k) {</span>
+<span class="nc" id="L542">            char C = str.charAt(k);</span>
+<span class="nc bnc" id="L543" title="All 2 branches missed.">            if (encodeUnescaped(C, fullUri)) {</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">                if (sb != null) {</span>
+<span class="nc" id="L545">                    sb.append(C);</span>
+                }
+            } else {
+<span class="nc bnc" id="L548" title="All 2 branches missed.">                if (sb == null) {</span>
+<span class="nc" id="L549">                    sb = new StringBuilder(length + 3);</span>
+<span class="nc" id="L550">                    sb.append(str);</span>
+<span class="nc" id="L551">                    sb.setLength(k);</span>
+<span class="nc" id="L552">                    utf8buf = new byte[6];</span>
+                }
+<span class="nc bnc" id="L554" title="All 4 branches missed.">                if (0xDC00 &lt;= C &amp;&amp; C &lt;= 0xDFFF) {</span>
+<span class="nc" id="L555">                    throw uriError();</span>
+                }
+                int V;
+<span class="nc bnc" id="L558" title="All 4 branches missed.">                if (C &lt; 0xD800 || 0xDBFF &lt; C) {</span>
+<span class="nc" id="L559">                    V = C;</span>
+                } else {
+<span class="nc" id="L561">                    k++;</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">                    if (k == length) {</span>
+<span class="nc" id="L563">                        throw uriError();</span>
+                    }
+<span class="nc" id="L565">                    char C2 = str.charAt(k);</span>
+<span class="nc bnc" id="L566" title="All 4 branches missed.">                    if (!(0xDC00 &lt;= C2 &amp;&amp; C2 &lt;= 0xDFFF)) {</span>
+<span class="nc" id="L567">                        throw uriError();</span>
+                    }
+<span class="nc" id="L569">                    V = ((C - 0xD800) &lt;&lt; 10) + (C2 - 0xDC00) + 0x10000;</span>
+                }
+<span class="nc" id="L571">                int L = oneUcs4ToUtf8Char(utf8buf, V);</span>
+<span class="nc bnc" id="L572" title="All 2 branches missed.">                for (int j = 0; j &lt; L; j++) {</span>
+<span class="nc" id="L573">                    int d = 0xff &amp; utf8buf[j];</span>
+<span class="nc" id="L574">                    sb.append('%');</span>
+<span class="nc" id="L575">                    sb.append(toHexChar(d &gt;&gt;&gt; 4));</span>
+<span class="nc" id="L576">                    sb.append(toHexChar(d &amp; 0xf));</span>
+                }
+            }
+        }
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        return (sb == null) ? str : sb.toString();</span>
+    }
+
+    private static char toHexChar(int i) {
+<span class="nc bnc" id="L584" title="All 2 branches missed.">        if (i &gt;&gt; 4 != 0) Kit.codeBug();</span>
+<span class="nc bnc" id="L585" title="All 2 branches missed.">        return (char)((i &lt; 10) ? i + '0' : i - 10 + 'A');</span>
+    }
+
+    private static int unHex(char c) {
+<span class="nc bnc" id="L589" title="All 4 branches missed.">        if ('A' &lt;= c &amp;&amp; c &lt;= 'F') {</span>
+<span class="nc" id="L590">            return c - 'A' + 10;</span>
+<span class="nc bnc" id="L591" title="All 4 branches missed.">        } else if ('a' &lt;= c &amp;&amp; c &lt;= 'f') {</span>
+<span class="nc" id="L592">            return c - 'a' + 10;</span>
+<span class="nc bnc" id="L593" title="All 4 branches missed.">        } else if ('0' &lt;= c &amp;&amp; c &lt;= '9') {</span>
+<span class="nc" id="L594">            return c - '0';</span>
+        } else {
+<span class="nc" id="L596">            return -1;</span>
+        }
+    }
+
+    private static int unHex(char c1, char c2) {
+<span class="nc" id="L601">        int i1 = unHex(c1);</span>
+<span class="nc" id="L602">        int i2 = unHex(c2);</span>
+<span class="nc bnc" id="L603" title="All 4 branches missed.">        if (i1 &gt;= 0 &amp;&amp; i2 &gt;= 0) {</span>
+<span class="nc" id="L604">            return (i1 &lt;&lt; 4) | i2;</span>
+        }
+<span class="nc" id="L606">        return -1;</span>
+    }
+
+    private static String decode(String str, boolean fullUri) {
+<span class="nc" id="L610">        char[] buf = null;</span>
+<span class="nc" id="L611">        int bufTop = 0;</span>
+
+<span class="nc bnc" id="L613" title="All 2 branches missed.">        for (int k = 0, length = str.length(); k != length;) {</span>
+<span class="nc" id="L614">            char C = str.charAt(k);</span>
+<span class="nc bnc" id="L615" title="All 2 branches missed.">            if (C != '%') {</span>
+<span class="nc bnc" id="L616" title="All 2 branches missed.">                if (buf != null) {</span>
+<span class="nc" id="L617">                    buf[bufTop++] = C;</span>
+                }
+<span class="nc" id="L619">                ++k;</span>
+            } else {
+<span class="nc bnc" id="L621" title="All 2 branches missed.">                if (buf == null) {</span>
+                    // decode always compress so result can not be bigger then
+                    // str.length()
+<span class="nc" id="L624">                    buf = new char[length];</span>
+<span class="nc" id="L625">                    str.getChars(0, k, buf, 0);</span>
+<span class="nc" id="L626">                    bufTop = k;</span>
+                }
+<span class="nc" id="L628">                int start = k;</span>
+<span class="nc bnc" id="L629" title="All 2 branches missed.">                if (k + 3 &gt; length)</span>
+<span class="nc" id="L630">                    throw uriError();</span>
+<span class="nc" id="L631">                int B = unHex(str.charAt(k + 1), str.charAt(k + 2));</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">                if (B &lt; 0) throw uriError();</span>
+<span class="nc" id="L633">                k += 3;</span>
+<span class="nc bnc" id="L634" title="All 2 branches missed.">                if ((B &amp; 0x80) == 0) {</span>
+<span class="nc" id="L635">                    C = (char)B;</span>
+                } else {
+                    // Decode UTF-8 sequence into ucs4Char and encode it into
+                    // UTF-16
+                    int utf8Tail, ucs4Char, minUcs4Char;
+<span class="nc bnc" id="L640" title="All 2 branches missed.">                    if ((B &amp; 0xC0) == 0x80) {</span>
+                        // First  UTF-8 should be ouside 0x80..0xBF
+<span class="nc" id="L642">                        throw uriError();</span>
+<span class="nc bnc" id="L643" title="All 2 branches missed.">                    } else if ((B &amp; 0x20) == 0) {</span>
+<span class="nc" id="L644">                        utf8Tail = 1; ucs4Char = B &amp; 0x1F;</span>
+<span class="nc" id="L645">                        minUcs4Char = 0x80;</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">                    } else if ((B &amp; 0x10) == 0) {</span>
+<span class="nc" id="L647">                        utf8Tail = 2; ucs4Char = B &amp; 0x0F;</span>
+<span class="nc" id="L648">                        minUcs4Char = 0x800;</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">                    } else if ((B &amp; 0x08) == 0) {</span>
+<span class="nc" id="L650">                        utf8Tail = 3; ucs4Char = B &amp; 0x07;</span>
+<span class="nc" id="L651">                        minUcs4Char = 0x10000;</span>
+<span class="nc bnc" id="L652" title="All 2 branches missed.">                    } else if ((B &amp; 0x04) == 0) {</span>
+<span class="nc" id="L653">                        utf8Tail = 4; ucs4Char = B &amp; 0x03;</span>
+<span class="nc" id="L654">                        minUcs4Char = 0x200000;</span>
+<span class="nc bnc" id="L655" title="All 2 branches missed.">                    } else if ((B &amp; 0x02) == 0) {</span>
+<span class="nc" id="L656">                        utf8Tail = 5; ucs4Char = B &amp; 0x01;</span>
+<span class="nc" id="L657">                        minUcs4Char = 0x4000000;</span>
+                    } else {
+                        // First UTF-8 can not be 0xFF or 0xFE
+<span class="nc" id="L660">                        throw uriError();</span>
+                    }
+<span class="nc bnc" id="L662" title="All 2 branches missed.">                    if (k + 3 * utf8Tail &gt; length)</span>
+<span class="nc" id="L663">                        throw uriError();</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">                    for (int j = 0; j != utf8Tail; j++) {</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">                        if (str.charAt(k) != '%')</span>
+<span class="nc" id="L666">                            throw uriError();</span>
+<span class="nc" id="L667">                        B = unHex(str.charAt(k + 1), str.charAt(k + 2));</span>
+<span class="nc bnc" id="L668" title="All 4 branches missed.">                        if (B &lt; 0 || (B &amp; 0xC0) != 0x80)</span>
+<span class="nc" id="L669">                            throw uriError();</span>
+<span class="nc" id="L670">                        ucs4Char = (ucs4Char &lt;&lt; 6) | (B &amp; 0x3F);</span>
+<span class="nc" id="L671">                        k += 3;</span>
+                    }
+                    // Check for overlongs and other should-not-present codes
+<span class="nc bnc" id="L674" title="All 6 branches missed.">                    if (ucs4Char &lt; minUcs4Char</span>
+                            || (ucs4Char &gt;= 0xD800 &amp;&amp; ucs4Char &lt;= 0xDFFF)) {
+<span class="nc" id="L676">                        ucs4Char = INVALID_UTF8;</span>
+<span class="nc bnc" id="L677" title="All 4 branches missed.">                    } else if (ucs4Char == 0xFFFE || ucs4Char == 0xFFFF) {</span>
+<span class="nc" id="L678">                        ucs4Char = 0xFFFD;</span>
+                    }
+<span class="nc bnc" id="L680" title="All 2 branches missed.">                    if (ucs4Char &gt;= 0x10000) {</span>
+<span class="nc" id="L681">                        ucs4Char -= 0x10000;</span>
+<span class="nc bnc" id="L682" title="All 2 branches missed.">                        if (ucs4Char &gt; 0xFFFFF) {</span>
+<span class="nc" id="L683">                            throw uriError();</span>
+                        }
+<span class="nc" id="L685">                        char H = (char)((ucs4Char &gt;&gt;&gt; 10) + 0xD800);</span>
+<span class="nc" id="L686">                        C = (char)((ucs4Char &amp; 0x3FF) + 0xDC00);</span>
+<span class="nc" id="L687">                        buf[bufTop++] = H;</span>
+<span class="nc" id="L688">                    } else {</span>
+<span class="nc" id="L689">                        C = (char)ucs4Char;</span>
+                    }
+                }
+<span class="nc bnc" id="L692" title="All 4 branches missed.">                if (fullUri &amp;&amp; URI_DECODE_RESERVED.indexOf(C) &gt;= 0) {</span>
+<span class="nc bnc" id="L693" title="All 2 branches missed.">                    for (int x = start; x != k; x++) {</span>
+<span class="nc" id="L694">                        buf[bufTop++] = str.charAt(x);</span>
+                    }
+                } else {
+<span class="nc" id="L697">                    buf[bufTop++] = C;</span>
+                }
+            }
+<span class="nc" id="L700">        }</span>
+<span class="nc bnc" id="L701" title="All 2 branches missed.">        return (buf == null) ? str : new String(buf, 0, bufTop);</span>
+    }
+
+    private static boolean encodeUnescaped(char c, boolean fullUri) {
+<span class="nc bnc" id="L705" title="All 12 branches missed.">        if (('A' &lt;= c &amp;&amp; c &lt;= 'Z') || ('a' &lt;= c &amp;&amp; c &lt;= 'z')</span>
+                || ('0' &lt;= c &amp;&amp; c &lt;= '9')) {
+<span class="nc" id="L707">            return true;</span>
+        }
+<span class="nc bnc" id="L709" title="All 2 branches missed.">        if (&quot;-_.!~*'()&quot;.indexOf(c) &gt;= 0) {</span>
+<span class="nc" id="L710">            return true;</span>
+        }
+<span class="nc bnc" id="L712" title="All 2 branches missed.">        if (fullUri) {</span>
+<span class="nc bnc" id="L713" title="All 2 branches missed.">            return URI_DECODE_RESERVED.indexOf(c) &gt;= 0;</span>
+        }
+<span class="nc" id="L715">        return false;</span>
+    }
+
+    private static EcmaError uriError() {
+<span class="nc" id="L719">        return ScriptRuntime.constructError(&quot;URIError&quot;,</span>
+<span class="nc" id="L720">                ScriptRuntime.getMessage0(&quot;msg.bad.uri&quot;));</span>
+    }
+
+    private static final String URI_DECODE_RESERVED = &quot;;/?:@&amp;=+$,#&quot;;
+    private static final int INVALID_UTF8 = Integer.MAX_VALUE;
+
+    /* Convert one UCS-4 char and write it into a UTF-8 buffer, which must be
+    * at least 6 bytes long.  Return the number of UTF-8 bytes of data written.
+    */
+    private static int oneUcs4ToUtf8Char(byte[] utf8Buffer, int ucs4Char) {
+<span class="nc" id="L730">        int utf8Length = 1;</span>
+
+        //JS_ASSERT(ucs4Char &lt;= 0x7FFFFFFF);
+<span class="nc bnc" id="L733" title="All 2 branches missed.">        if ((ucs4Char &amp; ~0x7F) == 0)</span>
+<span class="nc" id="L734">            utf8Buffer[0] = (byte)ucs4Char;</span>
+        else {
+            int i;
+<span class="nc" id="L737">            int a = ucs4Char &gt;&gt;&gt; 11;</span>
+<span class="nc" id="L738">            utf8Length = 2;</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">            while (a != 0) {</span>
+<span class="nc" id="L740">                a &gt;&gt;&gt;= 5;</span>
+<span class="nc" id="L741">                utf8Length++;</span>
+            }
+<span class="nc" id="L743">            i = utf8Length;</span>
+<span class="nc bnc" id="L744" title="All 2 branches missed.">            while (--i &gt; 0) {</span>
+<span class="nc" id="L745">                utf8Buffer[i] = (byte)((ucs4Char &amp; 0x3F) | 0x80);</span>
+<span class="nc" id="L746">                ucs4Char &gt;&gt;&gt;= 6;</span>
+            }
+<span class="nc" id="L748">            utf8Buffer[0] = (byte)(0x100 - (1 &lt;&lt; (8-utf8Length)) + ucs4Char);</span>
+        }
+<span class="nc" id="L750">        return utf8Length;</span>
+    }
+
+<span class="fc" id="L753">    private static final Object FTAG = &quot;Global&quot;;</span>
+
+    private static final int
+        Id_decodeURI           =  1,
+        Id_decodeURIComponent  =  2,
+        Id_encodeURI           =  3,
+        Id_encodeURIComponent  =  4,
+        Id_escape              =  5,
+        Id_eval                =  6,
+        Id_isFinite            =  7,
+        Id_isNaN               =  8,
+        Id_isXMLName           =  9,
+        Id_parseFloat          = 10,
+        Id_parseInt            = 11,
+        Id_unescape            = 12,
+        Id_uneval              = 13,
+
+        LAST_SCOPE_FUNCTION_ID = 13,
+
+        Id_new_CommonError     = 14;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

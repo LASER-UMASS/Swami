@@ -1,0 +1,2147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeArray.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeArray.java</span></div><h1>NativeArray.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.regexp.NativeRegExp;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
+
+import static org.mozilla.javascript.ScriptRuntimeES6.requireObjectCoercible;
+
+/**
+ * This class implements the Array native object.
+ * @author Norris Boyd
+ * @author Mike McCabe
+ */
+public class NativeArray extends IdScriptableObject implements List
+{
+    static final long serialVersionUID = 7331366857676127338L;
+
+    /*
+     * Optimization possibilities and open issues:
+     * - Long vs. double schizophrenia.  I suspect it might be better
+     * to use double throughout.
+     *
+     * - Functions that need a new Array call &quot;new Array&quot; in the
+     * current scope rather than using a hardwired constructor;
+     * &quot;Array&quot; could be redefined.  It turns out that js calls the
+     * equivalent of &quot;new Array&quot; in the current scope, except that it
+     * always gets at least an object back, even when Array == null.
+     */
+
+<span class="fc" id="L42">    private static final Object ARRAY_TAG = &quot;Array&quot;;</span>
+<span class="fc" id="L43">    private static final Integer NEGATIVE_ONE = Integer.valueOf(-1);</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L47">        NativeArray obj = new NativeArray(0);</span>
+<span class="fc" id="L48">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L49">    }</span>
+
+    static int getMaximumInitialCapacity() {
+<span class="nc" id="L52">        return maximumInitialCapacity;</span>
+    }
+
+    static void setMaximumInitialCapacity(int maximumInitialCapacity) {
+<span class="nc" id="L56">        NativeArray.maximumInitialCapacity = maximumInitialCapacity;</span>
+<span class="nc" id="L57">    }</span>
+
+    public NativeArray(long lengthArg)
+<span class="fc" id="L60">    {</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        denseOnly = lengthArg &lt;= maximumInitialCapacity;</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (denseOnly) {</span>
+<span class="fc" id="L63">            int intLength = (int) lengthArg;</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if (intLength &lt; DEFAULT_INITIAL_CAPACITY)</span>
+<span class="fc" id="L65">                intLength = DEFAULT_INITIAL_CAPACITY;</span>
+<span class="fc" id="L66">            dense = new Object[intLength];</span>
+<span class="fc" id="L67">            Arrays.fill(dense, Scriptable.NOT_FOUND);</span>
+        }
+<span class="fc" id="L69">        length = lengthArg;</span>
+<span class="fc" id="L70">    }</span>
+
+    public NativeArray(Object[] array)
+<span class="fc" id="L73">    {</span>
+<span class="fc" id="L74">        denseOnly = true;</span>
+<span class="fc" id="L75">        dense = array;</span>
+<span class="fc" id="L76">        length = array.length;</span>
+<span class="fc" id="L77">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L82">        return &quot;Array&quot;;</span>
+    }
+
+    private static final int
+        Id_length        =  1,
+        MAX_INSTANCE_ID  =  1;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L92">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr) {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (id == Id_length) {</span>
+<span class="nc" id="L98">            lengthAttr = attr;</span>
+        }
+<span class="nc" id="L100">    }</span>
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (s.equals(&quot;length&quot;)) {</span>
+<span class="fc" id="L106">            return instanceIdInfo(lengthAttr, Id_length);</span>
+        }
+<span class="fc" id="L108">        return super.findInstanceIdInfo(s);</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        if (id == Id_length) { return &quot;length&quot;; }</span>
+<span class="nc" id="L115">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">        if (id == Id_length) {</span>
+<span class="fc" id="L122">            return ScriptRuntime.wrapNumber(length);</span>
+        }
+<span class="nc" id="L124">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (id == Id_length) {</span>
+<span class="nc" id="L131">            setLength(value); return;</span>
+        }
+<span class="nc" id="L133">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L134">    }</span>
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L139">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_join,</span>
+                &quot;join&quot;, 1);
+<span class="fc" id="L141">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_reverse,</span>
+                &quot;reverse&quot;, 0);
+<span class="fc" id="L143">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_sort,</span>
+                &quot;sort&quot;, 1);
+<span class="fc" id="L145">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_push,</span>
+                &quot;push&quot;, 1);
+<span class="fc" id="L147">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_pop,</span>
+                &quot;pop&quot;, 0);
+<span class="fc" id="L149">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_shift,</span>
+                &quot;shift&quot;, 0);
+<span class="fc" id="L151">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_unshift,</span>
+                &quot;unshift&quot;, 1);
+<span class="fc" id="L153">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_splice,</span>
+                &quot;splice&quot;, 2);
+<span class="fc" id="L155">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_concat,</span>
+                &quot;concat&quot;, 1);
+<span class="fc" id="L157">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_slice,</span>
+                &quot;slice&quot;, 2);
+<span class="fc" id="L159">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_indexOf,</span>
+                &quot;indexOf&quot;, 1);
+<span class="fc" id="L161">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_lastIndexOf,</span>
+                &quot;lastIndexOf&quot;, 1);
+<span class="fc" id="L163">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_every,</span>
+                &quot;every&quot;, 1);
+<span class="fc" id="L165">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_filter,</span>
+                &quot;filter&quot;, 1);
+<span class="fc" id="L167">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_forEach,</span>
+                &quot;forEach&quot;, 1);
+<span class="fc" id="L169">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_map,</span>
+                &quot;map&quot;, 1);
+<span class="fc" id="L171">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_some,</span>
+                &quot;some&quot;, 1);
+<span class="fc" id="L173">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_find,</span>
+                &quot;find&quot;, 1);
+<span class="fc" id="L175">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_findIndex,</span>
+                &quot;findIndex&quot;, 1);
+<span class="fc" id="L177">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_reduce,</span>
+                &quot;reduce&quot;, 1);
+<span class="fc" id="L179">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_reduceRight,</span>
+                &quot;reduceRight&quot;, 1);
+<span class="fc" id="L181">        addIdFunctionProperty(ctor, ARRAY_TAG, ConstructorId_isArray,</span>
+                &quot;isArray&quot;, 1);
+<span class="fc" id="L183">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L184">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (id == SymbolId_iterator) {</span>
+<span class="nc" id="L190">            initPrototypeMethod(ARRAY_TAG, id, SymbolKey.ITERATOR, &quot;[Symbol.iterator]&quot;, 0);</span>
+<span class="nc" id="L191">            return;</span>
+        }
+
+<span class="fc" id="L194">        String s, fnName = null;</span>
+        int arity;
+<span class="pc bpc" id="L196" title="13 of 26 branches missed.">        switch (id) {</span>
+<span class="fc" id="L197">          case Id_constructor:    arity=1; s=&quot;constructor&quot;;    break;</span>
+<span class="fc" id="L198">          case Id_toString:       arity=0; s=&quot;toString&quot;;       break;</span>
+<span class="nc" id="L199">          case Id_toLocaleString: arity=0; s=&quot;toLocaleString&quot;; break;</span>
+<span class="nc" id="L200">          case Id_toSource:       arity=0; s=&quot;toSource&quot;;       break;</span>
+<span class="nc" id="L201">          case Id_join:           arity=1; s=&quot;join&quot;;           break;</span>
+<span class="nc" id="L202">          case Id_reverse:        arity=0; s=&quot;reverse&quot;;        break;</span>
+<span class="nc" id="L203">          case Id_sort:           arity=1; s=&quot;sort&quot;;           break;</span>
+<span class="nc" id="L204">          case Id_push:           arity=1; s=&quot;push&quot;;           break;</span>
+<span class="nc" id="L205">          case Id_pop:            arity=0; s=&quot;pop&quot;;            break;</span>
+<span class="nc" id="L206">          case Id_shift:          arity=0; s=&quot;shift&quot;;          break;</span>
+<span class="nc" id="L207">          case Id_unshift:        arity=1; s=&quot;unshift&quot;;        break;</span>
+<span class="nc" id="L208">          case Id_splice:         arity=2; s=&quot;splice&quot;;         break;</span>
+<span class="nc" id="L209">          case Id_concat:         arity=1; s=&quot;concat&quot;;         break;</span>
+<span class="nc" id="L210">          case Id_slice:          arity=2; s=&quot;slice&quot;;          break;</span>
+<span class="fc" id="L211">          case Id_indexOf:        arity=1; s=&quot;indexOf&quot;;        break;</span>
+<span class="fc" id="L212">          case Id_lastIndexOf:    arity=1; s=&quot;lastIndexOf&quot;;    break;</span>
+<span class="fc" id="L213">          case Id_every:          arity=1; s=&quot;every&quot;;          break;</span>
+<span class="fc" id="L214">          case Id_filter:         arity=1; s=&quot;filter&quot;;         break;</span>
+<span class="fc" id="L215">          case Id_forEach:        arity=1; s=&quot;forEach&quot;;        break;</span>
+<span class="fc" id="L216">          case Id_map:            arity=1; s=&quot;map&quot;;            break;</span>
+<span class="fc" id="L217">          case Id_some:           arity=1; s=&quot;some&quot;;           break;</span>
+<span class="fc" id="L218">          case Id_find:           arity=1; s=&quot;find&quot;;           break;</span>
+<span class="fc" id="L219">          case Id_findIndex:      arity=1; s=&quot;findIndex&quot;;      break;</span>
+<span class="fc" id="L220">          case Id_reduce:         arity=1; s=&quot;reduce&quot;;         break;</span>
+<span class="fc" id="L221">          case Id_reduceRight:    arity=1; s=&quot;reduceRight&quot;;    break;</span>
+<span class="nc" id="L222">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+
+<span class="fc" id="L225">        initPrototypeMethod(ARRAY_TAG, id, s, fnName, arity);</span>
+<span class="fc" id="L226">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L232" title="1 of 2 branches missed.">        if (!f.hasTag(ARRAY_TAG)) {</span>
+<span class="nc" id="L233">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L235">        int id = f.methodId();</span>
+      again:
+        for (;;) {
+<span class="pc bpc" id="L238" title="16 of 22 branches missed.">            switch (id) {</span>
+              case ConstructorId_join:
+              case ConstructorId_reverse:
+              case ConstructorId_sort:
+              case ConstructorId_push:
+              case ConstructorId_pop:
+              case ConstructorId_shift:
+              case ConstructorId_unshift:
+              case ConstructorId_splice:
+              case ConstructorId_concat:
+              case ConstructorId_slice:
+              case ConstructorId_indexOf:
+              case ConstructorId_lastIndexOf:
+              case ConstructorId_every:
+              case ConstructorId_filter:
+              case ConstructorId_forEach:
+              case ConstructorId_map:
+              case ConstructorId_some:
+              case ConstructorId_find:
+              case ConstructorId_findIndex:
+              case ConstructorId_reduce:
+              case ConstructorId_reduceRight: {
+                // this is a small trick; we will handle all the ConstructorId_xxx calls
+                // the same way the object calls are processed
+                // so we adjust the args, inverting the id and
+                // restarting the method selection
+                // Attention: the implementations have to be aware of this
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                if (args.length &gt; 0) {</span>
+<span class="nc" id="L266">                    thisObj = ScriptRuntime.toObject(cx, scope, args[0]);</span>
+<span class="nc" id="L267">                    Object[] newArgs = new Object[args.length-1];</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                    for (int i=0; i &lt; newArgs.length; i++)</span>
+<span class="nc" id="L269">                        newArgs[i] = args[i+1];</span>
+<span class="nc" id="L270">                    args = newArgs;</span>
+                }
+<span class="nc" id="L272">                id = -id;</span>
+<span class="nc" id="L273">                continue again;</span>
+              }
+
+              case ConstructorId_isArray:
+<span class="nc bnc" id="L277" title="All 4 branches missed.">                return args.length &gt; 0 &amp;&amp; js_isArray(args[0]);</span>
+
+              case Id_constructor: {
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">                boolean inNewExpr = (thisObj == null);</span>
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">                if (!inNewExpr) {</span>
+                    // IdFunctionObject.construct will set up parent, proto
+<span class="nc" id="L283">                    return f.construct(cx, scope, args);</span>
+                }
+<span class="fc" id="L285">                return jsConstructor(cx, scope, args);</span>
+              }
+
+              case Id_toString:
+<span class="fc" id="L289">                return toStringHelper(cx, scope, thisObj,</span>
+<span class="fc" id="L290">                    cx.hasFeature(Context.FEATURE_TO_STRING_AS_SOURCE), false);</span>
+
+              case Id_toLocaleString:
+<span class="nc" id="L293">                return toStringHelper(cx, scope, thisObj, false, true);</span>
+
+              case Id_toSource:
+<span class="nc" id="L296">                return toStringHelper(cx, scope, thisObj, true, false);</span>
+
+              case Id_join:
+<span class="nc" id="L299">                return js_join(cx, thisObj, args);</span>
+
+              case Id_reverse:
+<span class="nc" id="L302">                return js_reverse(cx, thisObj, args);</span>
+
+              case Id_sort:
+<span class="nc" id="L305">                return js_sort(cx, scope, thisObj, args);</span>
+
+              case Id_push:
+<span class="nc" id="L308">                return js_push(cx, thisObj, args);</span>
+
+              case Id_pop:
+<span class="nc" id="L311">                return js_pop(cx, thisObj, args);</span>
+
+              case Id_shift:
+<span class="nc" id="L314">                return js_shift(cx, thisObj, args);</span>
+
+              case Id_unshift:
+<span class="nc" id="L317">                return js_unshift(cx, thisObj, args);</span>
+
+              case Id_splice:
+<span class="nc" id="L320">                return js_splice(cx, scope, thisObj, args);</span>
+
+              case Id_concat:
+<span class="nc" id="L323">                return js_concat(cx, scope, thisObj, args);</span>
+
+              case Id_slice:
+<span class="nc" id="L326">                return js_slice(cx, thisObj, args);</span>
+
+              case Id_indexOf:
+<span class="fc" id="L329">                return js_indexOf(cx, thisObj, args);</span>
+
+              case Id_lastIndexOf:
+<span class="fc" id="L332">                return js_lastIndexOf(cx, thisObj, args);</span>
+
+              case Id_every:
+              case Id_filter:
+              case Id_forEach:
+              case Id_map:
+              case Id_some:
+              case Id_find:
+              case Id_findIndex:
+<span class="fc" id="L341">                return iterativeMethod(cx, f, scope, thisObj, args);</span>
+              case Id_reduce:
+              case Id_reduceRight:
+<span class="fc" id="L344">                return reduceMethod(cx, id, scope, thisObj, args);</span>
+
+              case SymbolId_iterator:
+<span class="nc" id="L347">                return new NativeArrayIterator(scope, thisObj);</span>
+            }
+<span class="nc" id="L349">            throw new IllegalArgumentException(&quot;Array.prototype has no method: &quot; + f.getFunctionName());</span>
+        }
+    }
+
+    @Override
+    public Object get(int index, Scriptable start)
+    {
+<span class="pc bpc" id="L356" title="3 of 4 branches missed.">        if (!denseOnly &amp;&amp; isGetterOrSetter(null, index, false))</span>
+<span class="nc" id="L357">            return super.get(index, start);</span>
+<span class="pc bpc" id="L358" title="2 of 6 branches missed.">        if (dense != null &amp;&amp; 0 &lt;= index &amp;&amp; index &lt; dense.length)</span>
+<span class="fc" id="L359">            return dense[index];</span>
+<span class="fc" id="L360">        return super.get(index, start);</span>
+    }
+
+    @Override
+    public boolean has(int index, Scriptable start)
+    {
+<span class="pc bpc" id="L366" title="3 of 4 branches missed.">        if (!denseOnly &amp;&amp; isGetterOrSetter(null, index, false))</span>
+<span class="nc" id="L367">            return super.has(index, start);</span>
+<span class="pc bpc" id="L368" title="2 of 6 branches missed.">        if (dense != null &amp;&amp; 0 &lt;= index &amp;&amp; index &lt; dense.length)</span>
+<span class="pc bpc" id="L369" title="1 of 2 branches missed.">            return dense[index] != NOT_FOUND;</span>
+<span class="fc" id="L370">        return super.has(index, start);</span>
+    }
+
+    private static long toArrayIndex(Object id) {
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        if (id instanceof String) {</span>
+<span class="fc" id="L375">            return toArrayIndex((String)id);</span>
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">        } else if (id instanceof Number) {</span>
+<span class="nc" id="L377">            return toArrayIndex(((Number)id).doubleValue());</span>
+        }
+<span class="fc" id="L379">        return -1;</span>
+    }
+
+    // if id is an array index (ECMA 15.4.0), return the number,
+    // otherwise return -1L
+    private static long toArrayIndex(String id)
+    {
+<span class="fc" id="L386">        long index = toArrayIndex(ScriptRuntime.toNumber(id));</span>
+        // Assume that ScriptRuntime.toString(index) is the same
+        // as java.lang.Long.toString(index) for long
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">        if (Long.toString(index).equals(id)) {</span>
+<span class="nc" id="L390">            return index;</span>
+        }
+<span class="fc" id="L392">        return -1;</span>
+    }
+
+    private static long toArrayIndex(double d) {
+<span class="pc bpc" id="L396" title="1 of 2 branches missed.">        if (d == d) {</span>
+<span class="nc" id="L397">            long index = ScriptRuntime.toUint32(d);</span>
+<span class="nc bnc" id="L398" title="All 4 branches missed.">            if (index == d &amp;&amp; index != 4294967295L) {</span>
+<span class="nc" id="L399">                return index;</span>
+            }
+        }
+<span class="fc" id="L402">        return -1;</span>
+    }
+
+    private static int toDenseIndex(Object id) {
+<span class="fc" id="L406">      long index = toArrayIndex(id);</span>
+<span class="pc bpc" id="L407" title="3 of 4 branches missed.">      return 0 &lt;= index &amp;&amp; index &lt; Integer.MAX_VALUE ? (int) index : -1;</span>
+    }
+
+    @Override
+    public void put(String id, Scriptable start, Object value)
+    {
+<span class="fc" id="L413">        super.put(id, start, value);</span>
+<span class="pc bpc" id="L414" title="1 of 2 branches missed.">        if (start == this) {</span>
+            // If the object is sealed, super will throw exception
+<span class="fc" id="L416">            long index = toArrayIndex(id);</span>
+<span class="pc bpc" id="L417" title="1 of 2 branches missed.">            if (index &gt;= length) {</span>
+<span class="nc" id="L418">                length = index + 1;</span>
+<span class="nc" id="L419">                denseOnly = false;</span>
+            }
+        }
+<span class="fc" id="L422">    }</span>
+
+    private boolean ensureCapacity(int capacity)
+    {
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">        if (capacity &gt; dense.length) {</span>
+<span class="pc bpc" id="L427" title="1 of 2 branches missed.">            if (capacity &gt; MAX_PRE_GROW_SIZE) {</span>
+<span class="nc" id="L428">                denseOnly = false;</span>
+<span class="nc" id="L429">                return false;</span>
+            }
+<span class="fc" id="L431">            capacity = Math.max(capacity, (int)(dense.length * GROW_FACTOR));</span>
+<span class="fc" id="L432">            Object[] newDense = new Object[capacity];</span>
+<span class="fc" id="L433">            System.arraycopy(dense, 0, newDense, 0, dense.length);</span>
+<span class="fc" id="L434">            Arrays.fill(newDense, dense.length, newDense.length,</span>
+                        Scriptable.NOT_FOUND);
+<span class="fc" id="L436">            dense = newDense;</span>
+        }
+<span class="fc" id="L438">        return true;</span>
+    }
+
+    @Override
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class="pc bpc" id="L444" title="5 of 10 branches missed.">        if (start == this &amp;&amp; !isSealed() &amp;&amp; dense != null &amp;&amp; 0 &lt;= index &amp;&amp;</span>
+<span class="nc bnc" id="L445" title="All 2 branches missed.">            (denseOnly || !isGetterOrSetter(null, index, true)))</span>
+        {
+<span class="pc bpc" id="L447" title="3 of 4 branches missed.">            if (!isExtensible() &amp;&amp; this.length &lt;= index) {</span>
+<span class="nc" id="L448">                return;</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">            } else if (index &lt; dense.length) {</span>
+<span class="fc" id="L450">                dense[index] = value;</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">                if (this.length &lt;= index)</span>
+<span class="fc" id="L452">                    this.length = (long)index + 1;</span>
+<span class="fc" id="L453">                return;</span>
+<span class="pc bpc" id="L454" title="2 of 4 branches missed.">            } else if (denseOnly &amp;&amp; index &lt; dense.length * GROW_FACTOR &amp;&amp;</span>
+<span class="pc bpc" id="L455" title="1 of 2 branches missed.">                       ensureCapacity(index+1))</span>
+            {
+<span class="fc" id="L457">                dense[index] = value;</span>
+<span class="fc" id="L458">                this.length = (long)index + 1;</span>
+<span class="fc" id="L459">                return;</span>
+            } else {
+<span class="nc" id="L461">                denseOnly = false;</span>
+            }
+        }
+<span class="nc" id="L464">        super.put(index, start, value);</span>
+<span class="nc bnc" id="L465" title="All 4 branches missed.">        if (start == this &amp;&amp; (lengthAttr &amp; READONLY) == 0) {</span>
+            // only set the array length if given an array index (ECMA 15.4.0)
+<span class="nc bnc" id="L467" title="All 2 branches missed.">            if (this.length &lt;= index) {</span>
+                // avoid overflowing index!
+<span class="nc" id="L469">                this.length = (long)index + 1;</span>
+            }
+        }
+<span class="nc" id="L472">    }</span>
+
+    @Override
+    public void delete(int index)
+    {
+<span class="nc bnc" id="L477" title="All 6 branches missed.">        if (dense != null &amp;&amp; 0 &lt;= index &amp;&amp; index &lt; dense.length &amp;&amp;</span>
+<span class="nc bnc" id="L478" title="All 6 branches missed.">            !isSealed() &amp;&amp; (denseOnly || !isGetterOrSetter(null, index, true)))</span>
+        {
+<span class="nc" id="L480">            dense[index] = NOT_FOUND;</span>
+        } else {
+<span class="nc" id="L482">            super.delete(index);</span>
+        }
+<span class="nc" id="L484">    }</span>
+
+    @Override
+    public Object[] getIds(boolean nonEnumerable, boolean getSymbols)
+    {
+<span class="fc" id="L489">        Object[] superIds = super.getIds(nonEnumerable, getSymbols);</span>
+<span class="pc bpc" id="L490" title="1 of 2 branches missed.">        if (dense == null) { return superIds; }</span>
+<span class="fc" id="L491">        int N = dense.length;</span>
+<span class="fc" id="L492">        long currentLength = length;</span>
+<span class="pc bpc" id="L493" title="1 of 2 branches missed.">        if (N &gt; currentLength) {</span>
+<span class="nc" id="L494">            N = (int)currentLength;</span>
+        }
+<span class="fc bfc" id="L496" title="All 2 branches covered.">        if (N == 0) { return superIds; }</span>
+<span class="fc" id="L497">        int superLength = superIds.length;</span>
+<span class="fc" id="L498">        Object[] ids = new Object[N + superLength];</span>
+
+<span class="fc" id="L500">        int presentCount = 0;</span>
+<span class="fc bfc" id="L501" title="All 2 branches covered.">        for (int i = 0; i != N; ++i) {</span>
+            // Replace existing elements by their indexes
+<span class="pc bpc" id="L503" title="1 of 2 branches missed.">            if (dense[i] != NOT_FOUND) {</span>
+<span class="fc" id="L504">                ids[presentCount] = Integer.valueOf(i);</span>
+<span class="fc" id="L505">                ++presentCount;</span>
+            }
+        }
+<span class="pc bpc" id="L508" title="1 of 2 branches missed.">        if (presentCount != N) {</span>
+            // dense contains deleted elems, need to shrink the result
+<span class="nc" id="L510">            Object[] tmp = new Object[presentCount + superLength];</span>
+<span class="nc" id="L511">            System.arraycopy(ids, 0, tmp, 0, presentCount);</span>
+<span class="nc" id="L512">            ids = tmp;</span>
+        }
+<span class="fc" id="L514">        System.arraycopy(superIds, 0, ids, presentCount, superLength);</span>
+<span class="fc" id="L515">        return ids;</span>
+    }
+
+    public Integer[] getIndexIds() {
+<span class="fc" id="L519">      Object[] ids = getIds();</span>
+<span class="fc" id="L520">      java.util.List&lt;Integer&gt; indices = new java.util.ArrayList&lt;Integer&gt;(ids.length);</span>
+<span class="fc bfc" id="L521" title="All 2 branches covered.">      for (Object id : ids) {</span>
+<span class="fc" id="L522">        int int32Id = ScriptRuntime.toInt32(id);</span>
+<span class="pc bpc" id="L523" title="2 of 4 branches missed.">        if (int32Id &gt;= 0 &amp;&amp; ScriptRuntime.toString(int32Id).equals(ScriptRuntime.toString(id))) {</span>
+<span class="fc" id="L524">          indices.add(int32Id);</span>
+        }
+      }
+<span class="fc" id="L527">      return indices.toArray(new Integer[indices.size()]);</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint)
+    {
+<span class="pc bpc" id="L533" title="1 of 2 branches missed.">        if (hint == ScriptRuntime.NumberClass) {</span>
+<span class="nc" id="L534">            Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L535" title="All 2 branches missed.">            if (cx.getLanguageVersion() == Context.VERSION_1_2)</span>
+<span class="nc" id="L536">                return Long.valueOf(length);</span>
+        }
+<span class="fc" id="L538">        return super.getDefaultValue(hint);</span>
+    }
+
+    private ScriptableObject defaultIndexPropertyDescriptor(Object value) {
+<span class="nc" id="L542">      Scriptable scope = getParentScope();</span>
+<span class="nc bnc" id="L543" title="All 2 branches missed.">      if (scope == null) scope = this;</span>
+<span class="nc" id="L544">      ScriptableObject desc = new NativeObject();</span>
+<span class="nc" id="L545">      ScriptRuntime.setBuiltinProtoAndParent(desc, scope, TopLevel.Builtins.Object);</span>
+<span class="nc" id="L546">      desc.defineProperty(&quot;value&quot;, value, EMPTY);</span>
+<span class="nc" id="L547">      desc.defineProperty(&quot;writable&quot;, true, EMPTY);</span>
+<span class="nc" id="L548">      desc.defineProperty(&quot;enumerable&quot;, true, EMPTY);</span>
+<span class="nc" id="L549">      desc.defineProperty(&quot;configurable&quot;, true, EMPTY);</span>
+<span class="nc" id="L550">      return desc;</span>
+    }
+
+    @Override
+    public int getAttributes(int index) {
+<span class="nc bnc" id="L555" title="All 8 branches missed.">        if (dense != null &amp;&amp; index &gt;= 0 &amp;&amp; index &lt; dense.length</span>
+                &amp;&amp; dense[index] != NOT_FOUND) {
+<span class="nc" id="L557">            return EMPTY;</span>
+        }
+<span class="nc" id="L559">        return super.getAttributes(index);</span>
+    }
+
+    @Override
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class="pc bpc" id="L564" title="1 of 2 branches missed.">      if (dense != null) {</span>
+<span class="fc" id="L565">        int index = toDenseIndex(id);</span>
+<span class="pc bpc" id="L566" title="5 of 6 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; dense.length &amp;&amp; dense[index] != NOT_FOUND) {</span>
+<span class="nc" id="L567">          Object value = dense[index];</span>
+<span class="nc" id="L568">          return defaultIndexPropertyDescriptor(value);</span>
+        }
+      }
+<span class="fc" id="L571">      return super.getOwnPropertyDescriptor(cx, id);</span>
+    }
+
+    @Override
+    protected void defineOwnProperty(Context cx, Object id,
+                                     ScriptableObject desc,
+                                     boolean checkValid) {
+<span class="nc bnc" id="L578" title="All 2 branches missed.">      if (dense != null) {</span>
+<span class="nc" id="L579">        Object[] values = dense;</span>
+<span class="nc" id="L580">        dense = null;</span>
+<span class="nc" id="L581">        denseOnly = false;</span>
+<span class="nc bnc" id="L582" title="All 2 branches missed.">        for (int i = 0; i &lt; values.length; i++) {</span>
+<span class="nc bnc" id="L583" title="All 2 branches missed.">          if (values[i] != NOT_FOUND) {</span>
+<span class="nc" id="L584">            put(i, this, values[i]);</span>
+          }
+        }
+      }
+<span class="nc" id="L588">      long index = toArrayIndex(id);</span>
+<span class="nc bnc" id="L589" title="All 2 branches missed.">      if (index &gt;= length) {</span>
+<span class="nc" id="L590">        length = index + 1;</span>
+      }
+<span class="nc" id="L592">      super.defineOwnProperty(cx, id, desc, checkValid);</span>
+<span class="nc" id="L593">    }</span>
+
+    /**
+     * See ECMA 15.4.1,2
+     */
+    private static Object jsConstructor(Context cx, Scriptable scope,
+                                        Object[] args)
+    {
+<span class="fc bfc" id="L601" title="All 2 branches covered.">        if (args.length == 0)</span>
+<span class="fc" id="L602">            return new NativeArray(0);</span>
+
+        // Only use 1 arg as first element for version 1.2; for
+        // any other version (including 1.3) follow ECMA and use it as
+        // a length.
+<span class="pc bpc" id="L607" title="1 of 2 branches missed.">        if (cx.getLanguageVersion() == Context.VERSION_1_2) {</span>
+<span class="nc" id="L608">            return new NativeArray(args);</span>
+        } else {
+<span class="fc" id="L610">            Object arg0 = args[0];</span>
+<span class="pc bpc" id="L611" title="1 of 4 branches missed.">            if (args.length &gt; 1 || !(arg0 instanceof Number)) {</span>
+<span class="fc" id="L612">                return new NativeArray(args);</span>
+            } else {
+<span class="fc" id="L614">                long len = ScriptRuntime.toUint32(arg0);</span>
+<span class="fc bfc" id="L615" title="All 2 branches covered.">                if (len != ((Number)arg0).doubleValue()) {</span>
+<span class="fc" id="L616">                    String msg = ScriptRuntime.getMessage0(&quot;msg.arraylength.bad&quot;);</span>
+<span class="fc" id="L617">                    throw ScriptRuntime.constructError(&quot;RangeError&quot;, msg);</span>
+                }
+<span class="fc" id="L619">                return new NativeArray(len);</span>
+            }
+        }
+    }
+
+    public long getLength() {
+<span class="fc" id="L625">        return length;</span>
+    }
+
+    /** @deprecated Use {@link #getLength()} instead. */
+    @Deprecated
+    public long jsGet_length() {
+<span class="nc" id="L631">        return getLength();</span>
+    }
+
+    /**
+     * Change the value of the internal flag that determines whether all
+     * storage is handed by a dense backing array rather than an associative
+     * store.
+     * @param denseOnly new value for denseOnly flag
+     * @throws IllegalArgumentException if an attempt is made to enable
+     *   denseOnly after it was disabled; NativeArray code is not written
+     *   to handle switching back to a dense representation
+     */
+    void setDenseOnly(boolean denseOnly) {
+<span class="nc bnc" id="L644" title="All 4 branches missed.">        if (denseOnly &amp;&amp; !this.denseOnly)</span>
+<span class="nc" id="L645">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L646">        this.denseOnly = denseOnly;</span>
+<span class="nc" id="L647">    }</span>
+
+    private void setLength(Object val) {
+        /* XXX do we satisfy this?
+         * 15.4.5.1 [[Put]](P, V):
+         * 1. Call the [[CanPut]] method of A with name P.
+         * 2. If Result(1) is false, return.
+         * ?
+         */
+<span class="nc bnc" id="L656" title="All 2 branches missed.">        if ((lengthAttr &amp; READONLY) != 0) {</span>
+<span class="nc" id="L657">            return;</span>
+        }
+
+<span class="nc" id="L660">        double d = ScriptRuntime.toNumber(val);</span>
+<span class="nc" id="L661">        long longVal = ScriptRuntime.toUint32(d);</span>
+<span class="nc bnc" id="L662" title="All 2 branches missed.">        if (longVal != d) {</span>
+<span class="nc" id="L663">            String msg = ScriptRuntime.getMessage0(&quot;msg.arraylength.bad&quot;);</span>
+<span class="nc" id="L664">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, msg);</span>
+        }
+
+<span class="nc bnc" id="L667" title="All 2 branches missed.">        if (denseOnly) {</span>
+<span class="nc bnc" id="L668" title="All 2 branches missed.">            if (longVal &lt; length) {</span>
+                // downcast okay because denseOnly
+<span class="nc" id="L670">                Arrays.fill(dense, (int) longVal, dense.length, NOT_FOUND);</span>
+<span class="nc" id="L671">                length = longVal;</span>
+<span class="nc" id="L672">                return;</span>
+<span class="nc bnc" id="L673" title="All 4 branches missed.">            } else if (longVal &lt; MAX_PRE_GROW_SIZE &amp;&amp;</span>
+                       longVal &lt; (length * GROW_FACTOR) &amp;&amp;
+<span class="nc bnc" id="L675" title="All 2 branches missed.">                       ensureCapacity((int)longVal))</span>
+            {
+<span class="nc" id="L677">                length = longVal;</span>
+<span class="nc" id="L678">                return;</span>
+            } else {
+<span class="nc" id="L680">                denseOnly = false;</span>
+            }
+        }
+<span class="nc bnc" id="L683" title="All 2 branches missed.">        if (longVal &lt; length) {</span>
+            // remove all properties between longVal and length
+<span class="nc bnc" id="L685" title="All 2 branches missed.">            if (length - longVal &gt; 0x1000) {</span>
+                // assume that the representation is sparse
+<span class="nc" id="L687">                Object[] e = getIds(); // will only find in object itself</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">                for (int i=0; i &lt; e.length; i++) {</span>
+<span class="nc" id="L689">                    Object id = e[i];</span>
+<span class="nc bnc" id="L690" title="All 2 branches missed.">                    if (id instanceof String) {</span>
+                        // &gt; MAXINT will appear as string
+<span class="nc" id="L692">                        String strId = (String)id;</span>
+<span class="nc" id="L693">                        long index = toArrayIndex(strId);</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">                        if (index &gt;= longVal)</span>
+<span class="nc" id="L695">                            delete(strId);</span>
+<span class="nc" id="L696">                    } else {</span>
+<span class="nc" id="L697">                        int index = ((Integer)id).intValue();</span>
+<span class="nc bnc" id="L698" title="All 2 branches missed.">                        if (index &gt;= longVal)</span>
+<span class="nc" id="L699">                            delete(index);</span>
+                    }
+                }
+<span class="nc" id="L702">            } else {</span>
+                // assume a dense representation
+<span class="nc bnc" id="L704" title="All 2 branches missed.">                for (long i = longVal; i &lt; length; i++) {</span>
+<span class="nc" id="L705">                    deleteElem(this, i);</span>
+                }
+            }
+        }
+<span class="nc" id="L709">        length = longVal;</span>
+<span class="nc" id="L710">    }</span>
+
+    /* Support for generic Array-ish objects.  Most of the Array
+     * functions try to be generic; anything that has a length
+     * property is assumed to be an array.
+     * getLengthProperty returns 0 if obj does not have the length property
+     * or its value is not convertible to a number.
+     */
+    static long getLengthProperty(Context cx, Scriptable obj) {
+        // These will both give numeric lengths within Uint32 range.
+<span class="pc bpc" id="L720" title="1 of 2 branches missed.">        if (obj instanceof NativeString) {</span>
+<span class="nc" id="L721">            return ((NativeString)obj).getLength();</span>
+<span class="fc bfc" id="L722" title="All 2 branches covered.">        } else if (obj instanceof NativeArray) {</span>
+<span class="fc" id="L723">            return ((NativeArray)obj).getLength();</span>
+        }
+<span class="fc" id="L725">        Object len = ScriptableObject.getProperty(obj, &quot;length&quot;);</span>
+<span class="pc bpc" id="L726" title="1 of 2 branches missed.">        if (len == Scriptable.NOT_FOUND) {</span>
+            // toUint32(undefined) == 0
+<span class="nc" id="L728">            return 0;</span>
+        }
+<span class="fc" id="L730">        return ScriptRuntime.toUint32(len);</span>
+    }
+
+    private static Object setLengthProperty(Context cx, Scriptable target,
+                                            long length)
+    {
+<span class="nc" id="L736">        Object len = ScriptRuntime.wrapNumber(length);</span>
+<span class="nc" id="L737">        ScriptableObject.putProperty(target, &quot;length&quot;, len);</span>
+<span class="nc" id="L738">        return len;</span>
+    }
+
+    /* Utility functions to encapsulate index &gt; Integer.MAX_VALUE
+     * handling.  Also avoids unnecessary object creation that would
+     * be necessary to use the general ScriptRuntime.get/setElem
+     * functions... though this is probably premature optimization.
+     */
+    private static void deleteElem(Scriptable target, long index) {
+<span class="nc" id="L747">        int i = (int)index;</span>
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        if (i == index) { target.delete(i); }</span>
+<span class="nc" id="L749">        else { target.delete(Long.toString(index)); }</span>
+<span class="nc" id="L750">    }</span>
+
+    private static Object getElem(Context cx, Scriptable target, long index)
+    {
+<span class="nc" id="L754">        Object elem = getRawElem(target, index);</span>
+<span class="nc bnc" id="L755" title="All 2 branches missed.">        return (elem != Scriptable.NOT_FOUND ? elem : Undefined.instance);</span>
+    }
+
+    // same as getElem, but without converting NOT_FOUND to undefined
+    private static Object getRawElem(Scriptable target, long index) {
+<span class="pc bpc" id="L760" title="1 of 2 branches missed.">        if (index &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L761">            return ScriptableObject.getProperty(target, Long.toString(index));</span>
+        } else {
+<span class="fc" id="L763">            return ScriptableObject.getProperty(target, (int)index);</span>
+        }
+    }
+
+    private static void defineElem(Context cx, Scriptable target, long index,
+                                   Object value)
+    {
+<span class="pc bpc" id="L770" title="1 of 2 branches missed.">        if (index &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L771">            String id = Long.toString(index);</span>
+<span class="nc" id="L772">            target.put(id, target, value);</span>
+<span class="nc" id="L773">        } else {</span>
+<span class="fc" id="L774">            target.put((int)index, target, value);</span>
+        }
+<span class="fc" id="L776">    }</span>
+
+    private static void setElem(Context cx, Scriptable target, long index,
+                                Object value)
+    {
+<span class="nc bnc" id="L781" title="All 2 branches missed.">        if (index &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L782">            String id = Long.toString(index);</span>
+<span class="nc" id="L783">            ScriptableObject.putProperty(target, id, value);</span>
+<span class="nc" id="L784">        } else {</span>
+<span class="nc" id="L785">            ScriptableObject.putProperty(target, (int)index, value);</span>
+        }
+<span class="nc" id="L787">    }</span>
+
+    // Similar as setElem(), but triggers deleteElem() if value is NOT_FOUND
+    private static void setRawElem(Context cx, Scriptable target, long index,
+                                   Object value) {
+<span class="nc bnc" id="L792" title="All 2 branches missed.">        if (value == NOT_FOUND) {</span>
+<span class="nc" id="L793">            deleteElem(target, index);</span>
+        } else {
+<span class="nc" id="L795">            setElem(cx, target, index, value);</span>
+        }
+<span class="nc" id="L797">    }</span>
+
+    private static String toStringHelper(Context cx, Scriptable scope,
+                                         Scriptable thisObj,
+                                         boolean toSource, boolean toLocale)
+    {
+        /* It's probably redundant to handle long lengths in this
+         * function; StringBuilders are limited to 2^31 in java.
+         */
+
+<span class="fc" id="L807">        long length = getLengthProperty(cx, thisObj);</span>
+
+<span class="fc" id="L809">        StringBuilder result = new StringBuilder(256);</span>
+
+        // whether to return '4,unquoted,5' or '[4, &quot;quoted&quot;, 5]'
+        String separator;
+
+<span class="pc bpc" id="L814" title="1 of 2 branches missed.">        if (toSource) {</span>
+<span class="nc" id="L815">            result.append('[');</span>
+<span class="nc" id="L816">            separator = &quot;, &quot;;</span>
+        } else {
+<span class="fc" id="L818">            separator = &quot;,&quot;;</span>
+        }
+
+<span class="fc" id="L821">        boolean haslast = false;</span>
+<span class="fc" id="L822">        long i = 0;</span>
+
+        boolean toplevel, iterating;
+<span class="pc bpc" id="L825" title="1 of 2 branches missed.">        if (cx.iterating == null) {</span>
+<span class="fc" id="L826">            toplevel = true;</span>
+<span class="fc" id="L827">            iterating = false;</span>
+<span class="fc" id="L828">            cx.iterating = new ObjToIntMap(31);</span>
+        } else {
+<span class="nc" id="L830">            toplevel = false;</span>
+<span class="nc" id="L831">            iterating = cx.iterating.has(thisObj);</span>
+        }
+
+        // Make sure cx.iterating is set to null when done
+        // so we don't leak memory
+        try {
+<span class="pc bpc" id="L837" title="1 of 2 branches missed.">            if (!iterating) {</span>
+<span class="fc" id="L838">                cx.iterating.put(thisObj, 0); // stop recursion.</span>
+                // make toSource print null and undefined values in recent versions
+<span class="pc bpc" id="L840" title="1 of 2 branches missed.">                boolean skipUndefinedAndNull = !toSource</span>
+<span class="pc bnc" id="L841" title="All 2 branches missed.">                        || cx.getLanguageVersion() &lt; Context.VERSION_1_5;</span>
+<span class="fc bfc" id="L842" title="All 2 branches covered.">                for (i = 0; i &lt; length; i++) {</span>
+<span class="pc bpc" id="L843" title="1 of 2 branches missed.">                    if (i &gt; 0) result.append(separator);</span>
+<span class="fc" id="L844">                    Object elem = getRawElem(thisObj, i);</span>
+<span class="pc bpc" id="L845" title="4 of 8 branches missed.">                    if (elem == NOT_FOUND || (skipUndefinedAndNull &amp;&amp;</span>
+                            (elem == null || elem == Undefined.instance))) {
+<span class="nc" id="L847">                        haslast = false;</span>
+<span class="nc" id="L848">                        continue;</span>
+                    }
+<span class="fc" id="L850">                    haslast = true;</span>
+
+<span class="pc bpc" id="L852" title="1 of 2 branches missed.">                    if (toSource) {</span>
+<span class="nc" id="L853">                        result.append(ScriptRuntime.uneval(cx, scope, elem));</span>
+
+<span class="pc bpc" id="L855" title="1 of 2 branches missed.">                    } else if (elem instanceof String) {</span>
+<span class="nc" id="L856">                        String s = (String)elem;</span>
+<span class="nc bnc" id="L857" title="All 2 branches missed.">                        if (toSource) {</span>
+<span class="nc" id="L858">                            result.append('\&quot;');</span>
+<span class="nc" id="L859">                            result.append(ScriptRuntime.escapeString(s));</span>
+<span class="nc" id="L860">                            result.append('\&quot;');</span>
+                        } else {
+<span class="nc" id="L862">                            result.append(s);</span>
+                        }
+
+<span class="nc" id="L865">                    } else {</span>
+<span class="pc bpc" id="L866" title="1 of 2 branches missed.">                        if (toLocale) {</span>
+                            Callable fun;
+                            Scriptable funThis;
+<span class="nc" id="L869">                            fun = ScriptRuntime.getPropFunctionAndThis(</span>
+                                      elem, &quot;toLocaleString&quot;, cx, scope);
+<span class="nc" id="L871">                            funThis = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L872">                            elem = fun.call(cx, scope, funThis,</span>
+                                            ScriptRuntime.emptyArgs);
+                        }
+<span class="fc" id="L875">                        result.append(ScriptRuntime.toString(elem));</span>
+                    }
+                }
+            }
+        } finally {
+<span class="pc bpc" id="L880" title="3 of 4 branches missed.">            if (toplevel) {</span>
+<span class="pc" id="L881">                cx.iterating = null;</span>
+            }
+<span class="nc" id="L883">        }</span>
+
+<span class="pc bpc" id="L885" title="1 of 2 branches missed.">        if (toSource) {</span>
+            //for [,,].length behavior; we want toString to be symmetric.
+<span class="nc bnc" id="L887" title="All 4 branches missed.">            if (!haslast &amp;&amp; i &gt; 0)</span>
+<span class="nc" id="L888">                result.append(&quot;, ]&quot;);</span>
+            else
+<span class="nc" id="L890">                result.append(']');</span>
+        }
+<span class="fc" id="L892">        return result.toString();</span>
+    }
+
+    /**
+     * See ECMA 15.4.4.3
+     */
+    private static String js_join(Context cx, Scriptable thisObj,
+                                  Object[] args)
+    {
+<span class="nc" id="L901">        long llength = getLengthProperty(cx, thisObj);</span>
+<span class="nc" id="L902">        int length = (int)llength;</span>
+<span class="nc bnc" id="L903" title="All 2 branches missed.">        if (llength != length) {</span>
+<span class="nc" id="L904">            throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L905">                &quot;msg.arraylength.too.big&quot;, String.valueOf(llength));</span>
+        }
+        // if no args, use &quot;,&quot; as separator
+<span class="nc bnc" id="L908" title="All 4 branches missed.">        String separator = (args.length &lt; 1 || args[0] == Undefined.instance)</span>
+                           ? &quot;,&quot;
+<span class="nc" id="L910">                           : ScriptRuntime.toString(args[0]);</span>
+<span class="nc bnc" id="L911" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L912">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L913" title="All 2 branches missed.">            if (na.denseOnly) {</span>
+<span class="nc" id="L914">                StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L915" title="All 2 branches missed.">                for (int i = 0; i &lt; length; i++) {</span>
+<span class="nc bnc" id="L916" title="All 2 branches missed.">                    if (i != 0) {</span>
+<span class="nc" id="L917">                        sb.append(separator);</span>
+                    }
+<span class="nc bnc" id="L919" title="All 2 branches missed.">                    if (i &lt; na.dense.length) {</span>
+<span class="nc" id="L920">                        Object temp = na.dense[i];</span>
+<span class="nc bnc" id="L921" title="All 6 branches missed.">                        if (temp != null &amp;&amp; temp != Undefined.instance &amp;&amp;</span>
+                            temp != Scriptable.NOT_FOUND)
+                        {
+<span class="nc" id="L924">                            sb.append(ScriptRuntime.toString(temp));</span>
+                        }
+                    }
+                }
+<span class="nc" id="L928">                return sb.toString();</span>
+            }
+        }
+<span class="nc bnc" id="L931" title="All 2 branches missed.">        if (length == 0) {</span>
+<span class="nc" id="L932">            return &quot;&quot;;</span>
+        }
+<span class="nc" id="L934">        String[] buf = new String[length];</span>
+<span class="nc" id="L935">        int total_size = 0;</span>
+<span class="nc bnc" id="L936" title="All 2 branches missed.">        for (int i = 0; i != length; i++) {</span>
+<span class="nc" id="L937">            Object temp = getElem(cx, thisObj, i);</span>
+<span class="nc bnc" id="L938" title="All 4 branches missed.">            if (temp != null &amp;&amp; temp != Undefined.instance) {</span>
+<span class="nc" id="L939">                String str = ScriptRuntime.toString(temp);</span>
+<span class="nc" id="L940">                total_size += str.length();</span>
+<span class="nc" id="L941">                buf[i] = str;</span>
+            }
+        }
+<span class="nc" id="L944">        total_size += (length - 1) * separator.length();</span>
+<span class="nc" id="L945">        StringBuilder sb = new StringBuilder(total_size);</span>
+<span class="nc bnc" id="L946" title="All 2 branches missed.">        for (int i = 0; i != length; i++) {</span>
+<span class="nc bnc" id="L947" title="All 2 branches missed.">            if (i != 0) {</span>
+<span class="nc" id="L948">                sb.append(separator);</span>
+            }
+<span class="nc" id="L950">            String str = buf[i];</span>
+<span class="nc bnc" id="L951" title="All 2 branches missed.">            if (str != null) {</span>
+                // str == null for undefined or null
+<span class="nc" id="L953">                sb.append(str);</span>
+            }
+        }
+<span class="nc" id="L956">        return sb.toString();</span>
+    }
+
+    /**
+     * See ECMA 15.4.4.4
+     */
+    private static Scriptable js_reverse(Context cx, Scriptable thisObj,
+                                         Object[] args)
+    {
+<span class="nc bnc" id="L965" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L966">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L967" title="All 2 branches missed.">            if (na.denseOnly) {</span>
+<span class="nc bnc" id="L968" title="All 2 branches missed.">                for (int i=0, j=((int)na.length)-1; i &lt; j; i++,j--) {</span>
+<span class="nc" id="L969">                    Object temp = na.dense[i];</span>
+<span class="nc" id="L970">                    na.dense[i] = na.dense[j];</span>
+<span class="nc" id="L971">                    na.dense[j] = temp;</span>
+                }
+<span class="nc" id="L973">                return thisObj;</span>
+            }
+        }
+<span class="nc" id="L976">        long len = getLengthProperty(cx, thisObj);</span>
+
+<span class="nc" id="L978">        long half = len / 2;</span>
+<span class="nc bnc" id="L979" title="All 2 branches missed.">        for(long i=0; i &lt; half; i++) {</span>
+<span class="nc" id="L980">            long j = len - i - 1;</span>
+<span class="nc" id="L981">            Object temp1 = getRawElem(thisObj, i);</span>
+<span class="nc" id="L982">            Object temp2 = getRawElem(thisObj, j);</span>
+<span class="nc" id="L983">            setRawElem(cx, thisObj, i, temp2);</span>
+<span class="nc" id="L984">            setRawElem(cx, thisObj, j, temp1);</span>
+        }
+<span class="nc" id="L986">        return thisObj;</span>
+    }
+
+    /**
+     * See ECMA 15.4.4.5
+     */
+    private static Scriptable js_sort(final Context cx, final Scriptable scope,
+            final Scriptable thisObj, final Object[] args)
+    {
+        final Comparator&lt;Object&gt; comparator;
+<span class="nc bnc" id="L996" title="All 4 branches missed.">        if (args.length &gt; 0 &amp;&amp; Undefined.instance != args[0]) {</span>
+<span class="nc" id="L997">            final Callable jsCompareFunction = ScriptRuntime</span>
+<span class="nc" id="L998">                    .getValueFunctionAndThis(args[0], cx);</span>
+<span class="nc" id="L999">            final Scriptable funThis = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L1000">            final Object[] cmpBuf = new Object[2]; // Buffer for cmp arguments</span>
+<span class="nc" id="L1001">            comparator = new ElementComparator(</span>
+<span class="nc" id="L1002">                new Comparator&lt;Object&gt;() {</span>
+                  public int compare(final Object x, final Object y) {
+                    // This comparator is invoked only for non-undefined objects
+<span class="nc" id="L1005">                    cmpBuf[0] = x;</span>
+<span class="nc" id="L1006">                    cmpBuf[1] = y;</span>
+<span class="nc" id="L1007">                    Object ret = jsCompareFunction.call(cx, scope, funThis,</span>
+                        cmpBuf);
+<span class="nc" id="L1009">                    final double d = ScriptRuntime.toNumber(ret);</span>
+<span class="nc bnc" id="L1010" title="All 2 branches missed.">                    if (d &lt; 0) {</span>
+<span class="nc" id="L1011">                      return -1;</span>
+<span class="nc bnc" id="L1012" title="All 2 branches missed.">                    } else if (d &gt; 0) {</span>
+<span class="nc" id="L1013">                      return +1;</span>
+                    }
+<span class="nc" id="L1015">                    return 0; // ??? double and 0???</span>
+                  }
+                });
+<span class="nc" id="L1018">        } else {</span>
+<span class="nc" id="L1019">            comparator = DEFAULT_COMPARATOR;</span>
+        }
+
+<span class="nc" id="L1022">        long llength = getLengthProperty(cx, thisObj);</span>
+<span class="nc" id="L1023">        final int length = (int) llength;</span>
+<span class="nc bnc" id="L1024" title="All 2 branches missed.">        if (llength != length) {</span>
+<span class="nc" id="L1025">            throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L1026">                &quot;msg.arraylength.too.big&quot;, String.valueOf(llength));</span>
+        }
+        // copy the JS array into a working array, so it can be
+        // sorted cheaply.
+<span class="nc" id="L1030">        final Object[] working = new Object[length];</span>
+<span class="nc bnc" id="L1031" title="All 2 branches missed.">        for (int i = 0; i != length; ++i) {</span>
+<span class="nc" id="L1032">            working[i] = getRawElem(thisObj, i);</span>
+        }
+
+<span class="nc" id="L1035">        Sorting.hybridSort(working, comparator);</span>
+
+        // copy the working array back into thisObj
+<span class="nc bnc" id="L1038" title="All 2 branches missed.">        for (int i = 0; i &lt; length; ++i) {</span>
+<span class="nc" id="L1039">            setRawElem(cx, thisObj, i, working[i]);</span>
+        }
+
+<span class="nc" id="L1042">        return thisObj;</span>
+    }
+
+    private static Object js_push(Context cx, Scriptable thisObj,
+                                  Object[] args)
+    {
+<span class="nc bnc" id="L1048" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L1049">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L1050" title="All 2 branches missed.">            if (na.denseOnly &amp;&amp;</span>
+<span class="nc bnc" id="L1051" title="All 2 branches missed.">                na.ensureCapacity((int) na.length + args.length))</span>
+            {
+<span class="nc bnc" id="L1053" title="All 2 branches missed.">                for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="nc" id="L1054">                    na.dense[(int)na.length++] = args[i];</span>
+                }
+<span class="nc" id="L1056">                return ScriptRuntime.wrapNumber(na.length);</span>
+            }
+        }
+<span class="nc" id="L1059">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="nc bnc" id="L1060" title="All 2 branches missed.">        for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="nc" id="L1061">            setElem(cx, thisObj, length + i, args[i]);</span>
+        }
+
+<span class="nc" id="L1064">        length += args.length;</span>
+<span class="nc" id="L1065">        Object lengthObj = setLengthProperty(cx, thisObj, length);</span>
+
+        /*
+         * If JS1.2, follow Perl4 by returning the last thing pushed.
+         * Otherwise, return the new array length.
+         */
+<span class="nc bnc" id="L1071" title="All 2 branches missed.">        if (cx.getLanguageVersion() == Context.VERSION_1_2)</span>
+            // if JS1.2 &amp;&amp; no arguments, return undefined.
+<span class="nc bnc" id="L1073" title="All 2 branches missed.">            return args.length == 0</span>
+                ? Undefined.instance
+                : args[args.length - 1];
+
+        else
+<span class="nc" id="L1078">            return lengthObj;</span>
+    }
+
+    private static Object js_pop(Context cx, Scriptable thisObj,
+                                 Object[] args)
+    {
+        Object result;
+<span class="nc bnc" id="L1085" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L1086">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L1087" title="All 4 branches missed.">            if (na.denseOnly &amp;&amp; na.length &gt; 0) {</span>
+<span class="nc" id="L1088">                na.length--;</span>
+<span class="nc" id="L1089">                result = na.dense[(int)na.length];</span>
+<span class="nc" id="L1090">                na.dense[(int)na.length] = NOT_FOUND;</span>
+<span class="nc" id="L1091">                return result;</span>
+            }
+        }
+<span class="nc" id="L1094">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="nc bnc" id="L1095" title="All 2 branches missed.">        if (length &gt; 0) {</span>
+<span class="nc" id="L1096">            length--;</span>
+
+            // Get the to-be-deleted property's value.
+<span class="nc" id="L1099">            result = getElem(cx, thisObj, length);</span>
+
+            // We need to delete the last property, because 'thisObj' may not
+            // have setLength which does that for us.
+<span class="nc" id="L1103">            deleteElem(thisObj, length);</span>
+        } else {
+<span class="nc" id="L1105">            result = Undefined.instance;</span>
+        }
+        // necessary to match js even when length &lt; 0; js pop will give a
+        // length property to any target it is called on.
+<span class="nc" id="L1109">        setLengthProperty(cx, thisObj, length);</span>
+
+<span class="nc" id="L1111">        return result;</span>
+    }
+
+    private static Object js_shift(Context cx, Scriptable thisObj,
+                                   Object[] args)
+    {
+<span class="nc bnc" id="L1117" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L1118">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L1119" title="All 4 branches missed.">            if (na.denseOnly &amp;&amp; na.length &gt; 0) {</span>
+<span class="nc" id="L1120">                na.length--;</span>
+<span class="nc" id="L1121">                Object result = na.dense[0];</span>
+<span class="nc" id="L1122">                System.arraycopy(na.dense, 1, na.dense, 0, (int)na.length);</span>
+<span class="nc" id="L1123">                na.dense[(int)na.length] = NOT_FOUND;</span>
+<span class="nc bnc" id="L1124" title="All 2 branches missed.">                return result == NOT_FOUND ? Undefined.instance : result;</span>
+            }
+        }
+        Object result;
+<span class="nc" id="L1128">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="nc bnc" id="L1129" title="All 2 branches missed.">        if (length &gt; 0) {</span>
+<span class="nc" id="L1130">            long i = 0;</span>
+<span class="nc" id="L1131">            length--;</span>
+
+            // Get the to-be-deleted property's value.
+<span class="nc" id="L1134">            result = getElem(cx, thisObj, i);</span>
+
+            /*
+             * Slide down the array above the first element.  Leave i
+             * set to point to the last element.
+             */
+<span class="nc bnc" id="L1140" title="All 2 branches missed.">            if (length &gt; 0) {</span>
+<span class="nc bnc" id="L1141" title="All 2 branches missed.">                for (i = 1; i &lt;= length; i++) {</span>
+<span class="nc" id="L1142">                    Object temp = getRawElem(thisObj, i);</span>
+<span class="nc" id="L1143">                    setRawElem(cx, thisObj, i - 1, temp);</span>
+                }
+            }
+            // We need to delete the last property, because 'thisObj' may not
+            // have setLength which does that for us.
+<span class="nc" id="L1148">            deleteElem(thisObj, length);</span>
+<span class="nc" id="L1149">        } else {</span>
+<span class="nc" id="L1150">            result = Undefined.instance;</span>
+        }
+<span class="nc" id="L1152">        setLengthProperty(cx, thisObj, length);</span>
+<span class="nc" id="L1153">        return result;</span>
+    }
+
+    private static Object js_unshift(Context cx, Scriptable thisObj,
+                                     Object[] args)
+    {
+<span class="nc bnc" id="L1159" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L1160">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="nc bnc" id="L1161" title="All 2 branches missed.">            if (na.denseOnly &amp;&amp;</span>
+<span class="nc bnc" id="L1162" title="All 2 branches missed.">                na.ensureCapacity((int)na.length + args.length))</span>
+            {
+<span class="nc" id="L1164">                System.arraycopy(na.dense, 0, na.dense, args.length,</span>
+                                 (int) na.length);
+<span class="nc bnc" id="L1166" title="All 2 branches missed.">                for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="nc" id="L1167">                    na.dense[i] = args[i];</span>
+                }
+<span class="nc" id="L1169">                na.length += args.length;</span>
+<span class="nc" id="L1170">                return ScriptRuntime.wrapNumber(na.length);</span>
+            }
+        }
+<span class="nc" id="L1173">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="nc" id="L1174">        int argc = args.length;</span>
+
+<span class="nc bnc" id="L1176" title="All 2 branches missed.">        if (args.length &gt; 0) {</span>
+            /*  Slide up the array to make room for args at the bottom */
+<span class="nc bnc" id="L1178" title="All 2 branches missed.">            if (length &gt; 0) {</span>
+<span class="nc bnc" id="L1179" title="All 2 branches missed.">                for (long last = length - 1; last &gt;= 0; last--) {</span>
+<span class="nc" id="L1180">                    Object temp = getRawElem(thisObj, last);</span>
+<span class="nc" id="L1181">                    setRawElem(cx, thisObj, last + argc, temp);</span>
+                }
+            }
+
+            /* Copy from argv to the bottom of the array. */
+<span class="nc bnc" id="L1186" title="All 2 branches missed.">            for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="nc" id="L1187">                setElem(cx, thisObj, i, args[i]);</span>
+            }
+        }
+        /* Follow Perl by returning the new array length. */
+<span class="nc" id="L1191">        length += args.length;</span>
+<span class="nc" id="L1192">        return setLengthProperty(cx, thisObj, length);</span>
+    }
+
+    private static Object js_splice(Context cx, Scriptable scope,
+                                    Scriptable thisObj, Object[] args)
+    {
+<span class="nc" id="L1198">      NativeArray na = null;</span>
+<span class="nc" id="L1199">      boolean denseMode = false;</span>
+<span class="nc bnc" id="L1200" title="All 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="nc" id="L1201">            na = (NativeArray) thisObj;</span>
+<span class="nc" id="L1202">            denseMode = na.denseOnly;</span>
+        }
+
+        /* create an empty Array to return. */
+<span class="nc" id="L1206">        scope = getTopLevelScope(scope);</span>
+<span class="nc" id="L1207">        int argc = args.length;</span>
+<span class="nc bnc" id="L1208" title="All 2 branches missed.">        if (argc == 0)</span>
+<span class="nc" id="L1209">            return cx.newArray(scope, 0);</span>
+<span class="nc" id="L1210">        long length = getLengthProperty(cx, thisObj);</span>
+
+        /* Convert the first argument into a starting index. */
+<span class="nc" id="L1213">        long begin = toSliceIndex(ScriptRuntime.toInteger(args[0]), length);</span>
+<span class="nc" id="L1214">        argc--;</span>
+
+        /* Convert the second argument into count */
+        long count;
+<span class="nc bnc" id="L1218" title="All 2 branches missed.">        if (args.length == 1) {</span>
+<span class="nc" id="L1219">            count = length - begin;</span>
+        } else {
+<span class="nc" id="L1221">            double dcount = ScriptRuntime.toInteger(args[1]);</span>
+<span class="nc bnc" id="L1222" title="All 2 branches missed.">            if (dcount &lt; 0) {</span>
+<span class="nc" id="L1223">                count = 0;</span>
+<span class="nc bnc" id="L1224" title="All 2 branches missed.">            } else if (dcount &gt; (length - begin)) {</span>
+<span class="nc" id="L1225">                count = length - begin;</span>
+            } else {
+<span class="nc" id="L1227">                count = (long)dcount;</span>
+            }
+<span class="nc" id="L1229">            argc--;</span>
+        }
+
+<span class="nc" id="L1232">        long end = begin + count;</span>
+
+        /* If there are elements to remove, put them into the return value. */
+        Object result;
+<span class="nc bnc" id="L1236" title="All 2 branches missed.">        if (count != 0) {</span>
+<span class="nc bnc" id="L1237" title="All 2 branches missed.">            if (count == 1</span>
+<span class="nc bnc" id="L1238" title="All 2 branches missed.">                &amp;&amp; (cx.getLanguageVersion() == Context.VERSION_1_2))</span>
+            {
+                /*
+                 * JS lacks &quot;list context&quot;, whereby in Perl one turns the
+                 * single scalar that's spliced out into an array just by
+                 * assigning it to @single instead of $single, or by using it
+                 * as Perl push's first argument, for instance.
+                 *
+                 * JS1.2 emulated Perl too closely and returned a non-Array for
+                 * the single-splice-out case, requiring callers to test and
+                 * wrap in [] if necessary.  So JS1.3, default, and other
+                 * versions all return an array of length 1 for uniformity.
+                 */
+<span class="nc" id="L1251">                result = getElem(cx, thisObj, begin);</span>
+            } else {
+<span class="nc bnc" id="L1253" title="All 2 branches missed.">                if (denseMode) {</span>
+<span class="nc" id="L1254">                    int intLen = (int) (end - begin);</span>
+<span class="nc" id="L1255">                    Object[] copy = new Object[intLen];</span>
+<span class="nc" id="L1256">                    System.arraycopy(na.dense, (int) begin, copy, 0, intLen);</span>
+<span class="nc" id="L1257">                    result = cx.newArray(scope, copy);</span>
+<span class="nc" id="L1258">                } else {</span>
+<span class="nc" id="L1259">                    Scriptable resultArray = cx.newArray(scope, 0);</span>
+<span class="nc bnc" id="L1260" title="All 2 branches missed.">                    for (long last = begin; last != end; last++) {</span>
+<span class="nc" id="L1261">                        Object temp = getRawElem(thisObj, last);</span>
+<span class="nc bnc" id="L1262" title="All 2 branches missed.">                        if (temp != NOT_FOUND) {</span>
+<span class="nc" id="L1263">                            setElem(cx, resultArray, last - begin, temp);</span>
+                        }
+                    }
+                    // Need to set length for sparse result array
+<span class="nc" id="L1267">                    setLengthProperty(cx, resultArray, end - begin);</span>
+<span class="nc" id="L1268">                    result = resultArray;</span>
+<span class="nc" id="L1269">                }</span>
+            }
+        } else { // (count == 0)
+<span class="nc bnc" id="L1272" title="All 2 branches missed.">            if (cx.getLanguageVersion() == Context.VERSION_1_2) {</span>
+                /* Emulate C JS1.2; if no elements are removed, return undefined. */
+<span class="nc" id="L1274">                result = Undefined.instance;</span>
+            } else {
+<span class="nc" id="L1276">                result = cx.newArray(scope, 0);</span>
+            }
+        }
+
+        /* Find the direction (up or down) to copy and make way for argv. */
+<span class="nc" id="L1281">        long delta = argc - count;</span>
+<span class="nc bnc" id="L1282" title="All 4 branches missed.">        if (denseMode &amp;&amp; length + delta &lt; Integer.MAX_VALUE &amp;&amp;</span>
+<span class="nc bnc" id="L1283" title="All 2 branches missed.">            na.ensureCapacity((int) (length + delta)))</span>
+        {
+<span class="nc" id="L1285">            System.arraycopy(na.dense, (int) end, na.dense,</span>
+                             (int) (begin + argc), (int) (length - end));
+<span class="nc bnc" id="L1287" title="All 2 branches missed.">            if (argc &gt; 0) {</span>
+<span class="nc" id="L1288">                System.arraycopy(args, 2, na.dense, (int) begin, argc);</span>
+            }
+<span class="nc bnc" id="L1290" title="All 2 branches missed.">            if (delta &lt; 0) {</span>
+<span class="nc" id="L1291">                Arrays.fill(na.dense, (int) (length + delta), (int) length,</span>
+                            NOT_FOUND);
+            }
+<span class="nc" id="L1294">            na.length = length + delta;</span>
+<span class="nc" id="L1295">            return result;</span>
+        }
+
+<span class="nc bnc" id="L1298" title="All 2 branches missed.">        if (delta &gt; 0) {</span>
+<span class="nc bnc" id="L1299" title="All 2 branches missed.">            for (long last = length - 1; last &gt;= end; last--) {</span>
+<span class="nc" id="L1300">                Object temp = getRawElem(thisObj, last);</span>
+<span class="nc" id="L1301">                setRawElem(cx, thisObj, last + delta, temp);</span>
+            }
+<span class="nc bnc" id="L1303" title="All 2 branches missed.">        } else if (delta &lt; 0) {</span>
+<span class="nc bnc" id="L1304" title="All 2 branches missed.">            for (long last = end; last &lt; length; last++) {</span>
+<span class="nc" id="L1305">                Object temp = getRawElem(thisObj, last);</span>
+<span class="nc" id="L1306">                setRawElem(cx, thisObj, last + delta, temp);</span>
+            }
+<span class="nc bnc" id="L1308" title="All 2 branches missed.">            for (long k = length + delta; k &lt; length; ++k) {</span>
+<span class="nc" id="L1309">                deleteElem(thisObj, k);</span>
+            }
+        }
+
+        /* Copy from argv into the hole to complete the splice. */
+<span class="nc" id="L1314">        int argoffset = args.length - argc;</span>
+<span class="nc bnc" id="L1315" title="All 2 branches missed.">        for (int i = 0; i &lt; argc; i++) {</span>
+<span class="nc" id="L1316">            setElem(cx, thisObj, begin + i, args[i + argoffset]);</span>
+        }
+
+        /* Update length in case we deleted elements from the end. */
+<span class="nc" id="L1320">        setLengthProperty(cx, thisObj, length + delta);</span>
+<span class="nc" id="L1321">        return result;</span>
+    }
+
+    /*
+     * See Ecma 262v3 15.4.4.4
+     */
+    private static Scriptable js_concat(Context cx, Scriptable scope,
+                                        Scriptable thisObj, Object[] args)
+    {
+        // create an empty Array to return.
+<span class="nc" id="L1331">        scope = getTopLevelScope(scope);</span>
+<span class="nc" id="L1332">        Scriptable result = cx.newArray(scope, 0);</span>
+<span class="nc bnc" id="L1333" title="All 4 branches missed.">        if (thisObj instanceof NativeArray &amp;&amp; result instanceof NativeArray) {</span>
+<span class="nc" id="L1334">            NativeArray denseThis = (NativeArray) thisObj;</span>
+<span class="nc" id="L1335">            NativeArray denseResult = (NativeArray) result;</span>
+<span class="nc bnc" id="L1336" title="All 4 branches missed.">            if (denseThis.denseOnly &amp;&amp; denseResult.denseOnly) {</span>
+                // First calculate length of resulting array
+<span class="nc" id="L1338">                boolean canUseDense = true;</span>
+<span class="nc" id="L1339">                int length = (int) denseThis.length;</span>
+<span class="nc bnc" id="L1340" title="All 4 branches missed.">                for (int i = 0; i &lt; args.length &amp;&amp; canUseDense; i++) {</span>
+<span class="nc bnc" id="L1341" title="All 2 branches missed.">                    if (args[i] instanceof NativeArray) {</span>
+                        // only try to use dense approach for Array-like
+                        // objects that are actually NativeArrays
+<span class="nc" id="L1344">                        final NativeArray arg = (NativeArray) args[i];</span>
+<span class="nc" id="L1345">                        canUseDense = arg.denseOnly;</span>
+<span class="nc" id="L1346">                        length += arg.length;</span>
+<span class="nc" id="L1347">                    } else {</span>
+<span class="nc" id="L1348">                        length++;</span>
+                    }
+                }
+<span class="nc bnc" id="L1351" title="All 4 branches missed.">                if (canUseDense &amp;&amp; denseResult.ensureCapacity(length)) {</span>
+<span class="nc" id="L1352">                    System.arraycopy(denseThis.dense, 0, denseResult.dense,</span>
+                                     0, (int) denseThis.length);
+<span class="nc" id="L1354">                    int cursor = (int) denseThis.length;</span>
+<span class="nc bnc" id="L1355" title="All 4 branches missed.">                    for (int i = 0; i &lt; args.length &amp;&amp; canUseDense; i++) {</span>
+<span class="nc bnc" id="L1356" title="All 2 branches missed.">                        if (args[i] instanceof NativeArray) {</span>
+<span class="nc" id="L1357">                            NativeArray arg = (NativeArray) args[i];</span>
+<span class="nc" id="L1358">                            System.arraycopy(arg.dense, 0,</span>
+                                    denseResult.dense, cursor,
+                                    (int)arg.length);
+<span class="nc" id="L1361">                            cursor += (int)arg.length;</span>
+<span class="nc" id="L1362">                        } else {</span>
+<span class="nc" id="L1363">                            denseResult.dense[cursor++] = args[i];</span>
+                        }
+                    }
+<span class="nc" id="L1366">                    denseResult.length = length;</span>
+<span class="nc" id="L1367">                    return result;</span>
+                }
+            }
+        }
+
+        long length;
+<span class="nc" id="L1373">        long slot = 0;</span>
+
+        /* Put the target in the result array; only add it as an array
+         * if it looks like one.
+         */
+<span class="nc bnc" id="L1378" title="All 2 branches missed.">        if (js_isArray(thisObj)) {</span>
+<span class="nc" id="L1379">            length = getLengthProperty(cx, thisObj);</span>
+
+            // Copy from the target object into the result
+<span class="nc bnc" id="L1382" title="All 2 branches missed.">            for (slot = 0; slot &lt; length; slot++) {</span>
+<span class="nc" id="L1383">                Object temp = getRawElem(thisObj, slot);</span>
+<span class="nc bnc" id="L1384" title="All 2 branches missed.">                if (temp != NOT_FOUND) {</span>
+<span class="nc" id="L1385">                    defineElem(cx, result, slot, temp);</span>
+                }
+            }
+        } else {
+<span class="nc" id="L1389">            defineElem(cx, result, slot++, thisObj);</span>
+        }
+
+        /* Copy from the arguments into the result.  If any argument
+         * has a numeric length property, treat it as an array and add
+         * elements separately; otherwise, just copy the argument.
+         */
+<span class="nc bnc" id="L1396" title="All 2 branches missed.">        for (int i = 0; i &lt; args.length; i++) {</span>
+<span class="nc bnc" id="L1397" title="All 2 branches missed.">            if (js_isArray(args[i])) {</span>
+                // js_isArray =&gt; instanceof Scriptable
+<span class="nc" id="L1399">                Scriptable arg = (Scriptable)args[i];</span>
+<span class="nc" id="L1400">                length = getLengthProperty(cx, arg);</span>
+<span class="nc bnc" id="L1401" title="All 2 branches missed.">                for (long j = 0; j &lt; length; j++, slot++) {</span>
+<span class="nc" id="L1402">                    Object temp = getRawElem(arg, j);</span>
+<span class="nc bnc" id="L1403" title="All 2 branches missed.">                    if (temp != NOT_FOUND) {</span>
+<span class="nc" id="L1404">                        defineElem(cx, result, slot, temp);</span>
+                    }
+                }
+<span class="nc" id="L1407">            } else {</span>
+<span class="nc" id="L1408">                defineElem(cx, result, slot++, args[i]);</span>
+            }
+        }
+<span class="nc" id="L1411">        setLengthProperty(cx, result, slot);</span>
+<span class="nc" id="L1412">        return result;</span>
+    }
+
+    private Scriptable js_slice(Context cx, Scriptable thisObj,
+                                Object[] args)
+    {
+<span class="nc" id="L1418">        Scriptable scope = getTopLevelScope(this);</span>
+<span class="nc" id="L1419">        Scriptable result = cx.newArray(scope, 0);</span>
+<span class="nc" id="L1420">        long length = getLengthProperty(cx, thisObj);</span>
+
+        long begin, end;
+<span class="nc bnc" id="L1423" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L1424">            begin = 0;</span>
+<span class="nc" id="L1425">            end = length;</span>
+        } else {
+<span class="nc" id="L1427">            begin = toSliceIndex(ScriptRuntime.toInteger(args[0]), length);</span>
+<span class="nc bnc" id="L1428" title="All 4 branches missed.">            if (args.length == 1 || args[1] == Undefined.instance) {</span>
+<span class="nc" id="L1429">                end = length;</span>
+            } else {
+<span class="nc" id="L1431">                end = toSliceIndex(ScriptRuntime.toInteger(args[1]), length);</span>
+            }
+        }
+
+<span class="nc bnc" id="L1435" title="All 2 branches missed.">        for (long slot = begin; slot &lt; end; slot++) {</span>
+<span class="nc" id="L1436">            Object temp = getRawElem(thisObj, slot);</span>
+<span class="nc bnc" id="L1437" title="All 2 branches missed.">            if (temp != NOT_FOUND) {</span>
+<span class="nc" id="L1438">                defineElem(cx, result, slot - begin, temp);</span>
+            }
+        }
+<span class="nc" id="L1441">        setLengthProperty(cx, result, Math.max(0, end - begin));</span>
+
+<span class="nc" id="L1443">        return result;</span>
+    }
+
+    private static long toSliceIndex(double value, long length) {
+        long result;
+<span class="nc bnc" id="L1448" title="All 2 branches missed.">        if (value &lt; 0.0) {</span>
+<span class="nc bnc" id="L1449" title="All 2 branches missed.">            if (value + length &lt; 0.0) {</span>
+<span class="nc" id="L1450">                result = 0;</span>
+            } else {
+<span class="nc" id="L1452">                result = (long)(value + length);</span>
+            }
+<span class="nc bnc" id="L1454" title="All 2 branches missed.">        } else if (value &gt; length) {</span>
+<span class="nc" id="L1455">            result = length;</span>
+        } else {
+<span class="nc" id="L1457">            result = (long)value;</span>
+        }
+<span class="nc" id="L1459">        return result;</span>
+    }
+
+    private static Object js_indexOf(Context cx, Scriptable thisObj,
+                                     Object[] args)
+    {
+<span class="pc bpc" id="L1465" title="1 of 2 branches missed.">        Object compareTo = args.length &gt; 0 ? args[0] : Undefined.instance;</span>
+<span class="fc" id="L1466">        long length = getLengthProperty(cx, thisObj);</span>
+        /*
+         * From http://developer.mozilla.org/en/docs/Core_JavaScript_1.5_Reference:Objects:Array:indexOf
+         * The index at which to begin the search. Defaults to 0, i.e. the
+         * whole array will be searched. If the index is greater than or
+         * equal to the length of the array, -1 is returned, i.e. the array
+         * will not be searched. If negative, it is taken as the offset from
+         * the end of the array. Note that even when the index is negative,
+         * the array is still searched from front to back. If the calculated
+         * index is less than 0, the whole array will be searched.
+         */
+        long start;
+<span class="pc bpc" id="L1478" title="1 of 2 branches missed.">        if (args.length &lt; 2) {</span>
+            // default
+<span class="nc" id="L1480">            start = 0;</span>
+        } else {
+<span class="fc" id="L1482">            start = (long)ScriptRuntime.toInteger(args[1]);</span>
+<span class="fc bfc" id="L1483" title="All 2 branches covered.">            if (start &lt; 0) {</span>
+<span class="fc" id="L1484">                start += length;</span>
+<span class="pc bpc" id="L1485" title="1 of 2 branches missed.">                if (start &lt; 0)</span>
+<span class="fc" id="L1486">                    start = 0;</span>
+            }
+<span class="fc bfc" id="L1488" title="All 2 branches covered.">            if (start &gt; length - 1) return NEGATIVE_ONE;</span>
+        }
+<span class="pc bpc" id="L1490" title="1 of 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="fc" id="L1491">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="pc bpc" id="L1492" title="1 of 2 branches missed.">            if (na.denseOnly) {</span>
+<span class="fc" id="L1493">                Scriptable proto = na.getPrototype();</span>
+<span class="fc bfc" id="L1494" title="All 2 branches covered.">                for (int i=(int)start; i &lt; length; i++) {</span>
+<span class="fc" id="L1495">                    Object val = na.dense[i];</span>
+<span class="pc bpc" id="L1496" title="3 of 4 branches missed.">                    if (val == NOT_FOUND &amp;&amp; proto != null) {</span>
+<span class="nc" id="L1497">                        val = ScriptableObject.getProperty(proto, i);</span>
+                    }
+<span class="pc bpc" id="L1499" title="1 of 2 branches missed.">                    if (val != NOT_FOUND &amp;&amp;</span>
+<span class="pc bpc" id="L1500" title="1 of 2 branches missed.">                        ScriptRuntime.shallowEq(val, compareTo))</span>
+                    {
+<span class="nc" id="L1502">                        return Long.valueOf(i);</span>
+                    }
+                }
+<span class="fc" id="L1505">                return NEGATIVE_ONE;</span>
+            }
+        }
+<span class="nc bnc" id="L1508" title="All 2 branches missed.">        for (long i=start; i &lt; length; i++) {</span>
+<span class="nc" id="L1509">            Object val = getRawElem(thisObj, i);</span>
+<span class="nc bnc" id="L1510" title="All 4 branches missed.">            if (val != NOT_FOUND &amp;&amp; ScriptRuntime.shallowEq(val, compareTo)) {</span>
+<span class="nc" id="L1511">                return Long.valueOf(i);</span>
+            }
+        }
+<span class="nc" id="L1514">        return NEGATIVE_ONE;</span>
+    }
+
+    private static Object js_lastIndexOf(Context cx, Scriptable thisObj,
+            Object[] args)
+    {
+<span class="pc bpc" id="L1520" title="1 of 2 branches missed.">        Object compareTo = args.length &gt; 0 ? args[0] : Undefined.instance;</span>
+<span class="fc" id="L1521">        long length = getLengthProperty(cx, thisObj);</span>
+        /*
+         * From http://developer.mozilla.org/en/docs/Core_JavaScript_1.5_Reference:Objects:Array:lastIndexOf
+         * The index at which to start searching backwards. Defaults to the
+         * array's length, i.e. the whole array will be searched. If the
+         * index is greater than or equal to the length of the array, the
+         * whole array will be searched. If negative, it is taken as the
+         * offset from the end of the array. Note that even when the index
+         * is negative, the array is still searched from back to front. If
+         * the calculated index is less than 0, -1 is returned, i.e. the
+         * array will not be searched.
+         */
+        long start;
+<span class="pc bpc" id="L1534" title="1 of 2 branches missed.">        if (args.length &lt; 2) {</span>
+            // default
+<span class="nc" id="L1536">            start = length-1;</span>
+        } else {
+<span class="fc" id="L1538">            start = (long)ScriptRuntime.toInteger(args[1]);</span>
+<span class="fc bfc" id="L1539" title="All 2 branches covered.">            if (start &gt;= length)</span>
+<span class="fc" id="L1540">                start = length-1;</span>
+<span class="fc bfc" id="L1541" title="All 2 branches covered.">            else if (start &lt; 0)</span>
+<span class="fc" id="L1542">                start += length;</span>
+<span class="fc bfc" id="L1543" title="All 2 branches covered.">            if (start &lt; 0) return NEGATIVE_ONE;</span>
+        }
+<span class="pc bpc" id="L1545" title="1 of 2 branches missed.">        if (thisObj instanceof NativeArray) {</span>
+<span class="fc" id="L1546">            NativeArray na = (NativeArray) thisObj;</span>
+<span class="pc bpc" id="L1547" title="1 of 2 branches missed.">            if (na.denseOnly) {</span>
+<span class="fc" id="L1548">                Scriptable proto = na.getPrototype();</span>
+<span class="fc bfc" id="L1549" title="All 2 branches covered.">                for (int i=(int)start; i &gt;= 0; i--) {</span>
+<span class="fc" id="L1550">                    Object val = na.dense[i];</span>
+<span class="pc bpc" id="L1551" title="3 of 4 branches missed.">                    if (val == NOT_FOUND &amp;&amp; proto != null) {</span>
+<span class="nc" id="L1552">                        val = ScriptableObject.getProperty(proto, i);</span>
+                    }
+<span class="pc bpc" id="L1554" title="1 of 2 branches missed.">                    if (val != NOT_FOUND &amp;&amp;</span>
+<span class="pc bpc" id="L1555" title="1 of 2 branches missed.">                        ScriptRuntime.shallowEq(val, compareTo))</span>
+                    {
+<span class="nc" id="L1557">                        return Long.valueOf(i);</span>
+                    }
+                }
+<span class="fc" id="L1560">                return NEGATIVE_ONE;</span>
+            }
+        }
+<span class="nc bnc" id="L1563" title="All 2 branches missed.">        for (long i=start; i &gt;= 0; i--) {</span>
+<span class="nc" id="L1564">            Object val = getRawElem(thisObj, i);</span>
+<span class="nc bnc" id="L1565" title="All 4 branches missed.">            if (val != NOT_FOUND &amp;&amp; ScriptRuntime.shallowEq(val, compareTo)) {</span>
+<span class="nc" id="L1566">                return Long.valueOf(i);</span>
+            }
+        }
+<span class="nc" id="L1569">        return NEGATIVE_ONE;</span>
+    }
+
+    /**
+     * Implements the methods &quot;every&quot;, &quot;filter&quot;, &quot;forEach&quot;, &quot;map&quot;, and &quot;some&quot;.
+     */
+    private static Object iterativeMethod(Context cx, IdFunctionObject idFunctionObject, Scriptable scope,
+                                          Scriptable thisObj, Object[] args)
+    {
+        // execIdCall(..) uses a trick for all the ConstructorId_xxx calls
+        // they are handled like object calls by adjusting the args list
+        // as a result we have to handle ConstructorId_xxx calls (negative id)
+        // the same way and always us the abs value of the id for method selection
+<span class="fc" id="L1582">        int id = Math.abs(idFunctionObject.methodId());</span>
+<span class="fc bfc" id="L1583" title="All 4 branches covered.">        if (Id_find == id || Id_findIndex == id) thisObj = requireObjectCoercible(cx, thisObj, idFunctionObject);</span>
+
+<span class="fc" id="L1585">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="pc bpc" id="L1586" title="1 of 2 branches missed.">        Object callbackArg = args.length &gt; 0 ? args[0] : Undefined.instance;</span>
+<span class="fc bfc" id="L1587" title="All 4 branches covered.">        if (callbackArg == null || !(callbackArg instanceof Function)) {</span>
+<span class="fc" id="L1588">            throw ScriptRuntime.notFunctionError(callbackArg);</span>
+        }
+<span class="pc bpc" id="L1590" title="3 of 4 branches missed.">        if (cx.getLanguageVersion() &gt;= Context.VERSION_ES6 &amp;&amp; (callbackArg instanceof NativeRegExp)) {</span>
+            // Previously, it was allowed to pass RegExp instance as a callback (it implements Function)
+            // But according to ES2015 21.2.6 Properties of RegExp Instances:
+            // &gt; RegExp instances are ordinary objects that inherit properties from the RegExp prototype object.
+            // &gt; RegExp instances have internal slots [[RegExpMatcher]], [[OriginalSource]], and [[OriginalFlags]].
+            // so, no [[Call]] for RegExp-s
+<span class="nc" id="L1596">            throw ScriptRuntime.notFunctionError(callbackArg);</span>
+        }
+
+<span class="fc" id="L1599">        Function f = (Function) callbackArg;</span>
+<span class="fc" id="L1600">        Scriptable parent = ScriptableObject.getTopLevelScope(f);</span>
+        Scriptable thisArg;
+<span class="pc bpc" id="L1602" title="1 of 6 branches missed.">        if (args.length &lt; 2 || args[1] == null || args[1] == Undefined.instance) {</span>
+<span class="fc" id="L1603">            thisArg = parent;</span>
+        } else {
+<span class="fc" id="L1605">            thisArg = ScriptRuntime.toObject(cx, scope, args[1]);</span>
+        }
+
+<span class="fc" id="L1608">        Scriptable array = null;</span>
+<span class="fc bfc" id="L1609" title="All 4 branches covered.">        if (id == Id_filter || id == Id_map) {</span>
+<span class="fc bfc" id="L1610" title="All 2 branches covered.">            int resultLength = id == Id_map ? (int) length : 0;</span>
+<span class="fc" id="L1611">            array = cx.newArray(scope, resultLength);</span>
+        }
+<span class="fc" id="L1613">        long j=0;</span>
+<span class="fc bfc" id="L1614" title="All 2 branches covered.">        for (long i=0; i &lt; length; i++) {</span>
+<span class="fc" id="L1615">            Object[] innerArgs = new Object[3];</span>
+<span class="fc" id="L1616">            Object elem = getRawElem(thisObj, i);</span>
+<span class="fc bfc" id="L1617" title="All 2 branches covered.">            if (elem == Scriptable.NOT_FOUND) {</span>
+<span class="fc bfc" id="L1618" title="All 4 branches covered.">                if (id == Id_find || id == Id_findIndex) {</span>
+<span class="fc" id="L1619">                    elem = Undefined.instance;</span>
+                } else {
+                    continue;
+                }
+            }
+<span class="fc" id="L1624">            innerArgs[0] = elem;</span>
+<span class="fc" id="L1625">            innerArgs[1] = Long.valueOf(i);</span>
+<span class="fc" id="L1626">            innerArgs[2] = thisObj;</span>
+<span class="fc" id="L1627">            Object result = f.call(cx, parent, thisArg, innerArgs);</span>
+<span class="pc bpc" id="L1628" title="1 of 8 branches missed.">            switch (id) {</span>
+              case Id_every:
+<span class="fc bfc" id="L1630" title="All 2 branches covered.">                if (!ScriptRuntime.toBoolean(result))</span>
+<span class="fc" id="L1631">                    return Boolean.FALSE;</span>
+                break;
+              case Id_filter:
+<span class="fc bfc" id="L1634" title="All 2 branches covered.">                if (ScriptRuntime.toBoolean(result))</span>
+<span class="fc" id="L1635">                    defineElem(cx, array, j++, innerArgs[0]);</span>
+                break;
+              case Id_forEach:
+<span class="fc" id="L1638">                break;</span>
+              case Id_map:
+<span class="fc" id="L1640">                defineElem(cx, array, i, result);</span>
+<span class="fc" id="L1641">                break;</span>
+              case Id_some:
+<span class="fc bfc" id="L1643" title="All 2 branches covered.">                if (ScriptRuntime.toBoolean(result))</span>
+<span class="fc" id="L1644">                    return Boolean.TRUE;</span>
+                break;
+              case Id_find:
+<span class="fc bfc" id="L1647" title="All 2 branches covered.">                if (ScriptRuntime.toBoolean(result))</span>
+<span class="fc" id="L1648">                    return elem;</span>
+                break;
+              case Id_findIndex:
+<span class="fc bfc" id="L1651" title="All 2 branches covered.">                if (ScriptRuntime.toBoolean(result))</span>
+<span class="fc" id="L1652">                    return ScriptRuntime.wrapNumber(i);</span>
+                break;
+            }
+        }
+<span class="fc bfc" id="L1656" title="All 5 branches covered.">        switch (id) {</span>
+          case Id_every:
+<span class="fc" id="L1658">            return Boolean.TRUE;</span>
+          case Id_filter:
+          case Id_map:
+<span class="fc" id="L1661">            return array;</span>
+          case Id_some:
+<span class="fc" id="L1663">            return Boolean.FALSE;</span>
+          case Id_findIndex:
+<span class="fc" id="L1665">            return ScriptRuntime.wrapNumber(-1);</span>
+          case Id_forEach:
+          default:
+<span class="fc" id="L1668">            return Undefined.instance;</span>
+        }
+    }
+
+    /**
+     * Implements the methods &quot;reduce&quot; and &quot;reduceRight&quot;.
+     */
+    private static Object reduceMethod(Context cx, int id, Scriptable scope,
+                                       Scriptable thisObj, Object[] args)
+    {
+<span class="fc" id="L1678">        long length = getLengthProperty(cx, thisObj);</span>
+<span class="pc bpc" id="L1679" title="1 of 2 branches missed.">        Object callbackArg = args.length &gt; 0 ? args[0] : Undefined.instance;</span>
+<span class="fc bfc" id="L1680" title="All 4 branches covered.">        if (callbackArg == null || !(callbackArg instanceof Function)) {</span>
+<span class="fc" id="L1681">            throw ScriptRuntime.notFunctionError(callbackArg);</span>
+        }
+<span class="fc" id="L1683">        Function f = (Function) callbackArg;</span>
+<span class="fc" id="L1684">        Scriptable parent = ScriptableObject.getTopLevelScope(f);</span>
+        // hack to serve both reduce and reduceRight with the same loop
+<span class="fc bfc" id="L1686" title="All 2 branches covered.">        boolean movingLeft = id == Id_reduce;</span>
+<span class="pc bpc" id="L1687" title="1 of 2 branches missed.">        Object value = args.length &gt; 1 ? args[1] : Scriptable.NOT_FOUND;</span>
+<span class="fc bfc" id="L1688" title="All 2 branches covered.">        for (long i = 0; i &lt; length; i++) {</span>
+<span class="fc bfc" id="L1689" title="All 2 branches covered.">            long index = movingLeft ? i : (length - 1 - i);</span>
+<span class="fc" id="L1690">            Object elem = getRawElem(thisObj, index);</span>
+<span class="fc bfc" id="L1691" title="All 2 branches covered.">            if (elem == Scriptable.NOT_FOUND) {</span>
+<span class="fc" id="L1692">                continue;</span>
+            }
+<span class="pc bpc" id="L1694" title="1 of 2 branches missed.">            if (value == Scriptable.NOT_FOUND) {</span>
+                // no initial value passed, use first element found as inital value
+<span class="nc" id="L1696">                value = elem;</span>
+            } else {
+<span class="fc" id="L1698">                Object[] innerArgs = { value, elem, index, thisObj };</span>
+<span class="fc" id="L1699">                value = f.call(cx, parent, parent, innerArgs);</span>
+            }
+        }
+<span class="pc bpc" id="L1702" title="1 of 2 branches missed.">        if (value == Scriptable.NOT_FOUND) {</span>
+            // reproduce spidermonkey error message
+<span class="nc" id="L1704">            throw ScriptRuntime.typeError0(&quot;msg.empty.array.reduce&quot;);</span>
+        }
+<span class="fc" id="L1706">        return value;</span>
+    }
+
+    private static boolean js_isArray(Object o) {
+<span class="nc bnc" id="L1710" title="All 2 branches missed.">        if (!(o instanceof Scriptable)) {</span>
+<span class="nc" id="L1711">            return false;</span>
+        }
+<span class="nc" id="L1713">        return &quot;Array&quot;.equals(((Scriptable)o).getClassName());</span>
+    }
+
+    // methods to implement java.util.List
+
+    public boolean contains(Object o) {
+<span class="nc bnc" id="L1719" title="All 2 branches missed.">        return indexOf(o) &gt; -1;</span>
+    }
+
+    public Object[] toArray() {
+<span class="nc" id="L1723">        return toArray(ScriptRuntime.emptyArgs);</span>
+    }
+
+    public Object[] toArray(Object[] a) {
+<span class="nc" id="L1727">        long longLen = length;</span>
+<span class="nc bnc" id="L1728" title="All 2 branches missed.">        if (longLen &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L1729">            throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L1731">        int len = (int) longLen;</span>
+<span class="nc bnc" id="L1732" title="All 2 branches missed.">        Object[] array = a.length &gt;= len ?</span>
+                a : (Object[]) java.lang.reflect.Array
+<span class="nc" id="L1734">                .newInstance(a.getClass().getComponentType(), len);</span>
+<span class="nc bnc" id="L1735" title="All 2 branches missed.">        for (int i = 0; i &lt; len; i++) {</span>
+<span class="nc" id="L1736">            array[i] = get(i);</span>
+        }
+<span class="nc" id="L1738">        return array;</span>
+    }
+
+    public boolean containsAll(Collection c) {
+<span class="nc bnc" id="L1742" title="All 2 branches missed.">        for (Object aC : c)</span>
+<span class="nc bnc" id="L1743" title="All 2 branches missed.">            if (!contains(aC))</span>
+<span class="nc" id="L1744">                return false;</span>
+<span class="nc" id="L1745">        return true;</span>
+    }
+
+    @Override
+    public int size() {
+<span class="nc" id="L1750">        long longLen = length;</span>
+<span class="nc bnc" id="L1751" title="All 2 branches missed.">        if (longLen &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L1752">            throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L1754">        return (int) longLen;</span>
+    }
+
+    @Override
+    public boolean isEmpty() {
+<span class="nc bnc" id="L1759" title="All 2 branches missed.">        return length == 0;</span>
+    }
+
+    public Object get(long index) {
+<span class="pc bpc" id="L1763" title="2 of 4 branches missed.">        if (index &lt; 0 || index &gt;= length) {</span>
+<span class="nc" id="L1764">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L1766">        Object value = getRawElem(this, index);</span>
+<span class="pc bpc" id="L1767" title="3 of 4 branches missed.">        if (value == Scriptable.NOT_FOUND || value == Undefined.instance) {</span>
+<span class="fc" id="L1768">            return null;</span>
+<span class="nc bnc" id="L1769" title="All 2 branches missed.">        } else if (value instanceof Wrapper) {</span>
+<span class="nc" id="L1770">            return ((Wrapper) value).unwrap();</span>
+        } else {
+<span class="nc" id="L1772">            return value;</span>
+        }
+    }
+
+    public Object get(int index) {
+<span class="fc" id="L1777">        return get((long) index);</span>
+    }
+
+    public int indexOf(Object o) {
+<span class="nc" id="L1781">        long longLen = length;</span>
+<span class="nc bnc" id="L1782" title="All 2 branches missed.">        if (longLen &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L1783">            throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L1785">        int len = (int) longLen;</span>
+<span class="nc bnc" id="L1786" title="All 2 branches missed.">        if (o == null) {</span>
+<span class="nc bnc" id="L1787" title="All 2 branches missed.">            for (int i = 0; i &lt; len; i++) {</span>
+<span class="nc bnc" id="L1788" title="All 2 branches missed.">                if (get(i) == null) {</span>
+<span class="nc" id="L1789">                    return i;</span>
+                }
+            }
+        } else {
+<span class="nc bnc" id="L1793" title="All 2 branches missed.">            for (int i = 0; i &lt; len; i++) {</span>
+<span class="nc bnc" id="L1794" title="All 2 branches missed.">                if (o.equals(get(i))) {</span>
+<span class="nc" id="L1795">                    return i;</span>
+                }
+            }
+        }
+<span class="nc" id="L1799">        return -1;</span>
+    }
+
+    public int lastIndexOf(Object o) {
+<span class="nc" id="L1803">        long longLen = length;</span>
+<span class="nc bnc" id="L1804" title="All 2 branches missed.">        if (longLen &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L1805">            throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L1807">        int len = (int) longLen;</span>
+<span class="nc bnc" id="L1808" title="All 2 branches missed.">        if (o == null) {</span>
+<span class="nc bnc" id="L1809" title="All 2 branches missed.">            for (int i = len - 1; i &gt;= 0; i--) {</span>
+<span class="nc bnc" id="L1810" title="All 2 branches missed.">                if (get(i) == null) {</span>
+<span class="nc" id="L1811">                    return i;</span>
+                }
+            }
+        } else {
+<span class="nc bnc" id="L1815" title="All 2 branches missed.">            for (int i = len - 1; i &gt;= 0; i--) {</span>
+<span class="nc bnc" id="L1816" title="All 2 branches missed.">                if (o.equals(get(i))) {</span>
+<span class="nc" id="L1817">                    return i;</span>
+                }
+            }
+        }
+<span class="nc" id="L1821">        return -1;</span>
+    }
+
+    public Iterator iterator() {
+<span class="fc" id="L1825">        return listIterator(0);</span>
+    }
+
+    public ListIterator listIterator() {
+<span class="nc" id="L1829">        return listIterator(0);</span>
+    }
+
+    public ListIterator listIterator(final int start) {
+<span class="fc" id="L1833">        long longLen = length;</span>
+<span class="pc bpc" id="L1834" title="1 of 2 branches missed.">        if (longLen &gt; Integer.MAX_VALUE) {</span>
+<span class="nc" id="L1835">            throw new IllegalStateException();</span>
+        }
+<span class="fc" id="L1837">        final int len = (int) longLen;</span>
+
+<span class="pc bpc" id="L1839" title="2 of 4 branches missed.">        if (start &lt; 0 || start &gt; len) {</span>
+<span class="nc" id="L1840">            throw new IndexOutOfBoundsException(&quot;Index: &quot; + start);</span>
+        }
+
+<span class="fc" id="L1843">        return new ListIterator() {</span>
+
+<span class="fc" id="L1845">            int cursor = start;</span>
+
+            public boolean hasNext() {
+<span class="pc bpc" id="L1848" title="1 of 2 branches missed.">                return cursor &lt; len;</span>
+            }
+
+            public Object next() {
+<span class="pc bpc" id="L1852" title="1 of 2 branches missed.">                if (cursor == len) {</span>
+<span class="nc" id="L1853">                    throw new NoSuchElementException();</span>
+                }
+<span class="fc" id="L1855">                return get(cursor++);</span>
+            }
+
+            public boolean hasPrevious() {
+<span class="nc bnc" id="L1859" title="All 2 branches missed.">                return cursor &gt; 0;</span>
+            }
+
+            public Object previous() {
+<span class="nc bnc" id="L1863" title="All 2 branches missed.">                if (cursor == 0) {</span>
+<span class="nc" id="L1864">                    throw new NoSuchElementException();</span>
+                }
+<span class="nc" id="L1866">                return get(--cursor);</span>
+            }
+
+            public int nextIndex() {
+<span class="nc" id="L1870">                return cursor;</span>
+            }
+
+            public int previousIndex() {
+<span class="nc" id="L1874">                return cursor - 1;</span>
+            }
+
+            public void remove() {
+<span class="nc" id="L1878">                throw new UnsupportedOperationException();</span>
+            }
+
+            public void add(Object o) {
+<span class="nc" id="L1882">                throw new UnsupportedOperationException();</span>
+            }
+
+            public void set(Object o) {
+<span class="nc" id="L1886">                throw new UnsupportedOperationException();</span>
+            }
+        };
+    }
+
+    public boolean add(Object o) {
+<span class="nc" id="L1892">        throw new UnsupportedOperationException();</span>
+    }
+
+    public boolean remove(Object o) {
+<span class="nc" id="L1896">        throw new UnsupportedOperationException();</span>
+    }
+
+    public boolean addAll(Collection c) {
+<span class="nc" id="L1900">        throw new UnsupportedOperationException();</span>
+    }
+
+    public boolean removeAll(Collection c) {
+<span class="nc" id="L1904">        throw new UnsupportedOperationException();</span>
+    }
+
+    public boolean retainAll(Collection c) {
+<span class="nc" id="L1908">        throw new UnsupportedOperationException();</span>
+    }
+
+    public void clear() {
+<span class="nc" id="L1912">        throw new UnsupportedOperationException();</span>
+    }
+
+    public void add(int index, Object element) {
+<span class="nc" id="L1916">        throw new UnsupportedOperationException();</span>
+    }
+
+    public boolean addAll(int index, Collection c) {
+<span class="nc" id="L1920">        throw new UnsupportedOperationException();</span>
+    }
+
+    public Object set(int index, Object element) {
+<span class="nc" id="L1924">        throw new UnsupportedOperationException();</span>
+    }
+
+    public Object remove(int index) {
+<span class="nc" id="L1928">        throw new UnsupportedOperationException();</span>
+    }
+
+    public List subList(int fromIndex, int toIndex) {
+<span class="nc" id="L1932">        throw new UnsupportedOperationException();</span>
+    }
+
+    @Override
+    protected int findPrototypeId(Symbol k)
+    {
+<span class="nc bnc" id="L1938" title="All 2 branches missed.">        if (SymbolKey.ITERATOR.equals(k)) {</span>
+<span class="nc" id="L1939">            return SymbolId_iterator;</span>
+        }
+<span class="nc" id="L1941">        return 0;</span>
+    }
+
+    // Comparators for the js_sort method. Putting them here lets us unit-test them better.
+
+<span class="fc" id="L1946">    private static final Comparator&lt;Object&gt; STRING_COMPARATOR = new StringLikeComparator();</span>
+<span class="fc" id="L1947">    private static final Comparator&lt;Object&gt; DEFAULT_COMPARATOR = new ElementComparator();</span>
+
+<span class="fc" id="L1949">    public static final class StringLikeComparator</span>
+      implements Comparator&lt;Object&gt; {
+
+      public int compare(final Object x, final Object y) {
+<span class="nc" id="L1953">        final String a = ScriptRuntime.toString(x);</span>
+<span class="nc" id="L1954">        final String b = ScriptRuntime.toString(y);</span>
+<span class="nc" id="L1955">        return a.compareTo(b);</span>
+      }
+    }
+
+    public static final class ElementComparator
+      implements Comparator&lt;Object&gt; {
+
+      private final Comparator&lt;Object&gt; child;
+
+<span class="fc" id="L1964">      public ElementComparator() {</span>
+<span class="fc" id="L1965">        child = STRING_COMPARATOR;</span>
+<span class="fc" id="L1966">      }</span>
+
+<span class="nc" id="L1968">      public ElementComparator(Comparator&lt;Object&gt; c) {</span>
+<span class="nc" id="L1969">        child = c;</span>
+<span class="nc" id="L1970">      }</span>
+
+      public int compare(final Object x, final Object y) {
+        // Sort NOT_FOUND to very end, Undefined before that, exclusively, as per
+        // ECMA 22.1.3.25.1.
+<span class="nc bnc" id="L1975" title="All 2 branches missed.">        if (x == Undefined.instance) {</span>
+<span class="nc bnc" id="L1976" title="All 2 branches missed.">          if (y == Undefined.instance) {</span>
+<span class="nc" id="L1977">            return 0;</span>
+          }
+<span class="nc bnc" id="L1979" title="All 2 branches missed.">          if (y == NOT_FOUND) {</span>
+<span class="nc" id="L1980">            return -1;</span>
+          }
+<span class="nc" id="L1982">          return 1;</span>
+<span class="nc bnc" id="L1983" title="All 2 branches missed.">        } else if (x == NOT_FOUND) {</span>
+<span class="nc bnc" id="L1984" title="All 2 branches missed.">          return y == NOT_FOUND ? 0 : 1;</span>
+        }
+
+<span class="nc bnc" id="L1987" title="All 2 branches missed.">        if (y == NOT_FOUND) {</span>
+<span class="nc" id="L1988">          return -1;</span>
+        }
+<span class="nc bnc" id="L1990" title="All 2 branches missed.">        if (y == Undefined.instance) {</span>
+<span class="nc" id="L1991">          return -1;</span>
+        }
+
+<span class="nc" id="L1994">        return child.compare(x, y);</span>
+      }
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2016-03-04 20:46:26 GMT
+<span class="fc" id="L2005">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L2006" title="1 of 10 branches missed.">            L: switch (s.length()) {</span>
+<span class="fc" id="L2007">            case 3: c=s.charAt(0);</span>
+<span class="pc bpc" id="L2008" title="3 of 6 branches missed.">                if (c=='m') { if (s.charAt(2)=='p' &amp;&amp; s.charAt(1)=='a') {id=Id_map; break L0;} }</span>
+<span class="nc bnc" id="L2009" title="All 6 branches missed.">                else if (c=='p') { if (s.charAt(2)=='p' &amp;&amp; s.charAt(1)=='o') {id=Id_pop; break L0;} }</span>
+                break L;
+<span class="pc bpc" id="L2011" title="4 of 6 branches missed.">            case 4: switch (s.charAt(2)) {</span>
+<span class="nc" id="L2012">                case 'i': X=&quot;join&quot;;id=Id_join; break L;</span>
+<span class="fc" id="L2013">                case 'm': X=&quot;some&quot;;id=Id_some; break L;</span>
+<span class="fc" id="L2014">                case 'n': X=&quot;find&quot;;id=Id_find; break L;</span>
+<span class="nc" id="L2015">                case 'r': X=&quot;sort&quot;;id=Id_sort; break L;</span>
+<span class="nc" id="L2016">                case 's': X=&quot;push&quot;;id=Id_push; break L;</span>
+<span class="nc" id="L2017">                } break L;</span>
+<span class="fc" id="L2018">            case 5: c=s.charAt(1);</span>
+<span class="pc bpc" id="L2019" title="1 of 2 branches missed.">                if (c=='h') { X=&quot;shift&quot;;id=Id_shift; }</span>
+<span class="pc bpc" id="L2020" title="1 of 2 branches missed.">                else if (c=='l') { X=&quot;slice&quot;;id=Id_slice; }</span>
+<span class="pc bpc" id="L2021" title="1 of 2 branches missed.">                else if (c=='v') { X=&quot;every&quot;;id=Id_every; }</span>
+                break L;
+<span class="pc bpc" id="L2023" title="3 of 5 branches missed.">            case 6: switch (s.charAt(0)) {</span>
+<span class="nc" id="L2024">                case 'c': X=&quot;concat&quot;;id=Id_concat; break L;</span>
+<span class="fc" id="L2025">                case 'f': X=&quot;filter&quot;;id=Id_filter; break L;</span>
+<span class="fc" id="L2026">                case 'r': X=&quot;reduce&quot;;id=Id_reduce; break L;</span>
+<span class="nc" id="L2027">                case 's': X=&quot;splice&quot;;id=Id_splice; break L;</span>
+<span class="nc" id="L2028">                } break L;</span>
+<span class="pc bpc" id="L2029" title="3 of 5 branches missed.">            case 7: switch (s.charAt(0)) {</span>
+<span class="fc" id="L2030">                case 'f': X=&quot;forEach&quot;;id=Id_forEach; break L;</span>
+<span class="fc" id="L2031">                case 'i': X=&quot;indexOf&quot;;id=Id_indexOf; break L;</span>
+<span class="nc" id="L2032">                case 'r': X=&quot;reverse&quot;;id=Id_reverse; break L;</span>
+<span class="nc" id="L2033">                case 'u': X=&quot;unshift&quot;;id=Id_unshift; break L;</span>
+<span class="nc" id="L2034">                } break L;</span>
+<span class="fc" id="L2035">            case 8: c=s.charAt(3);</span>
+<span class="pc bpc" id="L2036" title="1 of 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="fc bfc" id="L2037" title="All 2 branches covered.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+<span class="fc" id="L2039">            case 9: X=&quot;findIndex&quot;;id=Id_findIndex; break L;</span>
+<span class="fc" id="L2040">            case 11: c=s.charAt(0);</span>
+<span class="fc bfc" id="L2041" title="All 2 branches covered.">                if (c=='c') { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="fc bfc" id="L2042" title="All 2 branches covered.">                else if (c=='l') { X=&quot;lastIndexOf&quot;;id=Id_lastIndexOf; }</span>
+<span class="pc bpc" id="L2043" title="1 of 2 branches missed.">                else if (c=='r') { X=&quot;reduceRight&quot;;id=Id_reduceRight; }</span>
+                break L;
+<span class="nc" id="L2045">            case 14: X=&quot;toLocaleString&quot;;id=Id_toLocaleString; break L;</span>
+            }
+<span class="pc bpc" id="L2047" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L2051">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor          = 1,
+        Id_toString             = 2,
+        Id_toLocaleString       = 3,
+        Id_toSource             = 4,
+        Id_join                 = 5,
+        Id_reverse              = 6,
+        Id_sort                 = 7,
+        Id_push                 = 8,
+        Id_pop                  = 9,
+        Id_shift                = 10,
+        Id_unshift              = 11,
+        Id_splice               = 12,
+        Id_concat               = 13,
+        Id_slice                = 14,
+        Id_indexOf              = 15,
+        Id_lastIndexOf          = 16,
+        Id_every                = 17,
+        Id_filter               = 18,
+        Id_forEach              = 19,
+        Id_map                  = 20,
+        Id_some                 = 21,
+        Id_find                 = 22,
+        Id_findIndex            = 23,
+        Id_reduce               = 24,
+        Id_reduceRight          = 25,
+        SymbolId_iterator       = 26,
+
+        MAX_PROTOTYPE_ID        = SymbolId_iterator;
+
+// #/string_id_map#
+
+    private static final int
+        ConstructorId_join                 = -Id_join,
+        ConstructorId_reverse              = -Id_reverse,
+        ConstructorId_sort                 = -Id_sort,
+        ConstructorId_push                 = -Id_push,
+        ConstructorId_pop                  = -Id_pop,
+        ConstructorId_shift                = -Id_shift,
+        ConstructorId_unshift              = -Id_unshift,
+        ConstructorId_splice               = -Id_splice,
+        ConstructorId_concat               = -Id_concat,
+        ConstructorId_slice                = -Id_slice,
+        ConstructorId_indexOf              = -Id_indexOf,
+        ConstructorId_lastIndexOf          = -Id_lastIndexOf,
+        ConstructorId_every                = -Id_every,
+        ConstructorId_filter               = -Id_filter,
+        ConstructorId_forEach              = -Id_forEach,
+        ConstructorId_map                  = -Id_map,
+        ConstructorId_some                 = -Id_some,
+        ConstructorId_find                 = -Id_find,
+        ConstructorId_findIndex            = -Id_findIndex,
+        ConstructorId_reduce               = -Id_reduce,
+        ConstructorId_reduceRight          = -Id_reduceRight,
+        ConstructorId_isArray              = -26;
+
+    /**
+     * Internal representation of the JavaScript array's length property.
+     */
+    private long length;
+
+    /**
+     * Attributes of the array's length property
+     */
+<span class="fc" id="L2118">    private int lengthAttr = DONTENUM | PERMANENT;</span>
+
+    /**
+     * Fast storage for dense arrays. Sparse arrays will use the superclass's
+     * hashtable storage scheme.
+     */
+    private Object[] dense;
+
+    /**
+     * True if all numeric properties are stored in &lt;code&gt;dense&lt;/code&gt;.
+     */
+    private boolean denseOnly;
+
+    /**
+     * The maximum size of &lt;code&gt;dense&lt;/code&gt; that will be allocated initially.
+     */
+<span class="fc" id="L2134">    private static int maximumInitialCapacity = 10000;</span>
+
+    /**
+     * The default capacity for &lt;code&gt;dense&lt;/code&gt;.
+     */
+    private static final int DEFAULT_INITIAL_CAPACITY = 10;
+
+    /**
+     * The factor to grow &lt;code&gt;dense&lt;/code&gt; by.
+     */
+    private static final double GROW_FACTOR = 1.5;
+    private static final int MAX_PRE_GROW_SIZE = (int)(Integer.MAX_VALUE / GROW_FACTOR);
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

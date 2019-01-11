@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Synchronizer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Synchronizer.java</span></div><h1>Synchronizer.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * This class provides support for implementing Java-style synchronized
+ * methods in Javascript.
+ *
+ * Synchronized functions are created from ordinary Javascript
+ * functions by the &lt;code&gt;Synchronizer&lt;/code&gt; constructor, e.g.
+ * &lt;code&gt;new Packages.org.mozilla.javascript.Synchronizer(fun)&lt;/code&gt;.
+ * The resulting object is a function that establishes an exclusive
+ * lock on the &lt;code&gt;this&lt;/code&gt; object of its invocation.
+ *
+ * The Rhino shell provides a short-cut for the creation of
+ * synchronized methods: &lt;code&gt;sync(fun)&lt;/code&gt; has the same effect as
+ * calling the above constructor.
+ *
+ * @see org.mozilla.javascript.Delegator
+ * @author Matthias Radestock
+ */
+
+public class Synchronizer extends Delegator {
+
+    private Object syncObject;
+
+    /**
+     * Create a new synchronized function from an existing one.
+     *
+     * @param obj the existing function
+     */
+    public Synchronizer(Scriptable obj) {
+<span class="fc" id="L39">        super(obj);</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * Create a new synchronized function from an existing one using
+     * an explicit object as synchronization object.
+     *
+     * @param obj the existing function
+     * @param syncObject the object to synchronized on
+     */
+    public Synchronizer(Scriptable obj, Object syncObject) {
+<span class="fc" id="L50">        super(obj);</span>
+<span class="fc" id="L51">        this.syncObject = syncObject;</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * @see org.mozilla.javascript.Function#call
+     */
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        Object sync = syncObject != null ? syncObject : thisObj;</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        synchronized(sync instanceof Wrapper ? ((Wrapper)sync).unwrap() : sync) {</span>
+<span class="nc" id="L63">            return ((Function)obj).call(cx,scope,thisObj,args);</span>
+<span class="fc" id="L64">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

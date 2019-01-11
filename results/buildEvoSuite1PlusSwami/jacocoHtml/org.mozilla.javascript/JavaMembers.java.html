@@ -1,0 +1,914 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JavaMembers.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">JavaMembers.java</span></div><h1>JavaMembers.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.util.*;
+
+import static java.lang.reflect.Modifier.isProtected;
+import static java.lang.reflect.Modifier.isPublic;
+
+/**
+ *
+ * @author Mike Shaver
+ * @author Norris Boyd
+ * @see NativeJavaObject
+ * @see NativeJavaClass
+ */
+class JavaMembers
+{
+    JavaMembers(Scriptable scope, Class&lt;?&gt; cl)
+    {
+<span class="nc" id="L26">        this(scope, cl, false);</span>
+<span class="nc" id="L27">    }</span>
+
+    JavaMembers(Scriptable scope, Class&lt;?&gt; cl, boolean includeProtected)
+<span class="fc" id="L30">    {</span>
+        try {
+<span class="fc" id="L32">            Context cx = ContextFactory.getGlobal().enterContext();</span>
+<span class="fc" id="L33">            ClassShutter shutter = cx.getClassShutter();</span>
+<span class="pc bpc" id="L34" title="3 of 4 branches missed.">            if (shutter != null &amp;&amp; !shutter.visibleToScripts(cl.getName())) {</span>
+<span class="nc" id="L35">                throw Context.reportRuntimeError1(&quot;msg.access.prohibited&quot;,</span>
+<span class="nc" id="L36">                                                  cl.getName());</span>
+            }
+<span class="fc" id="L38">            this.members = new HashMap&lt;String,Object&gt;();</span>
+<span class="fc" id="L39">            this.staticMembers = new HashMap&lt;String,Object&gt;();</span>
+<span class="fc" id="L40">            this.cl = cl;</span>
+<span class="fc" id="L41">            boolean includePrivate = cx.hasFeature(</span>
+                    Context.FEATURE_ENHANCED_JAVA_ACCESS);
+<span class="fc" id="L43">            reflect(scope, includeProtected, includePrivate);</span>
+        } finally {
+<span class="pc" id="L45">            Context.exit();</span>
+<span class="pc" id="L46">        }</span>
+<span class="fc" id="L47">    }</span>
+
+    boolean has(String name, boolean isStatic)
+    {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L52">        Object obj = ht.get(name);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (obj != null) {</span>
+<span class="nc" id="L54">            return true;</span>
+        }
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        return findExplicitFunction(name, isStatic) != null;</span>
+    }
+
+    Object get(Scriptable scope, String name, Object javaObject,
+               boolean isStatic)
+    {
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L63">        Object member = ht.get(name);</span>
+<span class="nc bnc" id="L64" title="All 4 branches missed.">        if (!isStatic &amp;&amp; member == null) {</span>
+            // Try to get static member from instance (LC3)
+<span class="nc" id="L66">            member = staticMembers.get(name);</span>
+        }
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (member == null) {</span>
+<span class="nc" id="L69">            member = this.getExplicitFunction(scope, name,</span>
+                                              javaObject, isStatic);
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (member == null)</span>
+<span class="nc" id="L72">                return Scriptable.NOT_FOUND;</span>
+        }
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (member instanceof Scriptable) {</span>
+<span class="nc" id="L75">            return member;</span>
+        }
+<span class="nc" id="L77">        Context cx = Context.getContext();</span>
+        Object rval;
+        Class&lt;?&gt; type;
+        try {
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (member instanceof BeanProperty) {</span>
+<span class="nc" id="L82">                BeanProperty bp = (BeanProperty) member;</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                if (bp.getter == null)</span>
+<span class="nc" id="L84">                    return Scriptable.NOT_FOUND;</span>
+<span class="nc" id="L85">                rval = bp.getter.invoke(javaObject, Context.emptyArgs);</span>
+<span class="nc" id="L86">                type = bp.getter.method().getReturnType();</span>
+<span class="nc" id="L87">            } else {</span>
+<span class="nc" id="L88">                Field field = (Field) member;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                rval = field.get(isStatic ? null : javaObject);</span>
+<span class="nc" id="L90">                type = field.getType();</span>
+            }
+<span class="nc" id="L92">        } catch (Exception ex) {</span>
+<span class="nc" id="L93">            throw Context.throwAsScriptRuntimeEx(ex);</span>
+<span class="nc" id="L94">        }</span>
+        // Need to wrap the object before we return it.
+<span class="nc" id="L96">        scope = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="nc" id="L97">        return cx.getWrapFactory().wrap(cx, scope, rval, type);</span>
+    }
+
+    void put(Scriptable scope, String name, Object javaObject,
+             Object value, boolean isStatic)
+    {
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L104">        Object member = ht.get(name);</span>
+<span class="nc bnc" id="L105" title="All 4 branches missed.">        if (!isStatic &amp;&amp; member == null) {</span>
+            // Try to get static member from instance (LC3)
+<span class="nc" id="L107">            member = staticMembers.get(name);</span>
+        }
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (member == null)</span>
+<span class="nc" id="L110">            throw reportMemberNotFound(name);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (member instanceof FieldAndMethods) {</span>
+<span class="nc" id="L112">            FieldAndMethods fam = (FieldAndMethods) ht.get(name);</span>
+<span class="nc" id="L113">            member = fam.field;</span>
+        }
+
+        // Is this a bean property &quot;set&quot;?
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (member instanceof BeanProperty) {</span>
+<span class="nc" id="L118">            BeanProperty bp = (BeanProperty)member;</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">            if (bp.setter == null) {</span>
+<span class="nc" id="L120">                throw reportMemberNotFound(name);</span>
+            }
+            // If there's only one setter or if the value is null, use the
+            // main setter. Otherwise, let the NativeJavaMethod decide which
+            // setter to use:
+<span class="nc bnc" id="L125" title="All 4 branches missed.">            if (bp.setters == null || value == null) {</span>
+<span class="nc" id="L126">                Class&lt;?&gt; setType = bp.setter.argTypes[0];</span>
+<span class="nc" id="L127">                Object[] args = { Context.jsToJava(value, setType) };</span>
+                try {
+<span class="nc" id="L129">                    bp.setter.invoke(javaObject, args);</span>
+<span class="nc" id="L130">                } catch (Exception ex) {</span>
+<span class="nc" id="L131">                  throw Context.throwAsScriptRuntimeEx(ex);</span>
+<span class="nc" id="L132">                }</span>
+<span class="nc" id="L133">            } else {</span>
+<span class="nc" id="L134">                Object[] args = { value };</span>
+<span class="nc" id="L135">                bp.setters.call(Context.getContext(),</span>
+<span class="nc" id="L136">                                ScriptableObject.getTopLevelScope(scope),</span>
+                                scope, args);
+            }
+<span class="nc" id="L139">        }</span>
+        else {
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (!(member instanceof Field)) {</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                String str = (member == null) ? &quot;msg.java.internal.private&quot;</span>
+                                              : &quot;msg.java.method.assign&quot;;
+<span class="nc" id="L144">                throw Context.reportRuntimeError1(str, name);</span>
+            }
+<span class="nc" id="L146">            Field field = (Field)member;</span>
+<span class="nc" id="L147">            Object javaValue = Context.jsToJava(value, field.getType());</span>
+            try {
+<span class="nc" id="L149">                field.set(javaObject, javaValue);</span>
+<span class="nc" id="L150">            } catch (IllegalAccessException accessEx) {</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                if ((field.getModifiers() &amp; Modifier.FINAL) != 0) {</span>
+                    // treat Java final the same as JavaScript [[READONLY]]
+<span class="nc" id="L153">                    return;</span>
+                }
+<span class="nc" id="L155">                throw Context.throwAsScriptRuntimeEx(accessEx);</span>
+<span class="nc" id="L156">            } catch (IllegalArgumentException argEx) {</span>
+<span class="nc" id="L157">                throw Context.reportRuntimeError3(</span>
+                    &quot;msg.java.internal.field.type&quot;,
+<span class="nc" id="L159">                    value.getClass().getName(), field,</span>
+<span class="nc" id="L160">                    javaObject.getClass().getName());</span>
+<span class="nc" id="L161">            }</span>
+        }
+<span class="nc" id="L163">    }</span>
+
+    Object[] getIds(boolean isStatic)
+    {
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        Map&lt;String,Object&gt; map = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L168">        return map.keySet().toArray(new Object[map.size()]);</span>
+    }
+
+    static String javaSignature(Class&lt;?&gt; type)
+    {
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        if (!type.isArray()) {</span>
+<span class="fc" id="L174">            return type.getName();</span>
+        } else {
+<span class="nc" id="L176">            int arrayDimension = 0;</span>
+            do {
+<span class="nc" id="L178">                ++arrayDimension;</span>
+<span class="nc" id="L179">                type = type.getComponentType();</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            } while (type.isArray());</span>
+<span class="nc" id="L181">            String name = type.getName();</span>
+<span class="nc" id="L182">            String suffix = &quot;[]&quot;;</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            if (arrayDimension == 1) {</span>
+<span class="nc" id="L184">                return name.concat(suffix);</span>
+            } else {
+<span class="nc" id="L186">                int length = name.length() + arrayDimension * suffix.length();</span>
+<span class="nc" id="L187">                StringBuilder sb = new StringBuilder(length);</span>
+<span class="nc" id="L188">                sb.append(name);</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">                while (arrayDimension != 0) {</span>
+<span class="nc" id="L190">                    --arrayDimension;</span>
+<span class="nc" id="L191">                    sb.append(suffix);</span>
+                }
+<span class="nc" id="L193">                return sb.toString();</span>
+            }
+        }
+    }
+
+    static String liveConnectSignature(Class&lt;?&gt;[] argTypes)
+    {
+<span class="nc" id="L200">        int N = argTypes.length;</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        if (N == 0) { return &quot;()&quot;; }</span>
+<span class="nc" id="L202">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L203">        sb.append('(');</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) {</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">            if (i != 0) {</span>
+<span class="nc" id="L206">                sb.append(',');</span>
+            }
+<span class="nc" id="L208">            sb.append(javaSignature(argTypes[i]));</span>
+        }
+<span class="nc" id="L210">        sb.append(')');</span>
+<span class="nc" id="L211">        return sb.toString();</span>
+    }
+
+    private MemberBox findExplicitFunction(String name, boolean isStatic)
+    {
+<span class="nc" id="L216">        int sigStart = name.indexOf('(');</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        if (sigStart &lt; 0) { return null; }</span>
+
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L220">        MemberBox[] methodsOrCtors = null;</span>
+<span class="nc bnc" id="L221" title="All 4 branches missed.">        boolean isCtor = (isStatic &amp;&amp; sigStart == 0);</span>
+
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (isCtor) {</span>
+            // Explicit request for an overloaded constructor
+<span class="nc" id="L225">            methodsOrCtors = ctors.methods;</span>
+        } else {
+            // Explicit request for an overloaded method
+<span class="nc" id="L228">            String trueName = name.substring(0,sigStart);</span>
+<span class="nc" id="L229">            Object obj = ht.get(trueName);</span>
+<span class="nc bnc" id="L230" title="All 4 branches missed.">            if (!isStatic &amp;&amp; obj == null) {</span>
+                // Try to get static member from instance (LC3)
+<span class="nc" id="L232">                obj = staticMembers.get(trueName);</span>
+            }
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if (obj instanceof NativeJavaMethod) {</span>
+<span class="nc" id="L235">                NativeJavaMethod njm = (NativeJavaMethod)obj;</span>
+<span class="nc" id="L236">                methodsOrCtors = njm.methods;</span>
+            }
+        }
+
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        if (methodsOrCtors != null) {</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">            for (MemberBox methodsOrCtor : methodsOrCtors) {</span>
+<span class="nc" id="L242">                Class&lt;?&gt;[] type = methodsOrCtor.argTypes;</span>
+<span class="nc" id="L243">                String sig = liveConnectSignature(type);</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                if (sigStart + sig.length() == name.length()</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">                        &amp;&amp; name.regionMatches(sigStart, sig, 0, sig.length()))</span>
+                {
+<span class="nc" id="L247">                    return methodsOrCtor;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L252">        return null;</span>
+    }
+
+    private Object getExplicitFunction(Scriptable scope, String name,
+                                       Object javaObject, boolean isStatic)
+    {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="nc" id="L259">        Object member = null;</span>
+<span class="nc" id="L260">        MemberBox methodOrCtor = findExplicitFunction(name, isStatic);</span>
+
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (methodOrCtor != null) {</span>
+<span class="nc" id="L263">            Scriptable prototype =</span>
+<span class="nc" id="L264">                ScriptableObject.getFunctionPrototype(scope);</span>
+
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (methodOrCtor.isCtor()) {</span>
+<span class="nc" id="L267">                NativeJavaConstructor fun =</span>
+                    new NativeJavaConstructor(methodOrCtor);
+<span class="nc" id="L269">                fun.setPrototype(prototype);</span>
+<span class="nc" id="L270">                member = fun;</span>
+<span class="nc" id="L271">                ht.put(name, fun);</span>
+<span class="nc" id="L272">            } else {</span>
+<span class="nc" id="L273">                String trueName = methodOrCtor.getName();</span>
+<span class="nc" id="L274">                member = ht.get(trueName);</span>
+
+<span class="nc bnc" id="L276" title="All 4 branches missed.">                if (member instanceof NativeJavaMethod &amp;&amp;</span>
+                    ((NativeJavaMethod)member).methods.length &gt; 1 ) {
+<span class="nc" id="L278">                    NativeJavaMethod fun =</span>
+                        new NativeJavaMethod(methodOrCtor, name);
+<span class="nc" id="L280">                    fun.setPrototype(prototype);</span>
+<span class="nc" id="L281">                    ht.put(name, fun);</span>
+<span class="nc" id="L282">                    member = fun;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L287">        return member;</span>
+    }
+
+    /**
+     * Retrieves mapping of methods to accessible methods for a class.
+     * In case the class is not public, retrieves methods with same
+     * signature as its public methods from public superclasses and
+     * interfaces (if they exist). Basically upcasts every method to the
+     * nearest accessible method.
+     */
+    private static Method[] discoverAccessibleMethods(Class&lt;?&gt; clazz,
+                                                      boolean includeProtected,
+                                                      boolean includePrivate)
+    {
+<span class="fc" id="L301">        Map&lt;MethodSignature,Method&gt; map = new HashMap&lt;MethodSignature,Method&gt;();</span>
+<span class="fc" id="L302">        discoverAccessibleMethods(clazz, map, includeProtected, includePrivate);</span>
+<span class="fc" id="L303">        return map.values().toArray(new Method[map.size()]);</span>
+    }
+
+    private static void discoverAccessibleMethods(Class&lt;?&gt; clazz,
+            Map&lt;MethodSignature,Method&gt; map, boolean includeProtected,
+            boolean includePrivate)
+    {
+<span class="pc bpc" id="L310" title="3 of 4 branches missed.">        if (isPublic(clazz.getModifiers()) || includePrivate) {</span>
+            try {
+<span class="pc bpc" id="L312" title="2 of 4 branches missed.">                if (includeProtected || includePrivate) {</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                    while (clazz != null) {</span>
+                        try {
+<span class="nc" id="L315">                            Method[] methods = clazz.getDeclaredMethods();</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">                            for (Method method : methods) {</span>
+<span class="nc" id="L317">                                int mods = method.getModifiers();</span>
+
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                                if (isPublic(mods)</span>
+<span class="nc bnc" id="L320" title="All 4 branches missed.">                                        || isProtected(mods)</span>
+                                        || includePrivate) {
+<span class="nc" id="L322">                                    MethodSignature sig = new MethodSignature(method);</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">                                    if (!map.containsKey(sig)) {</span>
+<span class="nc bnc" id="L324" title="All 4 branches missed.">                                        if (includePrivate &amp;&amp; !method.isAccessible())</span>
+<span class="nc" id="L325">                                            method.setAccessible(true);</span>
+<span class="nc" id="L326">                                        map.put(sig, method);</span>
+                                    }
+                                }
+                            }
+<span class="nc" id="L330">                            Class&lt;?&gt;[] interfaces = clazz.getInterfaces();</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                            for (Class&lt;?&gt; intface : interfaces) {</span>
+<span class="nc" id="L332">                                discoverAccessibleMethods(intface, map, includeProtected,</span>
+                                                          includePrivate);
+                            }
+<span class="nc" id="L335">                            clazz = clazz.getSuperclass();</span>
+<span class="nc" id="L336">                        } catch (SecurityException e) {</span>
+                            // Some security settings (i.e., applets) disallow
+                            // access to Class.getDeclaredMethods. Fall back to
+                            // Class.getMethods.
+<span class="nc" id="L340">                            Method[] methods = clazz.getMethods();</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">                            for (Method method : methods) {</span>
+<span class="nc" id="L342">                                MethodSignature sig = new MethodSignature(method);</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">                                if (!map.containsKey(sig))</span>
+<span class="nc" id="L344">                                    map.put(sig, method);</span>
+                            }
+<span class="nc" id="L346">                            break; // getMethods gets superclass methods, no</span>
+                                   // need to loop any more
+<span class="nc" id="L348">                        }</span>
+                    }
+                } else {
+<span class="fc" id="L351">                    Method[] methods = clazz.getMethods();</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">                    for (Method method : methods) {</span>
+<span class="fc" id="L353">                        MethodSignature sig = new MethodSignature(method);</span>
+                        // Array may contain methods with same signature but different return value!
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">                        if (!map.containsKey(sig))</span>
+<span class="fc" id="L356">                            map.put(sig, method);</span>
+                    }
+                }
+<span class="fc" id="L359">                return;</span>
+<span class="nc" id="L360">            } catch (SecurityException e) {</span>
+<span class="nc" id="L361">                Context.reportWarning(</span>
+                        &quot;Could not discover accessible methods of class &quot; +
+<span class="nc" id="L363">                            clazz.getName() + &quot; due to lack of privileges, &quot; +</span>
+                            &quot;attemping superclasses/interfaces.&quot;);
+                // Fall through and attempt to discover superclass/interface
+                // methods
+            }
+        }
+
+<span class="nc" id="L370">        Class&lt;?&gt;[] interfaces = clazz.getInterfaces();</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">        for (Class&lt;?&gt; intface : interfaces) {</span>
+<span class="nc" id="L372">            discoverAccessibleMethods(intface, map, includeProtected,</span>
+                    includePrivate);
+        }
+<span class="nc" id="L375">        Class&lt;?&gt; superclass = clazz.getSuperclass();</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        if (superclass != null) {</span>
+<span class="nc" id="L377">            discoverAccessibleMethods(superclass, map, includeProtected,</span>
+                    includePrivate);
+        }
+<span class="nc" id="L380">    }</span>
+
+    private static final class MethodSignature
+    {
+        private final String name;
+        private final Class&lt;?&gt;[] args;
+
+        private MethodSignature(String name, Class&lt;?&gt;[] args)
+<span class="fc" id="L388">        {</span>
+<span class="fc" id="L389">            this.name = name;</span>
+<span class="fc" id="L390">            this.args = args;</span>
+<span class="fc" id="L391">        }</span>
+
+        MethodSignature(Method method)
+        {
+<span class="fc" id="L395">            this(method.getName(), method.getParameterTypes());</span>
+<span class="fc" id="L396">        }</span>
+
+        @Override
+        public boolean equals(Object o)
+        {
+<span class="pc bpc" id="L401" title="1 of 2 branches missed.">            if(o instanceof MethodSignature)</span>
+            {
+<span class="fc" id="L403">                MethodSignature ms = (MethodSignature)o;</span>
+<span class="pc bpc" id="L404" title="2 of 4 branches missed.">                return ms.name.equals(name) &amp;&amp; Arrays.equals(args, ms.args);</span>
+            }
+<span class="nc" id="L406">            return false;</span>
+        }
+
+        @Override
+        public int hashCode()
+        {
+<span class="fc" id="L412">            return name.hashCode() ^ args.length;</span>
+        }
+    }
+
+    private void reflect(Scriptable scope,
+                         boolean includeProtected,
+                         boolean includePrivate)
+    {
+        // We reflect methods first, because we want overloaded field/method
+        // names to be allocated to the NativeJavaMethod before the field
+        // gets in the way.
+
+<span class="fc" id="L424">        Method[] methods = discoverAccessibleMethods(cl, includeProtected,</span>
+                                                     includePrivate);
+<span class="fc bfc" id="L426" title="All 2 branches covered.">        for (Method method : methods) {</span>
+<span class="fc" id="L427">            int mods = method.getModifiers();</span>
+<span class="fc" id="L428">            boolean isStatic = Modifier.isStatic(mods);</span>
+<span class="fc bfc" id="L429" title="All 2 branches covered.">            Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="fc" id="L430">            String name = method.getName();</span>
+<span class="fc" id="L431">            Object value = ht.get(name);</span>
+<span class="fc bfc" id="L432" title="All 2 branches covered.">            if (value == null) {</span>
+<span class="fc" id="L433">                ht.put(name, method);</span>
+            } else {
+                ObjArray overloadedMethods;
+<span class="fc bfc" id="L436" title="All 2 branches covered.">                if (value instanceof ObjArray) {</span>
+<span class="fc" id="L437">                    overloadedMethods = (ObjArray)value;</span>
+                } else {
+<span class="pc bpc" id="L439" title="1 of 2 branches missed.">                    if (!(value instanceof Method)) Kit.codeBug();</span>
+                    // value should be instance of Method as at this stage
+                    // staticMembers and members can only contain methods
+<span class="fc" id="L442">                    overloadedMethods = new ObjArray();</span>
+<span class="fc" id="L443">                    overloadedMethods.add(value);</span>
+<span class="fc" id="L444">                    ht.put(name, overloadedMethods);</span>
+                }
+<span class="fc" id="L446">                overloadedMethods.add(method);</span>
+            }
+        }
+
+        // replace Method instances by wrapped NativeJavaMethod objects
+        // first in staticMembers and then in members
+<span class="fc bfc" id="L452" title="All 2 branches covered.">        for (int tableCursor = 0; tableCursor != 2; ++tableCursor) {</span>
+<span class="fc bfc" id="L453" title="All 2 branches covered.">            boolean isStatic = (tableCursor == 0);</span>
+<span class="fc bfc" id="L454" title="All 2 branches covered.">            Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="fc bfc" id="L455" title="All 2 branches covered.">            for (Map.Entry&lt;String, Object&gt; entry: ht.entrySet()) {</span>
+                MemberBox[] methodBoxes;
+<span class="fc" id="L457">                Object value = entry.getValue();</span>
+<span class="fc bfc" id="L458" title="All 2 branches covered.">                if (value instanceof Method) {</span>
+<span class="fc" id="L459">                    methodBoxes = new MemberBox[1];</span>
+<span class="fc" id="L460">                    methodBoxes[0] = new MemberBox((Method)value);</span>
+                } else {
+<span class="fc" id="L462">                    ObjArray overloadedMethods = (ObjArray)value;</span>
+<span class="fc" id="L463">                    int N = overloadedMethods.size();</span>
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">                    if (N &lt; 2) Kit.codeBug();</span>
+<span class="fc" id="L465">                    methodBoxes = new MemberBox[N];</span>
+<span class="fc bfc" id="L466" title="All 2 branches covered.">                    for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L467">                        Method method = (Method)overloadedMethods.get(i);</span>
+<span class="fc" id="L468">                        methodBoxes[i] = new MemberBox(method);</span>
+                    }
+                }
+<span class="fc" id="L471">                NativeJavaMethod fun = new NativeJavaMethod(methodBoxes);</span>
+<span class="pc bpc" id="L472" title="1 of 2 branches missed.">                if (scope != null) {</span>
+<span class="fc" id="L473">                    ScriptRuntime.setFunctionProtoAndParent(fun, scope);</span>
+                }
+<span class="fc" id="L475">                ht.put(entry.getKey(), fun);</span>
+<span class="fc" id="L476">            }</span>
+        }
+
+        // Reflect fields.
+<span class="fc" id="L480">        Field[] fields = getAccessibleFields(includeProtected, includePrivate);</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">        for (Field field : fields) {</span>
+<span class="fc" id="L482">            String name = field.getName();</span>
+<span class="fc" id="L483">            int mods = field.getModifiers();</span>
+            try {
+<span class="fc" id="L485">                boolean isStatic = Modifier.isStatic(mods);</span>
+<span class="pc bpc" id="L486" title="1 of 2 branches missed.">                Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+<span class="fc" id="L487">                Object member = ht.get(name);</span>
+<span class="pc bpc" id="L488" title="1 of 2 branches missed.">                if (member == null) {</span>
+<span class="fc" id="L489">                    ht.put(name, field);</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                } else if (member instanceof NativeJavaMethod) {</span>
+<span class="nc" id="L491">                    NativeJavaMethod method = (NativeJavaMethod) member;</span>
+<span class="nc" id="L492">                    FieldAndMethods fam</span>
+                        = new FieldAndMethods(scope, method.methods, field);
+<span class="nc bnc" id="L494" title="All 2 branches missed.">                    Map&lt;String,FieldAndMethods&gt; fmht = isStatic ? staticFieldAndMethods</span>
+                                              : fieldAndMethods;
+<span class="nc bnc" id="L496" title="All 2 branches missed.">                    if (fmht == null) {</span>
+<span class="nc" id="L497">                        fmht = new HashMap&lt;String,FieldAndMethods&gt;();</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">                        if (isStatic) {</span>
+<span class="nc" id="L499">                            staticFieldAndMethods = fmht;</span>
+                        } else {
+<span class="nc" id="L501">                            fieldAndMethods = fmht;</span>
+                        }
+                    }
+<span class="nc" id="L504">                    fmht.put(name, fam);</span>
+<span class="nc" id="L505">                    ht.put(name, fam);</span>
+<span class="nc bnc" id="L506" title="All 2 branches missed.">                } else if (member instanceof Field) {</span>
+<span class="nc" id="L507">                    Field oldField = (Field) member;</span>
+                    // If this newly reflected field shadows an inherited field,
+                    // then replace it. Otherwise, since access to the field
+                    // would be ambiguous from Java, no field should be
+                    // reflected.
+                    // For now, the first field found wins, unless another field
+                    // explicitly shadows it.
+<span class="nc" id="L514">                    if (oldField.getDeclaringClass().</span>
+<span class="nc bnc" id="L515" title="All 2 branches missed.">                            isAssignableFrom(field.getDeclaringClass()))</span>
+                    {
+<span class="nc" id="L517">                        ht.put(name, field);</span>
+                    }
+<span class="nc" id="L519">                } else {</span>
+                    // &quot;unknown member type&quot;
+<span class="nc" id="L521">                    Kit.codeBug();</span>
+                }
+<span class="nc" id="L523">            } catch (SecurityException e) {</span>
+                // skip this field
+<span class="nc" id="L525">                Context.reportWarning(&quot;Could not access field &quot;</span>
+<span class="nc" id="L526">                        + name + &quot; of class &quot; + cl.getName() +</span>
+                        &quot; due to lack of privileges.&quot;);
+<span class="fc" id="L528">            }</span>
+        }
+
+        // Create bean properties from corresponding get/set methods first for
+        // static members and then for instance members
+<span class="fc bfc" id="L533" title="All 2 branches covered.">        for (int tableCursor = 0; tableCursor != 2; ++tableCursor) {</span>
+<span class="fc bfc" id="L534" title="All 2 branches covered.">            boolean isStatic = (tableCursor == 0);</span>
+<span class="fc bfc" id="L535" title="All 2 branches covered.">            Map&lt;String,Object&gt; ht = isStatic ? staticMembers : members;</span>
+
+<span class="fc" id="L537">            Map&lt;String,BeanProperty&gt; toAdd = new HashMap&lt;String,BeanProperty&gt;();</span>
+
+            // Now, For each member, make &quot;bean&quot; properties.
+<span class="fc bfc" id="L540" title="All 2 branches covered.">            for (String name: ht.keySet()) {</span>
+                // Is this a getter?
+<span class="fc" id="L542">                boolean memberIsGetMethod = name.startsWith(&quot;get&quot;);</span>
+<span class="fc" id="L543">                boolean memberIsSetMethod = name.startsWith(&quot;set&quot;);</span>
+<span class="fc" id="L544">                boolean memberIsIsMethod = name.startsWith(&quot;is&quot;);</span>
+<span class="fc bfc" id="L545" title="All 6 branches covered.">                if (memberIsGetMethod || memberIsIsMethod</span>
+                        || memberIsSetMethod) {
+                    // Double check name component.
+<span class="fc bfc" id="L548" title="All 2 branches covered.">                    String nameComponent</span>
+<span class="fc" id="L549">                        = name.substring(memberIsIsMethod ? 2 : 3);</span>
+<span class="fc bfc" id="L550" title="All 2 branches covered.">                    if (nameComponent.length() == 0)</span>
+<span class="fc" id="L551">                        continue;</span>
+
+                    // Make the bean property name.
+<span class="fc" id="L554">                    String beanPropertyName = nameComponent;</span>
+<span class="fc" id="L555">                    char ch0 = nameComponent.charAt(0);</span>
+<span class="pc bpc" id="L556" title="1 of 2 branches missed.">                    if (Character.isUpperCase(ch0)) {</span>
+<span class="pc bpc" id="L557" title="1 of 2 branches missed.">                        if (nameComponent.length() == 1) {</span>
+<span class="nc" id="L558">                            beanPropertyName = nameComponent.toLowerCase();</span>
+                        } else {
+<span class="fc" id="L560">                            char ch1 = nameComponent.charAt(1);</span>
+<span class="pc bpc" id="L561" title="1 of 2 branches missed.">                            if (!Character.isUpperCase(ch1)) {</span>
+<span class="fc" id="L562">                                beanPropertyName = Character.toLowerCase(ch0)</span>
+<span class="fc" id="L563">                                                   +nameComponent.substring(1);</span>
+                            }
+                        }
+                    }
+
+                    // If we already have a member by this name, don't do this
+                    // property.
+<span class="fc bfc" id="L570" title="All 2 branches covered.">                    if (toAdd.containsKey(beanPropertyName))</span>
+<span class="fc" id="L571">                        continue;</span>
+<span class="fc" id="L572">                    Object v = ht.get(beanPropertyName);</span>
+<span class="fc bfc" id="L573" title="All 2 branches covered.">                    if (v != null) {</span>
+                        // A private field shouldn't mask a public getter/setter
+<span class="pc bpc" id="L575" title="3 of 4 branches missed.">                        if (!includePrivate || !(v instanceof Member) ||</span>
+<span class="nc bnc" id="L576" title="All 2 branches missed.">                            !Modifier.isPrivate(((Member)v).getModifiers()))</span>
+
+                        {
+<span class="nc" id="L579">                            continue;</span>
+                        }
+                    }
+
+                    // Find the getter method, or if there is none, the is-
+                    // method.
+<span class="fc" id="L585">                    MemberBox getter = null;</span>
+<span class="fc" id="L586">                    getter = findGetter(isStatic, ht, &quot;get&quot;, nameComponent);</span>
+                    // If there was no valid getter, check for an is- method.
+<span class="fc bfc" id="L588" title="All 2 branches covered.">                    if (getter == null) {</span>
+<span class="fc" id="L589">                        getter = findGetter(isStatic, ht, &quot;is&quot;, nameComponent);</span>
+                    }
+
+                    // setter
+<span class="fc" id="L593">                    MemberBox setter = null;</span>
+<span class="fc" id="L594">                    NativeJavaMethod setters = null;</span>
+<span class="fc" id="L595">                    String setterName = &quot;set&quot;.concat(nameComponent);</span>
+
+<span class="fc bfc" id="L597" title="All 2 branches covered.">                    if (ht.containsKey(setterName)) {</span>
+                        // Is this value a method?
+<span class="fc" id="L599">                        Object member = ht.get(setterName);</span>
+<span class="pc bpc" id="L600" title="1 of 2 branches missed.">                        if (member instanceof NativeJavaMethod) {</span>
+<span class="fc" id="L601">                            NativeJavaMethod njmSet = (NativeJavaMethod)member;</span>
+<span class="fc bfc" id="L602" title="All 2 branches covered.">                            if (getter != null) {</span>
+                                // We have a getter. Now, do we have a matching
+                                // setter?
+<span class="fc" id="L605">                                Class&lt;?&gt; type = getter.method().getReturnType();</span>
+<span class="fc" id="L606">                                setter = extractSetMethod(type, njmSet.methods,</span>
+                                                            isStatic);
+<span class="fc" id="L608">                            } else {</span>
+                                // No getter, find any set method
+<span class="fc" id="L610">                                setter = extractSetMethod(njmSet.methods,</span>
+                                                            isStatic);
+                            }
+<span class="fc bfc" id="L613" title="All 2 branches covered.">                            if (njmSet.methods.length &gt; 1) {</span>
+<span class="fc" id="L614">                                setters = njmSet;</span>
+                            }
+                        }
+                    }
+                    // Make the property.
+<span class="fc" id="L619">                    BeanProperty bp = new BeanProperty(getter, setter,</span>
+                                                       setters);
+<span class="fc" id="L621">                    toAdd.put(beanPropertyName, bp);</span>
+                }
+<span class="fc" id="L623">            }</span>
+
+            // Add the new bean properties.
+<span class="fc bfc" id="L626" title="All 2 branches covered.">            for (String key: toAdd.keySet()) {</span>
+<span class="fc" id="L627">                Object value = toAdd.get(key);</span>
+<span class="fc" id="L628">                ht.put(key, value);</span>
+<span class="fc" id="L629">            }</span>
+        }
+
+        // Reflect constructors
+<span class="fc" id="L633">        Constructor&lt;?&gt;[] constructors = getAccessibleConstructors(includePrivate);</span>
+<span class="fc" id="L634">        MemberBox[] ctorMembers = new MemberBox[constructors.length];</span>
+<span class="fc bfc" id="L635" title="All 2 branches covered.">        for (int i = 0; i != constructors.length; ++i) {</span>
+<span class="fc" id="L636">            ctorMembers[i] = new MemberBox(constructors[i]);</span>
+        }
+<span class="fc" id="L638">        ctors = new NativeJavaMethod(ctorMembers, cl.getSimpleName());</span>
+<span class="fc" id="L639">    }</span>
+
+    private Constructor&lt;?&gt;[] getAccessibleConstructors(boolean includePrivate)
+    {
+      // The JVM currently doesn't allow changing access on java.lang.Class
+      // constructors, so don't try
+<span class="pc bpc" id="L645" title="3 of 4 branches missed.">      if (includePrivate &amp;&amp; cl != ScriptRuntime.ClassClass) {</span>
+          try {
+<span class="nc" id="L647">              Constructor&lt;?&gt;[] cons = cl.getDeclaredConstructors();</span>
+<span class="nc" id="L648">              AccessibleObject.setAccessible(cons, true);</span>
+
+<span class="nc" id="L650">              return cons;</span>
+<span class="nc" id="L651">          } catch (SecurityException e) {</span>
+              // Fall through to !includePrivate case
+<span class="nc" id="L653">              Context.reportWarning(&quot;Could not access constructor &quot; +</span>
+<span class="nc" id="L654">                    &quot; of class &quot; + cl.getName() +</span>
+                    &quot; due to lack of privileges.&quot;);
+          }
+      }
+<span class="fc" id="L658">      return cl.getConstructors();</span>
+    }
+
+    private Field[] getAccessibleFields(boolean includeProtected,
+                                        boolean includePrivate) {
+<span class="pc bpc" id="L663" title="2 of 4 branches missed.">        if (includePrivate || includeProtected) {</span>
+            try {
+<span class="nc" id="L665">                List&lt;Field&gt; fieldsList = new ArrayList&lt;Field&gt;();</span>
+<span class="nc" id="L666">                Class&lt;?&gt; currentClass = cl;</span>
+
+<span class="nc bnc" id="L668" title="All 2 branches missed.">                while (currentClass != null) {</span>
+                    // get all declared fields in this class, make them
+                    // accessible, and save
+<span class="nc" id="L671">                    Field[] declared = currentClass.getDeclaredFields();</span>
+<span class="nc bnc" id="L672" title="All 2 branches missed.">                    for (Field field : declared) {</span>
+<span class="nc" id="L673">                        int mod = field.getModifiers();</span>
+<span class="nc bnc" id="L674" title="All 6 branches missed.">                        if (includePrivate || isPublic(mod) || isProtected(mod)) {</span>
+<span class="nc bnc" id="L675" title="All 2 branches missed.">                            if (!field.isAccessible())</span>
+<span class="nc" id="L676">                                field.setAccessible(true);</span>
+<span class="nc" id="L677">                            fieldsList.add(field);</span>
+                        }
+                    }
+                    // walk up superclass chain.  no need to deal specially with
+                    // interfaces, since they can't have fields
+<span class="nc" id="L682">                    currentClass = currentClass.getSuperclass();</span>
+<span class="nc" id="L683">                }</span>
+
+<span class="nc" id="L685">                return fieldsList.toArray(new Field[fieldsList.size()]);</span>
+<span class="nc" id="L686">            } catch (SecurityException e) {</span>
+                // fall through to !includePrivate case
+            }
+        }
+<span class="fc" id="L690">        return cl.getFields();</span>
+    }
+
+    private MemberBox findGetter(boolean isStatic, Map&lt;String,Object&gt; ht, String prefix,
+                                 String propertyName)
+    {
+<span class="fc" id="L696">        String getterName = prefix.concat(propertyName);</span>
+<span class="fc bfc" id="L697" title="All 2 branches covered.">        if (ht.containsKey(getterName)) {</span>
+            // Check that the getter is a method.
+<span class="fc" id="L699">            Object member = ht.get(getterName);</span>
+<span class="pc bpc" id="L700" title="1 of 2 branches missed.">            if (member instanceof NativeJavaMethod) {</span>
+<span class="fc" id="L701">                NativeJavaMethod njmGet = (NativeJavaMethod) member;</span>
+<span class="fc" id="L702">                return extractGetMethod(njmGet.methods, isStatic);</span>
+            }
+        }
+<span class="fc" id="L705">        return null;</span>
+    }
+
+    private static MemberBox extractGetMethod(MemberBox[] methods,
+                                              boolean isStatic)
+    {
+        // Inspect the list of all MemberBox for the only one having no
+        // parameters
+<span class="fc bfc" id="L713" title="All 2 branches covered.">        for (MemberBox method : methods) {</span>
+            // Does getter method have an empty parameter list with a return
+            // value (eg. a getSomething() or isSomething())?
+<span class="pc bpc" id="L716" title="1 of 6 branches missed.">            if (method.argTypes.length == 0 &amp;&amp; (!isStatic || method.isStatic())) {</span>
+<span class="fc" id="L717">                Class&lt;?&gt; type = method.method().getReturnType();</span>
+<span class="pc bpc" id="L718" title="1 of 2 branches missed.">                if (type != Void.TYPE) {</span>
+<span class="fc" id="L719">                    return method;</span>
+                }
+                break;
+            }
+        }
+<span class="fc" id="L724">        return null;</span>
+    }
+
+    private static MemberBox extractSetMethod(Class&lt;?&gt; type, MemberBox[] methods,
+                                              boolean isStatic)
+    {
+        //
+        // Note: it may be preferable to allow NativeJavaMethod.findFunction()
+        //       to find the appropriate setter; unfortunately, it requires an
+        //       instance of the target arg to determine that.
+        //
+
+        // Make two passes: one to find a method with direct type assignment,
+        // and one to find a widening conversion.
+<span class="pc bpc" id="L738" title="1 of 2 branches missed.">        for (int pass = 1; pass &lt;= 2; ++pass) {</span>
+<span class="pc bpc" id="L739" title="1 of 2 branches missed.">            for (MemberBox method : methods) {</span>
+<span class="pc bpc" id="L740" title="1 of 4 branches missed.">                if (!isStatic || method.isStatic()) {</span>
+<span class="fc" id="L741">                    Class&lt;?&gt;[] params = method.argTypes;</span>
+<span class="pc bpc" id="L742" title="1 of 2 branches missed.">                    if (params.length == 1) {</span>
+<span class="pc bpc" id="L743" title="1 of 2 branches missed.">                        if (pass == 1) {</span>
+<span class="pc bpc" id="L744" title="1 of 2 branches missed.">                            if (params[0] == type) {</span>
+<span class="fc" id="L745">                                return method;</span>
+                            }
+                        } else {
+<span class="nc bnc" id="L748" title="All 2 branches missed.">                            if (pass != 2) Kit.codeBug();</span>
+<span class="nc bnc" id="L749" title="All 2 branches missed.">                            if (params[0].isAssignableFrom(type)) {</span>
+<span class="nc" id="L750">                                return method;</span>
+                            }
+                        }
+                    }
+                }
+            }
+        }
+<span class="nc" id="L757">        return null;</span>
+    }
+
+    private static MemberBox extractSetMethod(MemberBox[] methods,
+                                              boolean isStatic)
+    {
+
+<span class="fc bfc" id="L764" title="All 2 branches covered.">        for (MemberBox method : methods) {</span>
+<span class="pc bpc" id="L765" title="3 of 4 branches missed.">            if (!isStatic || method.isStatic()) {</span>
+<span class="pc bpc" id="L766" title="1 of 2 branches missed.">                if (method.method().getReturnType() == Void.TYPE) {</span>
+<span class="pc bpc" id="L767" title="1 of 2 branches missed.">                    if (method.argTypes.length == 1) {</span>
+<span class="nc" id="L768">                        return method;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L773">        return null;</span>
+    }
+
+    Map&lt;String,FieldAndMethods&gt; getFieldAndMethodsObjects(Scriptable scope,
+            Object javaObject, boolean isStatic)
+    {
+<span class="pc bpc" id="L779" title="1 of 2 branches missed.">        Map&lt;String,FieldAndMethods&gt; ht = isStatic ? staticFieldAndMethods : fieldAndMethods;</span>
+<span class="pc bpc" id="L780" title="1 of 2 branches missed.">        if (ht == null)</span>
+<span class="fc" id="L781">            return null;</span>
+<span class="nc" id="L782">        int len = ht.size();</span>
+<span class="nc" id="L783">        Map&lt;String,FieldAndMethods&gt; result = new HashMap&lt;String,FieldAndMethods&gt;(len);</span>
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        for (FieldAndMethods fam: ht.values()) {</span>
+<span class="nc" id="L785">            FieldAndMethods famNew = new FieldAndMethods(scope, fam.methods,</span>
+                                                         fam.field);
+<span class="nc" id="L787">            famNew.javaObject = javaObject;</span>
+<span class="nc" id="L788">            result.put(fam.field.getName(), famNew);</span>
+<span class="nc" id="L789">        }</span>
+<span class="nc" id="L790">        return result;</span>
+    }
+
+    static JavaMembers lookupClass(Scriptable scope, Class&lt;?&gt; dynamicType,
+                                   Class&lt;?&gt; staticType, boolean includeProtected)
+    {
+        JavaMembers members;
+<span class="fc" id="L797">        ClassCache cache = ClassCache.get(scope);</span>
+<span class="fc" id="L798">        Map&lt;Class&lt;?&gt;,JavaMembers&gt; ct = cache.getClassCacheMap();</span>
+
+<span class="fc" id="L800">        Class&lt;?&gt; cl = dynamicType;</span>
+        for (;;) {
+<span class="fc" id="L802">            members = ct.get(cl);</span>
+<span class="fc bfc" id="L803" title="All 2 branches covered.">            if (members != null) {</span>
+<span class="pc bpc" id="L804" title="1 of 2 branches missed.">                if (cl != dynamicType) {</span>
+                    // member lookup for the original class failed because of
+                    // missing privileges, cache the result so we don't try again
+<span class="nc" id="L807">                    ct.put(dynamicType, members);</span>
+                }
+<span class="fc" id="L809">                return members;</span>
+            }
+            try {
+<span class="fc" id="L812">                members = new JavaMembers(cache.getAssociatedScope(), cl,</span>
+                        includeProtected);
+<span class="fc" id="L814">                break;</span>
+<span class="nc" id="L815">            } catch (SecurityException e) {</span>
+                // Reflection may fail for objects that are in a restricted
+                // access package (e.g. sun.*).  If we get a security
+                // exception, try again with the static type if it is interface.
+                // Otherwise, try superclass
+<span class="nc bnc" id="L820" title="All 4 branches missed.">                if (staticType != null &amp;&amp; staticType.isInterface()) {</span>
+<span class="nc" id="L821">                    cl = staticType;</span>
+<span class="nc" id="L822">                    staticType = null; // try staticType only once</span>
+                } else {
+<span class="nc" id="L824">                    Class&lt;?&gt; parent = cl.getSuperclass();</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">                    if (parent == null) {</span>
+<span class="nc bnc" id="L826" title="All 2 branches missed.">                        if (cl.isInterface()) {</span>
+                            // last resort after failed staticType interface
+<span class="nc" id="L828">                            parent = ScriptRuntime.ObjectClass;</span>
+                        } else {
+<span class="nc" id="L830">                            throw e;</span>
+                        }
+                    }
+<span class="nc" id="L833">                    cl = parent;</span>
+                }
+<span class="nc" id="L835">            }</span>
+        }
+
+<span class="pc bpc" id="L838" title="1 of 2 branches missed.">        if (cache.isCachingEnabled()) {</span>
+<span class="fc" id="L839">            ct.put(cl, members);</span>
+<span class="pc bpc" id="L840" title="1 of 2 branches missed.">            if (cl != dynamicType) {</span>
+                // member lookup for the original class failed because of
+                // missing privileges, cache the result so we don't try again
+<span class="nc" id="L843">                ct.put(dynamicType, members);</span>
+            }
+        }
+<span class="fc" id="L846">        return members;</span>
+    }
+
+    RuntimeException reportMemberNotFound(String memberName)
+    {
+<span class="nc" id="L851">        return Context.reportRuntimeError2(</span>
+<span class="nc" id="L852">            &quot;msg.java.member.not.found&quot;, cl.getName(), memberName);</span>
+    }
+
+    private Class&lt;?&gt; cl;
+    private Map&lt;String,Object&gt; members;
+    private Map&lt;String,FieldAndMethods&gt; fieldAndMethods;
+    private Map&lt;String,Object&gt; staticMembers;
+    private Map&lt;String,FieldAndMethods&gt; staticFieldAndMethods;
+    NativeJavaMethod ctors; // we use NativeJavaMethod for ctor overload resolution
+}
+
+class BeanProperty
+{
+    BeanProperty(MemberBox getter, MemberBox setter, NativeJavaMethod setters)
+<span class="fc" id="L866">    {</span>
+<span class="fc" id="L867">        this.getter = getter;</span>
+<span class="fc" id="L868">        this.setter = setter;</span>
+<span class="fc" id="L869">        this.setters = setters;</span>
+<span class="fc" id="L870">    }</span>
+
+    MemberBox getter;
+    MemberBox setter;
+    NativeJavaMethod setters;
+}
+
+class FieldAndMethods extends NativeJavaMethod
+{
+    static final long serialVersionUID = -9222428244284796755L;
+
+    FieldAndMethods(Scriptable scope, MemberBox[] methods, Field field)
+    {
+<span class="nc" id="L883">        super(methods);</span>
+<span class="nc" id="L884">        this.field = field;</span>
+<span class="nc" id="L885">        setParentScope(scope);</span>
+<span class="nc" id="L886">        setPrototype(ScriptableObject.getFunctionPrototype(scope));</span>
+<span class="nc" id="L887">    }</span>
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint)
+    {
+<span class="nc bnc" id="L892" title="All 2 branches missed.">        if (hint == ScriptRuntime.FunctionClass)</span>
+<span class="nc" id="L893">            return this;</span>
+        Object rval;
+        Class&lt;?&gt; type;
+        try {
+<span class="nc" id="L897">            rval = field.get(javaObject);</span>
+<span class="nc" id="L898">            type = field.getType();</span>
+<span class="nc" id="L899">        } catch (IllegalAccessException accEx) {</span>
+<span class="nc" id="L900">            throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L901">                &quot;msg.java.internal.private&quot;, field.getName());</span>
+<span class="nc" id="L902">        }</span>
+<span class="nc" id="L903">        Context cx  = Context.getContext();</span>
+<span class="nc" id="L904">        rval = cx.getWrapFactory().wrap(cx, this, rval, type);</span>
+<span class="nc bnc" id="L905" title="All 2 branches missed.">        if (rval instanceof Scriptable) {</span>
+<span class="nc" id="L906">            rval = ((Scriptable) rval).getDefaultValue(hint);</span>
+        }
+<span class="nc" id="L908">        return rval;</span>
+    }
+
+    Field field;
+    Object javaObject;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

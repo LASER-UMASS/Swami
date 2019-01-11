@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContinueStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ContinueStatement.java</span></div><h1>ContinueStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * A continue statement.
+ * Node type is {@link Token#CONTINUE}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;ContinueStatement&lt;/i&gt; :
+ *   &lt;b&gt;continue&lt;/b&gt; [&lt;i&gt;no LineTerminator here&lt;/i&gt;] [Identifier] ;&lt;/pre&gt;
+ */
+public class ContinueStatement extends Jump {
+
+    private Name label;
+    private Loop target;
+
+    {
+<span class="fc" id="L24">        type = Token.CONTINUE;</span>
+    }
+
+<span class="fc" id="L27">    public ContinueStatement() {</span>
+<span class="fc" id="L28">    }</span>
+
+    public ContinueStatement(int pos) {
+<span class="fc" id="L31">        this(pos, -1);</span>
+<span class="fc" id="L32">    }</span>
+
+<span class="fc" id="L34">    public ContinueStatement(int pos, int len) {</span>
+        // can't call super (Jump) for historical reasons
+<span class="fc" id="L36">        position = pos;</span>
+<span class="fc" id="L37">        length = len;</span>
+<span class="fc" id="L38">    }</span>
+
+<span class="fc" id="L40">    public ContinueStatement(Name label) {</span>
+<span class="fc" id="L41">        setLabel(label);</span>
+<span class="fc" id="L42">    }</span>
+
+    public ContinueStatement(int pos, Name label) {
+<span class="fc" id="L45">        this(pos);</span>
+<span class="fc" id="L46">        setLabel(label);</span>
+<span class="fc" id="L47">    }</span>
+
+    public ContinueStatement(int pos, int len, Name label) {
+<span class="fc" id="L50">        this(pos, len);</span>
+<span class="fc" id="L51">        setLabel(label);</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Returns continue target
+     */
+    public Loop getTarget() {
+<span class="fc" id="L58">        return target;</span>
+    }
+
+    /**
+     * Sets continue target.  Does NOT set the parent of the target node:
+     * the target node is an ancestor of this node.
+     * @param target continue target
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setTarget(Loop target) {
+<span class="fc" id="L68">        assertNotNull(target);</span>
+<span class="fc" id="L69">        this.target = target;</span>
+<span class="fc" id="L70">        setJumpStatement(target);</span>
+<span class="fc" id="L71">    }</span>
+
+    /**
+     * Returns the intended label of this continue statement
+     * @return the continue label.  Will be {@code null} if the statement
+     * consisted only of the keyword &quot;continue&quot;.
+     */
+    public Name getLabel() {
+<span class="fc" id="L79">        return label;</span>
+    }
+
+    /**
+     * Sets the intended label of this continue statement.
+     * Only applies if the statement was of the form &quot;continue &amp;lt;label&amp;gt;&quot;.
+     * @param label the continue label, or {@code null} if not present.
+     */
+    public void setLabel(Name label) {
+<span class="fc" id="L88">        this.label = label;</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        if (label != null)</span>
+<span class="fc" id="L90">            label.setParent(this);</span>
+<span class="fc" id="L91">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L95">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L96">        sb.append(makeIndent(depth));</span>
+<span class="fc" id="L97">        sb.append(&quot;continue&quot;);</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (label != null) {</span>
+<span class="fc" id="L99">            sb.append(&quot; &quot;);</span>
+<span class="fc" id="L100">            sb.append(label.toSource(0));</span>
+        }
+<span class="fc" id="L102">        sb.append(&quot;;\n&quot;);</span>
+<span class="fc" id="L103">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then visits the label if non-{@code null}.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L111" title="1 of 4 branches missed.">        if (v.visit(this) &amp;&amp; label != null) {</span>
+<span class="fc" id="L112">            label.visit(v);</span>
+        }
+<span class="fc" id="L114">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

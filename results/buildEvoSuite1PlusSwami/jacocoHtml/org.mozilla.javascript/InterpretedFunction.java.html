@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InterpretedFunction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">InterpretedFunction.java</span></div><h1>InterpretedFunction.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.debug.DebuggableScript;
+
+final class InterpretedFunction extends NativeFunction implements Script
+{
+    static final long serialVersionUID = 541475680333911468L;
+
+    InterpreterData idata;
+    SecurityController securityController;
+    Object securityDomain;
+
+    private InterpretedFunction(InterpreterData idata,
+                                Object staticSecurityDomain)
+<span class="fc" id="L21">    {</span>
+<span class="fc" id="L22">        this.idata = idata;</span>
+
+        // Always get Context from the current thread to
+        // avoid security breaches via passing mangled Context instances
+        // with bogus SecurityController
+<span class="fc" id="L27">        Context cx = Context.getContext();</span>
+<span class="fc" id="L28">        SecurityController sc = cx.getSecurityController();</span>
+        Object dynamicDomain;
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        if (sc != null) {</span>
+<span class="nc" id="L31">            dynamicDomain = sc.getDynamicSecurityDomain(staticSecurityDomain);</span>
+        } else {
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">            if (staticSecurityDomain != null) {</span>
+<span class="nc" id="L34">                throw new IllegalArgumentException();</span>
+            }
+<span class="fc" id="L36">            dynamicDomain = null;</span>
+        }
+
+<span class="fc" id="L39">        this.securityController = sc;</span>
+<span class="fc" id="L40">        this.securityDomain = dynamicDomain;</span>
+<span class="fc" id="L41">    }</span>
+
+    private InterpretedFunction(InterpretedFunction parent, int index)
+<span class="fc" id="L44">    {</span>
+<span class="fc" id="L45">        this.idata = parent.idata.itsNestedFunctions[index];</span>
+<span class="fc" id="L46">        this.securityController = parent.securityController;</span>
+<span class="fc" id="L47">        this.securityDomain = parent.securityDomain;</span>
+<span class="fc" id="L48">    }</span>
+
+    /**
+     * Create script from compiled bytecode.
+     */
+    static InterpretedFunction createScript(InterpreterData idata,
+                                            Object staticSecurityDomain)
+    {
+        InterpretedFunction f;
+<span class="fc" id="L57">        f = new InterpretedFunction(idata, staticSecurityDomain);</span>
+<span class="fc" id="L58">        return f;</span>
+    }
+
+    /**
+     * Create function compiled from Function(...) constructor.
+     */
+    static InterpretedFunction createFunction(Context cx,Scriptable scope,
+                                              InterpreterData idata,
+                                              Object staticSecurityDomain)
+    {
+        InterpretedFunction f;
+<span class="nc" id="L69">        f = new InterpretedFunction(idata, staticSecurityDomain);</span>
+<span class="nc" id="L70">        f.initScriptFunction(cx, scope);</span>
+<span class="nc" id="L71">        return f;</span>
+    }
+
+    /**
+     * Create function embedded in script or another function.
+     */
+    static InterpretedFunction createFunction(Context cx, Scriptable scope,
+                                              InterpretedFunction parent,
+                                              int index)
+    {
+<span class="fc" id="L81">        InterpretedFunction f = new InterpretedFunction(parent, index);</span>
+<span class="fc" id="L82">        f.initScriptFunction(cx, scope);</span>
+<span class="fc" id="L83">        return f;</span>
+    }
+
+
+    @Override
+    public String getFunctionName()
+    {
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        return (idata.itsName == null) ? &quot;&quot; : idata.itsName;</span>
+    }
+
+    /**
+     * Calls the function.
+     * @param cx the current context
+     * @param scope the scope used for the call
+     * @param thisObj the value of &quot;this&quot;
+     * @param args function arguments. Must not be null. You can use
+     * {@link ScriptRuntime#emptyArgs} to pass empty arguments.
+     * @return the result of the function call.
+     */
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (!ScriptRuntime.hasTopCall(cx)) {</span>
+<span class="nc" id="L107">            return ScriptRuntime.doTopCall(this, cx, scope, thisObj, args, idata.isStrict);</span>
+        }
+<span class="fc" id="L109">        return Interpreter.interpret(this, cx, scope, thisObj, args);</span>
+    }
+
+    public Object exec(Context cx, Scriptable scope)
+    {
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        if (!isScript()) {</span>
+            // Can only be applied to scripts
+<span class="nc" id="L116">            throw new IllegalStateException();</span>
+        }
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        if (!ScriptRuntime.hasTopCall(cx)) {</span>
+            // It will go through &quot;call&quot; path. but they are equivalent
+<span class="fc" id="L120">            return ScriptRuntime.doTopCall(</span>
+                this, cx, scope, scope, ScriptRuntime.emptyArgs, idata.isStrict);
+        }
+<span class="nc" id="L123">        return Interpreter.interpret(</span>
+            this, cx, scope, scope, ScriptRuntime.emptyArgs);
+    }
+
+    public boolean isScript() {
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">        return idata.itsFunctionType == 0;</span>
+    }
+
+    @Override
+    public String getEncodedSource()
+    {
+<span class="nc" id="L134">        return Interpreter.getEncodedSource(idata);</span>
+    }
+
+    @Override
+    public DebuggableScript getDebuggableView()
+    {
+<span class="nc" id="L140">        return idata;</span>
+    }
+
+    @Override
+    public Object resumeGenerator(Context cx, Scriptable scope, int operation,
+                                  Object state, Object value)
+    {
+<span class="nc" id="L147">        return Interpreter.resumeGenerator(cx, scope, operation, state, value);</span>
+    }
+
+    @Override
+    protected int getLanguageVersion()
+    {
+<span class="fc" id="L153">        return idata.languageVersion;</span>
+    }
+
+    @Override
+    protected int getParamCount()
+    {
+<span class="fc" id="L159">        return idata.argCount;</span>
+    }
+
+    @Override
+    protected int getParamAndVarCount()
+    {
+<span class="fc" id="L165">        return idata.argNames.length;</span>
+    }
+
+    @Override
+    protected String getParamOrVarName(int index)
+    {
+<span class="fc" id="L171">        return idata.argNames[index];</span>
+    }
+
+    @Override
+    protected boolean getParamOrVarConst(int index)
+    {
+<span class="fc" id="L177">        return idata.argIsConst[index];</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

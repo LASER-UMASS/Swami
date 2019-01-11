@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeBoolean.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeBoolean.java</span></div><h1>NativeBoolean.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the Boolean native object.
+ * See ECMA 15.6.
+ * @author Norris Boyd
+ */
+final class NativeBoolean extends IdScriptableObject
+{
+    static final long serialVersionUID = -3716996899943880933L;
+
+<span class="fc" id="L18">    private static final Object BOOLEAN_TAG = &quot;Boolean&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L22">        NativeBoolean obj = new NativeBoolean(false);</span>
+<span class="fc" id="L23">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L24">    }</span>
+
+    NativeBoolean(boolean b)
+<span class="fc" id="L27">    {</span>
+<span class="fc" id="L28">        booleanValue = b;</span>
+<span class="fc" id="L29">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L34">        return &quot;Boolean&quot;;</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; typeHint) {
+        // This is actually non-ECMA, but will be proposed
+        // as a change in round 2.
+<span class="pc bpc" id="L41" title="1 of 2 branches missed.">        if (typeHint == ScriptRuntime.BooleanClass)</span>
+<span class="nc" id="L42">            return ScriptRuntime.wrapBoolean(booleanValue);</span>
+<span class="fc" id="L43">        return super.getDefaultValue(typeHint);</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L51" title="3 of 5 branches missed.">        switch (id) {</span>
+<span class="fc" id="L52">          case Id_constructor: arity=1; s=&quot;constructor&quot;; break;</span>
+<span class="fc" id="L53">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="nc" id="L54">          case Id_toSource:    arity=0; s=&quot;toSource&quot;;    break;</span>
+<span class="nc" id="L55">          case Id_valueOf:     arity=0; s=&quot;valueOf&quot;;     break;</span>
+<span class="nc" id="L56">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L58">        initPrototypeMethod(BOOLEAN_TAG, id, s, arity);</span>
+<span class="fc" id="L59">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (!f.hasTag(BOOLEAN_TAG)) {</span>
+<span class="nc" id="L66">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L68">        int id = f.methodId();</span>
+
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (id == Id_constructor) {</span>
+            boolean b;
+<span class="nc bnc" id="L72" title="All 2 branches missed.">            if (args.length == 0) {</span>
+<span class="nc" id="L73">                b = false;</span>
+            } else {
+<span class="nc bnc" id="L75" title="All 2 branches missed.">                b = args[0] instanceof ScriptableObject &amp;&amp;</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                        ((ScriptableObject) args[0]).avoidObjectDetection()</span>
+                    ? true
+<span class="nc" id="L78">                    : ScriptRuntime.toBoolean(args[0]);</span>
+            }
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (thisObj == null) {</span>
+                // new Boolean(val) creates a new boolean object.
+<span class="nc" id="L82">                return new NativeBoolean(b);</span>
+            }
+            // Boolean(val) converts val to a boolean.
+<span class="nc" id="L85">            return ScriptRuntime.wrapBoolean(b);</span>
+        }
+
+        // The rest of Boolean.prototype methods require thisObj to be Boolean
+
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (!(thisObj instanceof NativeBoolean))</span>
+<span class="nc" id="L91">            throw incompatibleCallError(f);</span>
+<span class="fc" id="L92">        boolean value = ((NativeBoolean)thisObj).booleanValue;</span>
+
+<span class="pc bpc" id="L94" title="3 of 4 branches missed.">        switch (id) {</span>
+
+          case Id_toString:
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            return value ? &quot;true&quot; : &quot;false&quot;;</span>
+
+          case Id_toSource:
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            return value ? &quot;(new Boolean(true))&quot; : &quot;(new Boolean(false))&quot;;</span>
+
+          case Id_valueOf:
+<span class="nc" id="L103">            return ScriptRuntime.wrapBoolean(value);</span>
+        }
+<span class="nc" id="L105">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:31 EDT
+<span class="fc" id="L115">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L116">            int s_length = s.length();</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">            if (s_length==7) { X=&quot;valueOf&quot;;id=Id_valueOf; }</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            else if (s_length==8) {</span>
+<span class="fc" id="L119">                c=s.charAt(3);</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+            }
+<span class="fc bfc" id="L123" title="All 2 branches covered.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L124" title="3 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L128">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor          = 1,
+        Id_toString             = 2,
+        Id_toSource             = 3,
+        Id_valueOf              = 4,
+        MAX_PROTOTYPE_ID        = 4;
+
+// #/string_id_map#
+
+    private boolean booleanValue;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

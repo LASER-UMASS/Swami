@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompilerEnvirons.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">CompilerEnvirons.java</span></div><h1>CompilerEnvirons.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Set;
+
+import org.mozilla.javascript.ast.ErrorCollector;
+
+public class CompilerEnvirons
+{
+    public CompilerEnvirons()
+<span class="fc" id="L16">    {</span>
+<span class="fc" id="L17">        errorReporter = DefaultErrorReporter.instance;</span>
+<span class="fc" id="L18">        languageVersion = Context.VERSION_DEFAULT;</span>
+<span class="fc" id="L19">        generateDebugInfo = true;</span>
+<span class="fc" id="L20">        reservedKeywordAsIdentifier = true;</span>
+<span class="fc" id="L21">        allowMemberExprAsFunctionName = false;</span>
+<span class="fc" id="L22">        xmlAvailable = true;</span>
+<span class="fc" id="L23">        optimizationLevel = 0;</span>
+<span class="fc" id="L24">        generatingSource = true;</span>
+<span class="fc" id="L25">        strictMode = false;</span>
+<span class="fc" id="L26">        warningAsError = false;</span>
+<span class="fc" id="L27">        generateObserverCount = false;</span>
+<span class="fc" id="L28">        allowSharpComments = false;</span>
+<span class="fc" id="L29">    }</span>
+
+    public void initFromContext(Context cx)
+    {
+<span class="fc" id="L33">        setErrorReporter(cx.getErrorReporter());</span>
+<span class="fc" id="L34">        languageVersion = cx.getLanguageVersion();</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        generateDebugInfo = (!cx.isGeneratingDebugChanged()</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">                             || cx.isGeneratingDebug());</span>
+<span class="fc" id="L37">        reservedKeywordAsIdentifier</span>
+<span class="fc" id="L38">            = cx.hasFeature(Context.FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER);</span>
+<span class="fc" id="L39">        allowMemberExprAsFunctionName</span>
+<span class="fc" id="L40">            = cx.hasFeature(Context.FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME);</span>
+<span class="fc" id="L41">        strictMode</span>
+<span class="fc" id="L42">            = cx.hasFeature(Context.FEATURE_STRICT_MODE);</span>
+<span class="fc" id="L43">        warningAsError = cx.hasFeature(Context.FEATURE_WARNING_AS_ERROR);</span>
+<span class="fc" id="L44">        xmlAvailable</span>
+<span class="fc" id="L45">            = cx.hasFeature(Context.FEATURE_E4X);</span>
+
+<span class="fc" id="L47">        optimizationLevel = cx.getOptimizationLevel();</span>
+
+<span class="fc" id="L49">        generatingSource = cx.isGeneratingSource();</span>
+<span class="fc" id="L50">        activationNames = cx.activationNames;</span>
+
+        // Observer code generation in compiled code :
+<span class="fc" id="L53">        generateObserverCount = cx.generateObserverCount;</span>
+<span class="fc" id="L54">    }</span>
+
+    public final ErrorReporter getErrorReporter()
+    {
+<span class="fc" id="L58">        return errorReporter;</span>
+    }
+
+    public void setErrorReporter(ErrorReporter errorReporter)
+    {
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        if (errorReporter == null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L64">        this.errorReporter = errorReporter;</span>
+<span class="fc" id="L65">    }</span>
+
+    public final int getLanguageVersion()
+    {
+<span class="fc" id="L69">        return languageVersion;</span>
+    }
+
+    public void setLanguageVersion(int languageVersion)
+    {
+<span class="fc" id="L74">        Context.checkLanguageVersion(languageVersion);</span>
+<span class="fc" id="L75">        this.languageVersion = languageVersion;</span>
+<span class="fc" id="L76">    }</span>
+
+    public final boolean isGenerateDebugInfo()
+    {
+<span class="fc" id="L80">        return generateDebugInfo;</span>
+    }
+
+    public void setGenerateDebugInfo(boolean flag)
+    {
+<span class="fc" id="L85">        this.generateDebugInfo = flag;</span>
+<span class="fc" id="L86">    }</span>
+
+    public final boolean isReservedKeywordAsIdentifier()
+    {
+<span class="fc" id="L90">        return reservedKeywordAsIdentifier;</span>
+    }
+
+    public void setReservedKeywordAsIdentifier(boolean flag)
+    {
+<span class="fc" id="L95">        reservedKeywordAsIdentifier = flag;</span>
+<span class="fc" id="L96">    }</span>
+
+    /**
+     * Extension to ECMA: if 'function &amp;lt;name&amp;gt;' is not followed
+     * by '(', assume &amp;lt;name&amp;gt; starts a {@code memberExpr}
+     */
+    public final boolean isAllowMemberExprAsFunctionName()
+    {
+<span class="fc" id="L104">        return allowMemberExprAsFunctionName;</span>
+    }
+
+    public void setAllowMemberExprAsFunctionName(boolean flag)
+    {
+<span class="fc" id="L109">        allowMemberExprAsFunctionName = flag;</span>
+<span class="fc" id="L110">    }</span>
+
+    public final boolean isXmlAvailable()
+    {
+<span class="fc" id="L114">        return xmlAvailable;</span>
+    }
+
+    public void setXmlAvailable(boolean flag)
+    {
+<span class="fc" id="L119">        xmlAvailable = flag;</span>
+<span class="fc" id="L120">    }</span>
+
+    public final int getOptimizationLevel()
+    {
+<span class="fc" id="L124">        return optimizationLevel;</span>
+    }
+
+    public void setOptimizationLevel(int level)
+    {
+<span class="fc" id="L129">        Context.checkOptimizationLevel(level);</span>
+<span class="fc" id="L130">        this.optimizationLevel = level;</span>
+<span class="fc" id="L131">    }</span>
+
+    public final boolean isGeneratingSource()
+    {
+<span class="fc" id="L135">        return generatingSource;</span>
+    }
+
+    public boolean getWarnTrailingComma() {
+<span class="fc" id="L139">        return warnTrailingComma;</span>
+    }
+
+    public void setWarnTrailingComma(boolean warn) {
+<span class="fc" id="L143">        warnTrailingComma = warn;</span>
+<span class="fc" id="L144">    }</span>
+
+    public final boolean isStrictMode()
+    {
+<span class="fc" id="L148">        return strictMode;</span>
+    }
+
+    public void setStrictMode(boolean strict)
+    {
+<span class="fc" id="L153">        strictMode = strict;</span>
+<span class="fc" id="L154">    }</span>
+
+    public final boolean reportWarningAsError()
+    {
+<span class="fc" id="L158">        return warningAsError;</span>
+    }
+
+    /**
+     * Specify whether or not source information should be generated.
+     * &lt;p&gt;
+     * Without source information, evaluating the &quot;toString&quot; method
+     * on JavaScript functions produces only &quot;[native code]&quot; for
+     * the body of the function.
+     * Note that code generated without source is not fully ECMA
+     * conformant.
+     */
+    public void setGeneratingSource(boolean generatingSource)
+    {
+<span class="fc" id="L172">        this.generatingSource = generatingSource;</span>
+<span class="fc" id="L173">    }</span>
+
+    /**
+     * @return true iff code will be generated with callbacks to enable
+     * instruction thresholds
+     */
+    public boolean isGenerateObserverCount() {
+<span class="fc" id="L180">        return generateObserverCount;</span>
+    }
+
+    /**
+     * Turn on or off generation of code with callbacks to
+     * track the count of executed instructions.
+     * Currently only affects JVM byte code generation: this slows down the
+     * generated code, but code generated without the callbacks will not
+     * be counted toward instruction thresholds. Rhino's interpretive
+     * mode does instruction counting without inserting callbacks, so
+     * there is no requirement to compile code differently.
+     * @param generateObserverCount if true, generated code will contain
+     * calls to accumulate an estimate of the instructions executed.
+     */
+    public void setGenerateObserverCount(boolean generateObserverCount) {
+<span class="fc" id="L195">        this.generateObserverCount = generateObserverCount;</span>
+<span class="fc" id="L196">    }</span>
+
+    public boolean isRecordingComments() {
+<span class="fc" id="L199">        return recordingComments;</span>
+    }
+
+    public void setRecordingComments(boolean record) {
+<span class="fc" id="L203">        recordingComments = record;</span>
+<span class="fc" id="L204">    }</span>
+
+    public boolean isRecordingLocalJsDocComments() {
+<span class="fc" id="L207">        return recordingLocalJsDocComments;</span>
+    }
+
+    public void setRecordingLocalJsDocComments(boolean record) {
+<span class="fc" id="L211">        recordingLocalJsDocComments = record;</span>
+<span class="fc" id="L212">    }</span>
+
+    /**
+     * Turn on or off full error recovery.  In this mode, parse errors do not
+     * throw an exception, and the parser attempts to build a full syntax tree
+     * from the input.  Useful for IDEs and other frontends.
+     */
+    public void setRecoverFromErrors(boolean recover) {
+<span class="fc" id="L220">        recoverFromErrors = recover;</span>
+<span class="fc" id="L221">    }</span>
+
+    public boolean recoverFromErrors() {
+<span class="fc" id="L224">        return recoverFromErrors;</span>
+    }
+
+    /**
+     * Puts the parser in &quot;IDE&quot; mode.  This enables some slightly more expensive
+     * computations, such as figuring out helpful error bounds.
+     */
+    public void setIdeMode(boolean ide) {
+<span class="fc" id="L232">        ideMode = ide;</span>
+<span class="fc" id="L233">    }</span>
+
+    public boolean isIdeMode() {
+<span class="fc" id="L236">        return ideMode;</span>
+    }
+
+    public Set&lt;String&gt; getActivationNames() {
+<span class="fc" id="L240">        return activationNames;</span>
+    }
+
+    public void setActivationNames(Set&lt;String&gt; activationNames) {
+<span class="fc" id="L244">        this.activationNames = activationNames;</span>
+<span class="fc" id="L245">    }</span>
+
+    /**
+     * Mozilla sources use the C preprocessor.
+     */
+    public void setAllowSharpComments(boolean allow) {
+<span class="fc" id="L251">        allowSharpComments = allow;</span>
+<span class="fc" id="L252">    }</span>
+
+    public boolean getAllowSharpComments() {
+<span class="fc" id="L255">        return allowSharpComments;</span>
+    }
+
+    /**
+     * Returns a {@code CompilerEnvirons} suitable for using Rhino
+     * in an IDE environment.  Most features are enabled by default.
+     * The {@link ErrorReporter} is set to an {@link ErrorCollector}.
+     */
+    public static CompilerEnvirons ideEnvirons() {
+<span class="fc" id="L264">        CompilerEnvirons env = new CompilerEnvirons();</span>
+<span class="fc" id="L265">        env.setRecoverFromErrors(true);</span>
+<span class="fc" id="L266">        env.setRecordingComments(true);</span>
+<span class="fc" id="L267">        env.setStrictMode(true);</span>
+<span class="fc" id="L268">        env.setWarnTrailingComma(true);</span>
+<span class="fc" id="L269">        env.setLanguageVersion(170);</span>
+<span class="fc" id="L270">        env.setReservedKeywordAsIdentifier(true);</span>
+<span class="fc" id="L271">        env.setIdeMode(true);</span>
+<span class="fc" id="L272">        env.setErrorReporter(new ErrorCollector());</span>
+<span class="fc" id="L273">        return env;</span>
+    }
+
+    private ErrorReporter errorReporter;
+
+    private int languageVersion;
+    private boolean generateDebugInfo;
+    private boolean reservedKeywordAsIdentifier;
+    private boolean allowMemberExprAsFunctionName;
+    private boolean xmlAvailable;
+    private int optimizationLevel;
+    private boolean generatingSource;
+    private boolean strictMode;
+    private boolean warningAsError;
+    private boolean generateObserverCount;
+    private boolean recordingComments;
+    private boolean recordingLocalJsDocComments;
+    private boolean recoverFromErrors;
+    private boolean warnTrailingComma;
+    private boolean ideMode;
+    private boolean allowSharpComments;
+    Set&lt;String&gt; activationNames;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

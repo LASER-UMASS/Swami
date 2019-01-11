@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaTopPackage.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaTopPackage.java</span></div><h1>NativeJavaTopPackage.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class reflects Java packages into the JavaScript environment.  We
+ * lazily reflect classes and subpackages, and use a caching/sharing
+ * system to ensure that members reflected into one JavaPackage appear
+ * in all other references to the same package (as with Packages.java.lang
+ * and java.lang).
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaObject
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaTopPackage
+    extends NativeJavaPackage implements Function, IdFunctionCall
+{
+    static final long serialVersionUID = -1455787259477709999L;
+
+    // we know these are packages so we can skip the class check
+    // note that this is ok even if the package isn't present.
+<span class="fc" id="L29">    private static final String[][] commonPackages = {</span>
+            {&quot;java&quot;, &quot;lang&quot;, &quot;reflect&quot;},
+            {&quot;java&quot;, &quot;io&quot;},
+            {&quot;java&quot;, &quot;math&quot;},
+            {&quot;java&quot;, &quot;net&quot;},
+            {&quot;java&quot;, &quot;util&quot;, &quot;zip&quot;},
+            {&quot;java&quot;, &quot;text&quot;, &quot;resources&quot;},
+            {&quot;java&quot;, &quot;applet&quot;},
+            {&quot;javax&quot;, &quot;swing&quot;}
+    };
+
+    NativeJavaTopPackage(ClassLoader loader)
+    {
+<span class="fc" id="L42">        super(true, &quot;&quot;, loader);</span>
+<span class="fc" id="L43">    }</span>
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="nc" id="L48">        return construct(cx, scope, args);</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="fc" id="L53">        ClassLoader loader = null;</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (args.length != 0) {</span>
+<span class="fc" id="L55">            Object arg = args[0];</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">            if (arg instanceof Wrapper) {</span>
+<span class="nc" id="L57">                arg = ((Wrapper)arg).unwrap();</span>
+            }
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (arg instanceof ClassLoader) {</span>
+<span class="fc" id="L60">                loader = (ClassLoader)arg;</span>
+            }
+        }
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        if (loader == null) {</span>
+<span class="nc" id="L64">            Context.reportRuntimeError0(&quot;msg.not.classloader&quot;);</span>
+<span class="nc" id="L65">            return null;</span>
+        }
+<span class="fc" id="L67">        NativeJavaPackage pkg = new NativeJavaPackage(true, &quot;&quot;, loader);</span>
+<span class="fc" id="L68">        ScriptRuntime.setObjectProtoAndParent(pkg, scope);</span>
+<span class="fc" id="L69">        return pkg;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L74">        ClassLoader loader = cx.getApplicationClassLoader();</span>
+<span class="nc" id="L75">        final NativeJavaTopPackage top = new NativeJavaTopPackage(loader);</span>
+<span class="nc" id="L76">        top.setPrototype(getObjectPrototype(scope));</span>
+<span class="nc" id="L77">        top.setParentScope(scope);</span>
+
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        for (int i = 0; i != commonPackages.length; i++) {</span>
+<span class="nc" id="L80">            NativeJavaPackage parent = top;</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            for (int j = 0; j != commonPackages[i].length; j++) {</span>
+<span class="nc" id="L82">                parent = parent.forcePackage(commonPackages[i][j], scope);</span>
+            }
+        }
+
+        // getClass implementation
+<span class="nc" id="L87">        IdFunctionObject getClass = new IdFunctionObject(top, FTAG, Id_getClass,</span>
+                                                         &quot;getClass&quot;, 1, scope);
+
+        // We want to get a real alias, and not a distinct JavaPackage
+        // with the same packageName, so that we share classes and top
+        // that are underneath.
+<span class="nc" id="L93">        String[] topNames = ScriptRuntime.getTopPackageNames();</span>
+<span class="nc" id="L94">        NativeJavaPackage[] topPackages = new NativeJavaPackage[topNames.length];</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        for (int i=0; i &lt; topNames.length; i++) {</span>
+<span class="nc" id="L96">            topPackages[i] = (NativeJavaPackage)top.get(topNames[i], top);</span>
+        }
+
+        // It's safe to downcast here since initStandardObjects takes
+        // a ScriptableObject.
+<span class="nc" id="L101">        ScriptableObject global = (ScriptableObject) scope;</span>
+
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L104">            getClass.sealObject();</span>
+        }
+<span class="nc" id="L106">        getClass.exportAsScopeProperty();</span>
+<span class="nc" id="L107">        global.defineProperty(&quot;Packages&quot;, top, ScriptableObject.DONTENUM);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        for (int i=0; i &lt; topNames.length; i++) {</span>
+<span class="nc" id="L109">            global.defineProperty(topNames[i], topPackages[i],</span>
+                                  ScriptableObject.DONTENUM);
+        }
+<span class="nc" id="L112">    }</span>
+
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        if (f.hasTag(FTAG)) {</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">            if (f.methodId() == Id_getClass) {</span>
+<span class="nc" id="L119">                return js_getClass(cx, scope, args);</span>
+            }
+        }
+<span class="fc" id="L122">        throw f.unknown();</span>
+    }
+
+    private Scriptable js_getClass(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc bnc" id="L127" title="All 4 branches missed.">        if (args.length &gt; 0  &amp;&amp; args[0] instanceof Wrapper) {</span>
+<span class="nc" id="L128">            Scriptable result = this;</span>
+<span class="nc" id="L129">            Class&lt;?&gt; cl = ((Wrapper) args[0]).unwrap().getClass();</span>
+            // Evaluate the class name by getting successive properties of
+            // the string to find the appropriate NativeJavaClass object
+<span class="nc" id="L132">            String name = cl.getName();</span>
+<span class="nc" id="L133">            int offset = 0;</span>
+            for (;;) {
+<span class="nc" id="L135">                int index = name.indexOf('.', offset);</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                String propName = index == -1</span>
+<span class="nc" id="L137">                                  ? name.substring(offset)</span>
+<span class="nc" id="L138">                                  : name.substring(offset, index);</span>
+<span class="nc" id="L139">                Object prop = result.get(propName, result);</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (!(prop instanceof Scriptable))</span>
+<span class="nc" id="L141">                    break;  // fall through to error</span>
+<span class="nc" id="L142">                result = (Scriptable) prop;</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                if (index == -1)</span>
+<span class="nc" id="L144">                    return result;</span>
+<span class="nc" id="L145">                offset = index+1;</span>
+<span class="nc" id="L146">            }</span>
+        }
+<span class="nc" id="L148">        throw Context.reportRuntimeError0(&quot;msg.not.java.obj&quot;);</span>
+    }
+
+<span class="fc" id="L151">    private static final Object FTAG = &quot;JavaTopPackage&quot;;</span>
+    private static final int Id_getClass = 1;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ES6Iterator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ES6Iterator.java</span></div><h1>ES6Iterator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+public abstract class ES6Iterator extends IdScriptableObject {
+
+    static void init(ScriptableObject scope, boolean sealed, IdScriptableObject prototype, String tag) {
+<span class="pc bpc" id="L12" title="1 of 2 branches missed.">        if (scope != null) {</span>
+<span class="fc" id="L13">            prototype.setParentScope(scope);</span>
+<span class="fc" id="L14">            prototype.setPrototype(getObjectPrototype(scope));</span>
+        }
+<span class="fc" id="L16">        prototype.activatePrototypeMap(MAX_PROTOTYPE_ID);</span>
+<span class="fc bfc" id="L17" title="All 2 branches covered.">        if (sealed) {</span>
+<span class="fc" id="L18">            prototype.sealObject();</span>
+        }
+
+        // Need to access Iterator prototype when constructing
+        // Iterator instances, but don't have a iterator constructor
+        // to use to find the prototype. Use the &quot;associateValue&quot;
+        // approach instead.
+<span class="pc bpc" id="L25" title="1 of 2 branches missed.">        if (scope != null) {</span>
+<span class="fc" id="L26">            scope.associateValue(tag, prototype);</span>
+        }
+<span class="fc" id="L28">    }</span>
+
+<span class="fc" id="L30">    protected boolean exhausted = false;</span>
+
+<span class="fc" id="L32">    ES6Iterator() {}</span>
+
+<span class="fc" id="L34">    ES6Iterator(Scriptable scope) {</span>
+        // Set parent and prototype properties. Since we don't have a
+        // &quot;Iterator&quot; constructor in the top scope, we stash the
+        // prototype in the top scope's associated value.
+<span class="fc" id="L38">        Scriptable top = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="fc" id="L39">        this.setParentScope(top);</span>
+<span class="fc" id="L40">        IdScriptableObject prototype = (IdScriptableObject)</span>
+<span class="fc" id="L41">            ScriptableObject.getTopScopeValue(top, getTag());</span>
+<span class="fc" id="L42">        setPrototype(prototype);</span>
+<span class="fc" id="L43">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+<span class="pc bpc" id="L48" title="3 of 4 branches missed.">        switch (id) {</span>
+            case Id_next:
+<span class="nc" id="L50">                initPrototypeMethod(getTag(), id, NEXT_METHOD, 0);</span>
+<span class="nc" id="L51">                return;</span>
+            case Id_iterator:
+<span class="nc" id="L53">                initPrototypeMethod(getTag(), id, SymbolKey.ITERATOR, &quot;[Symbol.iterator]&quot;, 0);</span>
+<span class="nc" id="L54">                return;</span>
+            case Id_toStringTag:
+<span class="nc" id="L56">                initPrototypeValue(Id_toStringTag, SymbolKey.TO_STRING_TAG, getClassName(), DONTENUM | READONLY);</span>
+<span class="nc" id="L57">                return;</span>
+<span class="fc" id="L58">            default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        if (!f.hasTag(getTag())) {</span>
+<span class="nc" id="L67">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L69">        int id = f.methodId();</span>
+
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (!(thisObj instanceof ES6Iterator))</span>
+<span class="nc" id="L72">            throw incompatibleCallError(f);</span>
+
+<span class="nc" id="L74">        ES6Iterator iterator = (ES6Iterator) thisObj;</span>
+
+<span class="nc bnc" id="L76" title="All 3 branches missed.">        switch (id) {</span>
+        case Id_next:
+<span class="nc" id="L78">            return iterator.next(cx, scope);</span>
+        case Id_iterator:
+<span class="nc" id="L80">            return iterator;</span>
+        default:
+<span class="nc" id="L82">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    @Override
+    protected int findPrototypeId(Symbol k) {
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if (SymbolKey.ITERATOR.equals(k)) {</span>
+<span class="nc" id="L89">            return Id_iterator;</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        } else if (SymbolKey.TO_STRING_TAG.equals(k)) {</span>
+<span class="nc" id="L91">            return Id_toStringTag;</span>
+        }
+<span class="fc" id="L93">        return 0;</span>
+    }
+
+    @Override
+    protected int findPrototypeId(String s) {
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (&quot;next&quot;.equals(s)) {</span>
+<span class="nc" id="L99">            return Id_next;</span>
+        }
+<span class="fc" id="L101">        return 0;</span>
+    }
+
+    abstract protected boolean isDone(Context cx, Scriptable scope);
+
+    abstract protected Object nextValue(Context cx, Scriptable scope);
+
+    protected Object next(Context cx, Scriptable scope) {
+<span class="nc" id="L109">        Object value = Undefined.instance;</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        boolean done = isDone(cx, scope) || this.exhausted;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (!done) {</span>
+<span class="nc" id="L112">            value = nextValue(cx, scope);</span>
+        } else {
+<span class="nc" id="L114">            this.exhausted = true;</span>
+        }
+<span class="nc" id="L116">        return makeIteratorResult(cx, scope, done, value);</span>
+    }
+
+    abstract protected String getTag();
+
+    // 25.1.1.3 The IteratorResult Interface
+    private Scriptable makeIteratorResult(Context cx, Scriptable scope, boolean done, Object value) {
+<span class="nc" id="L123">        Scriptable iteratorResult = cx.newObject(scope);</span>
+<span class="nc" id="L124">        ScriptableObject.putProperty(iteratorResult, VALUE_PROPERTY, value);</span>
+<span class="nc" id="L125">        ScriptableObject.putProperty(iteratorResult, DONE_PROPERTY, done);</span>
+<span class="nc" id="L126">        return iteratorResult;</span>
+    }
+
+    private static final int
+        Id_next             = 1,
+        Id_iterator         = 2,
+        Id_toStringTag      = 3,
+        MAX_PROTOTYPE_ID    = Id_toStringTag;
+
+    public static final String NEXT_METHOD = &quot;next&quot;;
+    public static final String DONE_PROPERTY = &quot;done&quot;;
+    public static final String VALUE_PROPERTY = &quot;value&quot;;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

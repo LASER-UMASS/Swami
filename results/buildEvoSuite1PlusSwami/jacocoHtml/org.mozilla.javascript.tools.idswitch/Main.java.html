@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Main.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.idswitch</a> &gt; <span class="el_source">Main.java</span></div><h1>Main.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.idswitch;
+
+import java.io.*;
+import java.util.*;
+import java.text.SimpleDateFormat;
+
+import org.mozilla.javascript.EvaluatorException;
+import org.mozilla.javascript.tools.ToolErrorReporter;
+
+<span class="fc" id="L15">public class Main {</span>
+
+    private static final String SWITCH_TAG_STR = &quot;string_id_map&quot;;
+    private static final String GENERATED_TAG_STR = &quot;generated&quot;;
+    private static final String STRING_TAG_STR = &quot;string&quot;;
+
+    private static final int
+        NORMAL_LINE        = 0,
+        SWITCH_TAG         = 1,
+        GENERATED_TAG      = 2,
+        STRING_TAG         = 3;
+
+<span class="fc" id="L27">    private final List&lt;IdValuePair&gt; all_pairs = new ArrayList&lt;IdValuePair&gt;();</span>
+
+    private ToolErrorReporter R;
+    private CodePrinter P;
+    private FileBody body;
+    private String source_file;
+
+    private int tag_definition_end;
+
+    private int tag_value_start;
+    private int tag_value_end;
+
+    private static boolean is_value_type(int id) {
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        if (id == STRING_TAG) { return true; }</span>
+<span class="nc" id="L41">        return false;</span>
+    }
+
+    private static String tag_name(int id) {
+<span class="nc bnc" id="L45" title="All 5 branches missed.">        switch (id) {</span>
+<span class="nc" id="L46">            case SWITCH_TAG: return SWITCH_TAG_STR;</span>
+<span class="nc" id="L47">            case -SWITCH_TAG: return &quot;/&quot; + SWITCH_TAG_STR;</span>
+<span class="nc" id="L48">            case GENERATED_TAG: return GENERATED_TAG_STR;</span>
+<span class="nc" id="L49">            case -GENERATED_TAG: return &quot;/&quot; + GENERATED_TAG_STR;</span>
+        }
+<span class="nc" id="L51">        return &quot;&quot;;</span>
+    }
+
+    void process_file(String file_path) throws IOException {
+<span class="fc" id="L55">        source_file = file_path;</span>
+
+<span class="fc" id="L57">        body = new FileBody();</span>
+
+        InputStream is;
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (file_path.equals(&quot;-&quot;)) {</span>
+<span class="fc" id="L61">            is = System.in;</span>
+        }
+        else {
+<span class="fc" id="L64">            is = new FileInputStream(file_path);</span>
+        }
+        try {
+<span class="fc" id="L67">            Reader r = new InputStreamReader(is, &quot;ASCII&quot;);</span>
+<span class="fc" id="L68">            body.readData(r);</span>
+        }
+<span class="pc" id="L70">        finally { is.close(); }</span>
+
+<span class="fc" id="L72">        process_file();</span>
+
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (body.wasModified()) {</span>
+            OutputStream os;
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (file_path.equals(&quot;-&quot;)) {</span>
+<span class="nc" id="L77">                os = System.out;</span>
+            }
+            else {
+<span class="nc" id="L80">                os = new FileOutputStream(file_path);</span>
+            }
+
+            try {
+<span class="nc" id="L84">                Writer w = new OutputStreamWriter(os);</span>
+<span class="nc" id="L85">                body.writeData(w);</span>
+<span class="nc" id="L86">                w.flush();</span>
+            }
+<span class="nc" id="L88">            finally { os.close(); }</span>
+        }
+<span class="fc" id="L90">    }</span>
+
+    private void process_file() {
+<span class="fc" id="L93">        int cur_state = 0;</span>
+<span class="fc" id="L94">        char[] buffer = body.getBuffer();</span>
+
+<span class="fc" id="L96">        int generated_begin = -1, generated_end = -1;</span>
+<span class="fc" id="L97">        int time_stamp_begin = -1, time_stamp_end = -1;</span>
+
+<span class="fc" id="L99">        body.startLineLoop();</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        while (body.nextLine()) {</span>
+<span class="fc" id="L101">            int begin = body.getLineBegin();</span>
+<span class="fc" id="L102">            int end = body.getLineEnd();</span>
+
+<span class="fc" id="L104">            int tag_id = extract_line_tag_id(buffer, begin, end);</span>
+<span class="fc" id="L105">            boolean bad_tag = false;</span>
+<span class="pc bpc" id="L106" title="3 of 4 branches missed.">            switch (cur_state) {</span>
+                case NORMAL_LINE:
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">                    if (tag_id == SWITCH_TAG) {</span>
+<span class="nc" id="L109">                        cur_state = SWITCH_TAG;</span>
+<span class="nc" id="L110">                        all_pairs.clear();</span>
+<span class="nc" id="L111">                        generated_begin = -1;</span>
+                    }
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">                    else if (tag_id == -SWITCH_TAG) {</span>
+<span class="nc" id="L114">                        bad_tag = true;</span>
+                    }
+                    break;
+                case SWITCH_TAG:
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                    if (tag_id == 0) {</span>
+<span class="nc" id="L119">                        look_for_id_definitions(buffer, begin, end, false);</span>
+                    }
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                    else if (tag_id == STRING_TAG) {</span>
+<span class="nc" id="L122">                        look_for_id_definitions(buffer, begin, end, true);</span>
+                    }
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                    else if (tag_id == GENERATED_TAG) {</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                        if (generated_begin &gt;= 0) { bad_tag = true; }</span>
+                        else {
+<span class="nc" id="L127">                            cur_state = GENERATED_TAG;</span>
+<span class="nc" id="L128">                            time_stamp_begin = tag_definition_end;</span>
+<span class="nc" id="L129">                            time_stamp_end = end;</span>
+                        }
+                    }
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                    else if (tag_id == -SWITCH_TAG) {</span>
+<span class="nc" id="L133">                        cur_state = 0;</span>
+<span class="nc bnc" id="L134" title="All 4 branches missed.">                        if (generated_begin &gt;= 0 &amp;&amp; !all_pairs.isEmpty()) {</span>
+<span class="nc" id="L135">                            generate_java_code();</span>
+<span class="nc" id="L136">                            String code = P.toString();</span>
+<span class="nc" id="L137">                            boolean different = body.setReplacement</span>
+<span class="nc" id="L138">                                (generated_begin, generated_end, code);</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                            if (different) {</span>
+<span class="nc" id="L140">                                String stamp = get_time_stamp();</span>
+<span class="nc" id="L141">                                body.setReplacement</span>
+<span class="nc" id="L142">                                    (time_stamp_begin, time_stamp_end, stamp);</span>
+                            }
+<span class="nc" id="L144">                        }</span>
+
+                        break;
+                    }
+                    else {
+<span class="nc" id="L149">                        bad_tag = true;</span>
+                    }
+<span class="nc" id="L151">                    break;</span>
+                case GENERATED_TAG:
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                    if (tag_id == 0) {</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                        if (generated_begin &lt; 0) { generated_begin = begin; }</span>
+                    }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">                    else if (tag_id == -GENERATED_TAG) {</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                        if (generated_begin &lt; 0) { generated_begin = begin; }</span>
+<span class="nc" id="L158">                        cur_state = SWITCH_TAG;</span>
+<span class="nc" id="L159">                        generated_end = begin;</span>
+                    }
+                    else {
+<span class="nc" id="L162">                        bad_tag = true;</span>
+                    }
+                    break;
+            }
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">            if (bad_tag) {</span>
+<span class="nc" id="L167">                String text = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L168">                    &quot;msg.idswitch.bad_tag_order&quot;, tag_name(tag_id));</span>
+<span class="nc" id="L169">                throw R.runtimeError</span>
+<span class="nc" id="L170">                    (text, source_file, body.getLineNumber(), null, 0);</span>
+            }
+<span class="fc" id="L172">        }</span>
+
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">        if (cur_state != 0) {</span>
+<span class="nc" id="L175">            String text = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L176">                &quot;msg.idswitch.file_end_in_switch&quot;, tag_name(cur_state));</span>
+<span class="nc" id="L177">            throw R.runtimeError</span>
+<span class="nc" id="L178">                (text, source_file, body.getLineNumber(), null, 0);</span>
+        }
+<span class="fc" id="L180">    }</span>
+
+    private String get_time_stamp() {
+<span class="nc" id="L183">        SimpleDateFormat f = new SimpleDateFormat</span>
+            (&quot; 'Last update:' yyyy-MM-dd HH:mm:ss z&quot;);
+<span class="nc" id="L185">        return f.format(new Date());</span>
+    }
+
+    private void generate_java_code() {
+
+<span class="nc" id="L190">        P.clear();</span>
+
+<span class="nc" id="L192">        IdValuePair[] pairs = new IdValuePair[all_pairs.size()];</span>
+<span class="nc" id="L193">        all_pairs.toArray(pairs);</span>
+
+<span class="nc" id="L195">        SwitchGenerator g = new SwitchGenerator();</span>
+<span class="nc" id="L196">        g.char_tail_test_threshold = 2;</span>
+<span class="nc" id="L197">        g.setReporter(R);</span>
+<span class="nc" id="L198">        g.setCodePrinter(P);</span>
+
+<span class="nc" id="L200">        g.generateSwitch(pairs, &quot;0&quot;);</span>
+<span class="nc" id="L201">    }</span>
+
+    private int extract_line_tag_id(char[] array, int cursor, int end) {
+<span class="fc" id="L204">        int id = 0;</span>
+<span class="fc" id="L205">        cursor = skip_white_space(array, cursor, end);</span>
+<span class="fc" id="L206">        int after_leading_white_space = cursor;</span>
+<span class="fc" id="L207">        cursor = look_for_slash_slash(array, cursor, end);</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        if (cursor != end) {</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">            boolean at_line_start = (after_leading_white_space + 2 == cursor);</span>
+<span class="fc" id="L210">            cursor = skip_white_space(array, cursor, end);</span>
+<span class="pc bpc" id="L211" title="2 of 4 branches missed.">            if (cursor != end &amp;&amp; array[cursor] == '#') {</span>
+<span class="nc" id="L212">                ++cursor;</span>
+
+<span class="nc" id="L214">                boolean end_tag = false;</span>
+<span class="nc bnc" id="L215" title="All 4 branches missed.">                if (cursor != end &amp;&amp; array[cursor] == '/') {</span>
+<span class="nc" id="L216">                    ++cursor; end_tag = true;</span>
+                }
+
+<span class="nc" id="L219">                int tag_start = cursor;</span>
+
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                for (; cursor != end; ++cursor) {</span>
+<span class="nc" id="L222">                    int c = array[cursor];</span>
+<span class="nc bnc" id="L223" title="All 6 branches missed.">                    if (c == '#' || c == '=' ||is_white_space(c)) { break; }</span>
+                }
+
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                if (cursor != end) {</span>
+<span class="nc" id="L227">                    int tag_end = cursor;</span>
+<span class="nc" id="L228">                    cursor = skip_white_space(array, cursor, end);</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                    if (cursor != end) {</span>
+<span class="nc" id="L230">                        int c = array[cursor];</span>
+<span class="nc bnc" id="L231" title="All 4 branches missed.">                        if (c == '=' || c == '#') {</span>
+<span class="nc" id="L232">                            id = get_tag_id</span>
+<span class="nc" id="L233">                                (array, tag_start, tag_end, at_line_start);</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">                            if (id != 0) {</span>
+<span class="nc" id="L235">                                String bad = null;</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                                if (c == '#') {</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                                    if (end_tag) {</span>
+<span class="nc" id="L238">                                        id = -id;</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                                        if (is_value_type(id)) {</span>
+<span class="nc" id="L240">                                            bad = &quot;msg.idswitch.no_end_usage&quot;;</span>
+                                        }
+                                    }
+<span class="nc" id="L243">                                    tag_definition_end = cursor + 1;</span>
+                                }
+                                else  {
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                                    if (end_tag) {</span>
+<span class="nc" id="L247">                                        bad = &quot;msg.idswitch.no_end_with_value&quot;;</span>
+                                    }
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                                    else if (!is_value_type(id)) {</span>
+<span class="nc" id="L250">                                        bad = &quot;msg.idswitch.no_value_allowed&quot;;</span>
+                                    }
+<span class="nc" id="L252">                                    id = extract_tag_value</span>
+<span class="nc" id="L253">                                        (array, cursor + 1, end, id);</span>
+                                }
+<span class="nc bnc" id="L255" title="All 2 branches missed.">                                if (bad != null) {</span>
+<span class="nc" id="L256">                                    String s = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L257">                                        bad, tag_name(id));</span>
+<span class="nc" id="L258">                                    throw R.runtimeError</span>
+<span class="nc" id="L259">                                        (s, source_file, body.getLineNumber(),</span>
+                                         null, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+<span class="fc" id="L268">        return id;</span>
+    }
+
+// Return position after first of // or end if not found
+    private int look_for_slash_slash(char[] array, int cursor, int end) {
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        while (cursor + 2 &lt;= end) {</span>
+<span class="fc" id="L274">            int c = array[cursor++];</span>
+<span class="fc bfc" id="L275" title="All 2 branches covered.">            if (c == '/') {</span>
+<span class="fc" id="L276">                c = array[cursor++];</span>
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">                if (c == '/') {</span>
+<span class="fc" id="L278">                    return cursor;</span>
+                }
+            }
+<span class="fc" id="L281">        }</span>
+<span class="fc" id="L282">        return end;</span>
+    }
+
+    private int extract_tag_value(char[] array, int cursor, int end, int id) {
+        // cursor points after #[^#=]+=
+        // ALERT: implement support for quoted strings
+<span class="nc" id="L288">        boolean found = false;</span>
+<span class="nc" id="L289">        cursor = skip_white_space(array, cursor, end);</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">        if (cursor != end) {</span>
+<span class="nc" id="L291">            int value_start = cursor;</span>
+<span class="nc" id="L292">            int value_end = cursor;</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">            while (cursor != end) {</span>
+<span class="nc" id="L294">                int c = array[cursor];</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                if (is_white_space(c)) {</span>
+<span class="nc" id="L296">                    int after_space = skip_white_space(array, cursor + 1, end);</span>
+<span class="nc bnc" id="L297" title="All 4 branches missed.">                    if (after_space != end &amp;&amp; array[after_space] == '#') {</span>
+<span class="nc" id="L298">                        value_end = cursor;</span>
+<span class="nc" id="L299">                        cursor = after_space;</span>
+<span class="nc" id="L300">                        break;</span>
+                    }
+<span class="nc" id="L302">                    cursor = after_space + 1;</span>
+<span class="nc" id="L303">                }</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                else if (c == '#') {</span>
+<span class="nc" id="L305">                    value_end = cursor;</span>
+<span class="nc" id="L306">                    break;</span>
+                }
+                else {
+<span class="nc" id="L309">                    ++cursor;</span>
+                }
+<span class="nc" id="L311">            }</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">            if (cursor != end) {</span>
+                // array[cursor] is '#' here
+<span class="nc" id="L314">                found = true;</span>
+<span class="nc" id="L315">                tag_value_start = value_start;</span>
+<span class="nc" id="L316">                tag_value_end = value_end;</span>
+<span class="nc" id="L317">                tag_definition_end = cursor + 1;</span>
+            }
+        }
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        return (found) ? id : 0;</span>
+    }
+
+    private int get_tag_id
+        (char[] array, int begin, int end, boolean at_line_start)
+    {
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        if (at_line_start) {</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">            if (equals(SWITCH_TAG_STR, array, begin, end)) {</span>
+<span class="nc" id="L328">                return SWITCH_TAG;</span>
+            }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if (equals(GENERATED_TAG_STR, array, begin, end)) {</span>
+<span class="nc" id="L331">                return GENERATED_TAG;</span>
+            }
+        }
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        if (equals(STRING_TAG_STR, array, begin, end)) {</span>
+<span class="nc" id="L335">            return STRING_TAG;</span>
+        }
+<span class="nc" id="L337">        return 0;</span>
+    }
+
+    private void look_for_id_definitions
+        (char[] array, int begin, int end, boolean use_tag_value_as_string)
+    {
+    // Look for the pattern
+    // '^[ \t]+Id_([a-zA-Z0-9_]+)[ \t]*=.*$'
+    // where \1 gives field or method name
+<span class="nc" id="L346">        int cursor = begin;</span>
+        // Skip tab and spaces at the beginning
+<span class="nc" id="L348">        cursor = skip_white_space(array, cursor, end);</span>
+<span class="nc" id="L349">        int id_start = cursor;</span>
+<span class="nc" id="L350">        int name_start = skip_matched_prefix(&quot;Id_&quot;, array, cursor, end);</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">        if (name_start &gt;= 0) {</span>
+            // Found Id_ prefix
+<span class="nc" id="L353">            cursor = name_start;</span>
+<span class="nc" id="L354">            cursor = skip_name_char(array, cursor, end);</span>
+<span class="nc" id="L355">            int name_end = cursor;</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">            if (name_start != name_end) {</span>
+<span class="nc" id="L357">                cursor = skip_white_space(array, cursor, end);</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                if (cursor != end) {</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                    if (array[cursor] == '=') {</span>
+<span class="nc" id="L360">                        int id_end = name_end;</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">                        if (use_tag_value_as_string) {</span>
+<span class="nc" id="L362">                            name_start = tag_value_start;</span>
+<span class="nc" id="L363">                            name_end = tag_value_end;</span>
+                        }
+                        // Got the match
+<span class="nc" id="L366">                        add_id(array, id_start, id_end, name_start, name_end);</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L371">    }</span>
+
+    private void add_id
+        (char[] array, int id_start, int id_end, int name_start, int name_end)
+    {
+<span class="nc" id="L376">        String name = new String(array, name_start, name_end - name_start);</span>
+<span class="nc" id="L377">        String value = new String(array, id_start, id_end - id_start);</span>
+
+<span class="nc" id="L379">        IdValuePair pair = new IdValuePair(name, value);</span>
+
+<span class="nc" id="L381">        pair.setLineNumber(body.getLineNumber());</span>
+
+<span class="nc" id="L383">        all_pairs.add(pair);</span>
+<span class="nc" id="L384">    }</span>
+
+    private static boolean is_white_space(int c) {
+<span class="pc bpc" id="L387" title="2 of 4 branches missed.">        return c == ' ' || c == '\t';</span>
+    }
+
+    private static int skip_white_space(char[] array, int begin, int end) {
+<span class="fc" id="L391">        int cursor = begin;</span>
+<span class="pc bpc" id="L392" title="1 of 2 branches missed.">        for (; cursor != end; ++cursor) {</span>
+<span class="fc" id="L393">            int c = array[cursor];</span>
+<span class="pc bpc" id="L394" title="1 of 2 branches missed.">            if (!is_white_space(c)) { break; }</span>
+        }
+<span class="fc" id="L396">        return cursor;</span>
+    }
+
+    private static int skip_matched_prefix
+        (String prefix, char[] array, int begin, int end)
+    {
+<span class="nc" id="L402">        int cursor = -1;</span>
+<span class="nc" id="L403">        int prefix_length = prefix.length();</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">        if (prefix_length &lt;= end - begin) {</span>
+<span class="nc" id="L405">            cursor = begin;</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">            for (int i = 0; i != prefix_length; ++i, ++cursor) {</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                if (prefix.charAt(i) != array[cursor]) {</span>
+<span class="nc" id="L408">                    cursor = -1; break;</span>
+                }
+            }
+        }
+<span class="nc" id="L412">        return cursor;</span>
+    }
+
+    private static boolean equals(String str, char[] array, int begin, int end)
+    {
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        if (str.length() == end - begin) {</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">            for (int i = begin, j = 0; i != end; ++i, ++j) {</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                if (array[i] != str.charAt(j)) { return false; }</span>
+            }
+<span class="nc" id="L421">            return true;</span>
+        }
+<span class="nc" id="L423">        return false;</span>
+    }
+
+    private static int skip_name_char(char[] array, int begin, int end) {
+<span class="nc" id="L427">        int cursor = begin;</span>
+<span class="nc bnc" id="L428" title="All 2 branches missed.">        for (; cursor != end; ++cursor) {</span>
+<span class="nc" id="L429">            int c = array[cursor];</span>
+<span class="nc bnc" id="L430" title="All 8 branches missed.">            if (!('a' &lt;= c &amp;&amp; c &lt;= 'z') &amp;&amp; !('A' &lt;= c &amp;&amp; c &lt;= 'Z')) {</span>
+<span class="nc bnc" id="L431" title="All 4 branches missed.">                if (!('0' &lt;= c &amp;&amp; c &lt;= '9')) {</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                    if (c != '_') {</span>
+<span class="nc" id="L433">                        break;</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L438">        return cursor;</span>
+    }
+
+    public static void main(String[] args) {
+<span class="fc" id="L442">        Main self = new Main();</span>
+<span class="fc" id="L443">        int status = self.exec(args);</span>
+<span class="nc" id="L444">        System.exit(status);</span>
+<span class="nc" id="L445">    }</span>
+
+    private int exec(String[] args) {
+<span class="fc" id="L448">        R = new ToolErrorReporter(true, System.err);</span>
+
+<span class="fc" id="L450">        int arg_count = process_options(args);</span>
+
+<span class="fc bfc" id="L452" title="All 2 branches covered.">        if (arg_count == 0) {</span>
+<span class="fc" id="L453">            option_error(ToolErrorReporter.getMessage(</span>
+                             &quot;msg.idswitch.no_file_argument&quot;));
+<span class="fc" id="L455">            return -1;</span>
+        }
+<span class="fc bfc" id="L457" title="All 2 branches covered.">        if (arg_count &gt; 1) {</span>
+<span class="fc" id="L458">            option_error(ToolErrorReporter.getMessage(</span>
+                             &quot;msg.idswitch.too_many_arguments&quot;));
+<span class="fc" id="L460">            return -1;</span>
+        }
+
+<span class="fc" id="L463">        P = new CodePrinter();</span>
+<span class="fc" id="L464">        P.setIndentStep(4);</span>
+<span class="fc" id="L465">        P.setIndentTabSize(0);</span>
+
+        try {
+<span class="fc" id="L468">            process_file(args[0]);</span>
+        }
+<span class="fc" id="L470">        catch (IOException ex) {</span>
+<span class="fc" id="L471">            print_error(ToolErrorReporter.getMessage(</span>
+<span class="fc" id="L472">                            &quot;msg.idswitch.io_error&quot;, ex.toString()));</span>
+<span class="fc" id="L473">            return -1;</span>
+        }
+<span class="nc" id="L475">        catch (EvaluatorException ex) {</span>
+<span class="nc" id="L476">            return -1;</span>
+<span class="fc" id="L477">        }</span>
+<span class="fc" id="L478">        return 0;</span>
+    }
+
+    private int process_options(String[] args) {
+
+<span class="fc" id="L483">        int status = 1;</span>
+
+<span class="fc" id="L485">        boolean show_usage = false;</span>
+<span class="fc" id="L486">        boolean show_version = false;</span>
+
+<span class="fc" id="L488">        int N = args.length;</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">        L: for (int i = 0; i != N; ++i) {</span>
+<span class="fc" id="L490">            String arg = args[i];</span>
+<span class="fc" id="L491">            int arg_length = arg.length();</span>
+<span class="fc bfc" id="L492" title="All 2 branches covered.">            if (arg_length &gt;= 2) {</span>
+<span class="fc bfc" id="L493" title="All 2 branches covered.">                if (arg.charAt(0) == '-') {</span>
+<span class="fc bfc" id="L494" title="All 2 branches covered.">                    if (arg.charAt(1) == '-') {</span>
+<span class="fc bfc" id="L495" title="All 2 branches covered.">                        if (arg_length == 2) {</span>
+<span class="fc" id="L496">                            args[i] = null; break;</span>
+                        }
+<span class="fc bfc" id="L498" title="All 2 branches covered.">                        if (arg.equals(&quot;--help&quot;)) {</span>
+<span class="fc" id="L499">                            show_usage = true;</span>
+                        }
+<span class="fc bfc" id="L501" title="All 2 branches covered.">                        else if (arg.equals(&quot;--version&quot;)) {</span>
+<span class="fc" id="L502">                            show_version = true;</span>
+                        }
+                        else {
+<span class="fc" id="L505">                            option_error(ToolErrorReporter.getMessage(</span>
+                                             &quot;msg.idswitch.bad_option&quot;, arg));
+<span class="fc" id="L507">                            status = -1; break L;</span>
+                        }
+                    }
+                    else {
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">                        for (int j = 1; j != arg_length; ++j) {</span>
+<span class="fc" id="L512">                            char c = arg.charAt(j);</span>
+<span class="fc bfc" id="L513" title="All 2 branches covered.">                            switch (c) {</span>
+<span class="fc" id="L514">                                case 'h': show_usage = true; break;</span>
+                                default:
+<span class="fc" id="L516">                                    option_error(</span>
+<span class="fc" id="L517">                                        ToolErrorReporter.getMessage(</span>
+                                            &quot;msg.idswitch.bad_option_char&quot;,
+<span class="fc" id="L519">                                            String.valueOf(c)));</span>
+<span class="fc" id="L520">                                    status = -1;</span>
+<span class="fc" id="L521">                                    break L;</span>
+                            }
+
+                        }
+                    }
+<span class="fc" id="L526">                    args[i] = null;</span>
+                }
+            }
+        }
+
+<span class="fc bfc" id="L531" title="All 2 branches covered.">        if (status == 1) {</span>
+<span class="fc bfc" id="L532" title="All 2 branches covered.">            if (show_usage) { show_usage(); status = 0; }</span>
+<span class="fc bfc" id="L533" title="All 2 branches covered.">            if (show_version) { show_version(); status = 0; }</span>
+        }
+
+<span class="pc bpc" id="L536" title="1 of 2 branches missed.">        if (status != 1) { System.exit(status); }</span>
+
+<span class="fc" id="L538">        return remove_nulls(args);</span>
+    }
+
+    private void show_usage() {
+<span class="fc" id="L542">        System.out.println(</span>
+<span class="fc" id="L543">            ToolErrorReporter.getMessage(&quot;msg.idswitch.usage&quot;));</span>
+<span class="fc" id="L544">        System.out.println();</span>
+<span class="fc" id="L545">    }</span>
+
+    private void show_version() {
+<span class="fc" id="L548">        System.out.println(</span>
+<span class="fc" id="L549">            ToolErrorReporter.getMessage(&quot;msg.idswitch.version&quot;));</span>
+<span class="fc" id="L550">    }</span>
+
+    private void option_error(String str) {
+<span class="fc" id="L553">        print_error(</span>
+<span class="fc" id="L554">            ToolErrorReporter.getMessage(&quot;msg.idswitch.bad_invocation&quot;, str));</span>
+<span class="fc" id="L555">    }</span>
+
+    private void print_error(String text) {
+<span class="fc" id="L558">        System.err.println(text);</span>
+<span class="fc" id="L559">    }</span>
+
+    private int remove_nulls(String[] array) {
+<span class="fc" id="L562">        int N = array.length;</span>
+<span class="fc" id="L563">        int cursor = 0;</span>
+<span class="fc bfc" id="L564" title="All 2 branches covered.">        for (; cursor != N; ++cursor) {</span>
+<span class="fc bfc" id="L565" title="All 2 branches covered.">            if (array[cursor] == null) { break; }</span>
+        }
+<span class="fc" id="L567">        int destination = cursor;</span>
+<span class="fc bfc" id="L568" title="All 2 branches covered.">        if (cursor != N) {</span>
+<span class="fc" id="L569">            ++cursor;</span>
+<span class="fc bfc" id="L570" title="All 2 branches covered.">            for (; cursor != N; ++cursor) {</span>
+<span class="fc" id="L571">                String elem = array[cursor];</span>
+<span class="fc bfc" id="L572" title="All 2 branches covered.">                if (elem != null) {</span>
+<span class="fc" id="L573">                    array[destination] = elem; ++destination;</span>
+                }
+            }
+        }
+<span class="fc" id="L577">        return destination;</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Namespace.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">Namespace.java</span></div><h1>Namespace.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+
+/**
+ * Class Namespace
+ *
+ */
+class Namespace extends IdScriptableObject
+{
+    static final long serialVersionUID = -5765755238131301744L;
+
+<span class="fc" id="L19">    private static final Object NAMESPACE_TAG = &quot;Namespace&quot;;</span>
+
+    private Namespace prototype;
+    private XmlNode.Namespace ns;
+
+<span class="fc" id="L24">    private Namespace() {</span>
+<span class="fc" id="L25">    }</span>
+
+    static Namespace create(Scriptable scope, Namespace prototype, XmlNode.Namespace namespace) {
+<span class="fc" id="L28">        Namespace rv = new Namespace();</span>
+<span class="fc" id="L29">        rv.setParentScope(scope);</span>
+<span class="fc" id="L30">        rv.prototype = prototype;</span>
+<span class="fc" id="L31">        rv.setPrototype(prototype);</span>
+<span class="fc" id="L32">        rv.ns = namespace;</span>
+<span class="fc" id="L33">        return rv;</span>
+    }
+
+    final XmlNode.Namespace getDelegate() {
+<span class="fc" id="L37">        return ns;</span>
+    }
+
+    public void exportAsJSClass(boolean sealed) {
+<span class="fc" id="L41">        exportAsJSClass(MAX_PROTOTYPE_ID, this.getParentScope(), sealed);</span>
+<span class="fc" id="L42">    }</span>
+
+    public String uri() {
+<span class="fc" id="L45">        return ns.getUri();</span>
+    }
+
+    public String prefix() {
+<span class="fc" id="L49">        return ns.getPrefix();</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L54">        return uri();</span>
+    }
+
+    public String toLocaleString() {
+<span class="fc" id="L58">        return toString();</span>
+    }
+
+    private boolean equals(Namespace n) {
+<span class="fc" id="L62">        return uri().equals(n.uri());</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        if (!(obj instanceof Namespace)) return false;</span>
+<span class="fc" id="L68">        return equals((Namespace)obj);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="fc" id="L73">        return uri().hashCode();</span>
+    }
+
+    @Override
+    protected Object equivalentValues(Object value) {
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (!(value instanceof Namespace)) return Scriptable.NOT_FOUND;</span>
+<span class="fc" id="L79">        boolean result = equals((Namespace)value);</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        return result ? Boolean.TRUE : Boolean.FALSE;</span>
+    }
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L85">        return &quot;Namespace&quot;;</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint) {
+<span class="fc" id="L90">        return uri();</span>
+    }
+
+// #string_id_map#
+    private static final int
+        Id_prefix               = 1,
+        Id_uri                  = 2,
+        MAX_INSTANCE_ID         = 2;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="fc" id="L102">        return super.getMaxInstanceId() + MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2007-08-20 08:23:22 EDT
+<span class="fc" id="L110">        L0: { id = 0; String X = null;</span>
+<span class="fc" id="L111">            int s_length = s.length();</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">            if (s_length==3) { X=&quot;uri&quot;;id=Id_uri; }</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">            else if (s_length==6) { X=&quot;prefix&quot;;id=Id_prefix; }</span>
+<span class="pc bpc" id="L114" title="4 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        switch (id) {</span>
+          case Id_prefix:
+          case Id_uri:
+<span class="fc" id="L125">            attr = PERMANENT | READONLY;</span>
+<span class="fc" id="L126">            break;</span>
+<span class="nc" id="L127">          default: throw new IllegalStateException();</span>
+        }
+<span class="fc" id="L129">        return instanceIdInfo(attr, super.getMaxInstanceId() + id);</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="pc bpc" id="L136" title="1 of 3 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+<span class="fc" id="L137">          case Id_prefix: return &quot;prefix&quot;;</span>
+<span class="fc" id="L138">          case Id_uri: return &quot;uri&quot;;</span>
+        }
+<span class="nc" id="L140">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="pc bpc" id="L146" title="1 of 3 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+          case Id_prefix:
+<span class="fc bfc" id="L148" title="All 2 branches covered.">            if (ns.getPrefix() == null) return Undefined.instance;</span>
+<span class="fc" id="L149">            return ns.getPrefix();</span>
+          case Id_uri:
+<span class="fc" id="L151">            return ns.getUri();</span>
+        }
+<span class="nc" id="L153">        return super.getInstanceIdValue(id);</span>
+    }
+
+
+// #string_id_map#
+    private static final int
+        Id_constructor          = 1,
+        Id_toString             = 2,
+        Id_toSource             = 3,
+        MAX_PROTOTYPE_ID        = 3;
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-08-20 08:23:22 EDT
+<span class="fc" id="L169">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L170">            int s_length = s.length();</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">            if (s_length==8) {</span>
+<span class="nc" id="L172">                c=s.charAt(3);</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+            }
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L177" title="4 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L181">        return id;</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L190" title="2 of 4 branches missed.">        switch (id) {</span>
+<span class="fc" id="L191">          case Id_constructor: arity=2; s=&quot;constructor&quot;; break;</span>
+<span class="nc" id="L192">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="nc" id="L193">          case Id_toSource:    arity=0; s=&quot;toSource&quot;;    break;</span>
+<span class="fc" id="L194">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L196">        initPrototypeMethod(NAMESPACE_TAG, id, s, arity);</span>
+<span class="fc" id="L197">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f,
+                             Context cx,
+                             Scriptable scope,
+                             Scriptable thisObj,
+                             Object[] args)
+    {
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (!f.hasTag(NAMESPACE_TAG)) {</span>
+<span class="nc" id="L207">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L209">        int id = f.methodId();</span>
+<span class="pc bpc" id="L210" title="2 of 4 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">            return jsConstructor(cx, (thisObj == null), args);</span>
+          case Id_toString:
+<span class="nc" id="L214">            return realThis(thisObj, f).toString();</span>
+          case Id_toSource:
+<span class="nc" id="L216">            return realThis(thisObj, f).js_toSource();</span>
+        }
+<span class="fc" id="L218">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private Namespace realThis(Scriptable thisObj, IdFunctionObject f) {
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if(!(thisObj instanceof Namespace))</span>
+<span class="nc" id="L223">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L224">        return (Namespace)thisObj;</span>
+    }
+
+    Namespace newNamespace(String uri) {
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        Namespace prototype = (this.prototype == null) ? this : this.prototype;</span>
+<span class="fc" id="L229">        return create( this.getParentScope(), prototype, XmlNode.Namespace.create(uri) );</span>
+    }
+
+    Namespace newNamespace(String prefix, String uri) {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (prefix == null) return newNamespace(uri);</span>
+<span class="pc bpc" id="L234" title="1 of 2 branches missed.">        Namespace prototype = (this.prototype == null) ? this : this.prototype;</span>
+<span class="fc" id="L235">        return create( this.getParentScope(), prototype, XmlNode.Namespace.create(prefix, uri) );</span>
+    }
+
+    Namespace constructNamespace(Object uriValue) {
+        String prefix;
+        String uri;
+
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        if (uriValue instanceof Namespace) {</span>
+<span class="nc" id="L243">            Namespace ns = (Namespace)uriValue;</span>
+<span class="nc" id="L244">            prefix = ns.prefix();</span>
+<span class="nc" id="L245">            uri = ns.uri();</span>
+<span class="pc bfc" id="L246" title="All 2 branches covered.">        } else if (uriValue instanceof QName) {</span>
+<span class="fc" id="L247">            QName qname = (QName)uriValue;</span>
+<span class="fc" id="L248">            uri = qname.uri();</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">            if (uri != null) {</span>
+                //    TODO    Is there a way to push this back into QName so that we can make prefix() private?
+<span class="fc" id="L251">                prefix = qname.prefix();</span>
+            } else {
+<span class="fc" id="L253">                uri = qname.toString();</span>
+<span class="fc" id="L254">                prefix = null;</span>
+            }
+<span class="fc" id="L256">        } else {</span>
+<span class="fc" id="L257">            uri = ScriptRuntime.toString(uriValue);</span>
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">            prefix = (uri.length() == 0) ? &quot;&quot; : null;</span>
+        }
+
+<span class="fc" id="L261">        return newNamespace(prefix, uri);</span>
+    }
+
+    Namespace castToNamespace(Object namespaceObj) {
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">        if (namespaceObj instanceof Namespace) {</span>
+<span class="nc" id="L266">            return (Namespace)namespaceObj;</span>
+        }
+<span class="fc" id="L268">        return constructNamespace(namespaceObj);</span>
+    }
+
+    private Namespace constructNamespace(Object prefixValue, Object uriValue) {
+        String prefix;
+        String uri;
+
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        if (uriValue instanceof QName) {</span>
+<span class="nc" id="L276">            QName qname = (QName)uriValue;</span>
+<span class="nc" id="L277">            uri = qname.uri();</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">            if (uri == null) {</span>
+<span class="nc" id="L279">                uri = qname.toString();</span>
+            }
+<span class="nc" id="L281">        } else {</span>
+<span class="fc" id="L282">            uri = ScriptRuntime.toString(uriValue);</span>
+        }
+
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        if (uri.length() == 0) {</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">            if (prefixValue == Undefined.instance) {</span>
+<span class="nc" id="L287">                prefix = &quot;&quot;;</span>
+            } else {
+<span class="nc" id="L289">                prefix = ScriptRuntime.toString(prefixValue);</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">                if (prefix.length() != 0) {</span>
+<span class="nc" id="L291">                    throw ScriptRuntime.typeError(</span>
+                        &quot;Illegal prefix '&quot;+prefix+&quot;' for 'no namespace'.&quot;);
+                }
+            }
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        } else if (prefixValue == Undefined.instance) {</span>
+<span class="fc" id="L296">            prefix = &quot;&quot;;</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">        } else if (!XMLName.accept(prefixValue)) {</span>
+<span class="fc" id="L298">            prefix = &quot;&quot;;</span>
+        } else {
+<span class="fc" id="L300">            prefix = ScriptRuntime.toString(prefixValue);</span>
+        }
+
+<span class="fc" id="L303">        return newNamespace(prefix, uri);</span>
+    }
+
+    private Namespace constructNamespace() {
+<span class="nc" id="L307">        return newNamespace(&quot;&quot;, &quot;&quot;);</span>
+    }
+
+    private Object jsConstructor(Context cx, boolean inNewExpr, Object[] args)
+    {
+<span class="pc bpc" id="L312" title="2 of 4 branches missed.">        if (!inNewExpr &amp;&amp; args.length == 1) {</span>
+<span class="nc" id="L313">            return castToNamespace(args[0]);</span>
+        }
+
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L317">            return constructNamespace();</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">        } else if (args.length == 1) {</span>
+<span class="nc" id="L319">            return constructNamespace(args[0]);</span>
+        } else {
+<span class="fc" id="L321">            return constructNamespace(args[0], args[1]);</span>
+        }
+    }
+
+    private String js_toSource()
+    {
+<span class="nc" id="L327">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L328">        sb.append('(');</span>
+<span class="nc" id="L329">        toSourceImpl(ns.getPrefix(), ns.getUri(), sb);</span>
+<span class="nc" id="L330">        sb.append(')');</span>
+<span class="nc" id="L331">        return sb.toString();</span>
+    }
+
+    static void toSourceImpl(String prefix, String uri, StringBuilder sb)
+    {
+<span class="fc" id="L336">        sb.append(&quot;new Namespace(&quot;);</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">        if (uri.length() == 0) {</span>
+<span class="pc bpc" id="L338" title="1 of 2 branches missed.">            if (!&quot;&quot;.equals(prefix)) throw new IllegalArgumentException(prefix);</span>
+        } else {
+<span class="fc" id="L340">            sb.append('\'');</span>
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">            if (prefix != null) {</span>
+<span class="fc" id="L342">                sb.append(ScriptRuntime.escapeString(prefix, '\''));</span>
+<span class="fc" id="L343">                sb.append(&quot;', '&quot;);</span>
+            }
+<span class="fc" id="L345">            sb.append(ScriptRuntime.escapeString(uri, '\''));</span>
+<span class="fc" id="L346">            sb.append('\'');</span>
+        }
+<span class="fc" id="L348">        sb.append(')');</span>
+<span class="fc" id="L349">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

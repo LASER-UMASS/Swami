@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeFloat32Array.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeFloat32Array.java</span></div><h1>NativeFloat32Array.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * An array view that stores 32-bit quantities and implements the JavaScript &quot;loat32Array&quot; interface.
+ * It also implements List&lt;Float&gt; for direct manipulation in Java.
+ */
+
+public class NativeFloat32Array
+    extends NativeTypedArrayView&lt;Float&gt;
+{
+    private static final long serialVersionUID = -8963461831950499340L;
+
+    private static final String CLASS_NAME = &quot;Float32Array&quot;;
+    private static final int BYTES_PER_ELEMENT = 4;
+
+    public NativeFloat32Array()
+<span class="fc" id="L29">    {</span>
+<span class="fc" id="L30">    }</span>
+
+    public NativeFloat32Array(NativeArrayBuffer ab, int off, int len)
+    {
+<span class="fc" id="L34">        super(ab, off, len, len * BYTES_PER_ELEMENT);</span>
+<span class="fc" id="L35">    }</span>
+
+    public NativeFloat32Array(int len)
+    {
+<span class="fc" id="L39">        this(new NativeArrayBuffer(len * BYTES_PER_ELEMENT), 0, len);</span>
+<span class="fc" id="L40">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L45">        return CLASS_NAME;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L50">        NativeFloat32Array a = new NativeFloat32Array();</span>
+<span class="nc" id="L51">        a.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L52">    }</span>
+
+    @Override
+    protected NativeTypedArrayView construct(NativeArrayBuffer ab, int off, int len)
+    {
+<span class="fc" id="L57">        return new NativeFloat32Array(ab, off, len);</span>
+    }
+
+    @Override
+    public int getBytesPerElement()
+    {
+<span class="nc" id="L63">        return BYTES_PER_ELEMENT;</span>
+    }
+
+    @Override
+    protected NativeTypedArrayView realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (!(thisObj instanceof NativeFloat32Array)) {</span>
+<span class="nc" id="L70">            throw incompatibleCallError(f);</span>
+        }
+<span class="fc" id="L72">        return (NativeFloat32Array)thisObj;</span>
+    }
+
+    @Override
+    protected Object js_get(int index)
+    {
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (checkIndex(index)) {</span>
+<span class="fc" id="L79">            return Undefined.instance;</span>
+        }
+<span class="fc" id="L81">        return ByteIo.readFloat32(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, false);</span>
+    }
+
+    @Override
+    protected Object js_set(int index, Object c)
+    {
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (checkIndex(index)) {</span>
+<span class="fc" id="L88">            return Undefined.instance;</span>
+        }
+<span class="fc" id="L90">        double val = ScriptRuntime.toNumber(c);</span>
+<span class="fc" id="L91">        ByteIo.writeFloat32(arrayBuffer.buffer, (index * BYTES_PER_ELEMENT) + offset, val, false);</span>
+<span class="fc" id="L92">        return null;</span>
+    }
+
+    @Override
+    public Float get(int i)
+    {
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (checkIndex(i)) {</span>
+<span class="fc" id="L99">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L101">        return (Float)js_get(i);</span>
+    }
+
+    @Override
+    public Float set(int i, Float aByte)
+    {
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (checkIndex(i)) {</span>
+<span class="fc" id="L108">            throw new IndexOutOfBoundsException();</span>
+        }
+<span class="fc" id="L110">        return (Float)js_set(i, aByte);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

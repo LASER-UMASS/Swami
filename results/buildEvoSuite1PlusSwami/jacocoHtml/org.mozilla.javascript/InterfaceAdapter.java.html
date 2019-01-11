@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InterfaceAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">InterfaceAdapter.java</span></div><h1>InterfaceAdapter.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.Method;
+
+/**
+ * Adapter to use JS function as implementation of Java interfaces with
+ * single method or multiple methods with the same signature.
+ */
+public class InterfaceAdapter
+{
+    private final Object proxyHelper;
+
+    /**
+     * Make glue object implementing interface cl that will
+     * call the supplied JS function when called.
+     * Only interfaces were all methods have the same signature is supported.
+     *
+     * @return The glue object or null if &lt;tt&gt;cl&lt;/tt&gt; is not interface or
+     *         has methods with different signatures.
+     */
+    static Object create(Context cx, Class&lt;?&gt; cl, ScriptableObject object)
+    {
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (!cl.isInterface()) throw new IllegalArgumentException();</span>
+
+<span class="nc" id="L31">        Scriptable topScope = ScriptRuntime.getTopCallScope(cx);</span>
+<span class="nc" id="L32">        ClassCache cache = ClassCache.get(topScope);</span>
+        InterfaceAdapter adapter;
+<span class="nc" id="L34">        adapter = (InterfaceAdapter)cache.getInterfaceAdapter(cl);</span>
+<span class="nc" id="L35">        ContextFactory cf = cx.getFactory();</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (adapter == null) {</span>
+<span class="nc" id="L37">            Method[] methods = cl.getMethods();</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">            if ( object instanceof Callable) {</span>
+                // Check if interface can be implemented by a single function.
+                // We allow this if the interface has only one method or multiple 
+                // methods with the same name (in which case they'd result in 
+                // the same function to be invoked anyway).
+<span class="nc" id="L43">                int length = methods.length;</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">                if (length == 0) {</span>
+<span class="nc" id="L45">                    throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L46">                        &quot;msg.no.empty.interface.conversion&quot;, cl.getName());</span>
+                }
+<span class="nc bnc" id="L48" title="All 2 branches missed.">                if (length &gt; 1) {</span>
+<span class="nc" id="L49">                    String methodName = methods[0].getName();</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">                    for (int i = 1; i &lt; length; i++) {</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                        if (!methodName.equals(methods[i].getName())) {</span>
+<span class="nc" id="L52">                            throw Context.reportRuntimeError1(</span>
+                                    &quot;msg.no.function.interface.conversion&quot;,
+<span class="nc" id="L54">                                    cl.getName());</span>
+                        }
+                    }
+                }
+            }
+<span class="nc" id="L59">            adapter = new InterfaceAdapter(cf, cl);</span>
+<span class="nc" id="L60">            cache.cacheInterfaceAdapter(cl, adapter);</span>
+        }
+<span class="nc" id="L62">        return VMBridge.instance.newInterfaceProxy(</span>
+            adapter.proxyHelper, cf, adapter, object, topScope);
+    }
+
+    private InterfaceAdapter(ContextFactory cf, Class&lt;?&gt; cl)
+<span class="nc" id="L67">    {</span>
+<span class="nc" id="L68">        this.proxyHelper</span>
+<span class="nc" id="L69">            = VMBridge.instance.getInterfaceProxyHelper(</span>
+                cf, new Class[] { cl });
+<span class="nc" id="L71">    }</span>
+
+    public Object invoke(ContextFactory cf,
+                         final Object target,
+                         final Scriptable topScope,
+                         final Object thisObject,
+                         final Method method,
+                         final Object[] args)
+    {
+<span class="nc" id="L80">        ContextAction action = new ContextAction() {</span>
+                public Object run(Context cx)
+                {
+<span class="nc" id="L83">                    return invokeImpl(cx, target, topScope, thisObject, method, args);</span>
+                }
+            };
+<span class="nc" id="L86">        return cf.call(action);</span>
+    }
+
+    Object invokeImpl(Context cx,
+                      Object target,
+                      Scriptable topScope,
+                      Object thisObject,
+                      Method method,
+                      Object[] args)
+    {
+        Callable function;
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (target instanceof Callable) {</span>
+<span class="nc" id="L98">            function = (Callable)target;</span>
+        } else {
+<span class="nc" id="L100">            Scriptable s = (Scriptable)target;</span>
+<span class="nc" id="L101">            String methodName = method.getName();</span>
+<span class="nc" id="L102">            Object value = ScriptableObject.getProperty(s, methodName);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            if (value == ScriptableObject.NOT_FOUND) {</span>
+                // We really should throw an error here, but for the sake of
+                // compatibility with JavaAdapter we silently ignore undefined
+                // methods.
+<span class="nc" id="L107">                Context.reportWarning(ScriptRuntime.getMessage1(</span>
+                        &quot;msg.undefined.function.interface&quot;, methodName));
+<span class="nc" id="L109">                Class&lt;?&gt; resultType = method.getReturnType();</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                if (resultType == Void.TYPE) {</span>
+<span class="nc" id="L111">                    return null;</span>
+                } else {
+<span class="nc" id="L113">                    return Context.jsToJava(null, resultType);</span>
+                }
+            }
+<span class="nc bnc" id="L116" title="All 2 branches missed.">            if (!(value instanceof Callable)) {</span>
+<span class="nc" id="L117">                throw Context.reportRuntimeError1(</span>
+                        &quot;msg.not.function.interface&quot;,methodName);
+            }
+<span class="nc" id="L120">            function = (Callable)value;</span>
+        }
+<span class="nc" id="L122">        WrapFactory wf = cx.getWrapFactory();</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (args == null) {</span>
+<span class="nc" id="L124">            args = ScriptRuntime.emptyArgs;</span>
+        } else {
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            for (int i = 0, N = args.length; i != N; ++i) {</span>
+<span class="nc" id="L127">                Object arg = args[i];</span>
+                // neutralize wrap factory java primitive wrap feature
+<span class="nc bnc" id="L129" title="All 6 branches missed.">                if (!(arg instanceof String || arg instanceof Number</span>
+                        || arg instanceof Boolean)) {
+<span class="nc" id="L131">                    args[i] = wf.wrap(cx, topScope, arg, null);</span>
+                }
+            }
+        }
+<span class="nc" id="L135">        Scriptable thisObj = wf.wrapAsJavaObject(cx, topScope, thisObject, null);</span>
+
+<span class="nc" id="L137">        Object result = function.call(cx, topScope, thisObj, args);</span>
+<span class="nc" id="L138">        Class&lt;?&gt; javaResultType = method.getReturnType();</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        if (javaResultType == Void.TYPE) {</span>
+<span class="nc" id="L140">            result = null;</span>
+        } else {
+<span class="nc" id="L142">            result = Context.jsToJava(result, javaResultType);</span>
+        }
+<span class="nc" id="L144">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

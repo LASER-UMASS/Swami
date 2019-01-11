@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlLiteral.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">XmlLiteral.java</span></div><h1>XmlLiteral.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * AST node for an E4X (Ecma-357) embedded XML literal.  Node type is
+ * {@link Token#XML}.  The parser generates a simple list of strings and
+ * expressions.  In the future we may parse the XML and produce a richer set of
+ * nodes, but for now it's just a set of expressions evaluated to produce a
+ * string to pass to the {@code XML} constructor function.&lt;p&gt;
+ */
+public class XmlLiteral extends AstNode {
+
+<span class="fc" id="L23">    private List&lt;XmlFragment&gt; fragments = new ArrayList&lt;XmlFragment&gt;();</span>
+
+    {
+<span class="fc" id="L26">        type = Token.XML;</span>
+    }
+
+<span class="fc" id="L29">    public XmlLiteral() {</span>
+<span class="fc" id="L30">    }</span>
+
+    public XmlLiteral(int pos) {
+<span class="fc" id="L33">        super(pos);</span>
+<span class="fc" id="L34">    }</span>
+
+    public XmlLiteral(int pos, int len) {
+<span class="fc" id="L37">        super(pos, len);</span>
+<span class="fc" id="L38">    }</span>
+
+    /**
+     * Returns fragment list - a list of expression nodes.
+     */
+    public List&lt;XmlFragment&gt; getFragments() {
+<span class="fc" id="L44">        return fragments;</span>
+    }
+
+    /**
+     * Sets fragment list, removing any existing fragments first.
+     * Sets the parent pointer for each fragment in the list to this node.
+     * @param fragments fragment list.  Replaces any existing fragments.
+     * @throws IllegalArgumentException} if {@code fragments} is {@code null}
+     */
+    public void setFragments(List&lt;XmlFragment&gt; fragments) {
+<span class="fc" id="L54">        assertNotNull(fragments);</span>
+<span class="fc" id="L55">        this.fragments.clear();</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        for (XmlFragment fragment : fragments)</span>
+<span class="fc" id="L57">            addFragment(fragment);</span>
+<span class="fc" id="L58">    }</span>
+
+    /**
+     * Adds a fragment to the fragment list.  Sets its parent to this node.
+     * @throws IllegalArgumentException} if {@code fragment} is {@code null}
+     */
+    public void addFragment(XmlFragment fragment) {
+<span class="fc" id="L65">        assertNotNull(fragment);</span>
+<span class="fc" id="L66">        fragments.add(fragment);</span>
+<span class="fc" id="L67">        fragment.setParent(this);</span>
+<span class="fc" id="L68">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="fc" id="L72">        StringBuilder sb = new StringBuilder(250);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        for (XmlFragment frag : fragments) {</span>
+<span class="fc" id="L74">            sb.append(frag.toSource(0));</span>
+<span class="fc" id="L75">        }</span>
+<span class="fc" id="L76">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then visits each child fragment in lexical order.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            for (XmlFragment frag : fragments) {</span>
+<span class="fc" id="L86">                frag.visit(v);</span>
+<span class="fc" id="L87">            }</span>
+        }
+<span class="fc" id="L89">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

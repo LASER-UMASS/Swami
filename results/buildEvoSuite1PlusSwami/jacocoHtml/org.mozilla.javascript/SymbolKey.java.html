@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SymbolKey.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">SymbolKey.java</span></div><h1>SymbolKey.java</h1><pre class="source lang-java linenums">package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+/**
+ * A SymbolKey is one of the implementations of Symbol. It is really there
+ * so that we can easily use pre-defined symbols as keys in native code.
+ * A SymbolKey has the special property that two NativeSymbol objects
+ * with the same key are equal.
+ */
+
+public class SymbolKey
+    implements Symbol, Serializable
+{
+    static final long serialVersionUID = -6019782713330994754L;
+
+    // These are common SymbolKeys that are equivalent to well-known symbols
+    // defined in ECMAScript.
+<span class="fc" id="L19">    public static final SymbolKey ITERATOR = new SymbolKey(&quot;Symbol.iterator&quot;);</span>
+<span class="fc" id="L20">    public static final SymbolKey TO_STRING_TAG = new SymbolKey(&quot;Symbol.toStringTag&quot;);</span>
+<span class="fc" id="L21">    public static final SymbolKey SPECIES = new SymbolKey(&quot;Symbol.species&quot;);</span>
+<span class="fc" id="L22">    public static final SymbolKey HAS_INSTANCE = new SymbolKey(&quot;Symbol.hasInstance&quot;);</span>
+<span class="fc" id="L23">    public static final SymbolKey IS_CONCAT_SPREADABLE = new SymbolKey(&quot;Symbol.isConcatSpreadable&quot;);</span>
+<span class="fc" id="L24">    public static final SymbolKey IS_REGEXP = new SymbolKey(&quot;Symbol.isRegExp&quot;);</span>
+<span class="fc" id="L25">    public static final SymbolKey TO_PRIMITIVE = new SymbolKey(&quot;Symbol.toPrimitive&quot;);</span>
+<span class="fc" id="L26">    public static final SymbolKey MATCH = new SymbolKey(&quot;Symbol.match&quot;);</span>
+<span class="fc" id="L27">    public static final SymbolKey REPLACE = new SymbolKey(&quot;Symbol.replace&quot;);</span>
+<span class="fc" id="L28">    public static final SymbolKey SEARCH = new SymbolKey(&quot;Symbol.search&quot;);</span>
+<span class="fc" id="L29">    public static final SymbolKey SPLIT = new SymbolKey(&quot;Symbol.split&quot;);</span>
+<span class="fc" id="L30">    public static final SymbolKey UNSCOPABLES = new SymbolKey(&quot;Symbol.unscopables&quot;);</span>
+
+    private String name;
+
+    public SymbolKey(String name)
+<span class="fc" id="L35">    {</span>
+<span class="fc" id="L36">        this.name = name;</span>
+<span class="fc" id="L37">    }</span>
+
+    public String getName() {
+<span class="fc" id="L40">        return name;</span>
+    }
+
+    @Override
+    public int hashCode()
+    {
+<span class="fc" id="L46">        return System.identityHashCode(this);</span>
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (o instanceof SymbolKey) {</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">            return o == this;</span>
+        }
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (o instanceof NativeSymbol) {</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            return ((NativeSymbol) o).getKey() == this;</span>
+        }
+<span class="fc" id="L58">        return false;</span>
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (name == null) {</span>
+<span class="nc" id="L65">            return &quot;Symbol()&quot;;</span>
+        }
+<span class="fc" id="L67">        return &quot;Symbol(&quot; + name + ')';</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JavaPolicySecurity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.shell</a> &gt; <span class="el_source">JavaPolicySecurity.java</span></div><h1>JavaPolicySecurity.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.shell;
+
+import java.io.IOException;
+import java.security.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Enumeration;
+
+import org.mozilla.javascript.*;
+
+public class JavaPolicySecurity extends SecurityProxy
+{
+
+    @Override
+    public Class&lt;?&gt; getStaticSecurityDomainClassInternal() {
+<span class="fc" id="L22">        return ProtectionDomain.class;</span>
+    }
+
+    private static class Loader extends ClassLoader
+        implements GeneratedClassLoader
+    {
+        private ProtectionDomain domain;
+
+        Loader(ClassLoader parent, ProtectionDomain domain) {
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">            super(parent != null ? parent : getSystemClassLoader());</span>
+<span class="fc" id="L32">            this.domain = domain;</span>
+<span class="fc" id="L33">        }</span>
+
+        public Class&lt;?&gt; defineClass(String name, byte[] data) {
+<span class="nc" id="L36">            return super.defineClass(name, data, 0, data.length, domain);</span>
+        }
+
+        public void linkClass(Class&lt;?&gt; cl) {
+<span class="nc" id="L40">            resolveClass(cl);</span>
+<span class="nc" id="L41">        }</span>
+    }
+
+    private static class ContextPermissions extends PermissionCollection
+    {
+        static final long serialVersionUID = -1721494496320750721L;
+
+// Construct PermissionCollection that permits an action only
+// if it is permitted by staticDomain and by security context of Java stack on
+// the moment of constructor invocation
+<span class="fc" id="L51">        ContextPermissions(ProtectionDomain staticDomain) {</span>
+<span class="fc" id="L52">            _context = AccessController.getContext();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">            if (staticDomain != null) {</span>
+<span class="fc" id="L54">                _statisPermissions = staticDomain.getPermissions();</span>
+            }
+<span class="fc" id="L56">            setReadOnly();</span>
+<span class="fc" id="L57">        }</span>
+
+        @Override
+        public void add(Permission permission) {
+<span class="nc" id="L61">            throw new RuntimeException(&quot;NOT IMPLEMENTED&quot;);</span>
+        }
+
+        @Override
+        public boolean implies(Permission permission) {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">            if (_statisPermissions != null) {</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">                if (!_statisPermissions.implies(permission)) {</span>
+<span class="fc" id="L68">                    return false;</span>
+                }
+            }
+            try {
+<span class="nc" id="L72">                _context.checkPermission(permission);</span>
+<span class="nc" id="L73">                return true;</span>
+<span class="fc" id="L74">            }catch (AccessControlException ex) {</span>
+<span class="fc" id="L75">                return false;</span>
+            }
+        }
+
+        @Override
+        public Enumeration&lt;Permission&gt; elements()
+        {
+<span class="nc" id="L82">            return new Enumeration&lt;Permission&gt;() {</span>
+<span class="nc" id="L83">                public boolean hasMoreElements() { return false; }</span>
+<span class="nc" id="L84">                public Permission nextElement() { return null; }</span>
+            };
+        }
+
+        @Override
+        public String toString() {
+<span class="nc" id="L90">            StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L91">            sb.append(getClass().getName());</span>
+<span class="nc" id="L92">            sb.append('@');</span>
+<span class="nc" id="L93">            sb.append(Integer.toHexString(System.identityHashCode(this)));</span>
+<span class="nc" id="L94">            sb.append(&quot; (context=&quot;);</span>
+<span class="nc" id="L95">            sb.append(_context);</span>
+<span class="nc" id="L96">            sb.append(&quot;, static_permitions=&quot;);</span>
+<span class="nc" id="L97">            sb.append(_statisPermissions);</span>
+<span class="nc" id="L98">            sb.append(')');</span>
+<span class="nc" id="L99">            return sb.toString();</span>
+        }
+
+        AccessControlContext _context;
+        PermissionCollection _statisPermissions;
+    }
+
+    public JavaPolicySecurity()
+<span class="fc" id="L107">    {</span>
+        // To trigger error on jdk-1.1 with lazy load
+<span class="fc" id="L109">        new CodeSource(null,  (java.security.cert.Certificate[])null);</span>
+<span class="fc" id="L110">    }</span>
+
+    @Override
+    protected void callProcessFileSecure(final Context cx,
+                                         final Scriptable scope,
+                                         final String filename)
+    {
+<span class="pc" id="L117">        AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;() {</span>
+            public Object run() {
+<span class="fc" id="L119">                URL url = getUrlObj(filename);</span>
+<span class="fc" id="L120">                ProtectionDomain staticDomain = getUrlDomain(url);</span>
+                try {
+<span class="nc" id="L122">                    Main.processFileSecure(cx, scope, url.toExternalForm(),</span>
+                                           staticDomain);
+<span class="nc" id="L124">                } catch (IOException ioex) {</span>
+<span class="nc" id="L125">                    throw new RuntimeException(ioex);</span>
+<span class="nc" id="L126">                }</span>
+<span class="nc" id="L127">                return null;</span>
+            }
+        });
+<span class="nc" id="L130">    }</span>
+
+    private URL getUrlObj(String url)
+    {
+        URL urlObj;
+        try {
+<span class="fc" id="L136">            urlObj = new URL(url);</span>
+<span class="fc" id="L137">        } catch (MalformedURLException ex) {</span>
+            // Assume as Main.processFileSecure it is file, need to build its
+            // URL
+<span class="fc" id="L140">            String curDir = System.getProperty(&quot;user.dir&quot;);</span>
+<span class="fc" id="L141">            curDir = curDir.replace('\\', '/');</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">            if (!curDir.endsWith(&quot;/&quot;)) {</span>
+<span class="fc" id="L143">                curDir = curDir+'/';</span>
+            }
+            try {
+<span class="fc" id="L146">                URL curDirURL = new URL(&quot;file:&quot;+curDir);</span>
+<span class="fc" id="L147">                urlObj = new URL(curDirURL, url);</span>
+<span class="fc" id="L148">            } catch (MalformedURLException ex2) {</span>
+<span class="fc" id="L149">                throw new RuntimeException</span>
+                    (&quot;Can not construct file URL for '&quot;+url+&quot;':&quot;
+<span class="fc" id="L151">                     +ex2.getMessage());</span>
+<span class="fc" id="L152">            }</span>
+<span class="fc" id="L153">        }</span>
+<span class="fc" id="L154">        return urlObj;</span>
+    }
+
+    private ProtectionDomain getUrlDomain(URL url)
+    {
+        CodeSource cs;
+<span class="fc" id="L160">        cs = new CodeSource(url, (java.security.cert.Certificate[])null);</span>
+<span class="fc" id="L161">        PermissionCollection pc = Policy.getPolicy().getPermissions(cs);</span>
+<span class="fc" id="L162">        return new ProtectionDomain(cs, pc);</span>
+    }
+
+    @Override
+    public GeneratedClassLoader
+    createClassLoader(final ClassLoader parentLoader, Object securityDomain)
+    {
+<span class="fc" id="L169">        final ProtectionDomain domain = (ProtectionDomain)securityDomain;</span>
+<span class="fc" id="L170">        return AccessController.doPrivileged(new PrivilegedAction&lt;Loader&gt;() {</span>
+            public Loader run() {
+<span class="fc" id="L172">                return new Loader(parentLoader, domain);</span>
+            }
+        });
+    }
+
+    @Override
+    public Object getDynamicSecurityDomain(Object securityDomain)
+    {
+<span class="fc" id="L180">        ProtectionDomain staticDomain = (ProtectionDomain)securityDomain;</span>
+<span class="fc" id="L181">        return getDynamicDomain(staticDomain);</span>
+    }
+
+    private ProtectionDomain getDynamicDomain(ProtectionDomain staticDomain) {
+<span class="fc" id="L185">        ContextPermissions p = new ContextPermissions(staticDomain);</span>
+<span class="fc" id="L186">        ProtectionDomain contextDomain = new ProtectionDomain(null, p);</span>
+<span class="fc" id="L187">        return contextDomain;</span>
+    }
+
+    @Override
+    public Object callWithDomain(Object securityDomain,
+                                 final Context cx,
+                                 final Callable callable,
+                                 final Scriptable scope,
+                                 final Scriptable thisObj,
+                                 final Object[] args)
+    {
+<span class="fc" id="L198">        ProtectionDomain staticDomain = (ProtectionDomain)securityDomain;</span>
+        // There is no direct way in Java to intersect permissions according
+        // stack context with additional domain.
+        // The following implementation first constructs ProtectionDomain
+        // that allows actions only allowed by both staticDomain and current
+        // stack context, and then constructs AccessController for this dynamic
+        // domain.
+        // If this is too slow, alternative solution would be to generate
+        // class per domain with a proxy method to call to infect
+        // java stack.
+        // Another optimization in case of scripts coming from &quot;world&quot; domain,
+        // that is having minimal default privileges is to construct
+        // one AccessControlContext based on ProtectionDomain
+        // with least possible privileges and simply call
+        // AccessController.doPrivileged with this untrusted context
+
+<span class="fc" id="L214">        ProtectionDomain dynamicDomain = getDynamicDomain(staticDomain);</span>
+<span class="fc" id="L215">        ProtectionDomain[] tmp = { dynamicDomain };</span>
+<span class="fc" id="L216">        AccessControlContext restricted = new AccessControlContext(tmp);</span>
+
+<span class="fc" id="L218">        PrivilegedAction&lt;Object&gt; action = new PrivilegedAction&lt;Object&gt;() {</span>
+            public Object run() {
+<span class="fc" id="L220">                return callable.call(cx, scope, thisObj, args);</span>
+            }
+        };
+
+<span class="fc" id="L224">        return AccessController.doPrivileged(action, restricted);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegExpLiteral.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">RegExpLiteral.java</span></div><h1>RegExpLiteral.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for a RegExp literal.
+ * Node type is {@link Token#REGEXP}.&lt;p&gt;
+ */
+public class RegExpLiteral extends AstNode {
+
+    private String value;
+    private String flags;
+
+    {
+<span class="fc" id="L21">        type = Token.REGEXP;</span>
+    }
+
+<span class="fc" id="L24">    public RegExpLiteral() {</span>
+<span class="fc" id="L25">    }</span>
+
+    public RegExpLiteral(int pos) {
+<span class="fc" id="L28">        super(pos);</span>
+<span class="fc" id="L29">    }</span>
+
+    public RegExpLiteral(int pos, int len) {
+<span class="fc" id="L32">        super(pos, len);</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * Returns the regexp string without delimiters
+     */
+    public String getValue() {
+<span class="fc" id="L39">        return value;</span>
+    }
+
+    /**
+     * Sets the regexp string without delimiters
+     * @throws IllegalArgumentException} if value is {@code null}
+     */
+    public void setValue(String value) {
+<span class="fc" id="L47">        assertNotNull(value);</span>
+<span class="fc" id="L48">        this.value = value;</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Returns regexp flags, {@code null} or &quot;&quot; if no flags specified
+     */
+    public String getFlags() {
+<span class="fc" id="L55">        return flags;</span>
+    }
+
+    /**
+     * Sets regexp flags.  Can be {@code null} or &quot;&quot;.
+     */
+    public void setFlags(String flags) {
+<span class="fc" id="L62">        this.flags = flags;</span>
+<span class="fc" id="L63">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        return makeIndent(depth) + &quot;/&quot; + value + &quot;/&quot;</span>
+                + (flags == null ? &quot;&quot; : flags);
+    }
+
+    /**
+     * Visits this node.  There are no children to visit.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="fc" id="L76">        v.visit(this);</span>
+<span class="fc" id="L77">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

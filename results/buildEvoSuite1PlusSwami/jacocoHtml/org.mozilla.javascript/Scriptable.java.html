@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Scriptable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Scriptable.java</span></div><h1>Scriptable.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * This is interface that all objects in JavaScript must implement.
+ * The interface provides for the management of properties and for
+ * performing conversions.
+ * &lt;p&gt;
+ * Host system implementors may find it easier to extend the ScriptableObject
+ * class rather than implementing Scriptable when writing host objects.
+ * &lt;p&gt;
+ * There are many static methods defined in ScriptableObject that perform
+ * the multiple calls to the Scriptable interface needed in order to
+ * manipulate properties in prototype chains.
+ * &lt;p&gt;
+ *
+ * @see org.mozilla.javascript.ScriptableObject
+ * @author Norris Boyd
+ * @author Nick Thompson
+ * @author Brendan Eich
+ */
+
+public interface Scriptable {
+
+    /**
+     * Get the name of the set of objects implemented by this Java class.
+     * This corresponds to the [[Class]] operation in ECMA and is used
+     * by Object.prototype.toString() in ECMA.&lt;p&gt;
+     * See ECMA 8.6.2 and 15.2.4.2.
+     */
+    public String getClassName();
+
+    /**
+     * Value returned from &lt;code&gt;get&lt;/code&gt; if the property is not
+     * found.
+     */
+<span class="fc" id="L44">    public static final Object NOT_FOUND = UniqueTag.NOT_FOUND;</span>
+
+    /**
+     * Get a named property from the object.
+     *
+     * Looks property up in this object and returns the associated value
+     * if found. Returns NOT_FOUND if not found.
+     * Note that this method is not expected to traverse the prototype
+     * chain. This is different from the ECMA [[Get]] operation.
+     *
+     * Depending on the property selector, the runtime will call
+     * this method or the form of &lt;code&gt;get&lt;/code&gt; that takes an
+     * integer:
+     * &lt;table&gt;
+     * &lt;tr&gt;&lt;th&gt;JavaScript code&lt;/th&gt;&lt;th&gt;Java code&lt;/th&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a.b      &lt;/td&gt;&lt;td&gt;a.get(&quot;b&quot;, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[&quot;foo&quot;] &lt;/td&gt;&lt;td&gt;a.get(&quot;foo&quot;, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[3]     &lt;/td&gt;&lt;td&gt;a.get(3, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[&quot;3&quot;]   &lt;/td&gt;&lt;td&gt;a.get(3, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[3.0]   &lt;/td&gt;&lt;td&gt;a.get(3, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[&quot;3.0&quot;] &lt;/td&gt;&lt;td&gt;a.get(&quot;3.0&quot;, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[1.1]   &lt;/td&gt;&lt;td&gt;a.get(&quot;1.1&quot;, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;a[-4]    &lt;/td&gt;&lt;td&gt;a.get(-4, a)&lt;/td&gt;&lt;/tr&gt;
+     * &lt;/table&gt;
+     * &lt;p&gt;
+     * The values that may be returned are limited to the following:
+     * &lt;UL&gt;
+     * &lt;LI&gt;java.lang.Boolean objects&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.String objects&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.Number objects&lt;/LI&gt;
+     * &lt;LI&gt;org.mozilla.javascript.Scriptable objects&lt;/LI&gt;
+     * &lt;LI&gt;null&lt;/LI&gt;
+     * &lt;LI&gt;The value returned by Context.getUndefinedValue()&lt;/LI&gt;
+     * &lt;LI&gt;NOT_FOUND&lt;/LI&gt;
+     * &lt;/UL&gt;
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     * @see org.mozilla.javascript.Context#getUndefinedValue
+     */
+    public Object get(String name, Scriptable start);
+
+    /**
+     * Get a property from the object selected by an integral index.
+     *
+     * Identical to &lt;code&gt;get(String, Scriptable)&lt;/code&gt; except that
+     * an integral index is used to select the property.
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     * @see org.mozilla.javascript.Scriptable#get(String,Scriptable)
+     */
+    public Object get(int index, Scriptable start);
+
+    /**
+     * Indicates whether or not a named property is defined in an object.
+     *
+     * Does not traverse the prototype chain.&lt;p&gt;
+     *
+     * The property is specified by a String name
+     * as defined for the &lt;code&gt;get&lt;/code&gt; method.&lt;p&gt;
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the named property is found in the object
+     * @see org.mozilla.javascript.Scriptable#get(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#getProperty(Scriptable, String)
+     */
+    public boolean has(String name, Scriptable start);
+
+    /**
+     * Indicates whether or not an indexed  property is defined in an object.
+     *
+     * Does not traverse the prototype chain.&lt;p&gt;
+     *
+     * The property is specified by an integral index
+     * as defined for the &lt;code&gt;get&lt;/code&gt; method.&lt;p&gt;
+     *
+     * @param index the numeric index for the property
+     * @param start the object in which the lookup began
+     * @return true if and only if the indexed property is found in the object
+     * @see org.mozilla.javascript.Scriptable#get(int, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#getProperty(Scriptable, int)
+     */
+    public boolean has(int index, Scriptable start);
+
+    /**
+     * Sets a named property in this object.
+     * &lt;p&gt;
+     * The property is specified by a string name
+     * as defined for &lt;code&gt;get&lt;/code&gt;.
+     * &lt;p&gt;
+     * The possible values that may be passed in are as defined for
+     * &lt;code&gt;get&lt;/code&gt;. A class that implements this method may choose
+     * to ignore calls to set certain properties, in which case those
+     * properties are effectively read-only.&lt;p&gt;
+     * For properties defined in a prototype chain,
+     * use &lt;code&gt;putProperty&lt;/code&gt; in ScriptableObject. &lt;p&gt;
+     * Note that if a property &lt;i&gt;a&lt;/i&gt; is defined in the prototype &lt;i&gt;p&lt;/i&gt;
+     * of an object &lt;i&gt;o&lt;/i&gt;, then evaluating &lt;code&gt;o.a = 23&lt;/code&gt; will cause
+     * &lt;code&gt;set&lt;/code&gt; to be called on the prototype &lt;i&gt;p&lt;/i&gt; with
+     * &lt;i&gt;o&lt;/i&gt; as the  &lt;i&gt;start&lt;/i&gt; parameter.
+     * To preserve JavaScript semantics, it is the Scriptable
+     * object's responsibility to modify &lt;i&gt;o&lt;/i&gt;. &lt;p&gt;
+     * This design allows properties to be defined in prototypes and implemented
+     * in terms of getters and setters of Java values without consuming slots
+     * in each instance.&lt;p&gt;
+     * &lt;p&gt;
+     * The values that may be set are limited to the following:
+     * &lt;UL&gt;
+     * &lt;LI&gt;java.lang.Boolean objects&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.String objects&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.Number objects&lt;/LI&gt;
+     * &lt;LI&gt;org.mozilla.javascript.Scriptable objects&lt;/LI&gt;
+     * &lt;LI&gt;null&lt;/LI&gt;
+     * &lt;LI&gt;The value returned by Context.getUndefinedValue()&lt;/LI&gt;
+     * &lt;/UL&gt;&lt;p&gt;
+     * Arbitrary Java objects may be wrapped in a Scriptable by first calling
+     * &lt;code&gt;Context.toObject&lt;/code&gt;. This allows the property of a JavaScript
+     * object to contain an arbitrary Java object as a value.&lt;p&gt;
+     * Note that &lt;code&gt;has&lt;/code&gt; will be called by the runtime first before
+     * &lt;code&gt;set&lt;/code&gt; is called to determine in which object the
+     * property is defined.
+     * Note that this method is not expected to traverse the prototype chain,
+     * which is different from the ECMA [[Put]] operation.
+     * @param name the name of the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
+     * @see org.mozilla.javascript.Scriptable#get(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#putProperty(Scriptable, String, Object)
+     * @see org.mozilla.javascript.Context#toObject(Object, Scriptable)
+     */
+    public void put(String name, Scriptable start, Object value);
+
+    /**
+     * Sets an indexed property in this object.
+     * &lt;p&gt;
+     * The property is specified by an integral index
+     * as defined for &lt;code&gt;get&lt;/code&gt;.&lt;p&gt;
+     *
+     * Identical to &lt;code&gt;put(String, Scriptable, Object)&lt;/code&gt; except that
+     * an integral index is used to select the property.
+     *
+     * @param index the numeric index for the property
+     * @param start the object whose property is being set
+     * @param value value to set the property to
+     * @see org.mozilla.javascript.Scriptable#has(int, Scriptable)
+     * @see org.mozilla.javascript.Scriptable#get(int, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#putProperty(Scriptable, int, Object)
+     * @see org.mozilla.javascript.Context#toObject(Object, Scriptable)
+     */
+    public void put(int index, Scriptable start, Object value);
+
+    /**
+     * Removes a property from this object.
+     * This operation corresponds to the ECMA [[Delete]] except that
+     * the no result is returned. The runtime will guarantee that this
+     * method is called only if the property exists. After this method
+     * is called, the runtime will call Scriptable.has to see if the
+     * property has been removed in order to determine the boolean
+     * result of the delete operator as defined by ECMA 11.4.1.
+     * &lt;p&gt;
+     * A property can be made permanent by ignoring calls to remove
+     * it.&lt;p&gt;
+     * The property is specified by a String name
+     * as defined for &lt;code&gt;get&lt;/code&gt;.
+     * &lt;p&gt;
+     * To delete properties defined in a prototype chain,
+     * see deleteProperty in ScriptableObject.
+     * @param name the identifier for the property
+     * @see org.mozilla.javascript.Scriptable#get(String, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#deleteProperty(Scriptable, String)
+     */
+    public void delete(String name);
+
+    /**
+     * Removes a property from this object.
+     *
+     * The property is specified by an integral index
+     * as defined for &lt;code&gt;get&lt;/code&gt;.
+     * &lt;p&gt;
+     * To delete properties defined in a prototype chain,
+     * see deleteProperty in ScriptableObject.
+     *
+     * Identical to &lt;code&gt;delete(String)&lt;/code&gt; except that
+     * an integral index is used to select the property.
+     *
+     * @param index the numeric index for the property
+     * @see org.mozilla.javascript.Scriptable#get(int, Scriptable)
+     * @see org.mozilla.javascript.ScriptableObject#deleteProperty(Scriptable, int)
+     */
+    public void delete(int index);
+
+    /**
+     * Get the prototype of the object.
+     * @return the prototype
+     */
+    public Scriptable getPrototype();
+
+    /**
+     * Set the prototype of the object.
+     * @param prototype the prototype to set
+     */
+    public void setPrototype(Scriptable prototype);
+
+    /**
+     * Get the parent scope of the object.
+     * @return the parent scope
+     */
+    public Scriptable getParentScope();
+
+    /**
+     * Set the parent scope of the object.
+     * @param parent the parent scope to set
+     */
+    public void setParentScope(Scriptable parent);
+
+    /**
+     * Get an array of property ids.
+     *
+     * Not all property ids need be returned. Those properties
+     * whose ids are not returned are considered non-enumerable.
+     *
+     * @return an array of Objects. Each entry in the array is either
+     *         a java.lang.String or a java.lang.Number
+     */
+    public Object[] getIds();
+
+    /**
+     * Get the default value of the object with a given hint.
+     * The hints are String.class for type String, Number.class for type
+     * Number, Scriptable.class for type Object, and Boolean.class for
+     * type Boolean. &lt;p&gt;
+     *
+     * A &lt;code&gt;hint&lt;/code&gt; of null means &quot;no hint&quot;.
+     *
+     * See ECMA 8.6.2.6.
+     *
+     * @param hint the type hint
+     * @return the default value
+     */
+    public Object getDefaultValue(Class&lt;?&gt; hint);
+
+    /**
+     * The instanceof operator.
+     *
+     * &lt;p&gt;
+     * The JavaScript code &quot;lhs instanceof rhs&quot; causes rhs.hasInstance(lhs) to
+     * be called.
+     *
+     * &lt;p&gt;
+     * The return value is implementation dependent so that embedded host objects can
+     * return an appropriate value.  See the JS 1.3 language documentation for more
+     * detail.
+     *
+     * &lt;p&gt;This operator corresponds to the proposed EMCA [[HasInstance]] operator.
+     *
+     * @param instance The value that appeared on the LHS of the instanceof
+     *              operator
+     *
+     * @return an implementation dependent value
+     */
+    public boolean hasInstance(Scriptable instance);
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

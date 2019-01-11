@@ -1,0 +1,2984 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeRegExp.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.regexp</a> &gt; <span class="el_source">NativeRegExp.java</span></div><h1>NativeRegExp.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.regexp;
+
+import java.io.Serializable;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Function;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.IdScriptableObject;
+import org.mozilla.javascript.Kit;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.TopLevel;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * This class implements the RegExp native object.
+ *
+ * Revision History:
+ * Implementation in C by Brendan Eich
+ * Initial port to Java by Norris Boyd from jsregexp.c version 1.36
+ * Merged up to version 1.38, which included Unicode support.
+ * Merged bug fixes in version 1.39.
+ * Merged JSFUN13_BRANCH changes up to 1.32.2.13
+ *
+ * @author Brendan Eich
+ * @author Norris Boyd
+ */
+
+
+
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">public class NativeRegExp extends IdScriptableObject implements Function</span>
+{
+    static final long serialVersionUID = 4965263491464903264L;
+
+<span class="fc" id="L42">    private static final Object REGEXP_TAG = new Object();</span>
+
+    public static final int JSREG_GLOB = 0x1;       // 'g' flag: global
+    public static final int JSREG_FOLD = 0x2;       // 'i' flag: fold
+    public static final int JSREG_MULTILINE = 0x4;  // 'm' flag: multiline
+
+    //type of match to perform
+    public static final int TEST = 0;
+    public static final int MATCH = 1;
+    public static final int PREFIX = 2;
+
+    private static final boolean debug = false;
+
+    private static final byte REOP_SIMPLE_START  = 1;  /* start of 'simple opcodes' */
+    private static final byte REOP_EMPTY         = 1;  /* match rest of input against rest of r.e. */
+    private static final byte REOP_BOL           = 2;  /* beginning of input (or line if multiline) */
+    private static final byte REOP_EOL           = 3;  /* end of input (or line if multiline) */
+    private static final byte REOP_WBDRY         = 4;  /* match &quot;&quot; at word boundary */
+    private static final byte REOP_WNONBDRY      = 5;  /* match &quot;&quot; at word non-boundary */
+    private static final byte REOP_DOT           = 6;  /* stands for any character */
+    private static final byte REOP_DIGIT         = 7;  /* match a digit char: [0-9] */
+    private static final byte REOP_NONDIGIT      = 8;  /* match a non-digit char: [^0-9] */
+    private static final byte REOP_ALNUM         = 9;  /* match an alphanumeric char: [0-9a-z_A-Z] */
+    private static final byte REOP_NONALNUM      = 10; /* match a non-alphanumeric char: [^0-9a-z_A-Z] */
+    private static final byte REOP_SPACE         = 11; /* match a whitespace char */
+    private static final byte REOP_NONSPACE      = 12; /* match a non-whitespace char */
+    private static final byte REOP_BACKREF       = 13; /* back-reference (e.g., \1) to a parenthetical */
+    private static final byte REOP_FLAT          = 14; /* match a flat string */
+    private static final byte REOP_FLAT1         = 15; /* match a single char */
+    private static final byte REOP_FLATi         = 16; /* case-independent REOP_FLAT */
+    private static final byte REOP_FLAT1i        = 17; /* case-independent REOP_FLAT1 */
+    private static final byte REOP_UCFLAT1       = 18; /* single Unicode char */
+    private static final byte REOP_UCFLAT1i      = 19; /* case-independent REOP_UCFLAT1 */
+//    private static final byte REOP_UCFLAT        = 20; /* flat Unicode string; len immediate counts chars */
+//    private static final byte REOP_UCFLATi       = 21; /* case-independent REOP_UCFLAT */
+    private static final byte REOP_CLASS         = 22; /* character class with index */
+    private static final byte REOP_NCLASS        = 23; /* negated character class with index */
+    private static final byte REOP_SIMPLE_END    = 23; /* end of 'simple opcodes' */
+    private static final byte REOP_QUANT         = 25; /* quantified atom: atom{1,2} */
+    private static final byte REOP_STAR          = 26; /* zero or more occurrences of kid */
+    private static final byte REOP_PLUS          = 27; /* one or more occurrences of kid */
+    private static final byte REOP_OPT           = 28; /* optional subexpression in kid */
+    private static final byte REOP_LPAREN        = 29; /* left paren bytecode: kid is u.num'th sub-regexp */
+    private static final byte REOP_RPAREN        = 30; /* right paren bytecode */
+    private static final byte REOP_ALT           = 31; /* alternative subexpressions in kid and next */
+    private static final byte REOP_JUMP          = 32; /* for deoptimized closure loops */
+//    private static final byte REOP_DOTSTAR       = 33; /* optimize .* to use a single opcode */
+//    private static final byte REOP_ANCHOR        = 34; /* like .* but skips left context to unanchored r.e. */
+//    private static final byte REOP_EOLONLY       = 35; /* $ not preceded by any pattern */
+//    private static final byte REOP_BACKREFi      = 37; /* case-independent REOP_BACKREF */
+//    private static final byte REOP_LPARENNON     = 40; /* non-capturing version of REOP_LPAREN */
+    private static final byte REOP_ASSERT        = 41; /* zero width positive lookahead assertion */
+    private static final byte REOP_ASSERT_NOT    = 42; /* zero width negative lookahead assertion */
+    private static final byte REOP_ASSERTTEST    = 43; /* sentinel at end of assertion child */
+    private static final byte REOP_ASSERTNOTTEST = 44; /* sentinel at end of !assertion child */
+    private static final byte REOP_MINIMALSTAR   = 45; /* non-greedy version of * */
+    private static final byte REOP_MINIMALPLUS   = 46; /* non-greedy version of + */
+    private static final byte REOP_MINIMALOPT    = 47; /* non-greedy version of ? */
+    private static final byte REOP_MINIMALQUANT  = 48; /* non-greedy version of {} */
+    private static final byte REOP_ENDCHILD      = 49; /* sentinel at end of quantifier child */
+    private static final byte REOP_REPEAT        = 51; /* directs execution of greedy quantifier */
+    private static final byte REOP_MINIMALREPEAT = 52; /* directs execution of non-greedy quantifier */
+    private static final byte REOP_ALTPREREQ     = 53; /* prerequisite for ALT, either of two chars */
+    private static final byte REOP_ALTPREREQi    = 54; /* case-independent REOP_ALTPREREQ */
+    private static final byte REOP_ALTPREREQ2    = 55; /* prerequisite for ALT, a char or a class */
+//    private static final byte REOP_ENDALT        = 56; /* end of final alternate */
+    private static final byte REOP_END           = 57;
+
+    private static final int ANCHOR_BOL = -2;
+
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+
+<span class="fc" id="L116">        NativeRegExp proto = new NativeRegExp();</span>
+<span class="fc" id="L117">        proto.re = compileRE(cx, &quot;&quot;, null, false);</span>
+<span class="fc" id="L118">        proto.activatePrototypeMap(MAX_PROTOTYPE_ID);</span>
+<span class="fc" id="L119">        proto.setParentScope(scope);</span>
+<span class="fc" id="L120">        proto.setPrototype(getObjectPrototype(scope));</span>
+
+<span class="fc" id="L122">        NativeRegExpCtor ctor = new NativeRegExpCtor();</span>
+        // Bug #324006: ECMA-262 15.10.6.1 says &quot;The initial value of
+        // RegExp.prototype.constructor is the builtin RegExp constructor.&quot;
+<span class="fc" id="L125">        proto.defineProperty(&quot;constructor&quot;, ctor, ScriptableObject.DONTENUM);</span>
+
+<span class="fc" id="L127">        ScriptRuntime.setFunctionProtoAndParent(ctor, scope);</span>
+
+<span class="fc" id="L129">        ctor.setImmunePrototypeProperty(proto);</span>
+
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (sealed) {</span>
+<span class="fc" id="L132">            proto.sealObject();</span>
+<span class="fc" id="L133">            ctor.sealObject();</span>
+        }
+
+<span class="fc" id="L136">        defineProperty(scope, &quot;RegExp&quot;, ctor, ScriptableObject.DONTENUM);</span>
+<span class="fc" id="L137">    }</span>
+
+    NativeRegExp(Scriptable scope, RECompiled regexpCompiled)
+<span class="fc" id="L140">    {</span>
+<span class="fc" id="L141">        this.re = regexpCompiled;</span>
+<span class="fc" id="L142">        this.lastIndex = 0d;</span>
+<span class="fc" id="L143">        ScriptRuntime.setBuiltinProtoAndParent(this, scope, TopLevel.Builtins.RegExp);</span>
+<span class="fc" id="L144">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L149">        return &quot;RegExp&quot;;</span>
+    }
+
+    /**
+     * Gets the value to be returned by the typeof operator called on this object.
+     * @see org.mozilla.javascript.ScriptableObject#getTypeOf()
+     * @return &quot;object&quot;
+     */
+    @Override
+    public String getTypeOf()
+    {
+<span class="fc" id="L160">        return &quot;object&quot;;</span>
+    }
+
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="fc" id="L166">        return execSub(cx, scope, args, MATCH);</span>
+    }
+
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L171">        return (Scriptable)execSub(cx, scope, args, MATCH);</span>
+    }
+
+    Scriptable compile(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc bnc" id="L176" title="All 4 branches missed.">        if (args.length &gt; 0 &amp;&amp; args[0] instanceof NativeRegExp) {</span>
+<span class="nc bnc" id="L177" title="All 4 branches missed.">            if (args.length &gt; 1 &amp;&amp; args[1] != Undefined.instance) {</span>
+                // report error
+<span class="nc" id="L179">                throw ScriptRuntime.typeError0(&quot;msg.bad.regexp.compile&quot;);</span>
+            }
+<span class="nc" id="L181">            NativeRegExp thatObj = (NativeRegExp) args[0];</span>
+<span class="nc" id="L182">            this.re = thatObj.re;</span>
+<span class="nc" id="L183">            this.lastIndex = thatObj.lastIndex;</span>
+<span class="nc" id="L184">            return this;</span>
+        }
+<span class="nc bnc" id="L186" title="All 4 branches missed.">        String s = args.length == 0 || args[0] instanceof Undefined ? &quot;&quot; : escapeRegExp(args[0]);</span>
+<span class="nc bnc" id="L187" title="All 4 branches missed.">        String global = args.length &gt; 1 &amp;&amp; args[1] != Undefined.instance</span>
+<span class="nc" id="L188">            ? ScriptRuntime.toString(args[1])</span>
+            : null;
+<span class="nc" id="L190">        this.re = compileRE(cx, s, global, false);</span>
+<span class="nc" id="L191">        this.lastIndex = 0d;</span>
+<span class="nc" id="L192">        return this;</span>
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="fc" id="L198">        StringBuilder buf = new StringBuilder();</span>
+<span class="fc" id="L199">        buf.append('/');</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        if (re.source.length != 0) {</span>
+<span class="fc" id="L201">            buf.append(re.source);</span>
+        } else {
+            // See bugzilla 226045
+<span class="nc" id="L204">            buf.append(&quot;(?:)&quot;);</span>
+        }
+<span class="fc" id="L206">        buf.append('/');</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        if ((re.flags &amp; JSREG_GLOB) != 0)</span>
+<span class="fc" id="L208">            buf.append('g');</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">        if ((re.flags &amp; JSREG_FOLD) != 0)</span>
+<span class="nc" id="L210">            buf.append('i');</span>
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">        if ((re.flags &amp; JSREG_MULTILINE) != 0)</span>
+<span class="nc" id="L212">            buf.append('m');</span>
+<span class="fc" id="L213">        return buf.toString();</span>
+    }
+
+<span class="fc" id="L216">    NativeRegExp() {  }</span>
+
+    private static RegExpImpl getImpl(Context cx)
+    {
+<span class="fc" id="L220">        return (RegExpImpl) ScriptRuntime.getRegExpProxy(cx);</span>
+    }
+
+    private static String escapeRegExp(Object src) {
+<span class="nc" id="L224">        String s = ScriptRuntime.toString(src);</span>
+        // Escape any naked slashes in regexp source, see bug #510265
+<span class="nc" id="L226">        StringBuilder sb = null; // instantiated only if necessary</span>
+<span class="nc" id="L227">        int start = 0;</span>
+<span class="nc" id="L228">        int slash = s.indexOf('/');</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        while (slash &gt; -1) {</span>
+<span class="nc bnc" id="L230" title="All 4 branches missed.">            if (slash == start || s.charAt(slash - 1) != '\\') {</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if (sb == null) {</span>
+<span class="nc" id="L232">                    sb = new StringBuilder();</span>
+                }
+<span class="nc" id="L234">                sb.append(s, start, slash);</span>
+<span class="nc" id="L235">                sb.append(&quot;\\/&quot;);</span>
+<span class="nc" id="L236">                start = slash + 1;</span>
+            }
+<span class="nc" id="L238">            slash = s.indexOf('/', slash + 1);</span>
+        }
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        if (sb != null) {</span>
+<span class="nc" id="L241">            sb.append(s, start, s.length());</span>
+<span class="nc" id="L242">            s = sb.toString();</span>
+        }
+<span class="nc" id="L244">        return s;</span>
+    }
+
+    private Object execSub(Context cx, Scriptable scopeObj,
+                           Object[] args, int matchType)
+    {
+<span class="fc" id="L250">        RegExpImpl reImpl = getImpl(cx);</span>
+        String str;
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L253">            str = reImpl.input;</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            if (str == null) {</span>
+<span class="nc" id="L255">                str = ScriptRuntime.toString(Undefined.instance);</span>
+            }
+        } else {
+<span class="fc" id="L258">            str = ScriptRuntime.toString(args[0]);</span>
+        }
+<span class="fc" id="L260">        double d = 0;</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">        if ((re.flags &amp; JSREG_GLOB) != 0) {</span>
+<span class="fc" id="L262">            d = ScriptRuntime.toInteger(lastIndex);</span>
+        }
+
+        Object rval;
+<span class="pc bpc" id="L266" title="2 of 4 branches missed.">        if (d &lt; 0 || str.length() &lt; d) {</span>
+<span class="nc" id="L267">            lastIndex = 0d;</span>
+<span class="nc" id="L268">            rval = null;</span>
+        }
+        else {
+<span class="fc" id="L271">            int indexp[] = { (int)d };</span>
+<span class="fc" id="L272">            rval = executeRegExp(cx, scopeObj, reImpl, str, indexp, matchType);</span>
+<span class="fc bfc" id="L273" title="All 2 branches covered.">            if ((re.flags &amp; JSREG_GLOB) != 0) {</span>
+<span class="pc bpc" id="L274" title="1 of 4 branches missed.">                lastIndex = (rval == null || rval == Undefined.instance)</span>
+                            ? 0d : (double)indexp[0];
+            }
+        }
+<span class="fc" id="L278">        return rval;</span>
+    }
+
+    static RECompiled compileRE(Context cx, String str, String global, boolean flat)
+    {
+<span class="fc" id="L283">        RECompiled regexp = new RECompiled(str);</span>
+<span class="fc" id="L284">        int length = str.length();</span>
+<span class="fc" id="L285">        int flags = 0;</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">        if (global != null) {</span>
+<span class="fc bfc" id="L287" title="All 2 branches covered.">            for (int i = 0; i &lt; global.length(); i++) {</span>
+<span class="fc" id="L288">                char c = global.charAt(i);</span>
+<span class="fc" id="L289">                int f = 0;</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">                if (c == 'g') {</span>
+<span class="fc" id="L291">                    f = JSREG_GLOB;</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">                } else if (c == 'i') {</span>
+<span class="nc" id="L293">                    f = JSREG_FOLD;</span>
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">                } else if (c == 'm') {</span>
+<span class="fc" id="L295">                    f = JSREG_MULTILINE;</span>
+                } else {
+<span class="nc" id="L297">                    reportError(&quot;msg.invalid.re.flag&quot;, String.valueOf(c));</span>
+                }
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">                if ((flags &amp; f) != 0) {</span>
+<span class="nc" id="L300">                    reportError(&quot;msg.invalid.re.flag&quot;, String.valueOf(c));</span>
+                }
+<span class="fc" id="L302">                flags |= f;</span>
+            }
+        }
+<span class="fc" id="L305">        regexp.flags = flags;</span>
+
+<span class="fc" id="L307">        CompilerState state = new CompilerState(cx, regexp.source, length, flags);</span>
+<span class="pc bpc" id="L308" title="3 of 4 branches missed.">        if (flat &amp;&amp; length &gt; 0) {</span>
+            if (debug) {
+                System.out.println(&quot;flat = \&quot;&quot; + str + &quot;\&quot;&quot;);
+            }
+<span class="nc" id="L312">            state.result = new RENode(REOP_FLAT);</span>
+<span class="nc" id="L313">            state.result.chr = state.cpbegin[0];</span>
+<span class="nc" id="L314">            state.result.length = length;</span>
+<span class="nc" id="L315">            state.result.flatIndex = 0;</span>
+<span class="nc" id="L316">            state.progLength += 5;</span>
+        } else {
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">            if (!parseDisjunction(state))</span>
+<span class="nc" id="L319">                return null;</span>
+            // Need to reparse if pattern contains invalid backreferences:
+            // &quot;Note: if the number of left parentheses is less than the number
+            // specified in \#, the \# is taken as an octal escape&quot;
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">            if (state.maxBackReference &gt; state.parenCount) {</span>
+<span class="nc" id="L324">                state = new CompilerState(cx, regexp.source, length, flags);</span>
+<span class="nc" id="L325">                state.backReferenceLimit = state.parenCount;</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">                if (!parseDisjunction(state))</span>
+<span class="nc" id="L327">                    return null;</span>
+            }
+        }
+
+<span class="fc" id="L331">        regexp.program = new byte[state.progLength + 1];</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">        if (state.classCount != 0) {</span>
+<span class="fc" id="L333">            regexp.classList = new RECharSet[state.classCount];</span>
+<span class="fc" id="L334">            regexp.classCount = state.classCount;</span>
+        }
+<span class="fc" id="L336">        int endPC = emitREBytecode(state, regexp, 0, state.result);</span>
+<span class="fc" id="L337">        regexp.program[endPC++] = REOP_END;</span>
+
+        if (debug) {
+            System.out.println(&quot;Prog. length = &quot; + endPC);
+            for (int i = 0; i &lt; endPC; i++) {
+                System.out.print(regexp.program[i]);
+                if (i &lt; (endPC - 1)) System.out.print(&quot;, &quot;);
+            }
+            System.out.println();
+        }
+<span class="fc" id="L347">        regexp.parenCount = state.parenCount;</span>
+
+        // If re starts with literal, init anchorCh accordingly
+<span class="pc bpc" id="L350" title="2 of 6 branches missed.">        switch (regexp.program[0]) {</span>
+            case REOP_UCFLAT1:
+            case REOP_UCFLAT1i:
+<span class="nc" id="L353">                regexp.anchorCh = (char)getIndex(regexp.program, 1);</span>
+<span class="nc" id="L354">                break;</span>
+            case REOP_FLAT1:
+            case REOP_FLAT1i:
+<span class="fc" id="L357">                regexp.anchorCh = (char)(regexp.program[1] &amp; 0xFF);</span>
+<span class="fc" id="L358">                break;</span>
+            case REOP_FLAT:
+            case REOP_FLATi:
+<span class="fc" id="L361">                int k = getIndex(regexp.program, 1);</span>
+<span class="fc" id="L362">                regexp.anchorCh = regexp.source[k];</span>
+<span class="fc" id="L363">                break;</span>
+            case REOP_BOL:
+<span class="nc" id="L365">                regexp.anchorCh = ANCHOR_BOL;</span>
+<span class="nc" id="L366">                break;</span>
+            case REOP_ALT:
+<span class="fc" id="L368">                RENode n = state.result;</span>
+<span class="pc bpc" id="L369" title="3 of 4 branches missed.">                if (n.kid.op == REOP_BOL &amp;&amp; n.kid2.op == REOP_BOL) {</span>
+<span class="nc" id="L370">                    regexp.anchorCh = ANCHOR_BOL;</span>
+                }
+                break;
+        }
+
+        if (debug) {
+            if (regexp.anchorCh &gt;= 0) {
+                System.out.println(&quot;Anchor ch = '&quot; + (char)regexp.anchorCh + &quot;'&quot;);
+            }
+        }
+<span class="fc" id="L380">        return regexp;</span>
+    }
+
+    static boolean isDigit(char c)
+    {
+<span class="fc bfc" id="L385" title="All 4 branches covered.">        return '0' &lt;= c &amp;&amp; c &lt;= '9';</span>
+    }
+
+    private static boolean isWord(char c)
+    {
+<span class="pc bpc" id="L390" title="1 of 12 branches missed.">        return ('a' &lt;= c &amp;&amp; c &lt;= 'z') || ('A' &lt;= c &amp;&amp; c &lt;= 'Z') || isDigit(c) || c == '_';</span>
+    }
+
+    private static boolean isControlLetter(char c)
+    {
+<span class="nc bnc" id="L395" title="All 8 branches missed.">        return ('a' &lt;= c &amp;&amp; c &lt;= 'z') || ('A' &lt;= c &amp;&amp; c &lt;= 'Z');</span>
+    }
+
+    private static boolean isLineTerm(char c)
+    {
+<span class="fc" id="L400">        return ScriptRuntime.isJSLineTerminator(c);</span>
+    }
+
+    private static boolean isREWhiteSpace(int c)
+    {
+<span class="fc" id="L405">        return ScriptRuntime.isJSWhitespaceOrLineTerminator(c);</span>
+    }
+
+    /*
+     *
+     * 1. If IgnoreCase is false, return ch.
+     * 2. Let u be ch converted to upper case as if by calling
+     *    String.prototype.toUpperCase on the one-character string ch.
+     * 3. If u does not consist of a single character, return ch.
+     * 4. Let cu be u's character.
+     * 5. If ch's code point value is greater than or equal to decimal 128 and cu's
+     *    code point value is less than decimal 128, then return ch.
+     * 6. Return cu.
+     */
+    private static char upcase(char ch)
+    {
+<span class="nc bnc" id="L421" title="All 2 branches missed.">        if (ch &lt; 128) {</span>
+<span class="nc bnc" id="L422" title="All 4 branches missed.">            if ('a' &lt;= ch &amp;&amp; ch &lt;= 'z') {</span>
+<span class="nc" id="L423">                return (char)(ch + ('A' - 'a'));</span>
+            }
+<span class="nc" id="L425">            return ch;</span>
+        }
+<span class="nc" id="L427">        char cu = Character.toUpperCase(ch);</span>
+<span class="nc bnc" id="L428" title="All 2 branches missed.">        return (cu &lt; 128) ? ch : cu;</span>
+    }
+
+    private static char downcase(char ch)
+    {
+<span class="nc bnc" id="L433" title="All 2 branches missed.">        if (ch &lt; 128) {</span>
+<span class="nc bnc" id="L434" title="All 4 branches missed.">            if ('A' &lt;= ch &amp;&amp; ch &lt;= 'Z') {</span>
+<span class="nc" id="L435">                return (char)(ch + ('a' - 'A'));</span>
+            }
+<span class="nc" id="L437">            return ch;</span>
+        }
+<span class="nc" id="L439">        char cl = Character.toLowerCase(ch);</span>
+<span class="nc bnc" id="L440" title="All 2 branches missed.">        return (cl &lt; 128) ? ch : cl;</span>
+
+    }
+
+/*
+ * Validates and converts hex ascii value.
+ */
+    private static int toASCIIHexDigit(int c)
+    {
+<span class="pc bpc" id="L449" title="1 of 2 branches missed.">        if (c &lt; '0')</span>
+<span class="nc" id="L450">            return -1;</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">        if (c &lt;= '9') {</span>
+<span class="fc" id="L452">            return c - '0';</span>
+        }
+<span class="fc" id="L454">        c |= 0x20;</span>
+<span class="pc bpc" id="L455" title="2 of 4 branches missed.">        if ('a' &lt;= c &amp;&amp; c &lt;= 'f') {</span>
+<span class="fc" id="L456">            return c - 'a' + 10;</span>
+        }
+<span class="nc" id="L458">        return -1;</span>
+    }
+
+/*
+ * Top-down regular expression grammar, based closely on Perl4.
+ *
+ *  regexp:     altern                  A regular expression is one or more
+ *              altern '|' regexp       alternatives separated by vertical bar.
+ */
+    private static boolean parseDisjunction(CompilerState state)
+    {
+<span class="pc bpc" id="L469" title="1 of 2 branches missed.">        if (!parseAlternative(state))</span>
+<span class="nc" id="L470">            return false;</span>
+<span class="fc" id="L471">        char[] source = state.cpbegin;</span>
+<span class="fc" id="L472">        int index = state.cp;</span>
+<span class="fc bfc" id="L473" title="All 4 branches covered.">        if (index != source.length &amp;&amp; source[index] == '|') {</span>
+            RENode result;
+<span class="fc" id="L475">            ++state.cp;</span>
+<span class="fc" id="L476">            result = new RENode(REOP_ALT);</span>
+<span class="fc" id="L477">            result.kid = state.result;</span>
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">            if (!parseDisjunction(state))</span>
+<span class="nc" id="L479">                return false;</span>
+<span class="fc" id="L480">            result.kid2 = state.result;</span>
+<span class="fc" id="L481">            state.result = result;</span>
+            /*
+             * Look at both alternates to see if there's a FLAT or a CLASS at
+             * the start of each. If so, use a prerequisite match.
+             */
+<span class="pc bpc" id="L486" title="1 of 4 branches missed.">            if (result.kid.op == REOP_FLAT &amp;&amp; result.kid2.op == REOP_FLAT) {</span>
+<span class="pc bpc" id="L487" title="1 of 2 branches missed.">                result.op = (state.flags &amp; JSREG_FOLD) == 0 ?</span>
+                        REOP_ALTPREREQ : REOP_ALTPREREQi;
+<span class="fc" id="L489">                result.chr = result.kid.chr;</span>
+<span class="fc" id="L490">                result.index = result.kid2.chr;</span>
+                /* ALTPREREQ, uch1, uch2, &lt;next&gt;, ...,
+                                            JUMP, &lt;end&gt; ... JUMP, &lt;end&gt; */
+<span class="fc" id="L493">                state.progLength += 13;</span>
+<span class="pc bpc" id="L494" title="7 of 8 branches missed.">            } else if (result.kid.op == REOP_CLASS &amp;&amp; result.kid.index &lt; 256</span>
+                    &amp;&amp; result.kid2.op == REOP_FLAT &amp;&amp; (state.flags &amp; JSREG_FOLD) == 0) {
+<span class="nc" id="L496">                result.op = REOP_ALTPREREQ2;</span>
+<span class="nc" id="L497">                result.chr = result.kid2.chr;</span>
+<span class="nc" id="L498">                result.index = result.kid.index;</span>
+                /* ALTPREREQ2, uch1, uch2, &lt;next&gt;, ...,
+                                            JUMP, &lt;end&gt; ... JUMP, &lt;end&gt; */
+<span class="nc" id="L501">                state.progLength += 13;</span>
+<span class="pc bpc" id="L502" title="6 of 8 branches missed.">            } else if (result.kid.op == REOP_FLAT &amp;&amp; result.kid2.op == REOP_CLASS</span>
+                    &amp;&amp; result.kid2.index &lt; 256 &amp;&amp; (state.flags &amp; JSREG_FOLD) == 0) {
+<span class="nc" id="L504">                result.op = REOP_ALTPREREQ2;</span>
+<span class="nc" id="L505">                result.chr = result.kid.chr;</span>
+<span class="nc" id="L506">                result.index = result.kid2.index;</span>
+                /* ALTPREREQ2, uch1, uch2, &lt;next&gt;, ...,
+                                            JUMP, &lt;end&gt; ... JUMP, &lt;end&gt; */
+<span class="nc" id="L509">                state.progLength += 13;</span>
+            } else {
+                /* ALT, &lt;next&gt;, ..., JUMP, &lt;end&gt; ... JUMP, &lt;end&gt; */
+<span class="fc" id="L512">                state.progLength += 9;</span>
+            }
+        }
+<span class="fc" id="L515">        return true;</span>
+    }
+
+/*
+ *  altern:     item                    An alternative is one or more items,
+ *              item altern             concatenated together.
+ */
+    private static boolean parseAlternative(CompilerState state)
+    {
+<span class="fc" id="L524">        RENode headTerm = null;</span>
+<span class="fc" id="L525">        RENode tailTerm = null;</span>
+<span class="fc" id="L526">        char[] source = state.cpbegin;</span>
+        while (true) {
+<span class="fc bfc" id="L528" title="All 8 branches covered.">            if (state.cp == state.cpend || source[state.cp] == '|'</span>
+                || (state.parenNesting != 0 &amp;&amp; source[state.cp] == ')'))
+            {
+<span class="fc bfc" id="L531" title="All 2 branches covered.">                if (headTerm == null) {</span>
+<span class="fc" id="L532">                    state.result = new RENode(REOP_EMPTY);</span>
+                }
+                else
+<span class="fc" id="L535">                    state.result = headTerm;</span>
+<span class="fc" id="L536">                return true;</span>
+            }
+<span class="pc bpc" id="L538" title="1 of 2 branches missed.">            if (!parseTerm(state))</span>
+<span class="nc" id="L539">                return false;</span>
+<span class="fc bfc" id="L540" title="All 2 branches covered.">            if (headTerm == null) {</span>
+<span class="fc" id="L541">                headTerm = state.result;</span>
+<span class="fc" id="L542">                tailTerm = headTerm;</span>
+            }
+            else
+<span class="fc" id="L545">                tailTerm.next = state.result;</span>
+<span class="fc bfc" id="L546" title="All 2 branches covered.">            while (tailTerm.next != null) tailTerm = tailTerm.next;</span>
+        }
+    }
+
+    /* calculate the total size of the bitmap required for a class expression */
+    private static boolean
+    calculateBitmapSize(CompilerState state, RENode target, char[] src,
+                        int index, int end)
+    {
+<span class="fc" id="L555">        char rangeStart = 0;</span>
+        char c;
+        int n;
+        int nDigits;
+        int i;
+<span class="fc" id="L560">        int max = 0;</span>
+<span class="fc" id="L561">        boolean inRange = false;</span>
+
+<span class="fc" id="L563">        target.bmsize = 0;</span>
+<span class="fc" id="L564">        target.sense = true;</span>
+
+<span class="pc bpc" id="L566" title="1 of 2 branches missed.">        if (index == end)</span>
+<span class="nc" id="L567">            return true;</span>
+
+<span class="fc bfc" id="L569" title="All 2 branches covered.">        if (src[index] == '^') {</span>
+<span class="fc" id="L570">            ++index;</span>
+<span class="fc" id="L571">            target.sense = false;</span>
+        }
+
+<span class="fc bfc" id="L574" title="All 2 branches covered.">        while (index != end) {</span>
+<span class="fc" id="L575">            int localMax = 0;</span>
+<span class="fc" id="L576">            nDigits = 2;</span>
+<span class="fc bfc" id="L577" title="All 2 branches covered.">            switch (src[index]) {</span>
+            case '\\':
+<span class="fc" id="L579">                ++index;</span>
+<span class="fc" id="L580">                c = src[index++];</span>
+<span class="pc bpc" id="L581" title="10 of 13 branches missed.">                switch (c) {</span>
+                case 'b':
+<span class="nc" id="L583">                    localMax = 0x8;</span>
+<span class="nc" id="L584">                    break;</span>
+                case 'f':
+<span class="nc" id="L586">                    localMax = 0xC;</span>
+<span class="nc" id="L587">                    break;</span>
+                case 'n':
+<span class="nc" id="L589">                    localMax = 0xA;</span>
+<span class="nc" id="L590">                    break;</span>
+                case 'r':
+<span class="nc" id="L592">                    localMax = 0xD;</span>
+<span class="nc" id="L593">                    break;</span>
+                case 't':
+<span class="nc" id="L595">                    localMax = 0x9;</span>
+<span class="nc" id="L596">                    break;</span>
+                case 'v':
+<span class="nc" id="L598">                    localMax = 0xB;</span>
+<span class="nc" id="L599">                    break;</span>
+                case 'c':
+<span class="nc bnc" id="L601" title="All 4 branches missed.">                    if ((index &lt; end) &amp;&amp; isControlLetter(src[index]))</span>
+<span class="nc" id="L602">                        localMax = (char)(src[index++] &amp; 0x1F);</span>
+                    else
+<span class="nc" id="L604">                        --index;</span>
+<span class="nc" id="L605">                        localMax = '\\';</span>
+<span class="nc" id="L606">                    break;</span>
+                case 'u':
+<span class="fc" id="L608">                    nDigits += 2;</span>
+                    // fallthru
+                case 'x':
+<span class="fc" id="L611">                    n = 0;</span>
+<span class="pc bpc" id="L612" title="1 of 4 branches missed.">                    for (i = 0; (i &lt; nDigits) &amp;&amp; (index &lt; end); i++) {</span>
+<span class="fc" id="L613">                        c = src[index++];</span>
+<span class="fc" id="L614">                        n = Kit.xDigitToInt(c, n);</span>
+<span class="pc bpc" id="L615" title="1 of 2 branches missed.">                        if (n &lt; 0) {</span>
+                            // Back off to accepting the original
+                            // '\' as a literal
+<span class="nc" id="L618">                            index -= (i + 1);</span>
+<span class="nc" id="L619">                            n = '\\';</span>
+<span class="nc" id="L620">                            break;</span>
+                        }
+                    }
+<span class="fc" id="L623">                    localMax = n;</span>
+<span class="fc" id="L624">                    break;</span>
+                case 'd':
+<span class="nc bnc" id="L626" title="All 2 branches missed.">                    if (inRange) {</span>
+<span class="nc" id="L627">                        reportError(&quot;msg.bad.range&quot;, &quot;&quot;);</span>
+<span class="nc" id="L628">                        return false;</span>
+                    }
+<span class="nc" id="L630">                    localMax = '9';</span>
+<span class="nc" id="L631">                    break;</span>
+                case 'D':
+                case 's':
+                case 'S':
+                case 'w':
+                case 'W':
+<span class="nc bnc" id="L637" title="All 2 branches missed.">                    if (inRange) {</span>
+<span class="nc" id="L638">                        reportError(&quot;msg.bad.range&quot;, &quot;&quot;);</span>
+<span class="nc" id="L639">                        return false;</span>
+                    }
+<span class="nc" id="L641">                    target.bmsize = 65536;</span>
+<span class="nc" id="L642">                    return true;</span>
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                    /*
+                     *  This is a non-ECMA extension - decimal escapes (in this
+                     *  case, octal!) are supposed to be an error inside class
+                     *  ranges, but supported here for backwards compatibility.
+                     *
+                     */
+<span class="nc" id="L657">                    n = (c - '0');</span>
+<span class="nc" id="L658">                    c = src[index];</span>
+<span class="nc bnc" id="L659" title="All 4 branches missed.">                    if ('0' &lt;= c &amp;&amp; c &lt;= '7') {</span>
+<span class="nc" id="L660">                        index++;</span>
+<span class="nc" id="L661">                        n = 8 * n + (c - '0');</span>
+<span class="nc" id="L662">                        c = src[index];</span>
+<span class="nc bnc" id="L663" title="All 4 branches missed.">                        if ('0' &lt;= c &amp;&amp; c &lt;= '7') {</span>
+<span class="nc" id="L664">                            index++;</span>
+<span class="nc" id="L665">                            i = 8 * n + (c - '0');</span>
+<span class="nc bnc" id="L666" title="All 2 branches missed.">                            if (i &lt;= 0377)</span>
+<span class="nc" id="L667">                                n = i;</span>
+                            else
+<span class="nc" id="L669">                                index--;</span>
+                        }
+                    }
+<span class="nc" id="L672">                    localMax = n;</span>
+<span class="nc" id="L673">                    break;</span>
+
+                default:
+<span class="fc" id="L676">                    localMax = c;</span>
+<span class="fc" id="L677">                    break;</span>
+                }
+                break;
+            default:
+<span class="fc" id="L681">                localMax = src[index++];</span>
+                break;
+            }
+<span class="fc bfc" id="L684" title="All 2 branches covered.">            if (inRange) {</span>
+<span class="pc bpc" id="L685" title="1 of 2 branches missed.">                if (rangeStart &gt; localMax) {</span>
+<span class="nc" id="L686">                    reportError(&quot;msg.bad.range&quot;, &quot;&quot;);</span>
+<span class="nc" id="L687">                    return false;</span>
+                }
+<span class="fc" id="L689">                inRange = false;</span>
+            }
+            else {
+<span class="fc bfc" id="L692" title="All 2 branches covered.">                if (index &lt; (end - 1)) {</span>
+<span class="fc bfc" id="L693" title="All 2 branches covered.">                    if (src[index] == '-') {</span>
+<span class="fc" id="L694">                        ++index;</span>
+<span class="fc" id="L695">                        inRange = true;</span>
+<span class="fc" id="L696">                        rangeStart = (char)localMax;</span>
+<span class="fc" id="L697">                        continue;</span>
+                    }
+                }
+            }
+<span class="pc bpc" id="L701" title="1 of 2 branches missed.">            if ((state.flags &amp; JSREG_FOLD) != 0){</span>
+<span class="nc" id="L702">                char cu = upcase((char)localMax);</span>
+<span class="nc" id="L703">                char cd = downcase((char)localMax);</span>
+<span class="nc bnc" id="L704" title="All 2 branches missed.">                localMax = (cu &gt;= cd) ? cu : cd;</span>
+            }
+<span class="fc bfc" id="L706" title="All 2 branches covered.">            if (localMax &gt; max)</span>
+<span class="fc" id="L707">                max = localMax;</span>
+<span class="fc" id="L708">        }</span>
+<span class="fc" id="L709">        target.bmsize = max + 1;</span>
+<span class="fc" id="L710">        return true;</span>
+    }
+
+    /*
+     *  item:       assertion               An item is either an assertion or
+     *              quantatom               a quantified atom.
+     *
+     *  assertion:  '^'                     Assertions match beginning of string
+     *                                      (or line if the class static property
+     *                                      RegExp.multiline is true).
+     *              '$'                     End of string (or line if the class
+     *                                      static property RegExp.multiline is
+     *                                      true).
+     *              '\b'                    Word boundary (between \w and \W).
+     *              '\B'                    Word non-boundary.
+     *
+     *  quantatom:  atom                    An unquantified atom.
+     *              quantatom '{' n ',' m '}'
+     *                                      Atom must occur between n and m times.
+     *              quantatom '{' n ',' '}' Atom must occur at least n times.
+     *              quantatom '{' n '}'     Atom must occur exactly n times.
+     *              quantatom '*'           Zero or more times (same as {0,}).
+     *              quantatom '+'           One or more times (same as {1,}).
+     *              quantatom '?'           Zero or one time (same as {0,1}).
+     *
+     *              any of which can be optionally followed by '?' for ungreedy
+     *
+     *  atom:       '(' regexp ')'          A parenthesized regexp (what matched
+     *                                      can be addressed using a backreference,
+     *                                      see '\' n below).
+     *              '.'                     Matches any char except '\n'.
+     *              '[' classlist ']'       A character class.
+     *              '[' '^' classlist ']'   A negated character class.
+     *              '\f'                    Form Feed.
+     *              '\n'                    Newline (Line Feed).
+     *              '\r'                    Carriage Return.
+     *              '\t'                    Horizontal Tab.
+     *              '\v'                    Vertical Tab.
+     *              '\d'                    A digit (same as [0-9]).
+     *              '\D'                    A non-digit.
+     *              '\w'                    A word character, [0-9a-z_A-Z].
+     *              '\W'                    A non-word character.
+     *              '\s'                    A whitespace character, [ \b\f\n\r\t\v].
+     *              '\S'                    A non-whitespace character.
+     *              '\' n                   A backreference to the nth (n decimal
+     *                                      and positive) parenthesized expression.
+     *              '\' octal               An octal escape sequence (octal must be
+     *                                      two or three digits long, unless it is
+     *                                      0 for the null character).
+     *              '\x' hex                A hex escape (hex must be two digits).
+     *              '\c' ctrl               A control character, ctrl is a letter.
+     *              '\' literalatomchar     Any character except one of the above
+     *                                      that follow '\' in an atom.
+     *              otheratomchar           Any character not first among the other
+     *                                      atom right-hand sides.
+     */
+
+    private static void doFlat(CompilerState state, char c)
+    {
+<span class="fc" id="L769">        state.result = new RENode(REOP_FLAT);</span>
+<span class="fc" id="L770">        state.result.chr = c;</span>
+<span class="fc" id="L771">        state.result.length = 1;</span>
+<span class="fc" id="L772">        state.result.flatIndex = -1;</span>
+<span class="fc" id="L773">        state.progLength += 3;</span>
+<span class="fc" id="L774">    }</span>
+
+    private static int
+    getDecimalValue(char c, CompilerState state, int maxValue,
+                    String overflowMessageId)
+    {
+<span class="nc" id="L780">        boolean overflow = false;</span>
+<span class="nc" id="L781">        int start = state.cp;</span>
+<span class="nc" id="L782">        char[] src = state.cpbegin;</span>
+<span class="nc" id="L783">        int value = c - '0';</span>
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        for (; state.cp != state.cpend; ++state.cp) {</span>
+<span class="nc" id="L785">            c = src[state.cp];</span>
+<span class="nc bnc" id="L786" title="All 2 branches missed.">            if (!isDigit(c)) {</span>
+<span class="nc" id="L787">                break;</span>
+            }
+<span class="nc bnc" id="L789" title="All 2 branches missed.">            if (!overflow) {</span>
+<span class="nc" id="L790">                int v = value * 10 + (c - '0');</span>
+<span class="nc bnc" id="L791" title="All 2 branches missed.">                if (v &lt; maxValue) {</span>
+<span class="nc" id="L792">                    value = v;</span>
+                } else {
+<span class="nc" id="L794">                    overflow = true;</span>
+<span class="nc" id="L795">                    value = maxValue;</span>
+                }
+            }
+        }
+<span class="nc bnc" id="L799" title="All 2 branches missed.">        if (overflow) {</span>
+<span class="nc" id="L800">            reportError(overflowMessageId,</span>
+<span class="nc" id="L801">                        String.valueOf(src, start, state.cp - start));</span>
+        }
+<span class="nc" id="L803">        return value;</span>
+    }
+
+    private static boolean
+    parseTerm(CompilerState state)
+    {
+<span class="fc" id="L809">        char[] src = state.cpbegin;</span>
+<span class="fc" id="L810">        char c = src[state.cp++];</span>
+<span class="fc" id="L811">        int nDigits = 2;</span>
+<span class="fc" id="L812">        int parenBaseCount = state.parenCount;</span>
+        int num;
+        RENode term;
+        int termStart;
+
+<span class="pc bpc" id="L817" title="3 of 9 branches missed.">        switch (c) {</span>
+        /* assertions and atoms */
+        case '^':
+<span class="nc" id="L820">            state.result = new RENode(REOP_BOL);</span>
+<span class="nc" id="L821">            state.progLength++;</span>
+<span class="nc" id="L822">            return true;</span>
+        case '$':
+<span class="fc" id="L824">            state.result = new RENode(REOP_EOL);</span>
+<span class="fc" id="L825">            state.progLength++;</span>
+<span class="fc" id="L826">            return true;</span>
+        case '\\':
+<span class="pc bpc" id="L828" title="1 of 2 branches missed.">            if (state.cp &lt; state.cpend) {</span>
+<span class="fc" id="L829">                c = src[state.cp++];</span>
+<span class="pc bpc" id="L830" title="14 of 19 branches missed.">                switch (c) {</span>
+                /* assertion escapes */
+                case 'b' :
+<span class="nc" id="L833">                    state.result = new RENode(REOP_WBDRY);</span>
+<span class="nc" id="L834">                    state.progLength++;</span>
+<span class="nc" id="L835">                    return true;</span>
+                case 'B':
+<span class="nc" id="L837">                    state.result = new RENode(REOP_WNONBDRY);</span>
+<span class="nc" id="L838">                    state.progLength++;</span>
+<span class="nc" id="L839">                    return true;</span>
+                /* Decimal escape */
+                case '0':
+/*
+ * We're deliberately violating the ECMA 5.1 specification and allow octal
+ * escapes to follow spidermonkey and general 'web reality':
+ * http://wiki.ecmascript.org/doku.php?id=harmony:regexp_match_web_reality
+ * http://wiki.ecmascript.org/doku.php?id=strawman:match_web_reality_spec
+ */
+<span class="nc" id="L848">                    reportWarning(state.cx, &quot;msg.bad.backref&quot;, &quot;&quot;);</span>
+                    /* octal escape */
+<span class="nc" id="L850">                    num = 0;</span>
+                    // follow spidermonkey and allow multiple leading zeros,
+                    // e.g. let /\0000/ match the string &quot;\0&quot;
+<span class="nc bnc" id="L853" title="All 4 branches missed.">                    while (num &lt; 040 &amp;&amp; state.cp &lt; state.cpend) {</span>
+<span class="nc" id="L854">                        c = src[state.cp];</span>
+<span class="nc bnc" id="L855" title="All 4 branches missed.">                        if ((c &gt;= '0') &amp;&amp; (c &lt;= '7')) {</span>
+<span class="nc" id="L856">                            state.cp++;</span>
+<span class="nc" id="L857">                            num = 8 * num + (c - '0');</span>
+                        }
+                        else
+                            break;
+                    }
+<span class="nc" id="L862">                    c = (char)(num);</span>
+<span class="nc" id="L863">                    doFlat(state, c);</span>
+<span class="nc" id="L864">                    break;</span>
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+<span class="nc" id="L874">                    termStart = state.cp - 1;</span>
+<span class="nc" id="L875">                    num = getDecimalValue(c, state, 0xFFFF,</span>
+                                          &quot;msg.overlarge.backref&quot;);
+<span class="nc bnc" id="L877" title="All 2 branches missed.">                    if (num &gt; state.backReferenceLimit)</span>
+<span class="nc" id="L878">                        reportWarning(state.cx, &quot;msg.bad.backref&quot;, &quot;&quot;);</span>
+                    /*
+                     * n &gt; count of parentheses, then treat as octal instead.
+                     * Also see note above concerning 'web reality'
+                     */
+<span class="nc bnc" id="L883" title="All 2 branches missed.">                    if (num &gt; state.backReferenceLimit) {</span>
+<span class="nc" id="L884">                        state.cp = termStart;</span>
+<span class="nc bnc" id="L885" title="All 2 branches missed.">                        if (c &gt;= '8') {</span>
+                            // invalid octal escape, follow spidermonkey and
+                            // treat as \\8 resp. \\9
+<span class="nc" id="L888">                            c = '\\';</span>
+<span class="nc" id="L889">                            doFlat(state, c);</span>
+<span class="nc" id="L890">                            break;</span>
+                        }
+<span class="nc" id="L892">                        state.cp++;</span>
+<span class="nc" id="L893">                        num = c - '0';</span>
+<span class="nc bnc" id="L894" title="All 4 branches missed.">                        while (num &lt; 040 &amp;&amp; state.cp &lt; state.cpend) {</span>
+<span class="nc" id="L895">                            c = src[state.cp];</span>
+<span class="nc bnc" id="L896" title="All 4 branches missed.">                            if ((c &gt;= '0') &amp;&amp; (c &lt;= '7')) {</span>
+<span class="nc" id="L897">                                state.cp++;</span>
+<span class="nc" id="L898">                                num = 8 * num + (c - '0');</span>
+                            }
+                            else
+                                break;
+                        }
+<span class="nc" id="L903">                        c = (char)(num);</span>
+<span class="nc" id="L904">                        doFlat(state, c);</span>
+<span class="nc" id="L905">                        break;</span>
+                    }
+                    /* otherwise, it's a back-reference */
+<span class="nc" id="L908">                    state.result = new RENode(REOP_BACKREF);</span>
+<span class="nc" id="L909">                    state.result.parenIndex = num - 1;</span>
+<span class="nc" id="L910">                    state.progLength += 3;</span>
+<span class="nc bnc" id="L911" title="All 2 branches missed.">                    if (state.maxBackReference &lt; num) {</span>
+<span class="nc" id="L912">                        state.maxBackReference = num;</span>
+                    }
+                    break;
+                /* Control escape */
+                case 'f':
+<span class="nc" id="L917">                    c = 0xC;</span>
+<span class="nc" id="L918">                    doFlat(state, c);</span>
+<span class="nc" id="L919">                    break;</span>
+                case 'n':
+<span class="fc" id="L921">                    c = 0xA;</span>
+<span class="fc" id="L922">                    doFlat(state, c);</span>
+<span class="fc" id="L923">                    break;</span>
+                case 'r':
+<span class="fc" id="L925">                    c = 0xD;</span>
+<span class="fc" id="L926">                    doFlat(state, c);</span>
+<span class="fc" id="L927">                    break;</span>
+                case 't':
+<span class="nc" id="L929">                    c = 0x9;</span>
+<span class="nc" id="L930">                    doFlat(state, c);</span>
+<span class="nc" id="L931">                    break;</span>
+                case 'v':
+<span class="nc" id="L933">                    c = 0xB;</span>
+<span class="nc" id="L934">                    doFlat(state, c);</span>
+<span class="nc" id="L935">                    break;</span>
+                /* Control letter */
+                case 'c':
+<span class="nc bnc" id="L938" title="All 2 branches missed.">                    if ((state.cp &lt; state.cpend) &amp;&amp;</span>
+<span class="nc bnc" id="L939" title="All 2 branches missed.">                                        isControlLetter(src[state.cp]))</span>
+<span class="nc" id="L940">                        c = (char)(src[state.cp++] &amp; 0x1F);</span>
+                    else {
+                        /* back off to accepting the original '\' as a literal */
+<span class="nc" id="L943">                        --state.cp;</span>
+<span class="nc" id="L944">                        c = '\\';</span>
+                    }
+<span class="nc" id="L946">                    doFlat(state, c);</span>
+<span class="nc" id="L947">                    break;</span>
+                /* UnicodeEscapeSequence */
+                case 'u':
+<span class="nc" id="L950">                    nDigits += 2;</span>
+                /* fallthru */ case 'x':  /* HexEscapeSequence */
+                    {
+<span class="nc" id="L953">                        int n = 0;</span>
+                        int i;
+<span class="nc" id="L955">                        for (i = 0; (i &lt; nDigits)</span>
+<span class="nc bnc" id="L956" title="All 4 branches missed.">                                &amp;&amp; (state.cp &lt; state.cpend); i++) {</span>
+<span class="nc" id="L957">                            c = src[state.cp++];</span>
+<span class="nc" id="L958">                            n = Kit.xDigitToInt(c, n);</span>
+<span class="nc bnc" id="L959" title="All 2 branches missed.">                            if (n &lt; 0) {</span>
+                                // Back off to accepting the original
+                                // 'u' or 'x' as a literal
+<span class="nc" id="L962">                                state.cp -= (i + 2);</span>
+<span class="nc" id="L963">                                n = src[state.cp++];</span>
+<span class="nc" id="L964">                                break;</span>
+                            }
+                        }
+<span class="nc" id="L967">                        c = (char)(n);</span>
+                    }
+<span class="nc" id="L969">                    doFlat(state, c);</span>
+<span class="nc" id="L970">                    break;</span>
+                /* Character class escapes */
+                case 'd':
+<span class="nc" id="L973">                    state.result = new RENode(REOP_DIGIT);</span>
+<span class="nc" id="L974">                    state.progLength++;</span>
+<span class="nc" id="L975">                    break;</span>
+                case 'D':
+<span class="nc" id="L977">                    state.result = new RENode(REOP_NONDIGIT);</span>
+<span class="nc" id="L978">                    state.progLength++;</span>
+<span class="nc" id="L979">                    break;</span>
+                case 's':
+<span class="fc" id="L981">                    state.result = new RENode(REOP_SPACE);</span>
+<span class="fc" id="L982">                    state.progLength++;</span>
+<span class="fc" id="L983">                    break;</span>
+                case 'S':
+<span class="nc" id="L985">                    state.result = new RENode(REOP_NONSPACE);</span>
+<span class="nc" id="L986">                    state.progLength++;</span>
+<span class="nc" id="L987">                    break;</span>
+                case 'w':
+<span class="fc" id="L989">                    state.result = new RENode(REOP_ALNUM);</span>
+<span class="fc" id="L990">                    state.progLength++;</span>
+<span class="fc" id="L991">                    break;</span>
+                case 'W':
+<span class="nc" id="L993">                    state.result = new RENode(REOP_NONALNUM);</span>
+<span class="nc" id="L994">                    state.progLength++;</span>
+<span class="nc" id="L995">                    break;</span>
+                /* IdentityEscape */
+                default:
+<span class="fc" id="L998">                    state.result = new RENode(REOP_FLAT);</span>
+<span class="fc" id="L999">                    state.result.chr = c;</span>
+<span class="fc" id="L1000">                    state.result.length = 1;</span>
+<span class="fc" id="L1001">                    state.result.flatIndex = state.cp - 1;</span>
+<span class="fc" id="L1002">                    state.progLength += 3;</span>
+<span class="fc" id="L1003">                    break;</span>
+                }
+                break;
+            }
+            else {
+                /* a trailing '\' is an error */
+<span class="nc" id="L1009">                reportError(&quot;msg.trail.backslash&quot;, &quot;&quot;);</span>
+<span class="nc" id="L1010">                return false;</span>
+            }
+        case '(': {
+<span class="fc" id="L1013">            RENode result = null;</span>
+<span class="fc" id="L1014">            termStart = state.cp;</span>
+<span class="pc bpc" id="L1015" title="8 of 10 branches missed.">            if (state.cp + 1 &lt; state.cpend &amp;&amp; src[state.cp] == '?'</span>
+                &amp;&amp; ((c = src[state.cp + 1]) == '=' || c == '!' || c == ':'))
+            {
+<span class="nc" id="L1018">                state.cp += 2;</span>
+<span class="nc bnc" id="L1019" title="All 2 branches missed.">                if (c == '=') {</span>
+<span class="nc" id="L1020">                    result = new RENode(REOP_ASSERT);</span>
+                    /* ASSERT, &lt;next&gt;, ... ASSERTTEST */
+<span class="nc" id="L1022">                    state.progLength += 4;</span>
+<span class="nc bnc" id="L1023" title="All 2 branches missed.">                } else if (c == '!') {</span>
+<span class="nc" id="L1024">                    result = new RENode(REOP_ASSERT_NOT);</span>
+                    /* ASSERTNOT, &lt;next&gt;, ... ASSERTNOTTEST */
+<span class="nc" id="L1026">                    state.progLength += 4;</span>
+                }
+            } else {
+<span class="fc" id="L1029">                result = new RENode(REOP_LPAREN);</span>
+                /* LPAREN, &lt;index&gt;, ... RPAREN, &lt;index&gt; */
+<span class="fc" id="L1031">                state.progLength += 6;</span>
+<span class="fc" id="L1032">                result.parenIndex = state.parenCount++;</span>
+            }
+<span class="fc" id="L1034">            ++state.parenNesting;</span>
+<span class="pc bpc" id="L1035" title="1 of 2 branches missed.">            if (!parseDisjunction(state))</span>
+<span class="nc" id="L1036">                return false;</span>
+<span class="pc bpc" id="L1037" title="2 of 4 branches missed.">            if (state.cp == state.cpend || src[state.cp] != ')') {</span>
+<span class="nc" id="L1038">                reportError(&quot;msg.unterm.paren&quot;, &quot;&quot;);</span>
+<span class="nc" id="L1039">                return false;</span>
+            }
+<span class="fc" id="L1041">            ++state.cp;</span>
+<span class="fc" id="L1042">            --state.parenNesting;</span>
+<span class="pc bpc" id="L1043" title="1 of 2 branches missed.">            if (result != null) {</span>
+<span class="fc" id="L1044">                result.kid = state.result;</span>
+<span class="fc" id="L1045">                state.result = result;</span>
+            }
+            break;
+        }
+        case ')':
+<span class="nc" id="L1050">          reportError(&quot;msg.re.unmatched.right.paren&quot;, &quot;&quot;);</span>
+<span class="nc" id="L1051">          return false;</span>
+        case '[':
+<span class="fc" id="L1053">            state.result = new RENode(REOP_CLASS);</span>
+<span class="fc" id="L1054">            termStart = state.cp;</span>
+<span class="fc" id="L1055">            state.result.startIndex = termStart;</span>
+            while (true) {
+<span class="pc bpc" id="L1057" title="1 of 2 branches missed.">                if (state.cp == state.cpend) {</span>
+<span class="nc" id="L1058">                    reportError(&quot;msg.unterm.class&quot;, &quot;&quot;);</span>
+<span class="nc" id="L1059">                    return false;</span>
+                }
+<span class="fc bfc" id="L1061" title="All 2 branches covered.">                if (src[state.cp] == '\\')</span>
+<span class="fc" id="L1062">                    state.cp++;</span>
+                else {
+<span class="fc bfc" id="L1064" title="All 2 branches covered.">                    if (src[state.cp] == ']') {</span>
+<span class="fc" id="L1065">                        state.result.kidlen = state.cp - termStart;</span>
+<span class="fc" id="L1066">                        break;</span>
+                    }
+                }
+<span class="fc" id="L1069">                state.cp++;</span>
+            }
+<span class="fc" id="L1071">            state.result.index = state.classCount++;</span>
+            /*
+             * Call calculateBitmapSize now as we want any errors it finds
+             * to be reported during the parse phase, not at execution.
+             */
+<span class="pc bpc" id="L1076" title="1 of 2 branches missed.">            if (!calculateBitmapSize(state, state.result, src, termStart, state.cp++))</span>
+<span class="nc" id="L1077">                return false;</span>
+<span class="fc" id="L1078">            state.progLength += 3; /* CLASS, &lt;index&gt; */</span>
+<span class="fc" id="L1079">            break;</span>
+
+        case '.':
+<span class="fc" id="L1082">            state.result = new RENode(REOP_DOT);</span>
+<span class="fc" id="L1083">            state.progLength++;</span>
+<span class="fc" id="L1084">            break;</span>
+        case '*':
+        case '+':
+        case '?':
+<span class="nc" id="L1088">            reportError(&quot;msg.bad.quant&quot;, String.valueOf(src[state.cp - 1]));</span>
+<span class="nc" id="L1089">            return false;</span>
+        default:
+<span class="fc" id="L1091">            state.result = new RENode(REOP_FLAT);</span>
+<span class="fc" id="L1092">            state.result.chr = c;</span>
+<span class="fc" id="L1093">            state.result.length = 1;</span>
+<span class="fc" id="L1094">            state.result.flatIndex = state.cp - 1;</span>
+<span class="fc" id="L1095">            state.progLength += 3;</span>
+            break;
+        }
+
+<span class="fc" id="L1099">        term = state.result;</span>
+<span class="fc bfc" id="L1100" title="All 2 branches covered.">        if (state.cp == state.cpend) {</span>
+<span class="fc" id="L1101">            return true;</span>
+        }
+<span class="fc" id="L1103">        boolean hasQ = false;</span>
+<span class="pc bpc" id="L1104" title="1 of 5 branches missed.">        switch (src[state.cp]) {</span>
+            case '+':
+<span class="fc" id="L1106">                state.result = new RENode(REOP_QUANT);</span>
+<span class="fc" id="L1107">                state.result.min = 1;</span>
+<span class="fc" id="L1108">                state.result.max = -1;</span>
+                /* &lt;PLUS&gt;, &lt;parencount&gt;, &lt;parenindex&gt;, &lt;next&gt; ... &lt;ENDCHILD&gt; */
+<span class="fc" id="L1110">                state.progLength += 8;</span>
+<span class="fc" id="L1111">                hasQ = true;</span>
+<span class="fc" id="L1112">                break;</span>
+            case '*':
+<span class="fc" id="L1114">                state.result = new RENode(REOP_QUANT);</span>
+<span class="fc" id="L1115">                state.result.min = 0;</span>
+<span class="fc" id="L1116">                state.result.max = -1;</span>
+                /* &lt;STAR&gt;, &lt;parencount&gt;, &lt;parenindex&gt;, &lt;next&gt; ... &lt;ENDCHILD&gt; */
+<span class="fc" id="L1118">                state.progLength += 8;</span>
+<span class="fc" id="L1119">                hasQ = true;</span>
+<span class="fc" id="L1120">                break;</span>
+            case '?':
+<span class="fc" id="L1122">                state.result = new RENode(REOP_QUANT);</span>
+<span class="fc" id="L1123">                state.result.min = 0;</span>
+<span class="fc" id="L1124">                state.result.max = 1;</span>
+                /* &lt;OPT&gt;, &lt;parencount&gt;, &lt;parenindex&gt;, &lt;next&gt; ... &lt;ENDCHILD&gt; */
+<span class="fc" id="L1126">                state.progLength += 8;</span>
+<span class="fc" id="L1127">                hasQ = true;</span>
+<span class="fc" id="L1128">                break;</span>
+            case '{':  /* balance '}' */
+            {
+<span class="nc" id="L1131">                int min = 0;</span>
+<span class="nc" id="L1132">                int max = -1;</span>
+<span class="nc" id="L1133">                int leftCurl = state.cp;</span>
+
+               /* For Perl etc. compatibility, if quntifier does not match
+                * \{\d+(,\d*)?\} exactly back off from it
+                * being a quantifier, and chew it up as a literal
+                * atom next time instead.
+                */
+
+<span class="nc bnc" id="L1141" title="All 4 branches missed.">                if (++state.cp &lt; src.length &amp;&amp; isDigit(c = src[state.cp])) {</span>
+<span class="nc" id="L1142">                    ++state.cp;</span>
+<span class="nc" id="L1143">                    min = getDecimalValue(c, state, 0xFFFF,</span>
+                                          &quot;msg.overlarge.min&quot;);
+<span class="nc bnc" id="L1145" title="All 2 branches missed.">                    if (state.cp &lt; src.length) {</span>
+<span class="nc" id="L1146">                        c = src[state.cp];</span>
+<span class="nc bnc" id="L1147" title="All 4 branches missed.">                        if (c == ',' &amp;&amp; ++state.cp &lt; src.length) {</span>
+<span class="nc" id="L1148">                            c = src[state.cp];</span>
+<span class="nc bnc" id="L1149" title="All 4 branches missed.">                            if (isDigit(c) &amp;&amp; ++state.cp &lt; src.length) {</span>
+<span class="nc" id="L1150">                                max = getDecimalValue(c, state, 0xFFFF,</span>
+                                                      &quot;msg.overlarge.max&quot;);
+<span class="nc" id="L1152">                                c = src[state.cp];</span>
+<span class="nc bnc" id="L1153" title="All 2 branches missed.">                                if (min &gt; max) {</span>
+<span class="nc" id="L1154">                                    reportError(&quot;msg.max.lt.min&quot;,</span>
+<span class="nc" id="L1155">                                                String.valueOf(src[state.cp]));</span>
+<span class="nc" id="L1156">                                    return false;</span>
+                                }
+                            }
+                        } else {
+<span class="nc" id="L1160">                            max = min;</span>
+                        }
+                        /* balance '{' */
+<span class="nc bnc" id="L1163" title="All 2 branches missed.">                        if (c == '}') {</span>
+<span class="nc" id="L1164">                            state.result = new RENode(REOP_QUANT);</span>
+<span class="nc" id="L1165">                            state.result.min = min;</span>
+<span class="nc" id="L1166">                            state.result.max = max;</span>
+                            // QUANT, &lt;min&gt;, &lt;max&gt;, &lt;parencount&gt;,
+                            // &lt;parenindex&gt;, &lt;next&gt; ... &lt;ENDCHILD&gt;
+<span class="nc" id="L1169">                            state.progLength += 12;</span>
+<span class="nc" id="L1170">                            hasQ = true;</span>
+                        }
+                    }
+                }
+<span class="nc bnc" id="L1174" title="All 2 branches missed.">                if (!hasQ) {</span>
+<span class="nc" id="L1175">                    state.cp = leftCurl;</span>
+                }
+                break;
+            }
+        }
+<span class="fc bfc" id="L1180" title="All 2 branches covered.">        if (!hasQ)</span>
+<span class="fc" id="L1181">            return true;</span>
+
+<span class="fc" id="L1183">        ++state.cp;</span>
+<span class="fc" id="L1184">        state.result.kid = term;</span>
+<span class="fc" id="L1185">        state.result.parenIndex = parenBaseCount;</span>
+<span class="fc" id="L1186">        state.result.parenCount = state.parenCount - parenBaseCount;</span>
+<span class="pc bpc" id="L1187" title="1 of 4 branches missed.">        if ((state.cp &lt; state.cpend) &amp;&amp; (src[state.cp] == '?')) {</span>
+<span class="nc" id="L1188">            ++state.cp;</span>
+<span class="nc" id="L1189">            state.result.greedy = false;</span>
+        }
+        else
+<span class="fc" id="L1192">            state.result.greedy = true;</span>
+<span class="fc" id="L1193">        return true;</span>
+    }
+
+    private static void resolveForwardJump(byte[] array, int from, int pc)
+    {
+<span class="pc bpc" id="L1198" title="1 of 2 branches missed.">        if (from &gt; pc) throw Kit.codeBug();</span>
+<span class="fc" id="L1199">        addIndex(array, from, pc - from);</span>
+<span class="fc" id="L1200">    }</span>
+
+    private static int getOffset(byte[] array, int pc)
+    {
+<span class="fc" id="L1204">        return getIndex(array, pc);</span>
+    }
+
+    private static int addIndex(byte[] array, int pc, int index)
+    {
+<span class="pc bpc" id="L1209" title="1 of 2 branches missed.">        if (index &lt; 0) throw Kit.codeBug();</span>
+<span class="pc bpc" id="L1210" title="1 of 2 branches missed.">        if (index &gt; 0xFFFF)</span>
+<span class="nc" id="L1211">            throw Context.reportRuntimeError(&quot;Too complex regexp&quot;);</span>
+<span class="fc" id="L1212">        array[pc] = (byte)(index &gt;&gt; 8);</span>
+<span class="fc" id="L1213">        array[pc + 1] = (byte)(index);</span>
+<span class="fc" id="L1214">        return pc + 2;</span>
+    }
+
+    private static int getIndex(byte[] array, int pc)
+    {
+<span class="fc" id="L1219">        return ((array[pc] &amp; 0xFF) &lt;&lt; 8) | (array[pc + 1] &amp; 0xFF);</span>
+    }
+
+    private static final int INDEX_LEN  = 2;
+
+    private static int
+    emitREBytecode(CompilerState state, RECompiled re, int pc, RENode t)
+    {
+        RENode nextAlt;
+        int nextAltFixup, nextTermFixup;
+<span class="fc" id="L1229">        byte[] program = re.program;</span>
+
+<span class="fc bfc" id="L1231" title="All 2 branches covered.">        while (t != null) {</span>
+<span class="fc" id="L1232">            program[pc++] = t.op;</span>
+<span class="pc bpc" id="L1233" title="3 of 11 branches missed.">            switch (t.op) {</span>
+            case REOP_EMPTY:
+<span class="fc" id="L1235">                --pc;</span>
+<span class="fc" id="L1236">                break;</span>
+            case REOP_ALTPREREQ:
+            case REOP_ALTPREREQi:
+            case REOP_ALTPREREQ2:
+<span class="pc bpc" id="L1240" title="1 of 2 branches missed.">                boolean ignoreCase = t.op == REOP_ALTPREREQi;</span>
+<span class="pc bpc" id="L1241" title="1 of 2 branches missed.">                addIndex(program, pc, ignoreCase ? upcase(t.chr) : t.chr);</span>
+<span class="fc" id="L1242">                pc += INDEX_LEN;</span>
+<span class="pc bpc" id="L1243" title="1 of 2 branches missed.">                addIndex(program, pc, ignoreCase ? upcase((char)t.index) : t.index);</span>
+<span class="fc" id="L1244">                pc += INDEX_LEN;</span>
+                // fall through to REOP_ALT
+            case REOP_ALT:
+<span class="fc" id="L1247">                nextAlt = t.kid2;</span>
+<span class="fc" id="L1248">                nextAltFixup = pc;    /* address of next alternate */</span>
+<span class="fc" id="L1249">                pc += INDEX_LEN;</span>
+<span class="fc" id="L1250">                pc = emitREBytecode(state, re, pc, t.kid);</span>
+<span class="fc" id="L1251">                program[pc++] = REOP_JUMP;</span>
+<span class="fc" id="L1252">                nextTermFixup = pc;    /* address of following term */</span>
+<span class="fc" id="L1253">                pc += INDEX_LEN;</span>
+<span class="fc" id="L1254">                resolveForwardJump(program, nextAltFixup, pc);</span>
+<span class="fc" id="L1255">                pc = emitREBytecode(state, re, pc, nextAlt);</span>
+
+<span class="fc" id="L1257">                program[pc++] = REOP_JUMP;</span>
+<span class="fc" id="L1258">                nextAltFixup = pc;</span>
+<span class="fc" id="L1259">                pc += INDEX_LEN;</span>
+
+<span class="fc" id="L1261">                resolveForwardJump(program, nextTermFixup, pc);</span>
+<span class="fc" id="L1262">                resolveForwardJump(program, nextAltFixup, pc);</span>
+<span class="fc" id="L1263">                break;</span>
+            case REOP_FLAT:
+                /*
+                 * Consecutize FLAT's if possible.
+                 */
+<span class="fc bfc" id="L1268" title="All 2 branches covered.">                if (t.flatIndex != -1) {</span>
+<span class="fc bfc" id="L1269" title="All 6 branches covered.">                    while ((t.next != null) &amp;&amp; (t.next.op == REOP_FLAT)</span>
+                            &amp;&amp; ((t.flatIndex + t.length)
+                                            == t.next.flatIndex)) {
+<span class="fc" id="L1272">                        t.length += t.next.length;</span>
+<span class="fc" id="L1273">                        t.next = t.next.next;</span>
+                    }
+                }
+<span class="fc bfc" id="L1276" title="All 4 branches covered.">                if ((t.flatIndex != -1) &amp;&amp; (t.length &gt; 1)) {</span>
+<span class="pc bpc" id="L1277" title="1 of 2 branches missed.">                    if ((state.flags &amp; JSREG_FOLD) != 0)</span>
+<span class="nc" id="L1278">                        program[pc - 1] = REOP_FLATi;</span>
+                    else
+<span class="fc" id="L1280">                        program[pc - 1] = REOP_FLAT;</span>
+<span class="fc" id="L1281">                    pc = addIndex(program, pc, t.flatIndex);</span>
+<span class="fc" id="L1282">                    pc = addIndex(program, pc, t.length);</span>
+                }
+                else {
+<span class="pc bpc" id="L1285" title="1 of 2 branches missed.">                    if (t.chr &lt; 256) {</span>
+<span class="pc bpc" id="L1286" title="1 of 2 branches missed.">                        if ((state.flags &amp; JSREG_FOLD) != 0)</span>
+<span class="nc" id="L1287">                            program[pc - 1] = REOP_FLAT1i;</span>
+                        else
+<span class="fc" id="L1289">                            program[pc - 1] = REOP_FLAT1;</span>
+<span class="fc" id="L1290">                        program[pc++] = (byte)(t.chr);</span>
+                    }
+                    else {
+<span class="nc bnc" id="L1293" title="All 2 branches missed.">                        if ((state.flags &amp; JSREG_FOLD) != 0)</span>
+<span class="nc" id="L1294">                            program[pc - 1] = REOP_UCFLAT1i;</span>
+                        else
+<span class="nc" id="L1296">                            program[pc - 1] = REOP_UCFLAT1;</span>
+<span class="nc" id="L1297">                        pc = addIndex(program, pc, t.chr);</span>
+                    }
+                }
+<span class="nc" id="L1300">                break;</span>
+            case REOP_LPAREN:
+<span class="fc" id="L1302">                pc = addIndex(program, pc, t.parenIndex);</span>
+<span class="fc" id="L1303">                pc = emitREBytecode(state, re, pc, t.kid);</span>
+<span class="fc" id="L1304">                program[pc++] = REOP_RPAREN;</span>
+<span class="fc" id="L1305">                pc = addIndex(program, pc, t.parenIndex);</span>
+<span class="fc" id="L1306">                break;</span>
+            case REOP_BACKREF:
+<span class="nc" id="L1308">                pc = addIndex(program, pc, t.parenIndex);</span>
+<span class="nc" id="L1309">                break;</span>
+            case REOP_ASSERT:
+<span class="nc" id="L1311">                nextTermFixup = pc;</span>
+<span class="nc" id="L1312">                pc += INDEX_LEN;</span>
+<span class="nc" id="L1313">                pc = emitREBytecode(state, re, pc, t.kid);</span>
+<span class="nc" id="L1314">                program[pc++] = REOP_ASSERTTEST;</span>
+<span class="nc" id="L1315">                resolveForwardJump(program, nextTermFixup, pc);</span>
+<span class="nc" id="L1316">                break;</span>
+            case REOP_ASSERT_NOT:
+<span class="nc" id="L1318">                nextTermFixup = pc;</span>
+<span class="nc" id="L1319">                pc += INDEX_LEN;</span>
+<span class="nc" id="L1320">                pc = emitREBytecode(state, re, pc, t.kid);</span>
+<span class="nc" id="L1321">                program[pc++] = REOP_ASSERTNOTTEST;</span>
+<span class="nc" id="L1322">                resolveForwardJump(program, nextTermFixup, pc);</span>
+<span class="nc" id="L1323">                break;</span>
+            case REOP_QUANT:
+<span class="fc bfc" id="L1325" title="All 4 branches covered.">                if ((t.min == 0) &amp;&amp; (t.max == -1))</span>
+<span class="pc bpc" id="L1326" title="1 of 2 branches missed.">                    program[pc - 1] = (t.greedy) ? REOP_STAR : REOP_MINIMALSTAR;</span>
+                else
+<span class="pc bpc" id="L1328" title="1 of 4 branches missed.">                if ((t.min == 0) &amp;&amp; (t.max == 1))</span>
+<span class="pc bpc" id="L1329" title="1 of 2 branches missed.">                    program[pc - 1] = (t.greedy) ? REOP_OPT : REOP_MINIMALOPT;</span>
+                else
+<span class="pc bpc" id="L1331" title="2 of 4 branches missed.">                if ((t.min == 1) &amp;&amp; (t.max == -1))</span>
+<span class="pc bpc" id="L1332" title="1 of 2 branches missed.">                    program[pc - 1] = (t.greedy) ? REOP_PLUS : REOP_MINIMALPLUS;</span>
+                else {
+<span class="nc bnc" id="L1334" title="All 2 branches missed.">                    if (!t.greedy) program[pc - 1] = REOP_MINIMALQUANT;</span>
+<span class="nc" id="L1335">                    pc = addIndex(program, pc, t.min);</span>
+                    // max can be -1 which addIndex does not accept
+<span class="nc" id="L1337">                    pc = addIndex(program, pc, t.max + 1);</span>
+                }
+<span class="fc" id="L1339">                pc = addIndex(program, pc, t.parenCount);</span>
+<span class="fc" id="L1340">                pc = addIndex(program, pc, t.parenIndex);</span>
+<span class="fc" id="L1341">                nextTermFixup = pc;</span>
+<span class="fc" id="L1342">                pc += INDEX_LEN;</span>
+<span class="fc" id="L1343">                pc = emitREBytecode(state, re, pc, t.kid);</span>
+<span class="fc" id="L1344">                program[pc++] = REOP_ENDCHILD;</span>
+<span class="fc" id="L1345">                resolveForwardJump(program, nextTermFixup, pc);</span>
+<span class="fc" id="L1346">                break;</span>
+            case REOP_CLASS:
+<span class="fc bfc" id="L1348" title="All 2 branches covered.">                if (!t.sense)</span>
+<span class="fc" id="L1349">                    program[pc - 1] = REOP_NCLASS;</span>
+<span class="fc" id="L1350">                pc = addIndex(program, pc, t.index);</span>
+<span class="fc" id="L1351">                re.classList[t.index] = new RECharSet(t.bmsize, t.startIndex,</span>
+                                                      t.kidlen, t.sense);
+<span class="fc" id="L1353">                break;</span>
+            default:
+                break;
+            }
+<span class="fc" id="L1357">            t = t.next;</span>
+        }
+<span class="fc" id="L1359">        return pc;</span>
+    }
+
+    private static void
+    pushProgState(REGlobalData gData, int min, int max, int cp,
+                  REBackTrackData backTrackLastToSave,
+                  int continuationOp, int continuationPc)
+    {
+<span class="fc" id="L1367">        gData.stateStackTop = new REProgState(gData.stateStackTop, min, max,</span>
+                                              cp, backTrackLastToSave,
+                                              continuationOp, continuationPc);
+<span class="fc" id="L1370">    }</span>
+
+    private static REProgState
+    popProgState(REGlobalData gData)
+    {
+<span class="fc" id="L1375">        REProgState state = gData.stateStackTop;</span>
+<span class="fc" id="L1376">        gData.stateStackTop = state.previous;</span>
+<span class="fc" id="L1377">        return state;</span>
+    }
+
+    private static void
+    pushBackTrackState(REGlobalData gData, byte op, int pc)
+    {
+<span class="fc" id="L1383">        REProgState state = gData.stateStackTop;</span>
+<span class="fc" id="L1384">        gData.backTrackStackTop = new REBackTrackData(gData, op, pc,</span>
+                gData.cp, state.continuationOp, state.continuationPc);
+<span class="fc" id="L1386">    }</span>
+
+    private static void
+    pushBackTrackState(REGlobalData gData, byte op, int pc,
+                       int cp, int continuationOp, int continuationPc)
+    {
+<span class="fc" id="L1392">        gData.backTrackStackTop = new REBackTrackData(gData, op, pc,</span>
+                cp, continuationOp, continuationPc);
+<span class="fc" id="L1394">    }</span>
+
+    /*
+     *   Consecutive literal characters.
+     */
+    private static boolean
+    flatNMatcher(REGlobalData gData, int matchChars,
+                 int length, String input, int end)
+    {
+<span class="fc bfc" id="L1403" title="All 2 branches covered.">        if ((gData.cp + length) &gt; end)</span>
+<span class="fc" id="L1404">            return false;</span>
+<span class="fc bfc" id="L1405" title="All 2 branches covered.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="fc bfc" id="L1406" title="All 2 branches covered.">            if (gData.regexp.source[matchChars + i] != input.charAt(gData.cp + i)) {</span>
+<span class="fc" id="L1407">                return false;</span>
+            }
+        }
+<span class="fc" id="L1410">        gData.cp += length;</span>
+<span class="fc" id="L1411">        return true;</span>
+    }
+
+    private static boolean
+    flatNIMatcher(REGlobalData gData, int matchChars,
+                  int length, String input, int end)
+    {
+<span class="nc bnc" id="L1418" title="All 2 branches missed.">        if ((gData.cp + length) &gt; end)</span>
+<span class="nc" id="L1419">            return false;</span>
+<span class="nc" id="L1420">        char[] source = gData.regexp.source;</span>
+<span class="nc bnc" id="L1421" title="All 2 branches missed.">        for (int i = 0; i &lt; length; i++) {</span>
+<span class="nc" id="L1422">            char c1 = source[matchChars + i];</span>
+<span class="nc" id="L1423">            char c2 = input.charAt(gData.cp + i);</span>
+<span class="nc bnc" id="L1424" title="All 4 branches missed.">            if (c1 != c2 &amp;&amp; upcase(c1) != upcase(c2)) {</span>
+<span class="nc" id="L1425">                return false;</span>
+            }
+        }
+<span class="nc" id="L1428">        gData.cp += length;</span>
+<span class="nc" id="L1429">        return true;</span>
+    }
+
+    /*
+    1. Evaluate DecimalEscape to obtain an EscapeValue E.
+    2. If E is not a character then go to step 6.
+    3. Let ch be E's character.
+    4. Let A be a one-element RECharSet containing the character ch.
+    5. Call CharacterSetMatcher(A, false) and return its Matcher result.
+    6. E must be an integer. Let n be that integer.
+    7. If n=0 or n&gt;NCapturingParens then throw a SyntaxError exception.
+    8. Return an internal Matcher closure that takes two arguments, a State x
+       and a Continuation c, and performs the following:
+        1. Let cap be x's captures internal array.
+        2. Let s be cap[n].
+        3. If s is undefined, then call c(x) and return its result.
+        4. Let e be x's endIndex.
+        5. Let len be s's length.
+        6. Let f be e+len.
+        7. If f&gt;InputLength, return failure.
+        8. If there exists an integer i between 0 (inclusive) and len (exclusive)
+           such that Canonicalize(s[i]) is not the same character as
+           Canonicalize(Input [e+i]), then return failure.
+        9. Let y be the State (f, cap).
+        10. Call c(y) and return its result.
+    */
+    private static boolean
+    backrefMatcher(REGlobalData gData, int parenIndex,
+                   String input, int end)
+    {
+        int len;
+        int i;
+<span class="nc bnc" id="L1461" title="All 4 branches missed.">        if (gData.parens == null || parenIndex &gt;= gData.parens.length)</span>
+<span class="nc" id="L1462">            return false;</span>
+<span class="nc" id="L1463">        int parenContent = gData.parensIndex(parenIndex);</span>
+<span class="nc bnc" id="L1464" title="All 2 branches missed.">        if (parenContent == -1)</span>
+<span class="nc" id="L1465">            return true;</span>
+
+<span class="nc" id="L1467">        len = gData.parensLength(parenIndex);</span>
+<span class="nc bnc" id="L1468" title="All 2 branches missed.">        if ((gData.cp + len) &gt; end)</span>
+<span class="nc" id="L1469">            return false;</span>
+
+<span class="nc bnc" id="L1471" title="All 2 branches missed.">        if ((gData.regexp.flags &amp; JSREG_FOLD) != 0) {</span>
+<span class="nc bnc" id="L1472" title="All 2 branches missed.">            for (i = 0; i &lt; len; i++) {</span>
+<span class="nc" id="L1473">                char c1 = input.charAt(parenContent + i);</span>
+<span class="nc" id="L1474">                char c2 = input.charAt(gData.cp + i);</span>
+<span class="nc bnc" id="L1475" title="All 4 branches missed.">                if (c1 != c2 &amp;&amp; upcase(c1) != upcase(c2))</span>
+<span class="nc" id="L1476">                    return false;</span>
+            }
+        }
+<span class="nc bnc" id="L1479" title="All 2 branches missed.">        else if (!input.regionMatches(parenContent, input, gData.cp, len)) {</span>
+<span class="nc" id="L1480">            return false;</span>
+        }
+<span class="nc" id="L1482">        gData.cp += len;</span>
+<span class="nc" id="L1483">        return true;</span>
+    }
+
+
+    /* Add a single character to the RECharSet */
+    private static void
+    addCharacterToCharSet(RECharSet cs, char c)
+    {
+<span class="fc" id="L1491">        int byteIndex = (c / 8);</span>
+<span class="pc bpc" id="L1492" title="1 of 2 branches missed.">        if (c &gt;= cs.length) {</span>
+<span class="nc" id="L1493">            throw ScriptRuntime.constructError(&quot;SyntaxError&quot;,</span>
+                    &quot;invalid range in character class&quot;);
+        }
+<span class="fc" id="L1496">        cs.bits[byteIndex] |= 1 &lt;&lt; (c &amp; 0x7);</span>
+<span class="fc" id="L1497">    }</span>
+
+
+    /* Add a character range, c1 to c2 (inclusive) to the RECharSet */
+    private static void
+    addCharacterRangeToCharSet(RECharSet cs, char c1, char c2)
+    {
+        int i;
+
+<span class="fc" id="L1506">        int byteIndex1 = (c1 / 8);</span>
+<span class="fc" id="L1507">        int byteIndex2 = (c2 / 8);</span>
+
+<span class="pc bpc" id="L1509" title="2 of 4 branches missed.">        if ((c2 &gt;= cs.length) || (c1 &gt; c2)) {</span>
+<span class="nc" id="L1510">            throw ScriptRuntime.constructError(&quot;SyntaxError&quot;,</span>
+                    &quot;invalid range in character class&quot;);
+        }
+
+<span class="fc" id="L1514">        c1 &amp;= 0x7;</span>
+<span class="fc" id="L1515">        c2 &amp;= 0x7;</span>
+
+<span class="pc bpc" id="L1517" title="1 of 2 branches missed.">        if (byteIndex1 == byteIndex2) {</span>
+<span class="nc" id="L1518">            cs.bits[byteIndex1] |= ((0xFF) &gt;&gt; (7 - (c2 - c1))) &lt;&lt; c1;</span>
+        }
+        else {
+<span class="fc" id="L1521">            cs.bits[byteIndex1] |= 0xFF &lt;&lt; c1;</span>
+<span class="fc bfc" id="L1522" title="All 2 branches covered.">            for (i = byteIndex1 + 1; i &lt; byteIndex2; i++)</span>
+<span class="fc" id="L1523">                cs.bits[i] = (byte)0xFF;</span>
+<span class="fc" id="L1524">            cs.bits[byteIndex2] |= (0xFF) &gt;&gt; (7 - c2);</span>
+        }
+<span class="fc" id="L1526">    }</span>
+
+    /* Compile the source of the class into a RECharSet */
+    private static void
+    processCharSet(REGlobalData gData, RECharSet charSet)
+    {
+<span class="fc" id="L1532">        synchronized (charSet) {</span>
+<span class="pc bpc" id="L1533" title="1 of 2 branches missed.">            if (!charSet.converted) {</span>
+<span class="fc" id="L1534">                processCharSetImpl(gData, charSet);</span>
+<span class="fc" id="L1535">                charSet.converted = true;</span>
+            }
+<span class="pc" id="L1537">        }</span>
+<span class="fc" id="L1538">    }</span>
+
+
+    private static void
+    processCharSetImpl(REGlobalData gData, RECharSet charSet)
+    {
+<span class="fc" id="L1544">        int src = charSet.startIndex;</span>
+<span class="fc" id="L1545">        int end = src + charSet.strlength;</span>
+
+<span class="fc" id="L1547">        char rangeStart = 0, thisCh;</span>
+        int byteLength;
+        char c;
+        int n;
+        int nDigits;
+        int i;
+<span class="fc" id="L1553">        boolean inRange = false;</span>
+
+<span class="fc" id="L1555">        byteLength = (charSet.length + 7) / 8;</span>
+<span class="fc" id="L1556">        charSet.bits = new byte[byteLength];</span>
+
+<span class="pc bpc" id="L1558" title="1 of 2 branches missed.">        if (src == end)</span>
+<span class="nc" id="L1559">            return;</span>
+
+<span class="fc bfc" id="L1561" title="All 2 branches covered.">        if (gData.regexp.source[src] == '^') {</span>
+<span class="pc bpc" id="L1562" title="2 of 4 branches missed.">            assert (!charSet.sense);</span>
+<span class="fc" id="L1563">            ++src;</span>
+        } else {
+<span class="pc bpc" id="L1565" title="2 of 4 branches missed.">            assert (charSet.sense);</span>
+        }
+
+<span class="fc bfc" id="L1568" title="All 2 branches covered.">        while (src != end) {</span>
+<span class="fc" id="L1569">            nDigits = 2;</span>
+<span class="fc bfc" id="L1570" title="All 2 branches covered.">            switch (gData.regexp.source[src]) {</span>
+            case '\\':
+<span class="fc" id="L1572">                ++src;</span>
+<span class="fc" id="L1573">                c = gData.regexp.source[src++];</span>
+<span class="pc bpc" id="L1574" title="16 of 17 branches missed.">                switch (c) {</span>
+                case 'b':
+<span class="nc" id="L1576">                    thisCh = 0x8;</span>
+<span class="nc" id="L1577">                    break;</span>
+                case 'f':
+<span class="nc" id="L1579">                    thisCh = 0xC;</span>
+<span class="nc" id="L1580">                    break;</span>
+                case 'n':
+<span class="nc" id="L1582">                    thisCh = 0xA;</span>
+<span class="nc" id="L1583">                    break;</span>
+                case 'r':
+<span class="nc" id="L1585">                    thisCh = 0xD;</span>
+<span class="nc" id="L1586">                    break;</span>
+                case 't':
+<span class="nc" id="L1588">                    thisCh = 0x9;</span>
+<span class="nc" id="L1589">                    break;</span>
+                case 'v':
+<span class="nc" id="L1591">                    thisCh = 0xB;</span>
+<span class="nc" id="L1592">                    break;</span>
+                case 'c':
+<span class="nc bnc" id="L1594" title="All 4 branches missed.">                    if ((src &lt; end) &amp;&amp; isControlLetter(gData.regexp.source[src]))</span>
+<span class="nc" id="L1595">                        thisCh = (char)(gData.regexp.source[src++] &amp; 0x1F);</span>
+                    else {
+<span class="nc" id="L1597">                        --src;</span>
+<span class="nc" id="L1598">                        thisCh = '\\';</span>
+                    }
+<span class="nc" id="L1600">                    break;</span>
+                case 'u':
+<span class="fc" id="L1602">                    nDigits += 2;</span>
+                    // fallthru
+                case 'x':
+<span class="fc" id="L1605">                    n = 0;</span>
+<span class="pc bpc" id="L1606" title="1 of 4 branches missed.">                    for (i = 0; (i &lt; nDigits) &amp;&amp; (src &lt; end); i++) {</span>
+<span class="fc" id="L1607">                        c = gData.regexp.source[src++];</span>
+<span class="fc" id="L1608">                        int digit = toASCIIHexDigit(c);</span>
+<span class="pc bpc" id="L1609" title="1 of 2 branches missed.">                        if (digit &lt; 0) {</span>
+                            /* back off to accepting the original '\'
+                             * as a literal
+                             */
+<span class="nc" id="L1613">                            src -= (i + 1);</span>
+<span class="nc" id="L1614">                            n = '\\';</span>
+<span class="nc" id="L1615">                            break;</span>
+                        }
+<span class="fc" id="L1617">                        n = (n &lt;&lt; 4) | digit;</span>
+                    }
+<span class="fc" id="L1619">                    thisCh = (char)(n);</span>
+<span class="fc" id="L1620">                    break;</span>
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                    /*
+                     *  This is a non-ECMA extension - decimal escapes (in this
+                     *  case, octal!) are supposed to be an error inside class
+                     *  ranges, but supported here for backwards compatibility.
+                     *
+                     */
+<span class="nc" id="L1635">                    n = (c - '0');</span>
+<span class="nc" id="L1636">                    c = gData.regexp.source[src];</span>
+<span class="nc bnc" id="L1637" title="All 4 branches missed.">                    if ('0' &lt;= c &amp;&amp; c &lt;= '7') {</span>
+<span class="nc" id="L1638">                        src++;</span>
+<span class="nc" id="L1639">                        n = 8 * n + (c - '0');</span>
+<span class="nc" id="L1640">                        c = gData.regexp.source[src];</span>
+<span class="nc bnc" id="L1641" title="All 4 branches missed.">                        if ('0' &lt;= c &amp;&amp; c &lt;= '7') {</span>
+<span class="nc" id="L1642">                            src++;</span>
+<span class="nc" id="L1643">                            i = 8 * n + (c - '0');</span>
+<span class="nc bnc" id="L1644" title="All 2 branches missed.">                            if (i &lt;= 0377)</span>
+<span class="nc" id="L1645">                                n = i;</span>
+                            else
+<span class="nc" id="L1647">                                src--;</span>
+                        }
+                    }
+<span class="nc" id="L1650">                    thisCh = (char)(n);</span>
+<span class="nc" id="L1651">                    break;</span>
+
+                case 'd':
+<span class="nc" id="L1654">                    addCharacterRangeToCharSet(charSet, '0', '9');</span>
+<span class="nc" id="L1655">                    continue;   /* don't need range processing */</span>
+                case 'D':
+<span class="nc" id="L1657">                    addCharacterRangeToCharSet(charSet, (char)0, (char)('0' - 1));</span>
+<span class="nc" id="L1658">                    addCharacterRangeToCharSet(charSet, (char)('9' + 1),</span>
+                                                (char)(charSet.length - 1));
+<span class="nc" id="L1660">                    continue;</span>
+                case 's':
+<span class="nc bnc" id="L1662" title="All 2 branches missed.">                    for (i = (charSet.length - 1); i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L1663" title="All 2 branches missed.">                        if (isREWhiteSpace(i))</span>
+<span class="nc" id="L1664">                            addCharacterToCharSet(charSet, (char)(i));</span>
+                    continue;
+                case 'S':
+<span class="nc bnc" id="L1667" title="All 2 branches missed.">                    for (i = (charSet.length - 1); i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L1668" title="All 2 branches missed.">                        if (!isREWhiteSpace(i))</span>
+<span class="nc" id="L1669">                            addCharacterToCharSet(charSet, (char)(i));</span>
+                    continue;
+                case 'w':
+<span class="nc bnc" id="L1672" title="All 2 branches missed.">                    for (i = (charSet.length - 1); i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L1673" title="All 2 branches missed.">                        if (isWord((char)i))</span>
+<span class="nc" id="L1674">                            addCharacterToCharSet(charSet, (char)(i));</span>
+                    continue;
+                case 'W':
+<span class="nc bnc" id="L1677" title="All 2 branches missed.">                    for (i = (charSet.length - 1); i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L1678" title="All 2 branches missed.">                        if (!isWord((char)i))</span>
+<span class="nc" id="L1679">                            addCharacterToCharSet(charSet, (char)(i));</span>
+                    continue;
+                default:
+<span class="nc" id="L1682">                    thisCh = c;</span>
+<span class="nc" id="L1683">                    break;</span>
+
+                }
+                break;
+
+            default:
+<span class="fc" id="L1689">                thisCh = gData.regexp.source[src++];</span>
+                break;
+
+            }
+<span class="fc bfc" id="L1693" title="All 2 branches covered.">            if (inRange) {</span>
+<span class="pc bpc" id="L1694" title="1 of 2 branches missed.">                if ((gData.regexp.flags &amp; JSREG_FOLD) != 0) {</span>
+<span class="nc bnc" id="L1695" title="All 4 branches missed.">                    assert(rangeStart &lt;= thisCh);</span>
+<span class="nc bnc" id="L1696" title="All 2 branches missed.">                    for (c = rangeStart; c &lt;= thisCh;) {</span>
+<span class="nc" id="L1697">                        addCharacterToCharSet(charSet, c);</span>
+<span class="nc" id="L1698">                        char uch = upcase(c);</span>
+<span class="nc" id="L1699">                        char dch = downcase(c);</span>
+<span class="nc bnc" id="L1700" title="All 2 branches missed.">                        if (c != uch)</span>
+<span class="nc" id="L1701">                            addCharacterToCharSet(charSet, uch);</span>
+<span class="nc bnc" id="L1702" title="All 2 branches missed.">                        if (c != dch)</span>
+<span class="nc" id="L1703">                            addCharacterToCharSet(charSet, dch);</span>
+<span class="nc bnc" id="L1704" title="All 2 branches missed.">                        if (++c == 0)</span>
+<span class="nc" id="L1705">                            break; // overflow</span>
+<span class="nc" id="L1706">                    }</span>
+                } else {
+<span class="fc" id="L1708">                    addCharacterRangeToCharSet(charSet, rangeStart, thisCh);</span>
+                }
+<span class="fc" id="L1710">                inRange = false;</span>
+            }
+            else {
+<span class="pc bpc" id="L1713" title="1 of 2 branches missed.">                if ((gData.regexp.flags &amp; JSREG_FOLD) != 0) {</span>
+<span class="nc" id="L1714">                    addCharacterToCharSet(charSet, upcase(thisCh));</span>
+<span class="nc" id="L1715">                    addCharacterToCharSet(charSet, downcase(thisCh));</span>
+                } else {
+<span class="fc" id="L1717">                    addCharacterToCharSet(charSet, thisCh);</span>
+                }
+<span class="fc bfc" id="L1719" title="All 2 branches covered.">                if (src &lt; (end - 1)) {</span>
+<span class="pc bpc" id="L1720" title="1 of 2 branches missed.">                    if (gData.regexp.source[src] == '-') {</span>
+<span class="fc" id="L1721">                        ++src;</span>
+<span class="fc" id="L1722">                        inRange = true;</span>
+<span class="fc" id="L1723">                        rangeStart = thisCh;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L1728">    }</span>
+
+
+    /*
+     *   Initialize the character set if it this is the first call.
+     *   Test the bit - if the ^ flag was specified, non-inclusion is a success
+     */
+    private static boolean
+    classMatcher(REGlobalData gData, RECharSet charSet, char ch)
+    {
+<span class="fc bfc" id="L1738" title="All 2 branches covered.">        if (!charSet.converted) {</span>
+<span class="fc" id="L1739">            processCharSet(gData, charSet);</span>
+        }
+
+<span class="fc" id="L1742">        int byteIndex = ch &gt;&gt; 3;</span>
+<span class="pc bpc" id="L1743" title="1 of 6 branches missed.">        return (charSet.length == 0 ||</span>
+                ch &gt;= charSet.length ||
+                (charSet.bits[byteIndex] &amp; (1 &lt;&lt; (ch &amp; 0x7))) == 0) ^ charSet.sense;
+    }
+
+    private static boolean reopIsSimple(int op) {
+<span class="pc bpc" id="L1749" title="1 of 4 branches missed.">        return op &gt;= REOP_SIMPLE_START &amp;&amp; op &lt;= REOP_SIMPLE_END;</span>
+    }
+
+    /*
+     *   Apply the current op against the given input to see if
+     *   it's going to match or fail. Return false if we don't
+     *   get a match, true if we do and update the state of the
+     *   input and pc if the update flag is true.
+     */
+    private static int simpleMatch(REGlobalData gData, String input, int op,
+                                   byte[] program, int pc, int end, boolean updatecp)
+    {
+<span class="fc" id="L1761">        boolean result = false;</span>
+        char matchCh;
+        int parenIndex;
+        int offset, length, index;
+<span class="fc" id="L1765">        int startcp = gData.cp;</span>
+
+<span class="pc bpc" id="L1767" title="15 of 21 branches missed.">        switch (op) {</span>
+            case REOP_EMPTY:
+<span class="nc" id="L1769">                result = true;</span>
+<span class="nc" id="L1770">                break;</span>
+            case REOP_BOL:
+<span class="nc bnc" id="L1772" title="All 2 branches missed.">                if (gData.cp != 0) {</span>
+<span class="nc bnc" id="L1773" title="All 4 branches missed.">                    if (!gData.multiline || !isLineTerm(input.charAt(gData.cp - 1))) {</span>
+<span class="nc" id="L1774">                        break;</span>
+                    }
+                }
+<span class="nc" id="L1777">                result = true;</span>
+<span class="nc" id="L1778">                break;</span>
+            case REOP_EOL:
+<span class="nc bnc" id="L1780" title="All 2 branches missed.">                if (gData.cp != end) {</span>
+<span class="nc bnc" id="L1781" title="All 4 branches missed.">                    if (!gData.multiline || !isLineTerm(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1782">                        break;</span>
+                    }
+                }
+<span class="nc" id="L1785">                result = true;</span>
+<span class="nc" id="L1786">                break;</span>
+            case REOP_WBDRY:
+<span class="nc bnc" id="L1788" title="All 6 branches missed.">                result = ((gData.cp == 0 || !isWord(input.charAt(gData.cp - 1)))</span>
+<span class="nc bnc" id="L1789" title="All 2 branches missed.">                        ^ !((gData.cp &lt; end) &amp;&amp; isWord(input.charAt(gData.cp))));</span>
+<span class="nc" id="L1790">                break;</span>
+            case REOP_WNONBDRY:
+<span class="nc bnc" id="L1792" title="All 6 branches missed.">                result = ((gData.cp == 0 || !isWord(input.charAt(gData.cp - 1)))</span>
+<span class="nc bnc" id="L1793" title="All 2 branches missed.">                        ^ ((gData.cp &lt; end) &amp;&amp; isWord(input.charAt(gData.cp))));</span>
+<span class="nc" id="L1794">                break;</span>
+            case REOP_DOT:
+<span class="pc bpc" id="L1796" title="1 of 4 branches missed.">                if (gData.cp != end &amp;&amp; !isLineTerm(input.charAt(gData.cp))) {</span>
+<span class="fc" id="L1797">                    result = true;</span>
+<span class="fc" id="L1798">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_DIGIT:
+<span class="nc bnc" id="L1802" title="All 4 branches missed.">                if (gData.cp != end &amp;&amp; isDigit(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1803">                    result = true;</span>
+<span class="nc" id="L1804">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_NONDIGIT:
+<span class="nc bnc" id="L1808" title="All 4 branches missed.">                if (gData.cp != end &amp;&amp; !isDigit(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1809">                    result = true;</span>
+<span class="nc" id="L1810">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_ALNUM:
+<span class="fc bfc" id="L1814" title="All 4 branches covered.">                if (gData.cp != end &amp;&amp; isWord(input.charAt(gData.cp))) {</span>
+<span class="fc" id="L1815">                    result = true;</span>
+<span class="fc" id="L1816">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_NONALNUM:
+<span class="nc bnc" id="L1820" title="All 4 branches missed.">                if (gData.cp != end &amp;&amp; !isWord(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1821">                    result = true;</span>
+<span class="nc" id="L1822">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_SPACE:
+<span class="pc bpc" id="L1826" title="1 of 4 branches missed.">                if (gData.cp != end &amp;&amp; isREWhiteSpace(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1827">                    result = true;</span>
+<span class="nc" id="L1828">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_NONSPACE:
+<span class="nc bnc" id="L1832" title="All 4 branches missed.">                if (gData.cp != end &amp;&amp; !isREWhiteSpace(input.charAt(gData.cp))) {</span>
+<span class="nc" id="L1833">                    result = true;</span>
+<span class="nc" id="L1834">                    gData.cp++;</span>
+                }
+                break;
+            case REOP_BACKREF:
+            {
+<span class="nc" id="L1839">                parenIndex = getIndex(program, pc);</span>
+<span class="nc" id="L1840">                pc += INDEX_LEN;</span>
+<span class="nc" id="L1841">                result = backrefMatcher(gData, parenIndex, input, end);</span>
+            }
+<span class="nc" id="L1843">            break;</span>
+            case REOP_FLAT:
+            {
+<span class="fc" id="L1846">                offset = getIndex(program, pc);</span>
+<span class="fc" id="L1847">                pc += INDEX_LEN;</span>
+<span class="fc" id="L1848">                length = getIndex(program, pc);</span>
+<span class="fc" id="L1849">                pc += INDEX_LEN;</span>
+<span class="fc" id="L1850">                result = flatNMatcher(gData, offset, length, input, end);</span>
+            }
+<span class="fc" id="L1852">            break;</span>
+            case REOP_FLAT1:
+            {
+<span class="fc" id="L1855">                matchCh = (char)(program[pc++] &amp; 0xFF);</span>
+<span class="fc bfc" id="L1856" title="All 4 branches covered.">                if (gData.cp != end &amp;&amp; input.charAt(gData.cp) == matchCh) {</span>
+<span class="fc" id="L1857">                    result = true;</span>
+<span class="fc" id="L1858">                    gData.cp++;</span>
+                }
+            }
+            break;
+            case REOP_FLATi:
+            {
+<span class="nc" id="L1864">                offset = getIndex(program, pc);</span>
+<span class="nc" id="L1865">                pc += INDEX_LEN;</span>
+<span class="nc" id="L1866">                length = getIndex(program, pc);</span>
+<span class="nc" id="L1867">                pc += INDEX_LEN;</span>
+<span class="nc" id="L1868">                result = flatNIMatcher(gData, offset, length, input, end);</span>
+            }
+<span class="nc" id="L1870">            break;</span>
+            case REOP_FLAT1i:
+            {
+<span class="nc" id="L1873">                matchCh = (char)(program[pc++] &amp; 0xFF);</span>
+<span class="nc bnc" id="L1874" title="All 2 branches missed.">                if (gData.cp != end) {</span>
+<span class="nc" id="L1875">                    char c = input.charAt(gData.cp);</span>
+<span class="nc bnc" id="L1876" title="All 4 branches missed.">                    if (matchCh == c || upcase(matchCh) == upcase(c)) {</span>
+<span class="nc" id="L1877">                        result = true;</span>
+<span class="nc" id="L1878">                        gData.cp++;</span>
+                    }
+<span class="nc" id="L1880">                }</span>
+            }
+            break;
+            case REOP_UCFLAT1:
+            {
+<span class="nc" id="L1885">                matchCh = (char)getIndex(program, pc);</span>
+<span class="nc" id="L1886">                pc += INDEX_LEN;</span>
+<span class="nc bnc" id="L1887" title="All 4 branches missed.">                if (gData.cp != end &amp;&amp; input.charAt(gData.cp) == matchCh) {</span>
+<span class="nc" id="L1888">                    result = true;</span>
+<span class="nc" id="L1889">                    gData.cp++;</span>
+                }
+            }
+            break;
+            case REOP_UCFLAT1i:
+            {
+<span class="nc" id="L1895">                matchCh = (char)getIndex(program, pc);</span>
+<span class="nc" id="L1896">                pc += INDEX_LEN;</span>
+<span class="nc bnc" id="L1897" title="All 2 branches missed.">                if (gData.cp != end) {</span>
+<span class="nc" id="L1898">                    char c = input.charAt(gData.cp);</span>
+<span class="nc bnc" id="L1899" title="All 4 branches missed.">                    if (matchCh == c || upcase(matchCh) == upcase(c)) {</span>
+<span class="nc" id="L1900">                        result = true;</span>
+<span class="nc" id="L1901">                        gData.cp++;</span>
+                    }
+<span class="nc" id="L1903">                }</span>
+            }
+            break;
+
+            case REOP_CLASS:
+            case REOP_NCLASS:
+            {
+<span class="fc" id="L1910">                index = getIndex(program, pc);</span>
+<span class="fc" id="L1911">                pc += INDEX_LEN;</span>
+<span class="fc bfc" id="L1912" title="All 2 branches covered.">                if (gData.cp != end) {</span>
+<span class="fc bfc" id="L1913" title="All 2 branches covered.">                    if (classMatcher(gData, gData.regexp.classList[index],</span>
+<span class="fc" id="L1914">                            input.charAt(gData.cp)))</span>
+                    {
+<span class="fc" id="L1916">                        gData.cp++;</span>
+<span class="fc" id="L1917">                        result = true;</span>
+<span class="fc" id="L1918">                        break;</span>
+                    }
+                }
+            }
+            break;
+
+            default:
+<span class="nc" id="L1925">                throw Kit.codeBug();</span>
+        }
+<span class="fc bfc" id="L1927" title="All 2 branches covered.">        if (result) {</span>
+<span class="pc bpc" id="L1928" title="1 of 2 branches missed.">            if (!updatecp)</span>
+<span class="nc" id="L1929">                gData.cp = startcp;</span>
+<span class="fc" id="L1930">            return pc;</span>
+        }
+<span class="fc" id="L1932">        gData.cp = startcp;</span>
+<span class="fc" id="L1933">        return -1;</span>
+    }
+
+
+    private static boolean
+    executeREBytecode(REGlobalData gData, String input, int end)
+    {
+<span class="fc" id="L1940">        int pc = 0;</span>
+<span class="fc" id="L1941">        byte program[] = gData.regexp.program;</span>
+<span class="fc" id="L1942">        int continuationOp = REOP_END;</span>
+<span class="fc" id="L1943">        int continuationPc = 0;</span>
+<span class="fc" id="L1944">        boolean result = false;</span>
+
+<span class="fc" id="L1946">        int op = program[pc++];</span>
+
+        /*
+         * If the first node is a simple match, step the index into the string
+         * until that match is made, or fail if it can't be found at all.
+         */
+<span class="pc bpc" id="L1952" title="1 of 4 branches missed.">        if (gData.regexp.anchorCh &lt; 0 &amp;&amp; reopIsSimple(op)) {</span>
+<span class="nc" id="L1953">            boolean anchor = false;</span>
+<span class="nc bnc" id="L1954" title="All 2 branches missed.">            while (gData.cp &lt;= end) {</span>
+<span class="nc" id="L1955">                int match = simpleMatch(gData, input, op, program, pc, end, true);</span>
+<span class="nc bnc" id="L1956" title="All 2 branches missed.">                if (match &gt;= 0) {</span>
+<span class="nc" id="L1957">                    anchor = true;</span>
+<span class="nc" id="L1958">                    pc = match;    /* accept skip to next opcode */</span>
+<span class="nc" id="L1959">                    op = program[pc++];</span>
+<span class="nc" id="L1960">                    break;</span>
+                }
+<span class="nc" id="L1962">                gData.skipped++;</span>
+<span class="nc" id="L1963">                gData.cp++;</span>
+<span class="nc" id="L1964">            }</span>
+<span class="nc bnc" id="L1965" title="All 2 branches missed.">            if (!anchor)</span>
+<span class="nc" id="L1966">                return false;</span>
+        }
+
+        for (;;) {
+
+<span class="fc bfc" id="L1971" title="All 2 branches covered.">            if (reopIsSimple(op)) {</span>
+<span class="fc" id="L1972">                int match = simpleMatch(gData, input, op, program, pc, end, true);</span>
+<span class="fc bfc" id="L1973" title="All 2 branches covered.">                result = match &gt;= 0;</span>
+<span class="fc bfc" id="L1974" title="All 2 branches covered.">                if (result)</span>
+<span class="fc" id="L1975">                    pc = match;    /* accept skip to next opcode */</span>
+<span class="fc" id="L1976">            } else {</span>
+                switchStatement:
+<span class="pc bpc" id="L1978" title="6 of 14 branches missed.">                switch (op) {</span>
+                    case REOP_ALTPREREQ:
+                    case REOP_ALTPREREQi:
+                    case REOP_ALTPREREQ2:
+                    {
+<span class="fc" id="L1983">                        char matchCh1 = (char)getIndex(program, pc);</span>
+<span class="fc" id="L1984">                        pc += INDEX_LEN;</span>
+<span class="fc" id="L1985">                        char matchCh2 = (char)getIndex(program, pc);</span>
+<span class="fc" id="L1986">                        pc += INDEX_LEN;</span>
+
+<span class="fc bfc" id="L1988" title="All 2 branches covered.">                        if (gData.cp == end) {</span>
+<span class="fc" id="L1989">                            result = false;</span>
+<span class="fc" id="L1990">                            break;</span>
+                        }
+<span class="fc" id="L1992">                        char c = input.charAt(gData.cp);</span>
+<span class="pc bpc" id="L1993" title="1 of 2 branches missed.">                        if (op == REOP_ALTPREREQ2) {</span>
+<span class="nc bnc" id="L1994" title="All 2 branches missed.">                            if (c != matchCh1 &amp;&amp;</span>
+<span class="nc bnc" id="L1995" title="All 2 branches missed.">                                !classMatcher(gData, gData.regexp.classList[matchCh2], c)) {</span>
+<span class="nc" id="L1996">                                result = false;</span>
+<span class="nc" id="L1997">                                break;</span>
+                            }
+                        } else {
+<span class="pc bpc" id="L2000" title="1 of 2 branches missed.">                            if (op == REOP_ALTPREREQi)</span>
+<span class="nc" id="L2001">                                c = upcase(c);</span>
+<span class="pc bpc" id="L2002" title="2 of 4 branches missed.">                            if (c != matchCh1 &amp;&amp; c != matchCh2) {</span>
+<span class="fc" id="L2003">                                result = false;</span>
+<span class="fc" id="L2004">                                break;</span>
+                            }
+                        }
+                    }
+                    /* else false thru... */
+                    // fallthru
+                    case REOP_ALT:
+                    {
+<span class="fc" id="L2012">                        int nextpc = pc + getOffset(program, pc);</span>
+<span class="fc" id="L2013">                        pc += INDEX_LEN;</span>
+<span class="fc" id="L2014">                        op = program[pc++];</span>
+<span class="fc" id="L2015">                        int startcp = gData.cp;</span>
+<span class="pc bpc" id="L2016" title="1 of 2 branches missed.">                        if (reopIsSimple(op)) {</span>
+<span class="fc" id="L2017">                            int match = simpleMatch(gData, input, op, program, pc, end, true);</span>
+<span class="pc bpc" id="L2018" title="1 of 2 branches missed.">                            if (match &lt; 0) {</span>
+<span class="fc" id="L2019">                                op = program[nextpc++];</span>
+<span class="fc" id="L2020">                                pc = nextpc;</span>
+<span class="fc" id="L2021">                                continue;</span>
+                            }
+<span class="nc" id="L2023">                            result = true;</span>
+<span class="nc" id="L2024">                            pc = match;</span>
+<span class="nc" id="L2025">                            op = program[pc++];</span>
+                        }
+<span class="nc" id="L2027">                        byte nextop = program[nextpc++];</span>
+<span class="nc" id="L2028">                        pushBackTrackState(gData, nextop, nextpc, startcp,</span>
+                                continuationOp, continuationPc);
+                    }
+<span class="nc" id="L2031">                    continue;</span>
+
+                    case REOP_JUMP:
+                    {
+<span class="nc" id="L2035">                        int offset = getOffset(program, pc);</span>
+<span class="nc" id="L2036">                        pc += offset;</span>
+<span class="nc" id="L2037">                        op = program[pc++];</span>
+                    }
+<span class="nc" id="L2039">                    continue;</span>
+
+
+                    case REOP_LPAREN:
+                    {
+<span class="fc" id="L2044">                        int parenIndex = getIndex(program, pc);</span>
+<span class="fc" id="L2045">                        pc += INDEX_LEN;</span>
+<span class="fc" id="L2046">                        gData.setParens(parenIndex, gData.cp, 0);</span>
+<span class="fc" id="L2047">                        op = program[pc++];</span>
+                    }
+<span class="fc" id="L2049">                    continue;</span>
+                    case REOP_RPAREN:
+                    {
+<span class="fc" id="L2052">                        int parenIndex = getIndex(program, pc);</span>
+<span class="fc" id="L2053">                        pc += INDEX_LEN;</span>
+<span class="fc" id="L2054">                        int cap_index = gData.parensIndex(parenIndex);</span>
+<span class="fc" id="L2055">                        gData.setParens(parenIndex, cap_index,</span>
+                                gData.cp - cap_index);
+<span class="fc" id="L2057">                        op = program[pc++];</span>
+                    }
+<span class="fc" id="L2059">                    continue;</span>
+
+                    case REOP_ASSERT:
+                    {
+<span class="nc" id="L2063">                        int nextpc = pc + getIndex(program, pc); /* start of term after ASSERT */</span>
+<span class="nc" id="L2064">                        pc += INDEX_LEN;                         /* start of ASSERT child */</span>
+<span class="nc" id="L2065">                        op = program[pc++];</span>
+<span class="nc bnc" id="L2066" title="All 4 branches missed.">                        if (reopIsSimple(op) &amp;&amp; simpleMatch(gData, input, op, program, pc, end, false) &lt; 0) {</span>
+<span class="nc" id="L2067">                            result = false;</span>
+<span class="nc" id="L2068">                            break;</span>
+                        }
+<span class="nc" id="L2070">                        pushProgState(gData, 0, 0, gData.cp, gData.backTrackStackTop,</span>
+                                continuationOp, continuationPc);
+<span class="nc" id="L2072">                        pushBackTrackState(gData, REOP_ASSERTTEST, nextpc);</span>
+                    }
+<span class="nc" id="L2074">                    continue;</span>
+                    case REOP_ASSERT_NOT:
+                    {
+<span class="nc" id="L2077">                        int nextpc = pc + getIndex(program, pc); /* start of term after ASSERT */</span>
+<span class="nc" id="L2078">                        pc += INDEX_LEN;                         /* start of ASSERT child */</span>
+<span class="nc" id="L2079">                        op = program[pc++];</span>
+<span class="nc bnc" id="L2080" title="All 2 branches missed.">                        if (reopIsSimple(op)) {</span>
+<span class="nc" id="L2081">                            int match = simpleMatch(gData, input, op, program, pc, end, false);</span>
+<span class="nc bnc" id="L2082" title="All 4 branches missed.">                            if (match &gt;= 0 &amp;&amp; program[match] == REOP_ASSERTNOTTEST) {</span>
+<span class="nc" id="L2083">                                result = false;</span>
+<span class="nc" id="L2084">                                break;</span>
+                            }
+                        }
+<span class="nc" id="L2087">                        pushProgState(gData, 0, 0, gData.cp, gData.backTrackStackTop,</span>
+                                continuationOp, continuationPc);
+<span class="nc" id="L2089">                        pushBackTrackState(gData, REOP_ASSERTNOTTEST, nextpc);</span>
+                    }
+<span class="nc" id="L2091">                    continue;</span>
+
+                    case REOP_ASSERTTEST:
+                    case REOP_ASSERTNOTTEST:
+                    {
+<span class="nc" id="L2096">                        REProgState state = popProgState(gData);</span>
+<span class="nc" id="L2097">                        gData.cp = state.index;</span>
+<span class="nc" id="L2098">                        gData.backTrackStackTop = state.backTrack;</span>
+<span class="nc" id="L2099">                        continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2100">                        continuationOp = state.continuationOp;</span>
+<span class="nc bnc" id="L2101" title="All 2 branches missed.">                        if (op == REOP_ASSERTNOTTEST) {</span>
+<span class="nc bnc" id="L2102" title="All 2 branches missed.">                            result = !result;</span>
+                        }
+                    }
+<span class="nc" id="L2105">                    break;</span>
+
+                    case REOP_STAR:
+                    case REOP_PLUS:
+                    case REOP_OPT:
+                    case REOP_QUANT:
+                    case REOP_MINIMALSTAR:
+                    case REOP_MINIMALPLUS:
+                    case REOP_MINIMALOPT:
+                    case REOP_MINIMALQUANT:
+                    {
+                        int min, max;
+<span class="fc" id="L2117">                        boolean greedy = false;</span>
+<span class="pc bpc" id="L2118" title="7 of 9 branches missed.">                        switch (op) {</span>
+                            case REOP_STAR:
+<span class="fc" id="L2120">                                greedy = true;</span>
+                                // fallthrough
+                            case REOP_MINIMALSTAR:
+<span class="fc" id="L2123">                                min = 0;</span>
+<span class="fc" id="L2124">                                max = -1;</span>
+<span class="fc" id="L2125">                                break;</span>
+                            case REOP_PLUS:
+<span class="fc" id="L2127">                                greedy = true;</span>
+                                // fallthrough
+                            case REOP_MINIMALPLUS:
+<span class="fc" id="L2130">                                min = 1;</span>
+<span class="fc" id="L2131">                                max = -1;</span>
+<span class="fc" id="L2132">                                break;</span>
+                            case REOP_OPT:
+<span class="nc" id="L2134">                                greedy = true;</span>
+                                // fallthrough
+                            case REOP_MINIMALOPT:
+<span class="nc" id="L2137">                                min = 0;</span>
+<span class="nc" id="L2138">                                max = 1;</span>
+<span class="nc" id="L2139">                                break;</span>
+                            case REOP_QUANT:
+<span class="nc" id="L2141">                                greedy = true;</span>
+                                // fallthrough
+                            case REOP_MINIMALQUANT:
+<span class="nc" id="L2144">                                min = getOffset(program, pc);</span>
+<span class="nc" id="L2145">                                pc += INDEX_LEN;</span>
+                                // See comments in emitREBytecode for &quot; - 1&quot; reason
+<span class="nc" id="L2147">                                max = getOffset(program, pc) - 1;</span>
+<span class="nc" id="L2148">                                pc += INDEX_LEN;</span>
+<span class="nc" id="L2149">                                break;</span>
+                            default:
+<span class="nc" id="L2151">                                throw Kit.codeBug();</span>
+                        }
+<span class="fc" id="L2153">                        pushProgState(gData, min, max, gData.cp, null,</span>
+                                continuationOp, continuationPc);
+<span class="pc bpc" id="L2155" title="1 of 2 branches missed.">                        if (greedy) {</span>
+<span class="fc" id="L2156">                            pushBackTrackState(gData, REOP_REPEAT, pc);</span>
+<span class="fc" id="L2157">                            continuationOp = REOP_REPEAT;</span>
+<span class="fc" id="L2158">                            continuationPc = pc;</span>
+                            /* Step over &lt;parencount&gt;, &lt;parenindex&gt; &amp; &lt;next&gt; */
+<span class="fc" id="L2160">                            pc += 3 * INDEX_LEN;</span>
+<span class="fc" id="L2161">                            op = program[pc++];</span>
+                        } else {
+<span class="nc bnc" id="L2163" title="All 2 branches missed.">                            if (min != 0) {</span>
+<span class="nc" id="L2164">                                continuationOp = REOP_MINIMALREPEAT;</span>
+<span class="nc" id="L2165">                                continuationPc = pc;</span>
+                                /* &lt;parencount&gt; &lt;parenindex&gt; &amp; &lt;next&gt; */
+<span class="nc" id="L2167">                                pc += 3 * INDEX_LEN;</span>
+<span class="nc" id="L2168">                                op = program[pc++];</span>
+                            } else {
+<span class="nc" id="L2170">                                pushBackTrackState(gData, REOP_MINIMALREPEAT, pc);</span>
+<span class="nc" id="L2171">                                popProgState(gData);</span>
+<span class="nc" id="L2172">                                pc += 2 * INDEX_LEN;  // &lt;parencount&gt; &amp; &lt;parenindex&gt;</span>
+<span class="nc" id="L2173">                                pc = pc + getOffset(program, pc);</span>
+<span class="nc" id="L2174">                                op = program[pc++];</span>
+                            }
+                        }
+                    }
+<span class="fc" id="L2178">                    continue;</span>
+
+                    case REOP_ENDCHILD: /* marks the end of a quantifier child */
+                        // If we have not gotten a result here, it is because of an
+                        // empty match.  Do the same thing REOP_EMPTY would do.
+<span class="fc" id="L2183">                        result = true;</span>
+                        // Use the current continuation.
+<span class="fc" id="L2185">                        pc = continuationPc;</span>
+<span class="fc" id="L2186">                        op = continuationOp;</span>
+<span class="fc" id="L2187">                        continue;</span>
+
+                    case REOP_REPEAT:
+                    {
+                        int nextpc, nextop;
+                        do {
+<span class="fc" id="L2193">                            REProgState state = popProgState(gData);</span>
+<span class="fc bfc" id="L2194" title="All 2 branches covered.">                            if (!result) {</span>
+                                // Failed, see if we have enough children.
+<span class="fc bfc" id="L2196" title="All 2 branches covered.">                                if (state.min == 0)</span>
+<span class="fc" id="L2197">                                    result = true;</span>
+<span class="fc" id="L2198">                                continuationPc = state.continuationPc;</span>
+<span class="fc" id="L2199">                                continuationOp = state.continuationOp;</span>
+<span class="fc" id="L2200">                                pc += 2 * INDEX_LEN;  /* &lt;parencount&gt; &amp; &lt;parenindex&gt; */</span>
+<span class="fc" id="L2201">                                pc += getOffset(program, pc);</span>
+<span class="fc" id="L2202">                                break switchStatement;</span>
+                            }
+<span class="pc bpc" id="L2204" title="1 of 4 branches missed.">                            if (state.min == 0 &amp;&amp; gData.cp == state.index) {</span>
+                                // matched an empty string, that'll get us nowhere
+<span class="nc" id="L2206">                                result = false;</span>
+<span class="nc" id="L2207">                                continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2208">                                continuationOp = state.continuationOp;</span>
+<span class="nc" id="L2209">                                pc += 2 * INDEX_LEN;</span>
+<span class="nc" id="L2210">                                pc += getOffset(program, pc);</span>
+<span class="nc" id="L2211">                                break switchStatement;</span>
+                            }
+<span class="fc" id="L2213">                            int new_min = state.min, new_max = state.max;</span>
+<span class="fc bfc" id="L2214" title="All 2 branches covered.">                            if (new_min != 0) new_min--;</span>
+<span class="pc bpc" id="L2215" title="1 of 2 branches missed.">                            if (new_max != -1) new_max--;</span>
+<span class="pc bpc" id="L2216" title="1 of 2 branches missed.">                            if (new_max == 0) {</span>
+<span class="nc" id="L2217">                                result = true;</span>
+<span class="nc" id="L2218">                                continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2219">                                continuationOp = state.continuationOp;</span>
+<span class="nc" id="L2220">                                pc += 2 * INDEX_LEN;</span>
+<span class="nc" id="L2221">                                pc += getOffset(program, pc);</span>
+<span class="nc" id="L2222">                                break switchStatement;</span>
+                            }
+<span class="fc" id="L2224">                            nextpc = pc + 3 * INDEX_LEN;</span>
+<span class="fc" id="L2225">                            nextop = program[nextpc];</span>
+<span class="fc" id="L2226">                            int startcp = gData.cp;</span>
+<span class="pc bpc" id="L2227" title="1 of 2 branches missed.">                            if (reopIsSimple(nextop)) {</span>
+<span class="fc" id="L2228">                                nextpc++;</span>
+<span class="fc" id="L2229">                                int match = simpleMatch(gData, input, nextop, program, nextpc, end, true);</span>
+<span class="fc bfc" id="L2230" title="All 2 branches covered.">                                if (match &lt; 0) {</span>
+<span class="pc bpc" id="L2231" title="1 of 2 branches missed.">                                    result = (new_min == 0);</span>
+<span class="fc" id="L2232">                                    continuationPc = state.continuationPc;</span>
+<span class="fc" id="L2233">                                    continuationOp = state.continuationOp;</span>
+<span class="fc" id="L2234">                                    pc += 2 * INDEX_LEN;  /* &lt;parencount&gt; &amp; &lt;parenindex&gt; */</span>
+<span class="fc" id="L2235">                                    pc += getOffset(program, pc);</span>
+<span class="fc" id="L2236">                                    break switchStatement;</span>
+                                }
+<span class="fc" id="L2238">                                result = true;</span>
+<span class="fc" id="L2239">                                nextpc = match;</span>
+                            }
+<span class="fc" id="L2241">                            continuationOp = REOP_REPEAT;</span>
+<span class="fc" id="L2242">                            continuationPc = pc;</span>
+<span class="fc" id="L2243">                            pushProgState(gData, new_min, new_max, startcp, null,</span>
+                                    state.continuationOp, state.continuationPc);
+<span class="pc bpc" id="L2245" title="1 of 2 branches missed.">                            if (new_min == 0) {</span>
+<span class="fc" id="L2246">                                pushBackTrackState(gData, REOP_REPEAT, pc, startcp,</span>
+                                        state.continuationOp, state.continuationPc);
+<span class="fc" id="L2248">                                int parenCount = getIndex(program, pc);</span>
+<span class="fc" id="L2249">                                int parenIndex = getIndex(program, pc + INDEX_LEN);</span>
+<span class="pc bpc" id="L2250" title="1 of 2 branches missed.">                                for (int k = 0; k &lt; parenCount; k++) {</span>
+<span class="nc" id="L2251">                                    gData.setParens(parenIndex + k, -1, 0);</span>
+                                }
+                            }
+<span class="pc bpc" id="L2254" title="1 of 2 branches missed.">                        } while (program[nextpc] == REOP_ENDCHILD);</span>
+
+<span class="nc" id="L2256">                        pc = nextpc;</span>
+<span class="nc" id="L2257">                        op = program[pc++];</span>
+                    }
+<span class="nc" id="L2259">                    continue;</span>
+
+                    case REOP_MINIMALREPEAT:
+                    {
+<span class="nc" id="L2263">                        REProgState state = popProgState(gData);</span>
+<span class="nc bnc" id="L2264" title="All 2 branches missed.">                        if (!result) {</span>
+                            //
+                            // Non-greedy failure - try to consume another child.
+                            //
+<span class="nc bnc" id="L2268" title="All 4 branches missed.">                            if (state.max == -1 || state.max &gt; 0) {</span>
+<span class="nc" id="L2269">                                pushProgState(gData, state.min, state.max, gData.cp, null,</span>
+                                        state.continuationOp, state.continuationPc);
+<span class="nc" id="L2271">                                continuationOp = REOP_MINIMALREPEAT;</span>
+<span class="nc" id="L2272">                                continuationPc = pc;</span>
+<span class="nc" id="L2273">                                int parenCount = getIndex(program, pc);</span>
+<span class="nc" id="L2274">                                pc += INDEX_LEN;</span>
+<span class="nc" id="L2275">                                int parenIndex = getIndex(program, pc);</span>
+<span class="nc" id="L2276">                                pc += 2 * INDEX_LEN;</span>
+<span class="nc bnc" id="L2277" title="All 2 branches missed.">                                for (int k = 0; k &lt; parenCount; k++) {</span>
+<span class="nc" id="L2278">                                    gData.setParens(parenIndex + k, -1, 0);</span>
+                                }
+<span class="nc" id="L2280">                                op = program[pc++];</span>
+<span class="nc" id="L2281">                                continue;</span>
+                            } else {
+                                // Don't need to adjust pc since we're going to pop.
+<span class="nc" id="L2284">                                continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2285">                                continuationOp = state.continuationOp;</span>
+<span class="nc" id="L2286">                                break;</span>
+                            }
+                        } else {
+<span class="nc bnc" id="L2289" title="All 4 branches missed.">                            if (state.min == 0 &amp;&amp; gData.cp == state.index) {</span>
+                                // Matched an empty string, that'll get us nowhere.
+<span class="nc" id="L2291">                                result = false;</span>
+<span class="nc" id="L2292">                                continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2293">                                continuationOp = state.continuationOp;</span>
+<span class="nc" id="L2294">                                break;</span>
+                            }
+<span class="nc" id="L2296">                            int new_min = state.min, new_max = state.max;</span>
+<span class="nc bnc" id="L2297" title="All 2 branches missed.">                            if (new_min != 0) new_min--;</span>
+<span class="nc bnc" id="L2298" title="All 2 branches missed.">                            if (new_max != -1) new_max--;</span>
+<span class="nc" id="L2299">                            pushProgState(gData, new_min, new_max, gData.cp, null,</span>
+                                    state.continuationOp, state.continuationPc);
+<span class="nc bnc" id="L2301" title="All 2 branches missed.">                            if (new_min != 0) {</span>
+<span class="nc" id="L2302">                                continuationOp = REOP_MINIMALREPEAT;</span>
+<span class="nc" id="L2303">                                continuationPc = pc;</span>
+<span class="nc" id="L2304">                                int parenCount = getIndex(program, pc);</span>
+<span class="nc" id="L2305">                                pc += INDEX_LEN;</span>
+<span class="nc" id="L2306">                                int parenIndex = getIndex(program, pc);</span>
+<span class="nc" id="L2307">                                pc += 2 * INDEX_LEN;</span>
+<span class="nc bnc" id="L2308" title="All 2 branches missed.">                                for (int k = 0; k &lt; parenCount; k++) {</span>
+<span class="nc" id="L2309">                                    gData.setParens(parenIndex + k, -1, 0);</span>
+                                }
+<span class="nc" id="L2311">                                op = program[pc++];</span>
+<span class="nc" id="L2312">                            } else {</span>
+<span class="nc" id="L2313">                                continuationPc = state.continuationPc;</span>
+<span class="nc" id="L2314">                                continuationOp = state.continuationOp;</span>
+<span class="nc" id="L2315">                                pushBackTrackState(gData, REOP_MINIMALREPEAT, pc);</span>
+<span class="nc" id="L2316">                                popProgState(gData);</span>
+<span class="nc" id="L2317">                                pc += 2 * INDEX_LEN;</span>
+<span class="nc" id="L2318">                                pc = pc + getOffset(program, pc);</span>
+<span class="nc" id="L2319">                                op = program[pc++];</span>
+                            }
+<span class="nc" id="L2321">                            continue;</span>
+                        }
+                    }
+
+                    case REOP_END:
+<span class="fc" id="L2326">                        return true;</span>
+
+                    default:
+<span class="nc" id="L2329">                        throw Kit.codeBug(&quot;invalid bytecode&quot;);</span>
+
+                }
+            }
+            /*
+             *  If the match failed and there's a backtrack option, take it.
+             *  Otherwise this is a complete and utter failure.
+             */
+<span class="fc bfc" id="L2337" title="All 2 branches covered.">            if (!result) {</span>
+<span class="fc" id="L2338">                REBackTrackData backTrackData = gData.backTrackStackTop;</span>
+<span class="fc bfc" id="L2339" title="All 2 branches covered.">                if (backTrackData != null) {</span>
+<span class="fc" id="L2340">                    gData.backTrackStackTop = backTrackData.previous;</span>
+<span class="fc" id="L2341">                    gData.parens = backTrackData.parens;</span>
+<span class="fc" id="L2342">                    gData.cp = backTrackData.cp;</span>
+<span class="fc" id="L2343">                    gData.stateStackTop = backTrackData.stateStackTop;</span>
+<span class="fc" id="L2344">                    continuationOp = backTrackData.continuationOp;</span>
+<span class="fc" id="L2345">                    continuationPc = backTrackData.continuationPc;</span>
+<span class="fc" id="L2346">                    pc = backTrackData.pc;</span>
+<span class="fc" id="L2347">                    op = backTrackData.op;</span>
+<span class="fc" id="L2348">                    continue;</span>
+                }
+                else
+<span class="fc" id="L2351">                    return false;</span>
+            }
+
+<span class="fc" id="L2354">            op = program[pc++];</span>
+        }
+
+    }
+
+    private static boolean
+    matchRegExp(REGlobalData gData, RECompiled re,
+                String input, int start, int end, boolean multiline)
+    {
+<span class="fc bfc" id="L2363" title="All 2 branches covered.">        if (re.parenCount != 0) {</span>
+<span class="fc" id="L2364">            gData.parens = new long[re.parenCount];</span>
+        } else {
+<span class="fc" id="L2366">            gData.parens = null;</span>
+        }
+
+<span class="fc" id="L2369">        gData.backTrackStackTop = null;</span>
+<span class="fc" id="L2370">        gData.stateStackTop = null;</span>
+
+<span class="pc bpc" id="L2372" title="2 of 4 branches missed.">        gData.multiline = multiline || (re.flags &amp; JSREG_MULTILINE) != 0;</span>
+<span class="fc" id="L2373">        gData.regexp = re;</span>
+
+<span class="fc" id="L2375">        int anchorCh = gData.regexp.anchorCh;</span>
+        //
+        // have to include the position beyond the last character
+        //  in order to detect end-of-input/line condition
+        //
+<span class="fc bfc" id="L2380" title="All 2 branches covered.">        for (int i = start; i &lt;= end; ++i) {</span>
+            //
+            // If the first node is a literal match, step the index into
+            // the string until that match is made, or fail if it can't be
+            // found at all.
+            //
+<span class="fc bfc" id="L2386" title="All 2 branches covered.">            if (anchorCh &gt;= 0) {</span>
+                for (;;) {
+<span class="fc bfc" id="L2388" title="All 2 branches covered.">                    if (i == end) {</span>
+<span class="fc" id="L2389">                        return false;</span>
+                    }
+<span class="fc" id="L2391">                    char matchCh = input.charAt(i);</span>
+<span class="pc bpc" id="L2392" title="1 of 4 branches missed.">                    if (matchCh == anchorCh ||</span>
+                            ((gData.regexp.flags &amp; JSREG_FOLD) != 0
+<span class="nc bnc" id="L2394" title="All 2 branches missed.">                             &amp;&amp; upcase(matchCh) == upcase((char)anchorCh)))</span>
+                    {
+<span class="nc" id="L2396">                        break;</span>
+                    }
+<span class="fc" id="L2398">                    ++i;</span>
+<span class="fc" id="L2399">                }</span>
+            }
+<span class="fc" id="L2401">            gData.cp = i;</span>
+<span class="fc" id="L2402">            gData.skipped = i - start;</span>
+<span class="fc bfc" id="L2403" title="All 2 branches covered.">            for (int j = 0; j &lt; re.parenCount; j++) {</span>
+<span class="fc" id="L2404">                gData.parens[j] = -1L;</span>
+            }
+<span class="fc" id="L2406">            boolean result = executeREBytecode(gData, input, end);</span>
+
+<span class="fc" id="L2408">            gData.backTrackStackTop = null;</span>
+<span class="fc" id="L2409">            gData.stateStackTop = null;</span>
+<span class="fc bfc" id="L2410" title="All 2 branches covered.">            if (result) {</span>
+<span class="fc" id="L2411">                return true;</span>
+            }
+<span class="pc bpc" id="L2413" title="3 of 4 branches missed.">            if (anchorCh == ANCHOR_BOL &amp;&amp; !gData.multiline) {</span>
+<span class="nc" id="L2414">                gData.skipped = end;</span>
+<span class="nc" id="L2415">                return false;</span>
+            }
+<span class="fc" id="L2417">            i = start + gData.skipped;</span>
+        }
+<span class="fc" id="L2419">        return false;</span>
+    }
+
+    /*
+     * indexp is assumed to be an array of length 1
+     */
+    Object executeRegExp(Context cx, Scriptable scope, RegExpImpl res,
+                         String str, int indexp[], int matchType)
+    {
+<span class="fc" id="L2428">        REGlobalData gData = new REGlobalData();</span>
+
+<span class="fc" id="L2430">        int start = indexp[0];</span>
+<span class="fc" id="L2431">        int end = str.length();</span>
+<span class="pc bpc" id="L2432" title="1 of 2 branches missed.">        if (start &gt; end)</span>
+<span class="nc" id="L2433">            start = end;</span>
+        //
+        // Call the recursive matcher to do the real work.
+        //
+<span class="fc" id="L2437">        boolean matches = matchRegExp(gData, re, str, start, end,</span>
+                                      res.multiline);
+<span class="fc bfc" id="L2439" title="All 2 branches covered.">        if (!matches) {</span>
+<span class="pc bpc" id="L2440" title="1 of 2 branches missed.">            if (matchType != PREFIX) return null;</span>
+<span class="nc" id="L2441">            return Undefined.instance;</span>
+        }
+<span class="fc" id="L2443">        int index = gData.cp;</span>
+<span class="fc" id="L2444">        int ep = indexp[0] = index;</span>
+<span class="fc" id="L2445">        int matchlen = ep - (start + gData.skipped);</span>
+<span class="fc" id="L2446">        index -= matchlen;</span>
+        Object result;
+        Scriptable obj;
+
+<span class="pc bpc" id="L2450" title="1 of 2 branches missed.">        if (matchType == TEST) {</span>
+            /*
+             * Testing for a match and updating cx.regExpImpl: don't allocate
+             * an array object, do return true.
+             */
+<span class="nc" id="L2455">            result = Boolean.TRUE;</span>
+<span class="nc" id="L2456">            obj = null;</span>
+        }
+        else {
+            /*
+             * The array returned on match has element 0 bound to the matched
+             * string, elements 1 through re.parenCount bound to the paren
+             * matches, an index property telling the length of the left context,
+             * and an input property referring to the input string.
+             */
+<span class="fc" id="L2465">            result = cx.newArray(scope, 0);</span>
+<span class="fc" id="L2466">            obj = (Scriptable) result;</span>
+
+<span class="fc" id="L2468">            String matchstr = str.substring(index, index + matchlen);</span>
+<span class="fc" id="L2469">            obj.put(0, obj, matchstr);</span>
+        }
+
+<span class="pc bpc" id="L2472" title="1 of 2 branches missed.">        if (re.parenCount == 0) {</span>
+<span class="fc" id="L2473">            res.parens = null;</span>
+<span class="fc" id="L2474">            res.lastParen = new SubString();</span>
+        } else {
+<span class="nc" id="L2476">            SubString parsub = null;</span>
+            int num;
+<span class="nc" id="L2478">            res.parens = new SubString[re.parenCount];</span>
+<span class="nc bnc" id="L2479" title="All 2 branches missed.">            for (num = 0; num &lt; re.parenCount; num++) {</span>
+<span class="nc" id="L2480">                int cap_index = gData.parensIndex(num);</span>
+<span class="nc bnc" id="L2481" title="All 2 branches missed.">                if (cap_index != -1) {</span>
+<span class="nc" id="L2482">                    int cap_length = gData.parensLength(num);</span>
+<span class="nc" id="L2483">                    parsub = new SubString(str, cap_index, cap_length);</span>
+<span class="nc" id="L2484">                    res.parens[num] = parsub;</span>
+<span class="nc bnc" id="L2485" title="All 2 branches missed.">                    if (matchType != TEST)</span>
+<span class="nc" id="L2486">                        obj.put(num+1, obj, parsub.toString());</span>
+<span class="nc" id="L2487">                }</span>
+                else {
+<span class="nc bnc" id="L2489" title="All 2 branches missed.">                    if (matchType != TEST)</span>
+<span class="nc" id="L2490">                        obj.put(num+1, obj, Undefined.instance);</span>
+                }
+            }
+<span class="nc" id="L2493">            res.lastParen = parsub;</span>
+        }
+
+<span class="pc bpc" id="L2496" title="1 of 2 branches missed.">        if (! (matchType == TEST)) {</span>
+            /*
+             * Define the index and input properties last for better for/in loop
+             * order (so they come after the elements).
+             */
+<span class="fc" id="L2501">            obj.put(&quot;index&quot;, obj, Integer.valueOf(start + gData.skipped));</span>
+<span class="fc" id="L2502">            obj.put(&quot;input&quot;, obj, str);</span>
+        }
+
+<span class="fc bfc" id="L2505" title="All 2 branches covered.">        if (res.lastMatch == null) {</span>
+<span class="fc" id="L2506">            res.lastMatch = new SubString();</span>
+<span class="fc" id="L2507">            res.leftContext = new SubString();</span>
+<span class="fc" id="L2508">            res.rightContext = new SubString();</span>
+        }
+<span class="fc" id="L2510">        res.lastMatch.str = str;</span>
+<span class="fc" id="L2511">        res.lastMatch.index = index;</span>
+<span class="fc" id="L2512">        res.lastMatch.length = matchlen;</span>
+
+<span class="fc" id="L2514">        res.leftContext.str = str;</span>
+<span class="pc bpc" id="L2515" title="1 of 2 branches missed.">        if (cx.getLanguageVersion() == Context.VERSION_1_2) {</span>
+            /*
+             * JS1.2 emulated Perl4.0.1.8 (patch level 36) for global regexps used
+             * in scalar contexts, and unintentionally for the string.match &quot;list&quot;
+             * psuedo-context.  On &quot;hi there bye&quot;, the following would result:
+             *
+             * Language     while(/ /g){print(&quot;$`&quot;);}   s/ /$`/g
+             * perl4.036    &quot;hi&quot;, &quot;there&quot;               &quot;hihitherehi therebye&quot;
+             * perl5        &quot;hi&quot;, &quot;hi there&quot;            &quot;hihitherehi therebye&quot;
+             * js1.2        &quot;hi&quot;, &quot;there&quot;               &quot;hihitheretherebye&quot;
+             *
+             * Insofar as JS1.2 always defined $` as &quot;left context from the last
+             * match&quot; for global regexps, it was more consistent than perl4.
+             */
+<span class="nc" id="L2529">            res.leftContext.index = start;</span>
+<span class="nc" id="L2530">            res.leftContext.length = gData.skipped;</span>
+        } else {
+            /*
+             * For JS1.3 and ECMAv2, emulate Perl5 exactly:
+             *
+             * js1.3        &quot;hi&quot;, &quot;hi there&quot;            &quot;hihitherehi therebye&quot;
+             */
+<span class="fc" id="L2537">            res.leftContext.index = 0;</span>
+<span class="fc" id="L2538">            res.leftContext.length = start + gData.skipped;</span>
+        }
+
+<span class="fc" id="L2541">        res.rightContext.str = str;</span>
+<span class="fc" id="L2542">        res.rightContext.index = ep;</span>
+<span class="fc" id="L2543">        res.rightContext.length = end - ep;</span>
+
+<span class="fc" id="L2545">        return result;</span>
+    }
+
+    int getFlags()
+    {
+<span class="nc" id="L2550">        return re.flags;</span>
+    }
+
+    private static void reportWarning(Context cx, String messageId, String arg)
+    {
+<span class="nc bnc" id="L2555" title="All 2 branches missed.">        if (cx.hasFeature(Context.FEATURE_STRICT_MODE)) {</span>
+<span class="nc" id="L2556">            String msg = ScriptRuntime.getMessage1(messageId, arg);</span>
+<span class="nc" id="L2557">            Context.reportWarning(msg);</span>
+        }
+<span class="nc" id="L2559">    }</span>
+
+    private static void reportError(String messageId, String arg)
+    {
+<span class="nc" id="L2563">        String msg = ScriptRuntime.getMessage1(messageId, arg);</span>
+<span class="nc" id="L2564">        throw ScriptRuntime.constructError(&quot;SyntaxError&quot;, msg);</span>
+    }
+
+// #string_id_map#
+
+    private static final int
+        Id_lastIndex    = 1,
+        Id_source       = 2,
+        Id_global       = 3,
+        Id_ignoreCase   = 4,
+        Id_multiline    = 5,
+
+        MAX_INSTANCE_ID = 5;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L2581">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:16:24 EDT
+<span class="fc" id="L2589">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L2590">            int s_length = s.length();</span>
+<span class="pc bpc" id="L2591" title="1 of 2 branches missed.">            if (s_length==6) {</span>
+<span class="nc" id="L2592">                c=s.charAt(0);</span>
+<span class="nc bnc" id="L2593" title="All 2 branches missed.">                if (c=='g') { X=&quot;global&quot;;id=Id_global; }</span>
+<span class="nc bnc" id="L2594" title="All 2 branches missed.">                else if (c=='s') { X=&quot;source&quot;;id=Id_source; }</span>
+            }
+<span class="pc bpc" id="L2596" title="1 of 2 branches missed.">            else if (s_length==9) {</span>
+<span class="nc" id="L2597">                c=s.charAt(0);</span>
+<span class="nc bnc" id="L2598" title="All 2 branches missed.">                if (c=='l') { X=&quot;lastIndex&quot;;id=Id_lastIndex; }</span>
+<span class="nc bnc" id="L2599" title="All 2 branches missed.">                else if (c=='m') { X=&quot;multiline&quot;;id=Id_multiline; }</span>
+            }
+<span class="fc bfc" id="L2601" title="All 2 branches covered.">            else if (s_length==10) { X=&quot;ignoreCase&quot;;id=Id_ignoreCase; }</span>
+<span class="pc bpc" id="L2602" title="2 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+// #/string_id_map#
+
+<span class="pc bpc" id="L2608" title="1 of 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="nc bnc" id="L2611" title="All 3 branches missed.">        switch (id) {</span>
+          case Id_lastIndex:
+<span class="nc" id="L2613">            attr = lastIndexAttr;</span>
+<span class="nc" id="L2614">            break;</span>
+          case Id_source:
+          case Id_global:
+          case Id_ignoreCase:
+          case Id_multiline:
+<span class="nc" id="L2619">            attr = PERMANENT | READONLY | DONTENUM;</span>
+<span class="nc" id="L2620">            break;</span>
+          default:
+<span class="nc" id="L2622">            throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L2624">        return instanceIdInfo(attr, id);</span>
+    }
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc bnc" id="L2630" title="All 6 branches missed.">        switch (id) {</span>
+<span class="nc" id="L2631">            case Id_lastIndex:  return &quot;lastIndex&quot;;</span>
+<span class="nc" id="L2632">            case Id_source:     return &quot;source&quot;;</span>
+<span class="nc" id="L2633">            case Id_global:     return &quot;global&quot;;</span>
+<span class="nc" id="L2634">            case Id_ignoreCase: return &quot;ignoreCase&quot;;</span>
+<span class="nc" id="L2635">            case Id_multiline:  return &quot;multiline&quot;;</span>
+        }
+<span class="nc" id="L2637">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="nc bnc" id="L2643" title="All 6 branches missed.">        switch (id) {</span>
+          case Id_lastIndex:
+<span class="nc" id="L2645">            return lastIndex;</span>
+          case Id_source:
+<span class="nc" id="L2647">            return new String(re.source);</span>
+          case Id_global:
+<span class="nc bnc" id="L2649" title="All 2 branches missed.">            return ScriptRuntime.wrapBoolean((re.flags &amp; JSREG_GLOB) != 0);</span>
+          case Id_ignoreCase:
+<span class="nc bnc" id="L2651" title="All 2 branches missed.">            return ScriptRuntime.wrapBoolean((re.flags &amp; JSREG_FOLD) != 0);</span>
+          case Id_multiline:
+<span class="nc bnc" id="L2653" title="All 2 branches missed.">            return ScriptRuntime.wrapBoolean((re.flags &amp; JSREG_MULTILINE) != 0);</span>
+        }
+<span class="nc" id="L2655">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="nc bnc" id="L2661" title="All 3 branches missed.">        switch (id) {</span>
+          case Id_lastIndex:
+<span class="nc" id="L2663">            lastIndex = value;</span>
+<span class="nc" id="L2664">            return;</span>
+          case Id_source:
+          case Id_global:
+          case Id_ignoreCase:
+          case Id_multiline:
+<span class="nc" id="L2669">            return;</span>
+        }
+<span class="nc" id="L2671">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L2672">    }</span>
+
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr) {
+<span class="nc bnc" id="L2676" title="All 2 branches missed.">        switch (id) {</span>
+          case Id_lastIndex:
+<span class="nc" id="L2678">            lastIndexAttr = attr;</span>
+<span class="nc" id="L2679">            return;</span>
+        }
+<span class="nc" id="L2681">        super.setInstanceIdAttributes(id, attr);</span>
+<span class="nc" id="L2682">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L2689" title="6 of 7 branches missed.">        switch (id) {</span>
+<span class="nc" id="L2690">          case Id_compile:  arity=2; s=&quot;compile&quot;;  break;</span>
+<span class="fc" id="L2691">          case Id_toString: arity=0; s=&quot;toString&quot;; break;</span>
+<span class="nc" id="L2692">          case Id_toSource: arity=0; s=&quot;toSource&quot;; break;</span>
+<span class="nc" id="L2693">          case Id_exec:     arity=1; s=&quot;exec&quot;;     break;</span>
+<span class="nc" id="L2694">          case Id_test:     arity=1; s=&quot;test&quot;;     break;</span>
+<span class="nc" id="L2695">          case Id_prefix:   arity=1; s=&quot;prefix&quot;;   break;</span>
+<span class="nc" id="L2696">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L2698">        initPrototypeMethod(REGEXP_TAG, id, s, arity);</span>
+<span class="fc" id="L2699">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L2705" title="1 of 2 branches missed.">        if (!f.hasTag(REGEXP_TAG)) {</span>
+<span class="nc" id="L2706">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L2708">        int id = f.methodId();</span>
+<span class="pc bpc" id="L2709" title="5 of 6 branches missed.">        switch (id) {</span>
+          case Id_compile:
+<span class="nc" id="L2711">            return realThis(thisObj, f).compile(cx, scope, args);</span>
+
+          case Id_toString:
+          case Id_toSource:
+<span class="fc" id="L2715">            return realThis(thisObj, f).toString();</span>
+
+          case Id_exec:
+<span class="nc" id="L2718">            return realThis(thisObj, f).execSub(cx, scope, args, MATCH);</span>
+
+          case Id_test: {
+<span class="nc" id="L2721">            Object x = realThis(thisObj, f).execSub(cx, scope, args, TEST);</span>
+<span class="nc bnc" id="L2722" title="All 2 branches missed.">            return Boolean.TRUE.equals(x) ? Boolean.TRUE : Boolean.FALSE;</span>
+          }
+
+          case Id_prefix:
+<span class="nc" id="L2726">            return realThis(thisObj, f).execSub(cx, scope, args, PREFIX);</span>
+        }
+<span class="nc" id="L2728">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private static NativeRegExp realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="pc bpc" id="L2733" title="1 of 2 branches missed.">        if (!(thisObj instanceof NativeRegExp))</span>
+<span class="nc" id="L2734">            throw incompatibleCallError(f);</span>
+<span class="fc" id="L2735">        return (NativeRegExp)thisObj;</span>
+    }
+
+// #string_id_map#
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:16:24 EDT
+<span class="fc" id="L2744">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L2745" title="2 of 5 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L2746">            case 4: c=s.charAt(0);</span>
+<span class="nc bnc" id="L2747" title="All 2 branches missed.">                if (c=='e') { X=&quot;exec&quot;;id=Id_exec; }</span>
+<span class="nc bnc" id="L2748" title="All 2 branches missed.">                else if (c=='t') { X=&quot;test&quot;;id=Id_test; }</span>
+                break L;
+<span class="nc" id="L2750">            case 6: X=&quot;prefix&quot;;id=Id_prefix; break L;</span>
+<span class="fc" id="L2751">            case 7: X=&quot;compile&quot;;id=Id_compile; break L;</span>
+<span class="fc" id="L2752">            case 8: c=s.charAt(3);</span>
+<span class="pc bpc" id="L2753" title="1 of 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="pc bpc" id="L2754" title="1 of 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+            }
+<span class="pc bpc" id="L2757" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L2761">        return id;</span>
+    }
+
+    private static final int
+        Id_compile       = 1,
+        Id_toString      = 2,
+        Id_toSource      = 3,
+        Id_exec          = 4,
+        Id_test          = 5,
+        Id_prefix        = 6,
+
+        MAX_PROTOTYPE_ID = 6;
+
+// #/string_id_map#
+
+    private RECompiled re;
+<span class="fc" id="L2777">    Object lastIndex = 0d;     /* index after last match, for //g iterator */</span>
+<span class="fc" id="L2778">    private int lastIndexAttr = DONTENUM | PERMANENT;</span>
+
+}       // class NativeRegExp
+
+class RECompiled implements Serializable
+{
+    static final long serialVersionUID = -6144956577595844213L;
+
+    final char[] source;    /* locked source string, sans // */
+    int parenCount;         /* number of parenthesized submatches */
+    int flags;              /* flags  */
+    byte[] program;         /* regular expression bytecode */
+    int classCount;         /* count [...] bitmaps */
+    RECharSet[] classList;  /* list of [...] bitmaps */
+<span class="fc" id="L2792">    int anchorCh = -1;      /* if &gt;= 0, then re starts with this literal char */</span>
+
+<span class="fc" id="L2794">    RECompiled(String str) {</span>
+<span class="fc" id="L2795">        this.source = str.toCharArray();</span>
+<span class="fc" id="L2796">    }</span>
+}
+
+class RENode {
+
+    RENode(byte op)
+<span class="fc" id="L2802">    {</span>
+<span class="fc" id="L2803">        this.op = op;</span>
+<span class="fc" id="L2804">    }</span>
+
+    byte            op;         /* r.e. op bytecode */
+    RENode          next;       /* next in concatenation order */
+    RENode          kid;        /* first operand */
+
+    RENode          kid2;       /* second operand */
+    int             parenIndex; /* or a parenthesis index */
+
+                                /* or a range */
+    int             min;
+    int             max;
+    int             parenCount;
+    boolean         greedy;
+
+                                /* or a character class */
+    int             startIndex;
+    int             kidlen;     /* length of string at kid, in chars */
+    int             bmsize;     /* bitmap size, based on max char code */
+    int             index;      /* index into class list */
+    boolean         sense;
+
+                                /* or a literal sequence */
+    char            chr;        /* of one character */
+    int             length;     /* or many (via the index) */
+    int             flatIndex;  /* which is -1 if not sourced */
+
+}
+
+class CompilerState {
+
+    CompilerState(Context cx, char[] source, int length, int flags)
+<span class="fc" id="L2836">    {</span>
+<span class="fc" id="L2837">        this.cx = cx;</span>
+<span class="fc" id="L2838">        this.cpbegin = source;</span>
+<span class="fc" id="L2839">        this.cp = 0;</span>
+<span class="fc" id="L2840">        this.cpend = length;</span>
+<span class="fc" id="L2841">        this.flags = flags;</span>
+<span class="fc" id="L2842">        this.backReferenceLimit = Integer.MAX_VALUE;</span>
+<span class="fc" id="L2843">        this.maxBackReference = 0;</span>
+<span class="fc" id="L2844">        this.parenCount = 0;</span>
+<span class="fc" id="L2845">        this.classCount = 0;</span>
+<span class="fc" id="L2846">        this.progLength = 0;</span>
+<span class="fc" id="L2847">    }</span>
+
+    Context     cx;
+    char        cpbegin[];
+    int         cpend;
+    int         cp;
+    int         flags;
+    int         backReferenceLimit;
+    int         maxBackReference;
+    int         parenCount;
+    int         parenNesting;
+    int         classCount;   /* number of [] encountered */
+    int         progLength;   /* estimated bytecode length */
+    RENode      result;
+}
+
+class REProgState
+{
+    REProgState(REProgState previous, int min, int max, int index,
+                REBackTrackData backTrack,
+                int continuationOp, int continuationPc)
+<span class="fc" id="L2868">    {</span>
+<span class="fc" id="L2869">        this.previous = previous;</span>
+<span class="fc" id="L2870">        this.min = min;</span>
+<span class="fc" id="L2871">        this.max = max;</span>
+<span class="fc" id="L2872">        this.index = index;</span>
+<span class="fc" id="L2873">        this.continuationOp = continuationOp;</span>
+<span class="fc" id="L2874">        this.continuationPc = continuationPc;</span>
+<span class="fc" id="L2875">        this.backTrack = backTrack;</span>
+<span class="fc" id="L2876">    }</span>
+
+    final REProgState previous; // previous state in stack
+
+    final int min;                      /* current quantifier min */
+    final int max;                      /* current quantifier max */
+    final int index;                    /* progress in text */
+    final int continuationOp;
+    final int continuationPc;
+    final REBackTrackData backTrack; // used by ASSERT_  to recover state
+}
+
+class REBackTrackData {
+
+    REBackTrackData(REGlobalData gData, int op, int pc, int cp,
+                    int continuationOp, int continuationPc)
+<span class="fc" id="L2892">    {</span>
+<span class="fc" id="L2893">        previous = gData.backTrackStackTop;</span>
+<span class="fc" id="L2894">        this.op = op;</span>
+<span class="fc" id="L2895">        this.pc = pc;</span>
+<span class="fc" id="L2896">        this.cp = cp;</span>
+<span class="fc" id="L2897">        this.continuationOp = continuationOp;</span>
+<span class="fc" id="L2898">        this.continuationPc = continuationPc;</span>
+<span class="fc" id="L2899">        parens = gData.parens;</span>
+<span class="fc" id="L2900">        stateStackTop = gData.stateStackTop;</span>
+<span class="fc" id="L2901">    }</span>
+
+    final REBackTrackData previous;
+
+    final int op;                             /* operator */
+    final int pc;                             /* bytecode pointer */
+    final int cp;                             /* char buffer index */
+    final int continuationOp;                 /* continuation op */
+    final int continuationPc;                 /* continuation pc */
+    final long[] parens;                      /* parenthesis captures */
+    final REProgState stateStackTop;          /* state of op that backtracked */
+}
+
+<span class="fc" id="L2914">class REGlobalData {</span>
+    boolean multiline;
+    RECompiled regexp;              /* the RE in execution */
+    int skipped;                    /* chars skipped anchoring this r.e. */
+
+    int cp;                         /* char buffer index */
+    long[] parens;                  /* parens captures */
+
+    REProgState stateStackTop;       /* stack of state of current ancestors */
+
+    REBackTrackData backTrackStackTop;  /* last matched-so-far position */
+
+
+    /**
+     * Get start of parenthesis capture contents, -1 for empty.
+     */
+    int parensIndex(int i)
+    {
+<span class="fc" id="L2932">        return (int)(parens[i]);</span>
+    }
+
+    /**
+     * Get length of parenthesis capture contents.
+     */
+    int parensLength(int i)
+    {
+<span class="nc" id="L2940">        return (int)(parens[i] &gt;&gt;&gt; 32);</span>
+    }
+
+    void setParens(int i, int index, int length)
+    {
+        // clone parens array if it is shared with backtrack state
+<span class="pc bpc" id="L2946" title="1 of 4 branches missed.">        if (backTrackStackTop != null &amp;&amp; backTrackStackTop.parens == parens) {</span>
+<span class="fc" id="L2947">            parens = parens.clone();</span>
+        }
+<span class="fc" id="L2949">        parens[i] = (index &amp; 0xffffffffL) | ((long)length &lt;&lt; 32);</span>
+<span class="fc" id="L2950">    }</span>
+
+}
+
+/*
+ * This struct holds a bitmap representation of a class from a regexp.
+ * There's a list of these referenced by the classList field in the NativeRegExp
+ * struct below. The initial state has startIndex set to the offset in the
+ * original regexp source of the beginning of the class contents. The first
+ * use of the class converts the source representation into a bitmap.
+ *
+ */
+final class RECharSet implements Serializable
+{
+    static final long serialVersionUID = 7931787979395898394L;
+
+    RECharSet(int length, int startIndex, int strlength, boolean sense)
+<span class="fc" id="L2967">    {</span>
+<span class="fc" id="L2968">        this.length = length;</span>
+<span class="fc" id="L2969">        this.startIndex = startIndex;</span>
+<span class="fc" id="L2970">        this.strlength = strlength;</span>
+<span class="fc" id="L2971">        this.sense = sense;</span>
+<span class="fc" id="L2972">    }</span>
+
+    final int length;
+    final int startIndex;
+    final int strlength;
+    final boolean sense;
+
+    volatile transient boolean converted;
+    volatile transient byte[] bits;
+}
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

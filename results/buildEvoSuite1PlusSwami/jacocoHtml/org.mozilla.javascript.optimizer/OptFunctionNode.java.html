@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OptFunctionNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.optimizer</a> &gt; <span class="el_source">OptFunctionNode.java</span></div><h1>OptFunctionNode.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.ScriptNode;
+
+public final class OptFunctionNode
+{
+    OptFunctionNode(FunctionNode fnode)
+<span class="fc" id="L15">    {</span>
+<span class="fc" id="L16">        this.fnode = fnode;</span>
+<span class="fc" id="L17">        fnode.setCompilerData(this);</span>
+<span class="fc" id="L18">    }</span>
+
+    public static OptFunctionNode get(ScriptNode scriptOrFn, int i)
+    {
+<span class="fc" id="L22">        FunctionNode fnode = scriptOrFn.getFunctionNode(i);</span>
+<span class="fc" id="L23">        return (OptFunctionNode)fnode.getCompilerData();</span>
+    }
+
+    public static OptFunctionNode get(ScriptNode scriptOrFn)
+    {
+<span class="fc" id="L28">        return (OptFunctionNode)scriptOrFn.getCompilerData();</span>
+    }
+
+    public boolean isTargetOfDirectCall()
+    {
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        return directTargetIndex &gt;= 0;</span>
+    }
+
+    public int getDirectTargetIndex()
+    {
+<span class="fc" id="L38">        return directTargetIndex;</span>
+    }
+
+    void setDirectTargetIndex(int directTargetIndex)
+    {
+        // One time action
+<span class="pc bpc" id="L44" title="1 of 4 branches missed.">        if (directTargetIndex &lt; 0 || this.directTargetIndex &gt;= 0)</span>
+<span class="nc" id="L45">            Kit.codeBug();</span>
+<span class="fc" id="L46">        this.directTargetIndex = directTargetIndex;</span>
+<span class="fc" id="L47">    }</span>
+
+    void setParameterNumberContext(boolean b)
+    {
+<span class="fc" id="L51">        itsParameterNumberContext = b;</span>
+<span class="fc" id="L52">    }</span>
+
+    public boolean getParameterNumberContext()
+    {
+<span class="fc" id="L56">        return itsParameterNumberContext;</span>
+    }
+
+    public int getVarCount()
+    {
+<span class="fc" id="L61">        return fnode.getParamAndVarCount();</span>
+    }
+
+    public boolean isParameter(int varIndex)
+    {
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        return varIndex &lt; fnode.getParamCount();</span>
+    }
+
+    public boolean isNumberVar(int varIndex)
+    {
+<span class="fc" id="L71">        varIndex -= fnode.getParamCount();</span>
+<span class="pc bpc" id="L72" title="3 of 4 branches missed.">        if (varIndex &gt;= 0 &amp;&amp; numberVarFlags != null) {</span>
+<span class="nc" id="L73">            return numberVarFlags[varIndex];</span>
+        }
+<span class="fc" id="L75">        return false;</span>
+    }
+
+    void setIsNumberVar(int varIndex)
+    {
+<span class="fc" id="L80">        varIndex -= fnode.getParamCount();</span>
+        // Can only be used with non-parameters
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        if (varIndex &lt; 0) Kit.codeBug();</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        if (numberVarFlags == null) {</span>
+<span class="fc" id="L84">            int size = fnode.getParamAndVarCount() - fnode.getParamCount();</span>
+<span class="fc" id="L85">            numberVarFlags = new boolean[size];</span>
+        }
+<span class="nc" id="L87">        numberVarFlags[varIndex] = true;</span>
+<span class="nc" id="L88">    }</span>
+
+    public int getVarIndex(Node n)
+    {
+<span class="fc" id="L92">        int index = n.getIntProp(Node.VARIABLE_PROP, -1);</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        if (index == -1) {</span>
+            Node node;
+<span class="fc" id="L95">            int type = n.getType();</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            if (type == Token.GETVAR) {</span>
+<span class="fc" id="L97">                node = n;</span>
+<span class="pc bpc" id="L98" title="3 of 4 branches missed.">            } else if (type == Token.SETVAR ||</span>
+                       type == Token.SETCONSTVAR) {
+<span class="fc" id="L100">                node = n.getFirstChild();</span>
+            } else {
+<span class="nc" id="L102">                throw Kit.codeBug();</span>
+            }
+<span class="nc" id="L104">            index = fnode.getIndexForNameNode(node);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            if (index &lt; 0) throw Kit.codeBug();</span>
+<span class="nc" id="L106">            n.putIntProp(Node.VARIABLE_PROP, index);</span>
+        }
+<span class="nc" id="L108">        return index;</span>
+    }
+
+    public final FunctionNode fnode;
+
+    private boolean[] numberVarFlags;
+<span class="fc" id="L114">    private int directTargetIndex = -1;</span>
+    private boolean itsParameterNumberContext;
+    boolean itsContainsCalls0;
+    boolean itsContainsCalls1;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
