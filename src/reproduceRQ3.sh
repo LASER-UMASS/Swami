@@ -13,6 +13,12 @@ rm -rf ../results/Rhino_ECMA262_Tests/
 python3 swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests rhino 1000
 
 echo
-echo "STEP3: Run and compare swami-generated tests with EvoSuite-generated tests on Rhino"
+echo "STEP3: Execute EvoSuite-generated test suites in Rhino"
 echo
 ./runEvoSuiteTestsInRhino.sh
+
+echo
+echo "STEP4: compare code coverage of EvoSuite-generated, with EvoSuite-generated augmented with Swami tests in Rhino"
+echo
+./compareCoverageEvoSuite.sh
+
