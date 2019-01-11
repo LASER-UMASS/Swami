@@ -55,11 +55,3 @@ echo "RHINO: MEASURING CODE COVERAGE OF COMBINED TEST SUITE ....................
 ./gradlew jacocoTestReport
 mv buildGradle buildCombine
 
-echo "RHINO: COMPARING COVERAGE OF DEVELOPER-WRITTEN TEST SUITE WITH COMBINED TEST SUITE............................................"
-cd ~/rhino-Rhino1_7_9_Release/
-cp -r ~/swami/compareCoverage/ .
-cp buildDeveloper/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testdev.exec
-cp buildDeveloperPlusSwami/jacoco/test.exec ~/rhino-Rhino1_7_9_Release/compareCoverage/source/testcombine.exec
-rm -rf ./compareCoverage/reports/*
-cd ./compareCoverage/Jacoco-Comparison-Tool-master
-./report.sh
