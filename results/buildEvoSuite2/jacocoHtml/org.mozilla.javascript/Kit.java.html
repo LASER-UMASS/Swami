@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Kit.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Kit.java</span></div><h1>Kit.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.lang.reflect.Method;
+import java.util.Map;
+
+/**
+ * Collection of utilities
+ */
+
+<span class="nc" id="L19">public class Kit</span>
+{
+    /**
+     * Reflection of Throwable.initCause(Throwable) from JDK 1.4
+     * or nul if it is not available.
+     */
+<span class="nc" id="L25">    private static Method Throwable_initCause = null;</span>
+
+    static {
+        // Are we running on a JDK 1.4 or later system?
+        try {
+<span class="nc" id="L30">            Class&lt;?&gt; ThrowableClass = Kit.classOrNull(&quot;java.lang.Throwable&quot;);</span>
+<span class="nc" id="L31">            Class&lt;?&gt;[] signature = { ThrowableClass };</span>
+<span class="nc" id="L32">            Throwable_initCause</span>
+<span class="nc" id="L33">                = ThrowableClass.getMethod(&quot;initCause&quot;, signature);</span>
+<span class="nc" id="L34">        } catch (Exception ex) {</span>
+            // Assume any exceptions means the method does not exist.
+<span class="nc" id="L36">        }</span>
+<span class="nc" id="L37">    }</span>
+
+    public static Class&lt;?&gt; classOrNull(String className)
+    {
+        try {
+<span class="nc" id="L42">            return Class.forName(className);</span>
+<span class="nc" id="L43">        } catch  (ClassNotFoundException ex) {</span>
+<span class="nc" id="L44">        } catch  (SecurityException ex) {</span>
+<span class="nc" id="L45">        } catch  (LinkageError ex) {</span>
+<span class="nc" id="L46">        } catch (IllegalArgumentException e) {</span>
+            // Can be thrown if name has characters that a class name
+            // can not contain
+<span class="nc" id="L49">        }</span>
+<span class="nc" id="L50">        return null;</span>
+    }
+
+    /**
+     * Attempt to load the class of the given name. Note that the type parameter
+     * isn't checked.
+     */
+    public static Class&lt;?&gt; classOrNull(ClassLoader loader, String className)
+    {
+        try {
+<span class="nc" id="L60">            return loader.loadClass(className);</span>
+<span class="nc" id="L61">        } catch (ClassNotFoundException ex) {</span>
+<span class="nc" id="L62">        } catch (SecurityException ex) {</span>
+<span class="nc" id="L63">        } catch (LinkageError ex) {</span>
+<span class="nc" id="L64">        } catch (IllegalArgumentException e) {</span>
+            // Can be thrown if name has characters that a class name
+            // can not contain
+<span class="nc" id="L67">        }</span>
+<span class="nc" id="L68">        return null;</span>
+    }
+
+    static Object newInstanceOrNull(Class&lt;?&gt; cl)
+    {
+        try {
+<span class="nc" id="L74">            return cl.newInstance();</span>
+<span class="nc" id="L75">        } catch (SecurityException x) {</span>
+<span class="nc" id="L76">        } catch  (LinkageError ex) {</span>
+<span class="nc" id="L77">        } catch (InstantiationException x) {</span>
+<span class="nc" id="L78">        } catch (IllegalAccessException x) {</span>
+<span class="nc" id="L79">        }</span>
+<span class="nc" id="L80">        return null;</span>
+    }
+
+    /**
+     * Check that testClass is accessible from the given loader.
+     */
+    static boolean testIfCanLoadRhinoClasses(ClassLoader loader)
+    {
+<span class="nc" id="L88">        Class&lt;?&gt; testClass = ScriptRuntime.ContextFactoryClass;</span>
+<span class="nc" id="L89">        Class&lt;?&gt; x = Kit.classOrNull(loader, testClass.getName());</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (x != testClass) {</span>
+            // The check covers the case when x == null =&gt;
+            // loader does not know about testClass or the case
+            // when x != null &amp;&amp; x != testClass =&gt;
+            // loader loads a class unrelated to testClass
+<span class="nc" id="L95">            return false;</span>
+        }
+<span class="nc" id="L97">        return true;</span>
+    }
+
+    /**
+     * If initCause methods exists in Throwable, call
+     * &lt;tt&gt;ex.initCause(cause)&lt;/tt&gt; or otherwise do nothing.
+     * @return The &lt;tt&gt;ex&lt;/tt&gt; argument.
+     */
+    public static RuntimeException initCause(RuntimeException ex,
+                                             Throwable cause)
+    {
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (Throwable_initCause != null) {</span>
+<span class="nc" id="L109">            Object[] args = { cause };</span>
+            try {
+<span class="nc" id="L111">                Throwable_initCause.invoke(ex, args);</span>
+<span class="nc" id="L112">            } catch (Exception e) {</span>
+                // Ignore any exceptions
+<span class="nc" id="L114">            }</span>
+        }
+<span class="nc" id="L116">        return ex;</span>
+    }
+
+    /**
+     * If character &lt;tt&gt;c&lt;/tt&gt; is a hexadecimal digit, return
+     * &lt;tt&gt;accumulator&lt;/tt&gt; * 16 plus corresponding
+     * number. Otherise return -1.
+     */
+    public static int xDigitToInt(int c, int accumulator)
+    {
+        check: {
+            // Use 0..9 &lt; A..Z &lt; a..z
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (c &lt;= '9') {</span>
+<span class="nc" id="L129">                c -= '0';</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                if (0 &lt;= c) { break check; }</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            } else if (c &lt;= 'F') {</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                if ('A' &lt;= c) {</span>
+<span class="nc" id="L133">                    c -= ('A' - 10);</span>
+<span class="nc" id="L134">                    break check;</span>
+                }
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            } else if (c &lt;= 'f') {</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                if ('a' &lt;= c) {</span>
+<span class="nc" id="L138">                    c -= ('a' - 10);</span>
+<span class="nc" id="L139">                    break check;</span>
+                }
+            }
+<span class="nc" id="L142">            return -1;</span>
+        }
+<span class="nc" id="L144">        return (accumulator &lt;&lt; 4) | c;</span>
+    }
+
+    /**
+     * Add &lt;i&gt;listener&lt;/i&gt; to &lt;i&gt;bag&lt;/i&gt; of listeners.
+     * The function does not modify &lt;i&gt;bag&lt;/i&gt; and return a new collection
+     * containing &lt;i&gt;listener&lt;/i&gt; and all listeners from &lt;i&gt;bag&lt;/i&gt;.
+     * Bag without listeners always represented as the null value.
+     * &lt;p&gt;
+     * Usage example:
+     * &lt;pre&gt;
+     *     private volatile Object changeListeners;
+     *
+     *     public void addMyListener(PropertyChangeListener l)
+     *     {
+     *         synchronized (this) {
+     *             changeListeners = Kit.addListener(changeListeners, l);
+     *         }
+     *     }
+     *
+     *     public void removeTextListener(PropertyChangeListener l)
+     *     {
+     *         synchronized (this) {
+     *             changeListeners = Kit.removeListener(changeListeners, l);
+     *         }
+     *     }
+     *
+     *     public void fireChangeEvent(Object oldValue, Object newValue)
+     *     {
+     *     // Get immune local copy
+     *         Object listeners = changeListeners;
+     *         if (listeners != null) {
+     *             PropertyChangeEvent e = new PropertyChangeEvent(
+     *                 this, &quot;someProperty&quot; oldValue, newValue);
+     *             for (int i = 0; ; ++i) {
+     *                 Object l = Kit.getListener(listeners, i);
+     *                 if (l == null)
+     *                     break;
+     *                 ((PropertyChangeListener)l).propertyChange(e);
+     *             }
+     *         }
+     *     }
+     * &lt;/pre&gt;
+     *
+     * @param listener Listener to add to &lt;i&gt;bag&lt;/i&gt;
+     * @param bag Current collection of listeners.
+     * @return A new bag containing all listeners from &lt;i&gt;bag&lt;/i&gt; and
+     *          &lt;i&gt;listener&lt;/i&gt;.
+     * @see #removeListener(Object bag, Object listener)
+     * @see #getListener(Object bag, int index)
+     */
+    public static Object addListener(Object bag, Object listener)
+    {
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        if (listener == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (listener instanceof Object[]) throw new IllegalArgumentException();</span>
+
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (bag == null) {</span>
+<span class="nc" id="L201">            bag = listener;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        } else if (!(bag instanceof Object[])) {</span>
+<span class="nc" id="L203">            bag = new Object[] { bag, listener };</span>
+        } else {
+<span class="nc" id="L205">            Object[] array = (Object[])bag;</span>
+<span class="nc" id="L206">            int L = array.length;</span>
+            // bag has at least 2 elements if it is array
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (L &lt; 2) throw new IllegalArgumentException();</span>
+<span class="nc" id="L209">            Object[] tmp = new Object[L + 1];</span>
+<span class="nc" id="L210">            System.arraycopy(array, 0, tmp, 0, L);</span>
+<span class="nc" id="L211">            tmp[L] = listener;</span>
+<span class="nc" id="L212">            bag = tmp;</span>
+        }
+
+<span class="nc" id="L215">        return bag;</span>
+    }
+
+    /**
+     * Remove &lt;i&gt;listener&lt;/i&gt; from &lt;i&gt;bag&lt;/i&gt; of listeners.
+     * The function does not modify &lt;i&gt;bag&lt;/i&gt; and return a new collection
+     * containing all listeners from &lt;i&gt;bag&lt;/i&gt; except &lt;i&gt;listener&lt;/i&gt;.
+     * If &lt;i&gt;bag&lt;/i&gt; does not contain &lt;i&gt;listener&lt;/i&gt;, the function returns
+     * &lt;i&gt;bag&lt;/i&gt;.
+     * &lt;p&gt;
+     * For usage example, see {@link #addListener(Object bag, Object listener)}.
+     *
+     * @param listener Listener to remove from &lt;i&gt;bag&lt;/i&gt;
+     * @param bag Current collection of listeners.
+     * @return A new bag containing all listeners from &lt;i&gt;bag&lt;/i&gt; except
+     *          &lt;i&gt;listener&lt;/i&gt;.
+     * @see #addListener(Object bag, Object listener)
+     * @see #getListener(Object bag, int index)
+     */
+    public static Object removeListener(Object bag, Object listener)
+    {
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        if (listener == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        if (listener instanceof Object[]) throw new IllegalArgumentException();</span>
+
+<span class="nc bnc" id="L239" title="All 2 branches missed.">        if (bag == listener) {</span>
+<span class="nc" id="L240">            bag = null;</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">        } else if (bag instanceof Object[]) {</span>
+<span class="nc" id="L242">            Object[] array = (Object[])bag;</span>
+<span class="nc" id="L243">            int L = array.length;</span>
+            // bag has at least 2 elements if it is array
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            if (L &lt; 2) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            if (L == 2) {</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                if (array[1] == listener) {</span>
+<span class="nc" id="L248">                    bag = array[0];</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                } else if (array[0] == listener) {</span>
+<span class="nc" id="L250">                    bag = array[1];</span>
+                }
+            } else {
+<span class="nc" id="L253">                int i = L;</span>
+                do {
+<span class="nc" id="L255">                    --i;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">                    if (array[i] == listener) {</span>
+<span class="nc" id="L257">                        Object[] tmp = new Object[L - 1];</span>
+<span class="nc" id="L258">                        System.arraycopy(array, 0, tmp, 0, i);</span>
+<span class="nc" id="L259">                        System.arraycopy(array, i + 1, tmp, i, L - (i + 1));</span>
+<span class="nc" id="L260">                        bag = tmp;</span>
+<span class="nc" id="L261">                        break;</span>
+                    }
+<span class="nc bnc" id="L263" title="All 2 branches missed.">                } while (i != 0);</span>
+            }
+        }
+
+<span class="nc" id="L267">        return bag;</span>
+    }
+
+    /**
+     * Get listener at &lt;i&gt;index&lt;/i&gt; position in &lt;i&gt;bag&lt;/i&gt; or null if
+     * &lt;i&gt;index&lt;/i&gt; equals to number of listeners in &lt;i&gt;bag&lt;/i&gt;.
+     * &lt;p&gt;
+     * For usage example, see {@link #addListener(Object bag, Object listener)}.
+     *
+     * @param bag Current collection of listeners.
+     * @param index Index of the listener to access.
+     * @return Listener at the given index or null.
+     * @see #addListener(Object bag, Object listener)
+     * @see #removeListener(Object bag, Object listener)
+     */
+    public static Object getListener(Object bag, int index)
+    {
+<span class="nc bnc" id="L284" title="All 2 branches missed.">        if (index == 0) {</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            if (bag == null)</span>
+<span class="nc" id="L286">                return null;</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">            if (!(bag instanceof Object[]))</span>
+<span class="nc" id="L288">                return bag;</span>
+<span class="nc" id="L289">            Object[] array = (Object[])bag;</span>
+            // bag has at least 2 elements if it is array
+<span class="nc bnc" id="L291" title="All 2 branches missed.">            if (array.length &lt; 2) throw new IllegalArgumentException();</span>
+<span class="nc" id="L292">            return array[0];</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        } else if (index == 1) {</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">            if (!(bag instanceof Object[])) {</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                if (bag == null) throw new IllegalArgumentException();</span>
+<span class="nc" id="L296">                return null;</span>
+            }
+<span class="nc" id="L298">            Object[] array = (Object[])bag;</span>
+            // the array access will check for index on its own
+<span class="nc" id="L300">            return array[1];</span>
+        } else {
+            // bag has to array
+<span class="nc" id="L303">            Object[] array = (Object[])bag;</span>
+<span class="nc" id="L304">            int L = array.length;</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">            if (L &lt; 2) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">            if (index == L)</span>
+<span class="nc" id="L307">                return null;</span>
+<span class="nc" id="L308">            return array[index];</span>
+        }
+    }
+
+    static Object initHash(Map&lt;Object,Object&gt; h, Object key, Object initialValue)
+    {
+<span class="nc" id="L314">        synchronized (h) {</span>
+<span class="nc" id="L315">            Object current = h.get(key);</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            if (current == null) {</span>
+<span class="nc" id="L317">                h.put(key, initialValue);</span>
+            } else {
+<span class="nc" id="L319">                initialValue = current;</span>
+            }
+<span class="nc" id="L321">        }</span>
+<span class="nc" id="L322">        return initialValue;</span>
+    }
+
+    private final static class ComplexKey
+    {
+        private Object key1;
+        private Object key2;
+        private int hash;
+
+        ComplexKey(Object key1, Object key2)
+<span class="nc" id="L332">        {</span>
+<span class="nc" id="L333">            this.key1 = key1;</span>
+<span class="nc" id="L334">            this.key2 = key2;</span>
+<span class="nc" id="L335">        }</span>
+
+        @Override
+        public boolean equals(Object anotherObj)
+        {
+<span class="nc bnc" id="L340" title="All 2 branches missed.">            if (!(anotherObj instanceof ComplexKey))</span>
+<span class="nc" id="L341">                return false;</span>
+<span class="nc" id="L342">            ComplexKey another = (ComplexKey)anotherObj;</span>
+<span class="nc bnc" id="L343" title="All 4 branches missed.">            return key1.equals(another.key1) &amp;&amp; key2.equals(another.key2);</span>
+        }
+
+        @Override
+        public int hashCode()
+        {
+<span class="nc bnc" id="L349" title="All 2 branches missed.">            if (hash == 0) {</span>
+<span class="nc" id="L350">                hash = key1.hashCode() ^ key2.hashCode();</span>
+            }
+<span class="nc" id="L352">            return hash;</span>
+        }
+    }
+
+    public static Object makeHashKeyFromPair(Object key1, Object key2)
+    {
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        if (key1 == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        if (key2 == null) throw new IllegalArgumentException();</span>
+<span class="nc" id="L360">        return new ComplexKey(key1, key2);</span>
+    }
+
+    public static String readReader(Reader r)
+        throws IOException
+    {
+<span class="nc" id="L366">        char[] buffer = new char[512];</span>
+<span class="nc" id="L367">        int cursor = 0;</span>
+        for (;;) {
+<span class="nc" id="L369">            int n = r.read(buffer, cursor, buffer.length - cursor);</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">            if (n &lt; 0) { break; }</span>
+<span class="nc" id="L371">            cursor += n;</span>
+<span class="nc bnc" id="L372" title="All 2 branches missed.">            if (cursor == buffer.length) {</span>
+<span class="nc" id="L373">                char[] tmp = new char[buffer.length * 2];</span>
+<span class="nc" id="L374">                System.arraycopy(buffer, 0, tmp, 0, cursor);</span>
+<span class="nc" id="L375">                buffer = tmp;</span>
+            }
+<span class="nc" id="L377">        }</span>
+<span class="nc" id="L378">        return new String(buffer, 0, cursor);</span>
+    }
+
+    public static byte[] readStream(InputStream is, int initialBufferCapacity)
+        throws IOException
+    {
+<span class="nc bnc" id="L384" title="All 2 branches missed.">        if (initialBufferCapacity &lt;= 0) {</span>
+<span class="nc" id="L385">            throw new IllegalArgumentException(</span>
+                &quot;Bad initialBufferCapacity: &quot;+initialBufferCapacity);
+        }
+<span class="nc" id="L388">        byte[] buffer = new byte[initialBufferCapacity];</span>
+<span class="nc" id="L389">        int cursor = 0;</span>
+        for (;;) {
+<span class="nc" id="L391">            int n = is.read(buffer, cursor, buffer.length - cursor);</span>
+<span class="nc bnc" id="L392" title="All 2 branches missed.">            if (n &lt; 0) { break; }</span>
+<span class="nc" id="L393">            cursor += n;</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">            if (cursor == buffer.length) {</span>
+<span class="nc" id="L395">                byte[] tmp = new byte[buffer.length * 2];</span>
+<span class="nc" id="L396">                System.arraycopy(buffer, 0, tmp, 0, cursor);</span>
+<span class="nc" id="L397">                buffer = tmp;</span>
+            }
+<span class="nc" id="L399">        }</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        if (cursor != buffer.length) {</span>
+<span class="nc" id="L401">            byte[] tmp = new byte[cursor];</span>
+<span class="nc" id="L402">            System.arraycopy(buffer, 0, tmp, 0, cursor);</span>
+<span class="nc" id="L403">            buffer = tmp;</span>
+        }
+<span class="nc" id="L405">        return buffer;</span>
+    }
+
+    /**
+     * Throws RuntimeException to indicate failed assertion.
+     * The function never returns and its return type is RuntimeException
+     * only to be able to write &lt;tt&gt;throw Kit.codeBug()&lt;/tt&gt; if plain
+     * &lt;tt&gt;Kit.codeBug()&lt;/tt&gt; triggers unreachable code error.
+     */
+    public static RuntimeException codeBug()
+        throws RuntimeException
+    {
+<span class="nc" id="L417">        RuntimeException ex = new IllegalStateException(&quot;FAILED ASSERTION&quot;);</span>
+        // Print stack trace ASAP
+<span class="nc" id="L419">        ex.printStackTrace(System.err);</span>
+<span class="nc" id="L420">        throw ex;</span>
+    }
+
+    /**
+     * Throws RuntimeException to indicate failed assertion.
+     * The function never returns and its return type is RuntimeException
+     * only to be able to write &lt;tt&gt;throw Kit.codeBug()&lt;/tt&gt; if plain
+     * &lt;tt&gt;Kit.codeBug()&lt;/tt&gt; triggers unreachable code error.
+     */
+    public static RuntimeException codeBug(String msg)
+        throws RuntimeException
+    {
+<span class="nc" id="L432">        msg = &quot;FAILED ASSERTION: &quot; + msg;</span>
+<span class="nc" id="L433">        RuntimeException ex = new IllegalStateException(msg);</span>
+        // Print stack trace ASAP
+<span class="nc" id="L435">        ex.printStackTrace(System.err);</span>
+<span class="nc" id="L436">        throw ex;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

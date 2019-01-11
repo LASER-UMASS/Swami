@@ -1,0 +1,627 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UintMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">UintMap.java</span></div><h1>UintMap.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
+/**
+ * Map to associate non-negative integers to objects or integers.
+ * The map does not synchronize any of its operation, so either use
+ * it from a single thread or do own synchronization or perform all mutation
+ * operations on one thread before passing the map to others.
+ *
+ * @author Igor Bukanov
+ *
+ */
+
+public class UintMap implements Serializable
+{
+    static final long serialVersionUID = 4242698212885848444L;
+
+// Map implementation via hashtable,
+// follows &quot;The Art of Computer Programming&quot; by Donald E. Knuth
+
+    public UintMap() {
+<span class="nc" id="L32">        this(4);</span>
+<span class="nc" id="L33">    }</span>
+
+<span class="nc" id="L35">    public UintMap(int initialCapacity) {</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (initialCapacity &lt; 0) Kit.codeBug();</span>
+        // Table grow when number of stored keys &gt;= 3/4 of max capacity
+<span class="nc" id="L38">        int minimalCapacity = initialCapacity * 4 / 3;</span>
+        int i;
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        for (i = 2; (1 &lt;&lt; i) &lt; minimalCapacity; ++i) { }</span>
+<span class="nc" id="L41">        power = i;</span>
+        if (check &amp;&amp; power &lt; 2) Kit.codeBug();
+<span class="nc" id="L43">    }</span>
+
+    public boolean isEmpty() {
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        return keyCount == 0;</span>
+    }
+
+    public int size() {
+<span class="nc" id="L50">        return keyCount;</span>
+    }
+
+    public boolean has(int key) {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        return 0 &lt;= findIndex(key);</span>
+    }
+
+    /**
+     * Get object value assigned with key.
+     * @return key object value or null if key is absent
+     */
+    public Object getObject(int key) {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (values != null) {</span>
+<span class="nc" id="L65">            int index = findIndex(key);</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            if (0 &lt;= index) {</span>
+<span class="nc" id="L67">                return values[index];</span>
+            }
+        }
+<span class="nc" id="L70">        return null;</span>
+    }
+
+    /**
+     * Get integer value assigned with key.
+     * @return key integer value or defaultValue if key is absent
+     */
+    public int getInt(int key, int defaultValue) {
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L79">        int index = findIndex(key);</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (0 &lt;= index) {</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (ivaluesShift != 0) {</span>
+<span class="nc" id="L82">                return keys[ivaluesShift + index];</span>
+            }
+<span class="nc" id="L84">            return 0;</span>
+        }
+<span class="nc" id="L86">        return defaultValue;</span>
+    }
+
+    /**
+     * Get integer value assigned with key.
+     * @return key integer value or defaultValue if key does not exist or does
+     * not have int value
+     * @throws RuntimeException if key does not exist
+     */
+    public int getExistingInt(int key) {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L97">        int index = findIndex(key);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (0 &lt;= index) {</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if (ivaluesShift != 0) {</span>
+<span class="nc" id="L100">                return keys[ivaluesShift + index];</span>
+            }
+<span class="nc" id="L102">            return 0;</span>
+        }
+        // Key must exist
+<span class="nc" id="L105">        Kit.codeBug();</span>
+<span class="nc" id="L106">        return 0;</span>
+    }
+
+    /**
+     * Set object value of the key.
+     * If key does not exist, also set its int value to 0.
+     */
+    public void put(int key, Object value) {
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L115">        int index = ensureIndex(key, false);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (values == null) {</span>
+<span class="nc" id="L117">            values = new Object[1 &lt;&lt; power];</span>
+        }
+<span class="nc" id="L119">        values[index] = value;</span>
+<span class="nc" id="L120">    }</span>
+
+    /**
+     * Set int value of the key.
+     * If key does not exist, also set its object value to null.
+     */
+    public void put(int key, int value) {
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L128">        int index = ensureIndex(key, true);</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (ivaluesShift == 0) {</span>
+<span class="nc" id="L130">            int N = 1 &lt;&lt; power;</span>
+            // keys.length can be N * 2 after clear which set ivaluesShift to 0
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            if (keys.length != N * 2) {</span>
+<span class="nc" id="L133">                int[] tmp = new int[N * 2];</span>
+<span class="nc" id="L134">                System.arraycopy(keys, 0, tmp, 0, N);</span>
+<span class="nc" id="L135">                keys = tmp;</span>
+            }
+<span class="nc" id="L137">            ivaluesShift = N;</span>
+        }
+<span class="nc" id="L139">        keys[ivaluesShift + index] = value;</span>
+<span class="nc" id="L140">    }</span>
+
+    public void remove(int key) {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (key &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L144">        int index = findIndex(key);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (0 &lt;= index) {</span>
+<span class="nc" id="L146">            keys[index] = DELETED;</span>
+<span class="nc" id="L147">            --keyCount;</span>
+            // Allow to GC value and make sure that new key with the deleted
+            // slot shall get proper default values
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (values != null) { values[index] = null; }</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">            if (ivaluesShift != 0) { keys[ivaluesShift + index] = 0; }</span>
+        }
+<span class="nc" id="L153">    }</span>
+
+    public void clear() {
+<span class="nc" id="L156">        int N = 1 &lt;&lt; power;</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (keys != null) {</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">            for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L159">                keys[i] = EMPTY;</span>
+            }
+<span class="nc bnc" id="L161" title="All 2 branches missed.">            if (values != null) {</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L163">                    values[i] = null;</span>
+                }
+            }
+        }
+<span class="nc" id="L167">        ivaluesShift = 0;</span>
+<span class="nc" id="L168">        keyCount = 0;</span>
+<span class="nc" id="L169">        occupiedCount = 0;</span>
+<span class="nc" id="L170">    }</span>
+
+    /** Return array of present keys */
+    public int[] getKeys() {
+<span class="nc" id="L174">        int[] keys = this.keys;</span>
+<span class="nc" id="L175">        int n = keyCount;</span>
+<span class="nc" id="L176">        int[] result = new int[n];</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        for (int i = 0; n != 0; ++i) {</span>
+<span class="nc" id="L178">            int entry = keys[i];</span>
+<span class="nc bnc" id="L179" title="All 4 branches missed.">            if (entry != EMPTY &amp;&amp; entry != DELETED) {</span>
+<span class="nc" id="L180">                result[--n] = entry;</span>
+            }
+        }
+<span class="nc" id="L183">        return result;</span>
+    }
+
+    private static int tableLookupStep(int fraction, int mask, int power) {
+<span class="nc" id="L187">        int shift = 32 - 2 * power;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        if (shift &gt;= 0) {</span>
+<span class="nc" id="L189">            return ((fraction &gt;&gt;&gt; shift) &amp; mask) | 1;</span>
+        }
+        else {
+<span class="nc" id="L192">            return (fraction &amp; (mask &gt;&gt;&gt; -shift)) | 1;</span>
+        }
+    }
+
+    private int findIndex(int key) {
+<span class="nc" id="L197">        int[] keys = this.keys;</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (keys != null) {</span>
+<span class="nc" id="L199">            int fraction = key * A;</span>
+<span class="nc" id="L200">            int index = fraction &gt;&gt;&gt; (32 - power);</span>
+<span class="nc" id="L201">            int entry = keys[index];</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">            if (entry == key) { return index; }</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">            if (entry != EMPTY) {</span>
+                // Search in table after first failed attempt
+<span class="nc" id="L205">                int mask = (1 &lt;&lt; power) - 1;</span>
+<span class="nc" id="L206">                int step = tableLookupStep(fraction, mask, power);</span>
+<span class="nc" id="L207">                int n = 0;</span>
+                do {
+                    if (check) {
+                        if (n &gt;= occupiedCount) Kit.codeBug();
+                        ++n;
+                    }
+<span class="nc" id="L213">                    index = (index + step) &amp; mask;</span>
+<span class="nc" id="L214">                    entry = keys[index];</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    if (entry == key) { return index; }</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                } while (entry != EMPTY);</span>
+            }
+        }
+<span class="nc" id="L219">        return -1;</span>
+    }
+
+// Insert key that is not present to table without deleted entries
+// and enough free space
+    private int insertNewKey(int key) {
+        if (check &amp;&amp; occupiedCount != keyCount) Kit.codeBug();
+        if (check &amp;&amp; keyCount == 1 &lt;&lt; power) Kit.codeBug();
+<span class="nc" id="L227">        int[] keys = this.keys;</span>
+<span class="nc" id="L228">        int fraction = key * A;</span>
+<span class="nc" id="L229">        int index = fraction &gt;&gt;&gt; (32 - power);</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (keys[index] != EMPTY) {</span>
+<span class="nc" id="L231">            int mask = (1 &lt;&lt; power) - 1;</span>
+<span class="nc" id="L232">            int step = tableLookupStep(fraction, mask, power);</span>
+<span class="nc" id="L233">            int firstIndex = index;</span>
+            do {
+                if (check &amp;&amp; keys[index] == DELETED) Kit.codeBug();
+<span class="nc" id="L236">                index = (index + step) &amp; mask;</span>
+                if (check &amp;&amp; firstIndex == index) Kit.codeBug();
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            } while (keys[index] != EMPTY);</span>
+        }
+<span class="nc" id="L240">        keys[index] = key;</span>
+<span class="nc" id="L241">        ++occupiedCount;</span>
+<span class="nc" id="L242">        ++keyCount;</span>
+<span class="nc" id="L243">        return index;</span>
+    }
+
+    private void rehashTable(boolean ensureIntSpace) {
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        if (keys != null) {</span>
+            // Check if removing deleted entries would free enough space
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (keyCount * 2 &gt;= occupiedCount) {</span>
+                // Need to grow: less then half of deleted entries
+<span class="nc" id="L251">                ++power;</span>
+            }
+        }
+<span class="nc" id="L254">        int N = 1 &lt;&lt; power;</span>
+<span class="nc" id="L255">        int[] old = keys;</span>
+<span class="nc" id="L256">        int oldShift = ivaluesShift;</span>
+<span class="nc bnc" id="L257" title="All 4 branches missed.">        if (oldShift == 0 &amp;&amp; !ensureIntSpace) {</span>
+<span class="nc" id="L258">            keys = new int[N];</span>
+        }
+        else {
+<span class="nc" id="L261">            ivaluesShift = N; keys = new int[N * 2];</span>
+        }
+<span class="nc bnc" id="L263" title="All 2 branches missed.">        for (int i = 0; i != N; ++i) { keys[i] = EMPTY; }</span>
+
+<span class="nc" id="L265">        Object[] oldValues = values;</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        if (oldValues != null) { values = new Object[N]; }</span>
+
+<span class="nc" id="L268">        int oldCount = keyCount;</span>
+<span class="nc" id="L269">        occupiedCount = 0;</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (oldCount != 0) {</span>
+<span class="nc" id="L271">            keyCount = 0;</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            for (int i = 0, remaining = oldCount; remaining != 0; ++i) {</span>
+<span class="nc" id="L273">                int key = old[i];</span>
+<span class="nc bnc" id="L274" title="All 4 branches missed.">                if (key != EMPTY &amp;&amp; key != DELETED) {</span>
+<span class="nc" id="L275">                    int index = insertNewKey(key);</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">                    if (oldValues != null) {</span>
+<span class="nc" id="L277">                        values[index] = oldValues[i];</span>
+                    }
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                    if (oldShift != 0) {</span>
+<span class="nc" id="L280">                        keys[ivaluesShift + index] = old[oldShift + i];</span>
+                    }
+<span class="nc" id="L282">                    --remaining;</span>
+                }
+            }
+        }
+<span class="nc" id="L286">    }</span>
+
+// Ensure key index creating one if necessary
+    private int ensureIndex(int key, boolean intType) {
+<span class="nc" id="L290">        int index = -1;</span>
+<span class="nc" id="L291">        int firstDeleted = -1;</span>
+<span class="nc" id="L292">        int[] keys = this.keys;</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        if (keys != null) {</span>
+<span class="nc" id="L294">            int fraction = key * A;</span>
+<span class="nc" id="L295">            index = fraction &gt;&gt;&gt; (32 - power);</span>
+<span class="nc" id="L296">            int entry = keys[index];</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">            if (entry == key) { return index; }</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            if (entry != EMPTY) {</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                if (entry == DELETED) { firstDeleted = index; }</span>
+                // Search in table after first failed attempt
+<span class="nc" id="L301">                int mask = (1 &lt;&lt; power) - 1;</span>
+<span class="nc" id="L302">                int step = tableLookupStep(fraction, mask, power);</span>
+<span class="nc" id="L303">                int n = 0;</span>
+                do {
+                    if (check) {
+                        if (n &gt;= occupiedCount) Kit.codeBug();
+                        ++n;
+                    }
+<span class="nc" id="L309">                    index = (index + step) &amp; mask;</span>
+<span class="nc" id="L310">                    entry = keys[index];</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">                    if (entry == key) { return index; }</span>
+<span class="nc bnc" id="L312" title="All 4 branches missed.">                    if (entry == DELETED &amp;&amp; firstDeleted &lt; 0) {</span>
+<span class="nc" id="L313">                        firstDeleted = index;</span>
+                    }
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                } while (entry != EMPTY);</span>
+            }
+        }
+        // Inserting of new key
+        if (check &amp;&amp; keys != null &amp;&amp; keys[index] != EMPTY)
+            Kit.codeBug();
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        if (firstDeleted &gt;= 0) {</span>
+<span class="nc" id="L322">            index = firstDeleted;</span>
+        }
+        else {
+            // Need to consume empty entry: check occupation level
+<span class="nc bnc" id="L326" title="All 4 branches missed.">            if (keys == null || occupiedCount * 4 &gt;= (1 &lt;&lt; power) * 3) {</span>
+                // Too litle unused entries: rehash
+<span class="nc" id="L328">                rehashTable(intType);</span>
+<span class="nc" id="L329">                return insertNewKey(key);</span>
+            }
+<span class="nc" id="L331">            ++occupiedCount;</span>
+        }
+<span class="nc" id="L333">        keys[index] = key;</span>
+<span class="nc" id="L334">        ++keyCount;</span>
+<span class="nc" id="L335">        return index;</span>
+    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class="nc" id="L341">        out.defaultWriteObject();</span>
+
+<span class="nc" id="L343">        int count = keyCount;</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        if (count != 0) {</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">            boolean hasIntValues = (ivaluesShift != 0);</span>
+<span class="nc bnc" id="L346" title="All 2 branches missed.">            boolean hasObjectValues = (values != null);</span>
+<span class="nc" id="L347">            out.writeBoolean(hasIntValues);</span>
+<span class="nc" id="L348">            out.writeBoolean(hasObjectValues);</span>
+
+<span class="nc bnc" id="L350" title="All 2 branches missed.">            for (int i = 0; count != 0; ++i) {</span>
+<span class="nc" id="L351">                int key = keys[i];</span>
+<span class="nc bnc" id="L352" title="All 4 branches missed.">                if (key != EMPTY &amp;&amp; key != DELETED) {</span>
+<span class="nc" id="L353">                    --count;</span>
+<span class="nc" id="L354">                    out.writeInt(key);</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                    if (hasIntValues) {</span>
+<span class="nc" id="L356">                        out.writeInt(keys[ivaluesShift + i]);</span>
+                    }
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                    if (hasObjectValues) {</span>
+<span class="nc" id="L359">                        out.writeObject(values[i]);</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L364">    }</span>
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc" id="L369">        in.defaultReadObject();</span>
+
+<span class="nc" id="L371">        int writtenKeyCount = keyCount;</span>
+<span class="nc bnc" id="L372" title="All 2 branches missed.">        if (writtenKeyCount != 0) {</span>
+<span class="nc" id="L373">            keyCount = 0;</span>
+<span class="nc" id="L374">            boolean hasIntValues = in.readBoolean();</span>
+<span class="nc" id="L375">            boolean hasObjectValues = in.readBoolean();</span>
+
+<span class="nc" id="L377">            int N = 1 &lt;&lt; power;</span>
+<span class="nc bnc" id="L378" title="All 2 branches missed.">            if (hasIntValues) {</span>
+<span class="nc" id="L379">                keys = new int[2 * N];</span>
+<span class="nc" id="L380">                ivaluesShift = N;</span>
+            }else {
+<span class="nc" id="L382">                keys = new int[N];</span>
+            }
+<span class="nc bnc" id="L384" title="All 2 branches missed.">            for (int i = 0; i != N; ++i) {</span>
+<span class="nc" id="L385">                keys[i] = EMPTY;</span>
+            }
+<span class="nc bnc" id="L387" title="All 2 branches missed.">            if (hasObjectValues) {</span>
+<span class="nc" id="L388">                values = new Object[N];</span>
+            }
+<span class="nc bnc" id="L390" title="All 2 branches missed.">            for (int i = 0; i != writtenKeyCount; ++i) {</span>
+<span class="nc" id="L391">                int key = in.readInt();</span>
+<span class="nc" id="L392">                int index = insertNewKey(key);</span>
+<span class="nc bnc" id="L393" title="All 2 branches missed.">                if (hasIntValues) {</span>
+<span class="nc" id="L394">                    int ivalue = in.readInt();</span>
+<span class="nc" id="L395">                    keys[ivaluesShift + index] = ivalue;</span>
+                }
+<span class="nc bnc" id="L397" title="All 2 branches missed.">                if (hasObjectValues) {</span>
+<span class="nc" id="L398">                    values[index] = in.readObject();</span>
+                }
+            }
+        }
+<span class="nc" id="L402">    }</span>
+
+// A == golden_ratio * (1 &lt;&lt; 32) = ((sqrt(5) - 1) / 2) * (1 &lt;&lt; 32)
+// See Knuth etc.
+    private static final int A = 0x9e3779b9;
+
+    private static final int EMPTY = -1;
+    private static final int DELETED = -2;
+
+// Structure of kyes and values arrays (N == 1 &lt;&lt; power):
+// keys[0 &lt;= i &lt; N]: key value or EMPTY or DELETED mark
+// values[0 &lt;= i &lt; N]: value of key at keys[i]
+// keys[N &lt;= i &lt; 2N]: int values of keys at keys[i - N]
+
+    private transient int[] keys;
+    private transient Object[] values;
+
+    private int power;
+    private int keyCount;
+    private transient int occupiedCount; // == keyCount + deleted_count
+
+    // If ivaluesShift != 0, keys[ivaluesShift + index] contains integer
+    // values associated with keys
+    private transient int ivaluesShift;
+
+// If true, enables consitency checks
+    private static final boolean check = false;
+
+/* TEST START
+
+    public static void main(String[] args) {
+        if (!check) {
+            System.err.println(&quot;Set check to true and re-run&quot;);
+            throw new RuntimeException(&quot;Set check to true and re-run&quot;);
+        }
+
+        UintMap map;
+        map = new UintMap();
+        testHash(map, 2);
+        map = new UintMap();
+        testHash(map, 10 * 1000);
+        map = new UintMap(30 * 1000);
+        testHash(map, 10 * 100);
+        map.clear();
+        testHash(map, 4);
+        map = new UintMap(0);
+        testHash(map, 10 * 100);
+    }
+
+    private static void testHash(UintMap map, int N) {
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            map.put(i, i);
+            check(i == map.getInt(i, -1));
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            map.put(i, i);
+            check(i == map.getInt(i, -1));
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            map.put(i, new Integer(i));
+            check(-1 == map.getInt(i, -1));
+            Integer obj = (Integer)map.getObject(i);
+            check(obj != null &amp;&amp; i == obj.intValue());
+        }
+
+        check(map.size() == N);
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        int[] keys = map.getKeys();
+        check(keys.length == N);
+        for (int i = 0; i != N; ++i) {
+            int key = keys[i];
+            check(map.has(key));
+            check(!map.isIntType(key));
+            check(map.isObjectType(key));
+            Integer obj = (Integer) map.getObject(key);
+            check(obj != null &amp;&amp; key == obj.intValue());
+        }
+
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            check(-1 == map.getInt(i, -1));
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            map.put(i * i, i);
+            check(i == map.getInt(i * i, -1));
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            check(i == map.getInt(i * i, -1));
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        for (int i = 0; i != N; ++i) {
+            map.put(i * i, new Integer(i));
+            check(-1 == map.getInt(i * i, -1));
+            map.remove(i * i);
+            check(!map.has(i * i));
+            map.put(i * i, i);
+            check(map.isIntType(i * i));
+            check(null == map.getObject(i * i));
+            map.remove(i * i);
+            check(!map.isObjectType(i * i));
+            check(!map.isIntType(i * i));
+        }
+
+        int old_size = map.size();
+        for (int i = 0; i != N; ++i) {
+            map.remove(i * i);
+            check(map.size() == old_size);
+        }
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        map.clear();
+        check(map.size() == 0);
+        for (int i = 0; i != N; ++i) {
+            map.put(i * i, i);
+            map.put(i * i + 1, new Double(i+0.5));
+        }
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        map = new UintMap(0);
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+        map = new UintMap(1);
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+        map = new UintMap(1000);
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        map = new UintMap(N / 10);
+        for (int i = 0; i != N; ++i) {
+            map.put(2*i+1, i);
+        }
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        map = new UintMap(N / 10);
+        for (int i = 0; i != N; ++i) {
+            map.put(2*i+1, i);
+        }
+        for (int i = 0; i != N / 2; ++i) {
+            map.remove(2*i+1);
+        }
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+
+        System.out.print(&quot;.&quot;); System.out.flush();
+        map = new UintMap();
+        for (int i = 0; i != N; ++i) {
+            map.put(2*i+1, new Double(i + 10));
+        }
+        for (int i = 0; i != N / 2; ++i) {
+            map.remove(2*i+1);
+        }
+        checkSameMaps(map, (UintMap)writeAndRead(map));
+
+        System.out.println(); System.out.flush();
+
+    }
+
+    private static void checkSameMaps(UintMap map1, UintMap map2) {
+        check(map1.size() == map2.size());
+        int[] keys = map1.getKeys();
+        check(keys.length == map1.size());
+        for (int i = 0; i != keys.length; ++i) {
+            int key = keys[i];
+            check(map2.has(key));
+            check(map1.isObjectType(key) == map2.isObjectType(key));
+            check(map1.isIntType(key) == map2.isIntType(key));
+            Object o1 = map1.getObject(key);
+            Object o2 = map2.getObject(key);
+            if (map1.isObjectType(key)) {
+                check(o1.equals(o2));
+            }else {
+                check(map1.getObject(key) == null);
+                check(map2.getObject(key) == null);
+            }
+            if (map1.isIntType(key)) {
+                check(map1.getExistingInt(key) == map2.getExistingInt(key));
+            }else {
+                check(map1.getInt(key, -10) == -10);
+                check(map1.getInt(key, -11) == -11);
+                check(map2.getInt(key, -10) == -10);
+                check(map2.getInt(key, -11) == -11);
+            }
+        }
+    }
+
+    private static void check(boolean condition) {
+        if (!condition) Kit.codeBug();
+    }
+
+    private static Object writeAndRead(Object obj) {
+        try {
+            java.io.ByteArrayOutputStream
+                bos = new java.io.ByteArrayOutputStream();
+            java.io.ObjectOutputStream
+                out = new java.io.ObjectOutputStream(bos);
+            out.writeObject(obj);
+            out.close();
+            byte[] data = bos.toByteArray();
+            java.io.ByteArrayInputStream
+                bis = new java.io.ByteArrayInputStream(data);
+            java.io.ObjectInputStream
+                in = new java.io.ObjectInputStream(bis);
+            Object result = in.readObject();
+            in.close();
+            return result;
+        }catch (Exception ex) {
+            ex.printStackTrace();
+            throw new RuntimeException(&quot;Unexpected&quot;);
+        }
+    }
+
+// TEST END */
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

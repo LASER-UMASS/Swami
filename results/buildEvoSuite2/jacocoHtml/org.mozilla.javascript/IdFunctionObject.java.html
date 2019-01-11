@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdFunctionObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">IdFunctionObject.java</span></div><h1>IdFunctionObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+public class IdFunctionObject extends BaseFunction
+{
+
+    static final long serialVersionUID = -5332312783643935019L;
+
+    public IdFunctionObject(IdFunctionCall idcall, Object tag, int id, int arity)
+<span class="nc" id="L17">    {</span>
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        if (arity &lt; 0)</span>
+<span class="nc" id="L19">            throw new IllegalArgumentException();</span>
+
+<span class="nc" id="L21">        this.idcall = idcall;</span>
+<span class="nc" id="L22">        this.tag = tag;</span>
+<span class="nc" id="L23">        this.methodId = id;</span>
+<span class="nc" id="L24">        this.arity = arity;</span>
+<span class="nc bnc" id="L25" title="All 2 branches missed.">        if (arity &lt; 0) throw new IllegalArgumentException();</span>
+<span class="nc" id="L26">    }</span>
+
+    public IdFunctionObject(IdFunctionCall idcall, Object tag, int id,
+                            String name, int arity, Scriptable scope)
+    {
+<span class="nc" id="L31">        super(scope, null);</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (arity &lt; 0)</span>
+<span class="nc" id="L34">            throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (name == null)</span>
+<span class="nc" id="L36">            throw new IllegalArgumentException();</span>
+
+<span class="nc" id="L38">        this.idcall = idcall;</span>
+<span class="nc" id="L39">        this.tag = tag;</span>
+<span class="nc" id="L40">        this.methodId = id;</span>
+<span class="nc" id="L41">        this.arity = arity;</span>
+<span class="nc" id="L42">        this.functionName = name;</span>
+<span class="nc" id="L43">    }</span>
+
+    public void initFunction(String name, Scriptable scope)
+    {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (name == null) throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (scope == null) throw new IllegalArgumentException();</span>
+<span class="nc" id="L49">        this.functionName = name;</span>
+<span class="nc" id="L50">        setParentScope(scope);</span>
+<span class="nc" id="L51">    }</span>
+
+    public final boolean hasTag(Object tag)
+    {
+<span class="nc bnc" id="L55" title="All 4 branches missed.">        return tag == null ? this.tag == null : tag.equals(this.tag);</span>
+    }
+
+    public Object getTag() {
+<span class="nc" id="L59">        return tag;</span>
+    }
+
+    public final int methodId()
+    {
+<span class="nc" id="L64">        return methodId;</span>
+    }
+
+    public final void markAsConstructor(Scriptable prototypeProperty)
+    {
+<span class="nc" id="L69">        useCallAsConstructor = true;</span>
+<span class="nc" id="L70">        setImmunePrototypeProperty(prototypeProperty);</span>
+<span class="nc" id="L71">    }</span>
+
+    public final void addAsProperty(Scriptable target)
+    {
+<span class="nc" id="L75">        ScriptableObject.defineProperty(target, functionName, this,</span>
+                                        ScriptableObject.DONTENUM);
+<span class="nc" id="L77">    }</span>
+
+    public void exportAsScopeProperty()
+    {
+<span class="nc" id="L81">        addAsProperty(getParentScope());</span>
+<span class="nc" id="L82">    }</span>
+
+    @Override
+    public Scriptable getPrototype()
+    {
+        // Lazy initialization of prototype: for native functions this
+        // may not be called at all
+<span class="nc" id="L89">        Scriptable proto = super.getPrototype();</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (proto == null) {</span>
+<span class="nc" id="L91">            proto = getFunctionPrototype(getParentScope());</span>
+<span class="nc" id="L92">            setPrototype(proto);</span>
+        }
+<span class="nc" id="L94">        return proto;</span>
+    }
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="nc" id="L101">        return idcall.execIdCall(this, cx, scope, thisObj, args);</span>
+    }
+
+    @Override
+    public Scriptable createObject(Context cx, Scriptable scope)
+    {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (useCallAsConstructor) {</span>
+<span class="nc" id="L108">            return null;</span>
+        }
+        // Throw error if not explicitly coded to be used as constructor,
+        // to satisfy ECMAScript standard (see bugzilla 202019).
+        // To follow current (2003-05-01) SpiderMonkey behavior, change it to:
+        // return super.createObject(cx, scope);
+<span class="nc" id="L114">        throw ScriptRuntime.typeError1(&quot;msg.not.ctor&quot;, functionName);</span>
+    }
+
+    @Override
+    String decompile(int indent, int flags)
+    {
+<span class="nc" id="L120">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        boolean justbody = (0 != (flags &amp; Decompiler.ONLY_BODY_FLAG));</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (!justbody) {</span>
+<span class="nc" id="L123">            sb.append(&quot;function &quot;);</span>
+<span class="nc" id="L124">            sb.append(getFunctionName());</span>
+<span class="nc" id="L125">            sb.append(&quot;() { &quot;);</span>
+        }
+<span class="nc" id="L127">        sb.append(&quot;[native code for &quot;);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (idcall instanceof Scriptable) {</span>
+<span class="nc" id="L129">            Scriptable sobj = (Scriptable)idcall;</span>
+<span class="nc" id="L130">            sb.append(sobj.getClassName());</span>
+<span class="nc" id="L131">            sb.append('.');</span>
+        }
+<span class="nc" id="L133">        sb.append(getFunctionName());</span>
+<span class="nc" id="L134">        sb.append(&quot;, arity=&quot;);</span>
+<span class="nc" id="L135">        sb.append(getArity());</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        sb.append(justbody ? &quot;]\n&quot; : &quot;] }\n&quot;);</span>
+<span class="nc" id="L137">        return sb.toString();</span>
+    }
+
+    @Override
+    public int getArity()
+    {
+<span class="nc" id="L143">        return arity;</span>
+    }
+
+    @Override
+<span class="nc" id="L147">    public int getLength() { return getArity(); }</span>
+
+    @Override
+    public String getFunctionName()
+    {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        return (functionName == null) ? &quot;&quot; : functionName;</span>
+    }
+
+    public final RuntimeException unknown()
+    {
+        // It is program error to call id-like methods for unknown function
+<span class="nc" id="L158">        return new IllegalArgumentException(</span>
+            &quot;BAD FUNCTION ID=&quot;+methodId+&quot; MASTER=&quot;+idcall);
+    }
+
+    private final IdFunctionCall idcall;
+    private final Object tag;
+    private final int methodId;
+    private int arity;
+    private boolean useCallAsConstructor;
+    private String functionName;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

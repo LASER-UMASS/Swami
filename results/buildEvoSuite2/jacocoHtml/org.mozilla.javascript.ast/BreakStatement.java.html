@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BreakStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">BreakStatement.java</span></div><h1>BreakStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * A break statement.  Node type is {@link Token#BREAK}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;BreakStatement&lt;/i&gt; :
+ *   &lt;b&gt;break&lt;/b&gt; [&lt;i&gt;no LineTerminator here&lt;/i&gt;] [Identifier] ;&lt;/pre&gt;
+ */
+public class BreakStatement extends Jump {
+
+    private Name breakLabel;
+    private AstNode target;
+
+    {
+<span class="nc" id="L23">        type = Token.BREAK;</span>
+    }
+
+<span class="nc" id="L26">    public BreakStatement() {</span>
+<span class="nc" id="L27">    }</span>
+
+<span class="nc" id="L29">    public BreakStatement(int pos) {</span>
+        // can't call super (Jump) for historical reasons
+<span class="nc" id="L31">        position = pos;</span>
+<span class="nc" id="L32">    }</span>
+
+<span class="nc" id="L34">    public BreakStatement(int pos, int len) {</span>
+<span class="nc" id="L35">        position = pos;</span>
+<span class="nc" id="L36">        length = len;</span>
+<span class="nc" id="L37">    }</span>
+
+    /**
+     * Returns the intended label of this break statement
+     * @return the break label.  {@code null} if the source code did
+     * not specify a specific break label via &quot;break &amp;lt;target&amp;gt;&quot;.
+     */
+    public Name getBreakLabel() {
+<span class="nc" id="L45">        return breakLabel;</span>
+    }
+
+    /**
+     * Sets the intended label of this break statement, e.g.  'foo'
+     * in &quot;break foo&quot;. Also sets the parent of the label to this node.
+     * @param label the break label, or {@code null} if the statement is
+     * just the &quot;break&quot; keyword by itself.
+     */
+    public void setBreakLabel(Name label) {
+<span class="nc" id="L55">        breakLabel = label;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (label != null)</span>
+<span class="nc" id="L57">            label.setParent(this);</span>
+<span class="nc" id="L58">    }</span>
+
+    /**
+     * Returns the statement to break to
+     * @return the break target.  Only {@code null} if the source
+     * code has an error in it.
+     */
+    public AstNode getBreakTarget() {
+<span class="nc" id="L66">        return target;</span>
+    }
+
+    /**
+     * Sets the statement to break to.
+     * @param target the statement to break to
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setBreakTarget(Jump target) {
+<span class="nc" id="L75">        assertNotNull(target);</span>
+<span class="nc" id="L76">        this.target = target;</span>
+<span class="nc" id="L77">        setJumpStatement(target);</span>
+<span class="nc" id="L78">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L82">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L83">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L84">        sb.append(&quot;break&quot;);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (breakLabel != null) {</span>
+<span class="nc" id="L86">            sb.append(&quot; &quot;);</span>
+<span class="nc" id="L87">            sb.append(breakLabel.toSource(0));</span>
+        }
+<span class="nc" id="L89">        sb.append(&quot;;\n&quot;);</span>
+<span class="nc" id="L90">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then visits the break label if non-{@code null}.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L98" title="All 4 branches missed.">        if (v.visit(this) &amp;&amp; breakLabel != null) {</span>
+<span class="nc" id="L99">            breakLabel.visit(v);</span>
+        }
+<span class="nc" id="L101">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

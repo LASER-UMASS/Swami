@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WrapFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">WrapFactory.java</span></div><h1>WrapFactory.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * Embeddings that wish to provide their own custom wrappings for Java
+ * objects may extend this class and call
+ * {@link Context#setWrapFactory(WrapFactory)}
+ * Once an instance of this class or an extension of this class is enabled
+ * for a given context (by calling setWrapFactory on that context), Rhino
+ * will call the methods of this class whenever it needs to wrap a value
+ * resulting from a call to a Java method or an access to a Java field.
+ *
+ * @see org.mozilla.javascript.Context#setWrapFactory(WrapFactory)
+ * @since 1.5 Release 4
+ */
+<span class="nc" id="L23">public class WrapFactory</span>
+{
+    /**
+     * Wrap the object.
+     * &lt;p&gt;
+     * The value returned must be one of
+     * &lt;UL&gt;
+     * &lt;LI&gt;java.lang.Boolean&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.String&lt;/LI&gt;
+     * &lt;LI&gt;java.lang.Number&lt;/LI&gt;
+     * &lt;LI&gt;org.mozilla.javascript.Scriptable objects&lt;/LI&gt;
+     * &lt;LI&gt;The value returned by Context.getUndefinedValue()&lt;/LI&gt;
+     * &lt;LI&gt;null&lt;/LI&gt;
+     * &lt;/UL&gt;
+     * @param cx the current Context for this thread
+     * @param scope the scope of the executing script
+     * @param obj the object to be wrapped. Note it can be null.
+     * @param staticType type hint. If security restrictions prevent to wrap
+              object based on its class, staticType will be used instead.
+     * @return the wrapped value.
+     */
+    public Object wrap(Context cx, Scriptable scope,
+                       Object obj, Class&lt;?&gt; staticType)
+    {
+<span class="nc bnc" id="L47" title="All 6 branches missed.">        if (obj == null || obj == Undefined.instance</span>
+            || obj instanceof Scriptable)
+        {
+<span class="nc" id="L50">            return obj;</span>
+        }
+<span class="nc bnc" id="L52" title="All 4 branches missed.">        if (staticType != null &amp;&amp; staticType.isPrimitive()) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            if (staticType == Void.TYPE)</span>
+<span class="nc" id="L54">                return Undefined.instance;</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            if (staticType == Character.TYPE)</span>
+<span class="nc" id="L56">                return Integer.valueOf(((Character) obj).charValue());</span>
+<span class="nc" id="L57">            return obj;</span>
+        }
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (!isJavaPrimitiveWrap()) {</span>
+<span class="nc bnc" id="L60" title="All 14 branches missed.">            if (obj instanceof String ||</span>
+                obj instanceof Boolean ||
+                obj instanceof Integer ||
+                obj instanceof Short ||
+                obj instanceof Long ||
+                obj instanceof Float ||
+                obj instanceof Double)
+            {
+<span class="nc" id="L68">                return obj;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            } else if (obj instanceof Character) {</span>
+<span class="nc" id="L70">                return String.valueOf(((Character)obj).charValue());</span>
+            }
+        }
+<span class="nc" id="L73">        Class&lt;?&gt; cls = obj.getClass();</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (cls.isArray()) {</span>
+<span class="nc" id="L75">            return NativeJavaArray.wrap(scope, obj);</span>
+        }
+<span class="nc" id="L77">        return wrapAsJavaObject(cx, scope, obj, staticType);</span>
+    }
+
+    /**
+     * Wrap an object newly created by a constructor call.
+     * @param cx the current Context for this thread
+     * @param scope the scope of the executing script
+     * @param obj the object to be wrapped
+     * @return the wrapped value.
+     */
+    public Scriptable wrapNewObject(Context cx, Scriptable scope, Object obj)
+    {
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (obj instanceof Scriptable) {</span>
+<span class="nc" id="L90">            return (Scriptable)obj;</span>
+        }
+<span class="nc" id="L92">        Class&lt;?&gt; cls = obj.getClass();</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (cls.isArray()) {</span>
+<span class="nc" id="L94">            return NativeJavaArray.wrap(scope, obj);</span>
+        }
+<span class="nc" id="L96">        return wrapAsJavaObject(cx, scope, obj, null);</span>
+    }
+
+    /**
+     * Wrap Java object as Scriptable instance to allow full access to its
+     * methods and fields from JavaScript.
+     * &lt;p&gt;
+     * {@link #wrap(Context, Scriptable, Object, Class)} and
+     * {@link #wrapNewObject(Context, Scriptable, Object)} call this method
+     * when they can not convert &lt;tt&gt;javaObject&lt;/tt&gt; to JavaScript primitive
+     * value or JavaScript array.
+     * &lt;p&gt;
+     * Subclasses can override the method to provide custom wrappers
+     * for Java objects.
+     * @param cx the current Context for this thread
+     * @param scope the scope of the executing script
+     * @param javaObject the object to be wrapped
+     * @param staticType type hint. If security restrictions prevent to wrap
+                object based on its class, staticType will be used instead.
+     * @return the wrapped value which shall not be null
+     */
+    public Scriptable wrapAsJavaObject(Context cx, Scriptable scope,
+                                       Object javaObject, Class&lt;?&gt; staticType)
+    {
+<span class="nc" id="L120">        return new NativeJavaObject(scope, javaObject, staticType);</span>
+    }
+
+    /**
+     * Wrap a Java class as Scriptable instance to allow access to its static
+     * members and fields and use as constructor from JavaScript.
+     * &lt;p&gt;
+     * Subclasses can override this method to provide custom wrappers for
+     * Java classes.
+     *
+     * @param cx the current Context for this thread
+     * @param scope the scope of the executing script
+     * @param javaClass the class to be wrapped
+     * @return the wrapped value which shall not be null
+     * @since 1.7R3
+     */
+    public Scriptable wrapJavaClass(Context cx, Scriptable scope,
+                                    Class&lt;?&gt; javaClass)
+    {
+<span class="nc" id="L139">        return new NativeJavaClass(scope, javaClass);</span>
+    }
+
+    /**
+     * Return &lt;code&gt;false&lt;/code&gt; if result of Java method, which is instance of
+     * &lt;code&gt;String&lt;/code&gt;, &lt;code&gt;Number&lt;/code&gt;, &lt;code&gt;Boolean&lt;/code&gt; and
+     * &lt;code&gt;Character&lt;/code&gt;, should be used directly as JavaScript primitive
+     * type.
+     * By default the method returns true to indicate that instances of
+     * &lt;code&gt;String&lt;/code&gt;, &lt;code&gt;Number&lt;/code&gt;, &lt;code&gt;Boolean&lt;/code&gt; and
+     * &lt;code&gt;Character&lt;/code&gt; should be wrapped as any other Java object and
+     * scripts can access any Java method available in these objects.
+     * Use {@link #setJavaPrimitiveWrap(boolean)} to change this.
+     */
+    public final boolean isJavaPrimitiveWrap()
+    {
+<span class="nc" id="L155">        return javaPrimitiveWrap;</span>
+    }
+
+    /**
+     * @see #isJavaPrimitiveWrap()
+     */
+    public final void setJavaPrimitiveWrap(boolean value)
+    {
+<span class="nc" id="L163">        Context cx = Context.getCurrentContext();</span>
+<span class="nc bnc" id="L164" title="All 4 branches missed.">        if (cx != null &amp;&amp; cx.isSealed()) {</span>
+<span class="nc" id="L165">            Context.onSealedMutation();</span>
+        }
+<span class="nc" id="L167">        javaPrimitiveWrap = value;</span>
+<span class="nc" id="L168">    }</span>
+
+<span class="nc" id="L170">    private boolean javaPrimitiveWrap = true;</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Optimizer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.optimizer</a> &gt; <span class="el_source">Optimizer.java</span></div><h1>Optimizer.java</h1><pre class="source lang-java linenums">/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+
+package org.mozilla.javascript.optimizer;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.ScriptNode;
+
+<span class="nc" id="L12">class Optimizer</span>
+{
+
+    static final int NoType = 0;
+    static final int NumberType = 1;
+    static final int AnyType = 3;
+
+    // It is assumed that (NumberType | AnyType) == AnyType
+
+    void optimize(ScriptNode scriptOrFn)
+    {
+        //  run on one function at a time for now
+<span class="nc" id="L24">        int functionCount = scriptOrFn.getFunctionCount();</span>
+<span class="nc bnc" id="L25" title="All 2 branches missed.">        for (int i = 0; i != functionCount; ++i) {</span>
+<span class="nc" id="L26">            OptFunctionNode f = OptFunctionNode.get(scriptOrFn, i);</span>
+<span class="nc" id="L27">            optimizeFunction(f);</span>
+        }
+<span class="nc" id="L29">    }</span>
+
+    private void optimizeFunction(OptFunctionNode theFunction)
+    {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (theFunction.fnode.requiresActivation()) return;</span>
+
+<span class="nc" id="L35">        inDirectCallFunction = theFunction.isTargetOfDirectCall();</span>
+<span class="nc" id="L36">        this.theFunction = theFunction;</span>
+
+<span class="nc" id="L38">        ObjArray statementsArray = new ObjArray();</span>
+<span class="nc" id="L39">        buildStatementList_r(theFunction.fnode, statementsArray);</span>
+<span class="nc" id="L40">        Node[] theStatementNodes = new Node[statementsArray.size()];</span>
+<span class="nc" id="L41">        statementsArray.toArray(theStatementNodes);</span>
+
+<span class="nc" id="L43">        Block.runFlowAnalyzes(theFunction, theStatementNodes);</span>
+
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (!theFunction.fnode.requiresActivation()) {</span>
+            /*
+             * Now that we know which local vars are in fact always
+             * Numbers, we re-write the tree to take advantage of
+             * that. Any arithmetic or assignment op involving just
+             * Number typed vars is marked so that the codegen will
+             * generate non-object code.
+             */
+<span class="nc" id="L53">            parameterUsedInNumberContext = false;</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            for (Node theStatementNode : theStatementNodes) {</span>
+<span class="nc" id="L55">                rewriteForNumberVariables(theStatementNode, NumberType);</span>
+            }
+<span class="nc" id="L57">            theFunction.setParameterNumberContext(parameterUsedInNumberContext);</span>
+        }
+
+<span class="nc" id="L60">    }</span>
+
+
+/*
+        Each directCall parameter is passed as a pair of values - an object
+        and a double. The value passed depends on the type of value available at
+        the call site. If a double is available, the object in java/lang/Void.TYPE
+        is passed as the object value, and if an object value is available, then
+        0.0 is passed as the double value.
+
+        The receiving routine always tests the object value before proceeding.
+        If the parameter is being accessed in a 'Number Context' then the code
+        sequence is :
+        if (&quot;parameter_objectValue&quot; == java/lang/Void.TYPE)
+            ...fine..., use the parameter_doubleValue
+        else
+            toNumber(parameter_objectValue)
+
+        and if the parameter is being referenced in an Object context, the code is
+        if (&quot;parameter_objectValue&quot; == java/lang/Void.TYPE)
+            new Double(parameter_doubleValue)
+        else
+            ...fine..., use the parameter_objectValue
+
+        If the receiving code never uses the doubleValue, it is converted on
+        entry to a Double instead.
+*/
+
+
+/*
+        We're referencing a node in a Number context (i.e. we'd prefer it
+        was a double value). If the node is a parameter in a directCall
+        function, mark it as being referenced in this context.
+*/
+    private void markDCPNumberContext(Node n)
+    {
+<span class="nc bnc" id="L96" title="All 4 branches missed.">        if (inDirectCallFunction &amp;&amp; n.getType() == Token.GETVAR) {</span>
+<span class="nc" id="L97">            int varIndex = theFunction.getVarIndex(n);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            if (theFunction.isParameter(varIndex)) {</span>
+<span class="nc" id="L99">                parameterUsedInNumberContext = true;</span>
+            }
+        }
+<span class="nc" id="L102">    }</span>
+
+    private boolean convertParameter(Node n)
+    {
+<span class="nc bnc" id="L106" title="All 4 branches missed.">        if (inDirectCallFunction &amp;&amp; n.getType() == Token.GETVAR) {</span>
+<span class="nc" id="L107">            int varIndex = theFunction.getVarIndex(n);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (theFunction.isParameter(varIndex)) {</span>
+<span class="nc" id="L109">                n.removeProp(Node.ISNUMBER_PROP);</span>
+<span class="nc" id="L110">                return true;</span>
+            }
+        }
+<span class="nc" id="L113">        return false;</span>
+    }
+
+    private int rewriteForNumberVariables(Node n, int desired)
+    {
+<span class="nc bnc" id="L118" title="All 12 branches missed.">        switch (n.getType()) {</span>
+            case Token.EXPR_VOID : {
+<span class="nc" id="L120">                    Node child = n.getFirstChild();</span>
+<span class="nc" id="L121">                    int type = rewriteForNumberVariables(child, NumberType);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">                    if (type == NumberType)</span>
+<span class="nc" id="L123">                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L124">                     return NoType;</span>
+                }
+            case Token.NUMBER :
+<span class="nc" id="L127">                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L128">                return NumberType;</span>
+
+            case Token.GETVAR :
+                {
+<span class="nc" id="L132">                    int varIndex = theFunction.getVarIndex(n);</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                    if (inDirectCallFunction</span>
+<span class="nc bnc" id="L134" title="All 4 branches missed.">                        &amp;&amp; theFunction.isParameter(varIndex)</span>
+                        &amp;&amp; desired == NumberType)
+                    {
+<span class="nc" id="L137">                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L138">                        return NumberType;</span>
+                    }
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                    else if (theFunction.isNumberVar(varIndex)) {</span>
+<span class="nc" id="L141">                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L142">                        return NumberType;</span>
+                    }
+<span class="nc" id="L144">                    return NoType;</span>
+                }
+
+            case Token.INC :
+            case Token.DEC : {
+<span class="nc" id="L149">                    Node child = n.getFirstChild();</span>
+<span class="nc" id="L150">                    int type = rewriteForNumberVariables(child, NumberType);</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                    if (child.getType() == Token.GETVAR) {</span>
+<span class="nc bnc" id="L152" title="All 4 branches missed.">                        if (type == NumberType &amp;&amp; !convertParameter(child))</span>
+                        {
+<span class="nc" id="L154">                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L155">                            markDCPNumberContext(child);</span>
+<span class="nc" id="L156">                            return NumberType;</span>
+                        }
+<span class="nc" id="L158">                        return NoType;</span>
+                    }
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                    else if (child.getType() == Token.GETELEM</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                            || child.getType() == Token.GETPROP) {</span>
+<span class="nc" id="L162">                        return type;</span>
+                    }
+<span class="nc" id="L164">                    return NoType;</span>
+                }
+            case Token.SETVAR :
+            case Token.SETCONSTVAR : {
+<span class="nc" id="L168">                    Node lChild = n.getFirstChild();</span>
+<span class="nc" id="L169">                    Node rChild = lChild.getNext();</span>
+<span class="nc" id="L170">                    int rType = rewriteForNumberVariables(rChild, NumberType);</span>
+<span class="nc" id="L171">                    int varIndex = theFunction.getVarIndex(n);</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                    if (inDirectCallFunction</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                        &amp;&amp; theFunction.isParameter(varIndex))</span>
+                    {
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                        if (rType == NumberType) {</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                            if (!convertParameter(rChild)) {</span>
+<span class="nc" id="L177">                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L178">                                return NumberType;</span>
+                            }
+<span class="nc" id="L180">                            markDCPNumberContext(rChild);</span>
+<span class="nc" id="L181">                            return NoType;</span>
+                        }
+                        else
+<span class="nc" id="L184">                            return rType;</span>
+                    }
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                    else if (theFunction.isNumberVar(varIndex)) {</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                        if (rType != NumberType) {</span>
+<span class="nc" id="L188">                            n.removeChild(rChild);</span>
+<span class="nc" id="L189">                            n.addChildToBack(</span>
+                                new Node(Token.TO_DOUBLE, rChild));
+                        }
+<span class="nc" id="L192">                        n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L193">                        markDCPNumberContext(rChild);</span>
+<span class="nc" id="L194">                        return NumberType;</span>
+                    }
+                    else {
+<span class="nc bnc" id="L197" title="All 2 branches missed.">                        if (rType == NumberType) {</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                            if (!convertParameter(rChild)) {</span>
+<span class="nc" id="L199">                                n.removeChild(rChild);</span>
+<span class="nc" id="L200">                                n.addChildToBack(</span>
+                                    new Node(Token.TO_OBJECT, rChild));
+                            }
+                        }
+<span class="nc" id="L204">                        return NoType;</span>
+                    }
+                }
+            case Token.LE :
+            case Token.LT :
+            case Token.GE :
+            case Token.GT : {
+<span class="nc" id="L211">                    Node lChild = n.getFirstChild();</span>
+<span class="nc" id="L212">                    Node rChild = lChild.getNext();</span>
+<span class="nc" id="L213">                    int lType = rewriteForNumberVariables(lChild, NumberType);</span>
+<span class="nc" id="L214">                    int rType = rewriteForNumberVariables(rChild, NumberType);</span>
+<span class="nc" id="L215">                    markDCPNumberContext(lChild);</span>
+<span class="nc" id="L216">                    markDCPNumberContext(rChild);</span>
+
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                    if (convertParameter(lChild)) {</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                        if (convertParameter(rChild)) {</span>
+<span class="nc" id="L220">                            return NoType;</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                        } else if (rType == NumberType) {</span>
+<span class="nc" id="L222">                            n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);</span>
+                        }
+                    }
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                    else if (convertParameter(rChild)) {</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                        if (lType == NumberType) {</span>
+<span class="nc" id="L227">                            n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);</span>
+                        }
+                    }
+                    else {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                        if (lType == NumberType) {</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                            if (rType == NumberType) {</span>
+<span class="nc" id="L233">                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+                            }
+                            else {
+<span class="nc" id="L236">                                n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);</span>
+                            }
+                        }
+                        else {
+<span class="nc bnc" id="L240" title="All 2 branches missed.">                            if (rType == NumberType) {</span>
+<span class="nc" id="L241">                                n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);</span>
+                            }
+                        }
+                    }
+                    // we actually build a boolean value
+<span class="nc" id="L246">                    return NoType;</span>
+                }
+
+            case Token.ADD : {
+<span class="nc" id="L250">                    Node lChild = n.getFirstChild();</span>
+<span class="nc" id="L251">                    Node rChild = lChild.getNext();</span>
+<span class="nc" id="L252">                    int lType = rewriteForNumberVariables(lChild, NumberType);</span>
+<span class="nc" id="L253">                    int rType = rewriteForNumberVariables(rChild, NumberType);</span>
+
+
+<span class="nc bnc" id="L256" title="All 2 branches missed.">                    if (convertParameter(lChild)) {</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                        if (convertParameter(rChild)) {</span>
+<span class="nc" id="L258">                            return NoType;</span>
+                        }
+                        else {
+<span class="nc bnc" id="L261" title="All 2 branches missed.">                            if (rType == NumberType) {</span>
+<span class="nc" id="L262">                                n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);</span>
+                            }
+                        }
+                    }
+                    else {
+<span class="nc bnc" id="L267" title="All 2 branches missed.">                        if (convertParameter(rChild)) {</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                            if (lType == NumberType) {</span>
+<span class="nc" id="L269">                                n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);</span>
+                            }
+                        }
+                        else {
+<span class="nc bnc" id="L273" title="All 2 branches missed.">                            if (lType == NumberType) {</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">                                if (rType == NumberType) {</span>
+<span class="nc" id="L275">                                    n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L276">                                    return NumberType;</span>
+                                }
+                                else {
+<span class="nc" id="L279">                                    n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);</span>
+                                }
+                            }
+                            else {
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                                if (rType == NumberType) {</span>
+<span class="nc" id="L284">                                    n.putIntProp(Node.ISNUMBER_PROP,</span>
+                                                 Node.RIGHT);
+                                }
+                            }
+                        }
+                    }
+<span class="nc" id="L290">                    return NoType;</span>
+                }
+
+            case Token.BITXOR :
+            case Token.BITOR :
+            case Token.BITAND :
+            case Token.RSH :
+            case Token.LSH :
+            case Token.SUB :
+            case Token.MUL :
+            case Token.DIV :
+            case Token.MOD : {
+<span class="nc" id="L302">                    Node lChild = n.getFirstChild();</span>
+<span class="nc" id="L303">                    Node rChild = lChild.getNext();</span>
+<span class="nc" id="L304">                    int lType = rewriteForNumberVariables(lChild, NumberType);</span>
+<span class="nc" id="L305">                    int rType = rewriteForNumberVariables(rChild, NumberType);</span>
+<span class="nc" id="L306">                    markDCPNumberContext(lChild);</span>
+<span class="nc" id="L307">                    markDCPNumberContext(rChild);</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                    if (lType == NumberType) {</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">                        if (rType == NumberType) {</span>
+<span class="nc" id="L310">                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L311">                            return NumberType;</span>
+                        }
+                        else {
+<span class="nc bnc" id="L314" title="All 2 branches missed.">                            if (!convertParameter(rChild)) {</span>
+<span class="nc" id="L315">                                n.removeChild(rChild);</span>
+<span class="nc" id="L316">                                n.addChildToBack(</span>
+                                    new Node(Token.TO_DOUBLE, rChild));
+<span class="nc" id="L318">                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+                            }
+<span class="nc" id="L320">                            return NumberType;</span>
+                        }
+                    }
+                    else {
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                        if (rType == NumberType) {</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">                            if (!convertParameter(lChild)) {</span>
+<span class="nc" id="L326">                                n.removeChild(lChild);</span>
+<span class="nc" id="L327">                                n.addChildToFront(</span>
+                                    new Node(Token.TO_DOUBLE, lChild));
+<span class="nc" id="L329">                                n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+                            }
+<span class="nc" id="L331">                            return NumberType;</span>
+                        }
+                        else {
+<span class="nc bnc" id="L334" title="All 2 branches missed.">                            if (!convertParameter(lChild)) {</span>
+<span class="nc" id="L335">                                n.removeChild(lChild);</span>
+<span class="nc" id="L336">                                n.addChildToFront(</span>
+                                    new Node(Token.TO_DOUBLE, lChild));
+                            }
+<span class="nc bnc" id="L339" title="All 2 branches missed.">                            if (!convertParameter(rChild)) {</span>
+<span class="nc" id="L340">                                n.removeChild(rChild);</span>
+<span class="nc" id="L341">                                n.addChildToBack(</span>
+                                    new Node(Token.TO_DOUBLE, rChild));
+                            }
+<span class="nc" id="L344">                            n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);</span>
+<span class="nc" id="L345">                            return NumberType;</span>
+                        }
+                    }
+                }
+            case Token.SETELEM :
+            case Token.SETELEM_OP : {
+<span class="nc" id="L351">                    Node arrayBase = n.getFirstChild();</span>
+<span class="nc" id="L352">                    Node arrayIndex = arrayBase.getNext();</span>
+<span class="nc" id="L353">                    Node rValue = arrayIndex.getNext();</span>
+<span class="nc" id="L354">                    int baseType = rewriteForNumberVariables(arrayBase, NumberType);</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                    if (baseType == NumberType) {</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                        if (!convertParameter(arrayBase)) {</span>
+<span class="nc" id="L357">                            n.removeChild(arrayBase);</span>
+<span class="nc" id="L358">                            n.addChildToFront(</span>
+                                new Node(Token.TO_OBJECT, arrayBase));
+                        }
+                    }
+<span class="nc" id="L362">                    int indexType = rewriteForNumberVariables(arrayIndex, NumberType);</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">                    if (indexType == NumberType) {</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                        if (!convertParameter(arrayIndex)) {</span>
+                            // setting the ISNUMBER_PROP signals the codegen
+                            // to use the OptRuntime.setObjectIndex that takes
+                            // a double index
+<span class="nc" id="L368">                            n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);</span>
+                        }
+                    }
+<span class="nc" id="L371">                    int rValueType = rewriteForNumberVariables(rValue, NumberType);</span>
+<span class="nc bnc" id="L372" title="All 2 branches missed.">                    if (rValueType == NumberType) {</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">                        if (!convertParameter(rValue)) {</span>
+<span class="nc" id="L374">                            n.removeChild(rValue);</span>
+<span class="nc" id="L375">                            n.addChildToBack(</span>
+                                new Node(Token.TO_OBJECT, rValue));
+                        }
+                    }
+<span class="nc" id="L379">                    return NoType;</span>
+                }
+            case Token.GETELEM : {
+<span class="nc" id="L382">                    Node arrayBase = n.getFirstChild();</span>
+<span class="nc" id="L383">                    Node arrayIndex = arrayBase.getNext();</span>
+<span class="nc" id="L384">                    int baseType = rewriteForNumberVariables(arrayBase, NumberType);</span>
+<span class="nc bnc" id="L385" title="All 2 branches missed.">                    if (baseType == NumberType) {</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                        if (!convertParameter(arrayBase)) {</span>
+<span class="nc" id="L387">                            n.removeChild(arrayBase);</span>
+<span class="nc" id="L388">                            n.addChildToFront(</span>
+                                new Node(Token.TO_OBJECT, arrayBase));
+                        }
+                    }
+<span class="nc" id="L392">                    int indexType = rewriteForNumberVariables(arrayIndex, NumberType);</span>
+<span class="nc bnc" id="L393" title="All 2 branches missed.">                    if (indexType == NumberType) {</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">                        if (!convertParameter(arrayIndex)) {</span>
+                            // setting the ISNUMBER_PROP signals the codegen
+                            // to use the OptRuntime.getObjectIndex that takes
+                            // a double index
+<span class="nc" id="L398">                            n.putIntProp(Node.ISNUMBER_PROP, Node.RIGHT);</span>
+                        }
+                    }
+<span class="nc" id="L401">                    return NoType;</span>
+                }
+            case Token.CALL :
+                {
+<span class="nc" id="L405">                    Node child = n.getFirstChild(); // the function node</span>
+                    // must be an object
+<span class="nc" id="L407">                    rewriteAsObjectChildren(child, child.getFirstChild());</span>
+<span class="nc" id="L408">                    child = child.getNext(); // the first arg</span>
+
+<span class="nc" id="L410">                    OptFunctionNode target</span>
+<span class="nc" id="L411">                            = (OptFunctionNode)n.getProp(Node.DIRECTCALL_PROP);</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">                    if (target != null) {</span>
+/*
+    we leave each child as a Number if it can be. The codegen will
+    handle moving the pairs of parameters.
+*/
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                        while (child != null) {</span>
+<span class="nc" id="L418">                            int type = rewriteForNumberVariables(child, NumberType);</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                            if (type == NumberType) {</span>
+<span class="nc" id="L420">                                markDCPNumberContext(child);</span>
+                            }
+<span class="nc" id="L422">                            child = child.getNext();</span>
+<span class="nc" id="L423">                        }</span>
+                    } else {
+<span class="nc" id="L425">                        rewriteAsObjectChildren(n, child);</span>
+                    }
+<span class="nc" id="L427">                    return NoType;</span>
+                }
+            default : {
+<span class="nc" id="L430">                    rewriteAsObjectChildren(n, n.getFirstChild());</span>
+<span class="nc" id="L431">                    return NoType;</span>
+                }
+        }
+    }
+
+    private void rewriteAsObjectChildren(Node n, Node child)
+    {
+        // Force optimized children to be objects
+<span class="nc bnc" id="L439" title="All 2 branches missed.">        while (child != null) {</span>
+<span class="nc" id="L440">            Node nextChild = child.getNext();</span>
+<span class="nc" id="L441">            int type = rewriteForNumberVariables(child, NoType);</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">            if (type == NumberType) {</span>
+<span class="nc bnc" id="L443" title="All 2 branches missed.">                if (!convertParameter(child)) {</span>
+<span class="nc" id="L444">                    n.removeChild(child);</span>
+<span class="nc" id="L445">                    Node nuChild = new Node(Token.TO_OBJECT, child);</span>
+<span class="nc bnc" id="L446" title="All 2 branches missed.">                    if (nextChild == null)</span>
+<span class="nc" id="L447">                        n.addChildToBack(nuChild);</span>
+                    else
+<span class="nc" id="L449">                        n.addChildBefore(nuChild, nextChild);</span>
+                }
+            }
+<span class="nc" id="L452">            child = nextChild;</span>
+<span class="nc" id="L453">        }</span>
+<span class="nc" id="L454">    }</span>
+
+    private static void buildStatementList_r(Node node, ObjArray statements)
+    {
+<span class="nc" id="L458">        int type = node.getType();</span>
+<span class="nc bnc" id="L459" title="All 8 branches missed.">        if (type == Token.BLOCK</span>
+            || type == Token.LOCAL_BLOCK
+            || type == Token.LOOP
+            || type == Token.FUNCTION)
+        {
+<span class="nc" id="L464">            Node child = node.getFirstChild();</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">            while (child != null) {</span>
+<span class="nc" id="L466">                buildStatementList_r(child, statements);</span>
+<span class="nc" id="L467">                child = child.getNext();</span>
+            }
+<span class="nc" id="L469">        } else {</span>
+<span class="nc" id="L470">            statements.add(node);</span>
+        }
+<span class="nc" id="L472">    }</span>
+
+    private boolean inDirectCallFunction;
+    OptFunctionNode theFunction;
+    private boolean parameterUsedInNumberContext;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

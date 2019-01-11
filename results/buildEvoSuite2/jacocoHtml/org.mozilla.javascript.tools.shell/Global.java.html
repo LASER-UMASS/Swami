@@ -1,0 +1,1277 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Global.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.shell</a> &gt; <span class="el_source">Global.java</span></div><h1>Global.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.shell;
+
+import java.io.*;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.lang.reflect.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.commonjs.module.Require;
+import org.mozilla.javascript.commonjs.module.RequireBuilder;
+import org.mozilla.javascript.commonjs.module.provider.SoftCachingModuleScriptProvider;
+import org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider;
+import org.mozilla.javascript.tools.ToolErrorReporter;
+import org.mozilla.javascript.serialize.*;
+
+/**
+ * This class provides for sharing functions across multiple threads.
+ * This is of particular interest to server applications.
+ *
+ * @author Norris Boyd
+ */
+public class Global extends ImporterTopLevel
+{
+    static final long serialVersionUID = 4029130780977538005L;
+
+    NativeArray history;
+    boolean attemptedJLineLoad;
+    private ShellConsole console;
+    private InputStream inStream;
+    private PrintStream outStream;
+    private PrintStream errStream;
+<span class="nc" id="L43">    private boolean sealedStdLib = false;</span>
+    boolean initialized;
+    private QuitAction quitAction;
+<span class="nc" id="L46">    private String[] prompts = { &quot;js&gt; &quot;, &quot;  &gt; &quot; };</span>
+    private HashMap&lt;String,String&gt; doctestCanonicalizations;
+
+    public Global()
+<span class="nc" id="L50">    {</span>
+<span class="nc" id="L51">    }</span>
+
+    public Global(Context cx)
+<span class="nc" id="L54">    {</span>
+<span class="nc" id="L55">        init(cx);</span>
+<span class="nc" id="L56">    }</span>
+
+    public boolean isInitialized() {
+<span class="nc" id="L59">        return initialized;</span>
+    }
+
+    /**
+     * Set the action to call from quit().
+     */
+    public void initQuitAction(QuitAction quitAction)
+    {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (quitAction == null)</span>
+<span class="nc" id="L68">            throw new IllegalArgumentException(&quot;quitAction is null&quot;);</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (this.quitAction != null)</span>
+<span class="nc" id="L70">            throw new IllegalArgumentException(&quot;The method is once-call.&quot;);</span>
+
+<span class="nc" id="L72">        this.quitAction = quitAction;</span>
+<span class="nc" id="L73">    }</span>
+
+    public void init(ContextFactory factory)
+    {
+<span class="nc" id="L77">        factory.call(new ContextAction() {</span>
+                public Object run(Context cx)
+                {
+<span class="nc" id="L80">                    init(cx);</span>
+<span class="nc" id="L81">                    return null;</span>
+                }
+            });
+<span class="nc" id="L84">    }</span>
+
+    public void init(Context cx)
+    {
+        // Define some global functions particular to the shell. Note
+        // that these functions are not part of ECMA.
+<span class="nc" id="L90">        initStandardObjects(cx, sealedStdLib);</span>
+<span class="nc" id="L91">        String[] names = {</span>
+            &quot;defineClass&quot;,
+            &quot;deserialize&quot;,
+            &quot;doctest&quot;,
+            &quot;gc&quot;,
+            &quot;help&quot;,
+            &quot;load&quot;,
+            &quot;loadClass&quot;,
+            &quot;print&quot;,
+            &quot;quit&quot;,
+            &quot;readline&quot;,
+            &quot;readFile&quot;,
+            &quot;readUrl&quot;,
+            &quot;runCommand&quot;,
+            &quot;seal&quot;,
+            &quot;serialize&quot;,
+            &quot;spawn&quot;,
+            &quot;sync&quot;,
+            &quot;toint32&quot;,
+            &quot;version&quot;,
+            &quot;write&quot;
+        };
+<span class="nc" id="L113">        defineFunctionProperties(names, Global.class,</span>
+                                 ScriptableObject.DONTENUM);
+
+        // Set up &quot;environment&quot; in the global scope to provide access to the
+        // System environment variables.
+<span class="nc" id="L118">        Environment.defineClass(this);</span>
+<span class="nc" id="L119">        Environment environment = new Environment(this);</span>
+<span class="nc" id="L120">        defineProperty(&quot;environment&quot;, environment,</span>
+                       ScriptableObject.DONTENUM);
+
+<span class="nc" id="L123">        history = (NativeArray) cx.newArray(this, 0);</span>
+<span class="nc" id="L124">        defineProperty(&quot;history&quot;, history, ScriptableObject.DONTENUM);</span>
+
+<span class="nc" id="L126">        initialized = true;</span>
+<span class="nc" id="L127">    }</span>
+
+    public Require installRequire(Context cx, List&lt;String&gt; modulePath,
+                                  boolean sandboxed) {
+<span class="nc" id="L131">        RequireBuilder rb = new RequireBuilder();</span>
+<span class="nc" id="L132">        rb.setSandboxed(sandboxed);</span>
+<span class="nc" id="L133">        List&lt;URI&gt; uris = new ArrayList&lt;URI&gt;();</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (modulePath != null) {</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            for (String path : modulePath) {</span>
+                try {
+<span class="nc" id="L137">                    URI uri = new URI(path);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                    if (!uri.isAbsolute()) {</span>
+                        // call resolve(&quot;&quot;) to canonify the path
+<span class="nc" id="L140">                        uri = new File(path).toURI().resolve(&quot;&quot;);</span>
+                    }
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                    if (!uri.toString().endsWith(&quot;/&quot;)) {</span>
+                        // make sure URI always terminates with slash to
+                        // avoid loading from unintended locations
+<span class="nc" id="L145">                        uri = new URI(uri + &quot;/&quot;);</span>
+                    }
+<span class="nc" id="L147">                    uris.add(uri);</span>
+<span class="nc" id="L148">                } catch (URISyntaxException usx) {</span>
+<span class="nc" id="L149">                    throw new RuntimeException(usx);</span>
+<span class="nc" id="L150">                }</span>
+<span class="nc" id="L151">            }</span>
+        }
+<span class="nc" id="L153">        rb.setModuleScriptProvider(</span>
+                new SoftCachingModuleScriptProvider(
+                        new UrlModuleSourceProvider(uris, null)));
+<span class="nc" id="L156">        Require require = rb.createRequire(cx, this);</span>
+<span class="nc" id="L157">        require.install(this);</span>
+<span class="nc" id="L158">        return require;</span>
+    }
+
+    /**
+     * Print a help message.
+     *
+     * This method is defined as a JavaScript function.
+     */
+    public static void help(Context cx, Scriptable thisObj,
+                            Object[] args, Function funObj)
+    {
+<span class="nc" id="L169">        PrintStream out = getInstance(funObj).getOut();</span>
+<span class="nc" id="L170">        out.println(ToolErrorReporter.getMessage(&quot;msg.help&quot;));</span>
+<span class="nc" id="L171">    }</span>
+
+    public static void gc(Context cx, Scriptable thisObj,
+            Object[] args, Function funObj)
+    {
+<span class="nc" id="L176">        System.gc();</span>
+<span class="nc" id="L177">    }</span>
+
+
+    /**
+     * Print the string values of its arguments.
+     *
+     * This method is defined as a JavaScript function.
+     * Note that its arguments are of the &quot;varargs&quot; form, which
+     * allows it to handle an arbitrary number of arguments
+     * supplied to the JavaScript function.
+     *
+     */
+    public static Object print(Context cx, Scriptable thisObj,
+                               Object[] args, Function funObj)
+    {
+<span class="nc" id="L192">        return doPrint(args, funObj, true);</span>
+    }
+
+    /**
+     * Print just as in &quot;print,&quot; but without the trailing newline.
+     */
+    public static Object write(Context cx, Scriptable thisObj,
+                               Object[] args, Function funObj)
+    {
+<span class="nc" id="L201">        return doPrint(args, funObj, false);</span>
+    }
+
+    private static Object doPrint(Object[] args, Function funObj, boolean newline)
+    {
+<span class="nc" id="L206">        PrintStream out = getInstance(funObj).getOut();</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        for (int i=0; i &lt; args.length; i++) {</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (i &gt; 0)</span>
+<span class="nc" id="L209">                out.print(&quot; &quot;);</span>
+
+            // Convert the arbitrary JavaScript value into a string form.
+<span class="nc" id="L212">            String s = Context.toString(args[i]);</span>
+
+<span class="nc" id="L214">            out.print(s);</span>
+        }
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        if (newline) {</span>
+<span class="nc" id="L217">            out.println();</span>
+        }
+<span class="nc" id="L219">        return Context.getUndefinedValue();</span>
+    }
+
+    /**
+     * Call embedding-specific quit action passing its argument as
+     * int32 exit code.
+     *
+     * This method is defined as a JavaScript function.
+     */
+    public static void quit(Context cx, Scriptable thisObj,
+                            Object[] args, Function funObj)
+    {
+<span class="nc" id="L231">        Global global = getInstance(funObj);</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (global.quitAction != null) {</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            int exitCode = (args.length == 0 ? 0</span>
+<span class="nc" id="L234">                            : ScriptRuntime.toInt32(args[0]));</span>
+<span class="nc" id="L235">            global.quitAction.quit(cx, exitCode);</span>
+        }
+<span class="nc" id="L237">    }</span>
+
+    /**
+     * Get and set the language version.
+     *
+     * This method is defined as a JavaScript function.
+     */
+    public static double version(Context cx, Scriptable thisObj,
+                                 Object[] args, Function funObj)
+    {
+<span class="nc" id="L247">        double result = cx.getLanguageVersion();</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (args.length &gt; 0) {</span>
+<span class="nc" id="L249">            double d = Context.toNumber(args[0]);</span>
+<span class="nc" id="L250">            cx.setLanguageVersion((int) d);</span>
+        }
+<span class="nc" id="L252">        return result;</span>
+    }
+
+    /**
+     * Load and execute a set of JavaScript source files.
+     *
+     * This method is defined as a JavaScript function.
+     *
+     */
+    public static void load(Context cx, Scriptable thisObj,
+                            Object[] args, Function funObj)
+    {
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        for (Object arg : args) {</span>
+<span class="nc" id="L265">            String file = Context.toString(arg);</span>
+            try {
+<span class="nc" id="L267">                Main.processFile(cx, thisObj, file);</span>
+<span class="nc" id="L268">            } catch (IOException ioex) {</span>
+<span class="nc" id="L269">                String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L270">                        &quot;msg.couldnt.read.source&quot;, file, ioex.getMessage());</span>
+<span class="nc" id="L271">                throw Context.reportRuntimeError(msg);</span>
+<span class="nc" id="L272">            } catch (VirtualMachineError ex) {</span>
+                // Treat StackOverflow and OutOfMemory as runtime errors
+<span class="nc" id="L274">                ex.printStackTrace();</span>
+<span class="nc" id="L275">                String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L276">                        &quot;msg.uncaughtJSException&quot;, ex.toString());</span>
+<span class="nc" id="L277">                throw Context.reportRuntimeError(msg);</span>
+<span class="nc" id="L278">            }</span>
+        }
+<span class="nc" id="L280">    }</span>
+
+    /**
+     * Load a Java class that defines a JavaScript object using the
+     * conventions outlined in ScriptableObject.defineClass.
+     * &lt;p&gt;
+     * This method is defined as a JavaScript function.
+     * @exception IllegalAccessException if access is not available
+     *            to a reflected class member
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     * @exception InvocationTargetException if an exception is thrown
+     *            during execution of methods of the named class
+     * @see org.mozilla.javascript.ScriptableObject#defineClass(Scriptable,Class)
+     */
+    @SuppressWarnings({&quot;unchecked&quot;})
+    public static void defineClass(Context cx, Scriptable thisObj,
+                                   Object[] args, Function funObj)
+        throws IllegalAccessException, InstantiationException,
+               InvocationTargetException
+    {
+<span class="nc" id="L301">        Class&lt;?&gt; clazz = getClass(args);</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        if (!Scriptable.class.isAssignableFrom(clazz)) {</span>
+<span class="nc" id="L303">            throw reportRuntimeError(&quot;msg.must.implement.Scriptable&quot;);</span>
+        }
+<span class="nc" id="L305">        ScriptableObject.defineClass(thisObj, (Class&lt;? extends Scriptable&gt;)clazz);</span>
+<span class="nc" id="L306">    }</span>
+
+    /**
+     * Load and execute a script compiled to a class file.
+     * &lt;p&gt;
+     * This method is defined as a JavaScript function.
+     * When called as a JavaScript function, a single argument is
+     * expected. This argument should be the name of a class that
+     * implements the Script interface, as will any script
+     * compiled by jsc.
+     *
+     * @exception IllegalAccessException if access is not available
+     *            to the class
+     * @exception InstantiationException if unable to instantiate
+     *            the named class
+     */
+    public static void loadClass(Context cx, Scriptable thisObj,
+                                 Object[] args, Function funObj)
+        throws IllegalAccessException, InstantiationException
+    {
+<span class="nc" id="L326">        Class&lt;?&gt; clazz = getClass(args);</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">        if (!Script.class.isAssignableFrom(clazz)) {</span>
+<span class="nc" id="L328">            throw reportRuntimeError(&quot;msg.must.implement.Script&quot;);</span>
+        }
+<span class="nc" id="L330">        Script script = (Script) clazz.newInstance();</span>
+<span class="nc" id="L331">        script.exec(cx, thisObj);</span>
+<span class="nc" id="L332">    }</span>
+
+    private static Class&lt;?&gt; getClass(Object[] args) {
+<span class="nc bnc" id="L335" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L336">            throw reportRuntimeError(&quot;msg.expected.string.arg&quot;);</span>
+        }
+<span class="nc" id="L338">        Object arg0 = args[0];</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        if (arg0 instanceof Wrapper) {</span>
+<span class="nc" id="L340">            Object wrapped = ((Wrapper)arg0).unwrap();</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">            if (wrapped instanceof Class)</span>
+<span class="nc" id="L342">                return (Class&lt;?&gt;)wrapped;</span>
+        }
+<span class="nc" id="L344">        String className = Context.toString(args[0]);</span>
+        try {
+<span class="nc" id="L346">            return Class.forName(className);</span>
+        }
+<span class="nc" id="L348">        catch (ClassNotFoundException cnfe) {</span>
+<span class="nc" id="L349">            throw reportRuntimeError(&quot;msg.class.not.found&quot;, className);</span>
+        }
+    }
+
+    public static void serialize(Context cx, Scriptable thisObj,
+                                 Object[] args, Function funObj)
+        throws IOException
+    {
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        if (args.length &lt; 2) {</span>
+<span class="nc" id="L358">            throw Context.reportRuntimeError(</span>
+                &quot;Expected an object to serialize and a filename to write &quot; +
+                &quot;the serialization to&quot;);
+        }
+<span class="nc" id="L362">        Object obj = args[0];</span>
+<span class="nc" id="L363">        String filename = Context.toString(args[1]);</span>
+<span class="nc" id="L364">        FileOutputStream fos = new FileOutputStream(filename);</span>
+<span class="nc" id="L365">        Scriptable scope = ScriptableObject.getTopLevelScope(thisObj);</span>
+<span class="nc" id="L366">        ScriptableOutputStream out = new ScriptableOutputStream(fos, scope);</span>
+<span class="nc" id="L367">        out.writeObject(obj);</span>
+<span class="nc" id="L368">        out.close();</span>
+<span class="nc" id="L369">    }</span>
+
+    public static Object deserialize(Context cx, Scriptable thisObj,
+                                     Object[] args, Function funObj)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc bnc" id="L375" title="All 2 branches missed.">        if (args.length &lt; 1) {</span>
+<span class="nc" id="L376">            throw Context.reportRuntimeError(</span>
+                &quot;Expected a filename to read the serialization from&quot;);
+        }
+<span class="nc" id="L379">        String filename = Context.toString(args[0]);</span>
+<span class="nc" id="L380">        FileInputStream fis = new FileInputStream(filename);</span>
+<span class="nc" id="L381">        Scriptable scope = ScriptableObject.getTopLevelScope(thisObj);</span>
+<span class="nc" id="L382">        ObjectInputStream in = new ScriptableInputStream(fis, scope);</span>
+<span class="nc" id="L383">        Object deserialized = in.readObject();</span>
+<span class="nc" id="L384">        in.close();</span>
+<span class="nc" id="L385">        return Context.toObject(deserialized, scope);</span>
+    }
+
+    public String[] getPrompts(Context cx) {
+<span class="nc bnc" id="L389" title="All 2 branches missed.">        if (ScriptableObject.hasProperty(this, &quot;prompts&quot;)) {</span>
+<span class="nc" id="L390">            Object promptsJS = ScriptableObject.getProperty(this,</span>
+                                                            &quot;prompts&quot;);
+<span class="nc bnc" id="L392" title="All 2 branches missed.">            if (promptsJS instanceof Scriptable) {</span>
+<span class="nc" id="L393">                Scriptable s = (Scriptable) promptsJS;</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">                if (ScriptableObject.hasProperty(s, 0) &amp;&amp;</span>
+<span class="nc bnc" id="L395" title="All 2 branches missed.">                    ScriptableObject.hasProperty(s, 1))</span>
+                {
+<span class="nc" id="L397">                    Object elem0 = ScriptableObject.getProperty(s, 0);</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                    if (elem0 instanceof Function) {</span>
+<span class="nc" id="L399">                        elem0 = ((Function) elem0).call(cx, this, s,</span>
+                                new Object[0]);
+                    }
+<span class="nc" id="L402">                    prompts[0] = Context.toString(elem0);</span>
+<span class="nc" id="L403">                    Object elem1 = ScriptableObject.getProperty(s, 1);</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">                    if (elem1 instanceof Function) {</span>
+<span class="nc" id="L405">                        elem1 = ((Function) elem1).call(cx, this, s,</span>
+                                new Object[0]);
+                    }
+<span class="nc" id="L408">                    prompts[1] = Context.toString(elem1);</span>
+                }
+            }
+        }
+<span class="nc" id="L412">        return prompts;</span>
+    }
+
+    /**
+     * Example: doctest(&quot;js&gt; function f() {\n  &gt;   return 3;\n  &gt; }\njs&gt; f();\n3\n&quot;); returns 2
+     * (since 2 tests were executed).
+     */
+    public static Object doctest(Context cx, Scriptable thisObj,
+        Object[] args, Function funObj) {
+<span class="nc bnc" id="L421" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L422">            return Boolean.FALSE;</span>
+        }
+<span class="nc" id="L424">        String session = Context.toString(args[0]);</span>
+<span class="nc" id="L425">        Global global = getInstance(funObj);</span>
+<span class="nc" id="L426">        return new Integer(global.runDoctest(cx, global, session, null, 0));</span>
+    }
+
+    public int runDoctest(Context cx, Scriptable scope, String session,
+        String sourceName, int lineNumber) {
+<span class="nc" id="L431">        doctestCanonicalizations = new HashMap&lt;String, String&gt;();</span>
+<span class="nc" id="L432">        String[] lines = session.split(&quot;\r\n?|\n&quot;);</span>
+<span class="nc" id="L433">        String prompt0 = this.prompts[0].trim();</span>
+<span class="nc" id="L434">        String prompt1 = this.prompts[1].trim();</span>
+<span class="nc" id="L435">        int testCount = 0;</span>
+<span class="nc" id="L436">        int i = 0;</span>
+<span class="nc bnc" id="L437" title="All 4 branches missed.">        while (i &lt; lines.length &amp;&amp; !lines[i].trim().startsWith(prompt0)) {</span>
+<span class="nc" id="L438">            i++; // skip lines that don't look like shell sessions</span>
+        }
+<span class="nc bnc" id="L440" title="All 2 branches missed.">        while (i &lt; lines.length) {</span>
+<span class="nc" id="L441">            String inputString = lines[i].trim().substring(prompt0.length());</span>
+<span class="nc" id="L442">            inputString += &quot;\n&quot;;</span>
+<span class="nc" id="L443">            i++;</span>
+<span class="nc bnc" id="L444" title="All 4 branches missed.">            while (i &lt; lines.length &amp;&amp; lines[i].trim().startsWith(prompt1)) {</span>
+<span class="nc" id="L445">                inputString += lines[i].trim().substring(prompt1.length());</span>
+<span class="nc" id="L446">                inputString += &quot;\n&quot;;</span>
+<span class="nc" id="L447">                i++;</span>
+            }
+<span class="nc" id="L449">            String expectedString = &quot;&quot;;</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">            while (i &lt; lines.length &amp;&amp;</span>
+<span class="nc bnc" id="L451" title="All 2 branches missed.">                !lines[i].trim().startsWith(prompt0)) {</span>
+<span class="nc" id="L452">                expectedString += lines[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L453">                i++;</span>
+            }
+<span class="nc" id="L455">            PrintStream savedOut = this.getOut();</span>
+<span class="nc" id="L456">            PrintStream savedErr = this.getErr();</span>
+<span class="nc" id="L457">            ByteArrayOutputStream out = new ByteArrayOutputStream();</span>
+<span class="nc" id="L458">            ByteArrayOutputStream err = new ByteArrayOutputStream();</span>
+<span class="nc" id="L459">            this.setOut(new PrintStream(out));</span>
+<span class="nc" id="L460">            this.setErr(new PrintStream(err));</span>
+<span class="nc" id="L461">            String resultString = &quot;&quot;;</span>
+<span class="nc" id="L462">            ErrorReporter savedErrorReporter = cx.getErrorReporter();</span>
+<span class="nc" id="L463">            cx.setErrorReporter(new ToolErrorReporter(false, this.getErr()));</span>
+            try {
+<span class="nc" id="L465">                testCount++;</span>
+<span class="nc" id="L466">                Object result = cx.evaluateString(scope, inputString,</span>
+                    &quot;doctest input&quot;, 1, null);
+<span class="nc bnc" id="L468" title="All 4 branches missed.">                if (result != Context.getUndefinedValue() &amp;&amp;</span>
+                    !(result instanceof Function &amp;&amp;
+<span class="nc bnc" id="L470" title="All 2 branches missed.">                        inputString.trim().startsWith(&quot;function&quot;))) {</span>
+<span class="nc" id="L471">                    resultString = Context.toString(result);</span>
+                }
+<span class="nc" id="L473">            } catch (RhinoException e) {</span>
+<span class="nc" id="L474">                ToolErrorReporter.reportException(cx.getErrorReporter(), e);</span>
+            } finally {
+<span class="nc" id="L476">                this.setOut(savedOut);</span>
+<span class="nc" id="L477">                this.setErr(savedErr);</span>
+<span class="nc" id="L478">                cx.setErrorReporter(savedErrorReporter);</span>
+<span class="nc" id="L479">                resultString += err.toString() + out.toString();</span>
+<span class="nc" id="L480">            }</span>
+<span class="nc bnc" id="L481" title="All 2 branches missed.">            if (!doctestOutputMatches(expectedString, resultString)) {</span>
+<span class="nc" id="L482">                String message = &quot;doctest failure running:\n&quot; +</span>
+                    inputString +
+                    &quot;expected: &quot; + expectedString +
+                    &quot;actual: &quot; + resultString + &quot;\n&quot;;
+<span class="nc bnc" id="L486" title="All 2 branches missed.">                if (sourceName != null) {</span>
+<span class="nc" id="L487">                    throw Context.reportRuntimeError(message, sourceName,</span>
+                        lineNumber + i - 1, null, 0);
+                } else {
+<span class="nc" id="L490">                    throw Context.reportRuntimeError(message);</span>
+                }
+            }
+<span class="nc" id="L493">        }</span>
+<span class="nc" id="L494">        return testCount;</span>
+    }
+
+    /**
+     * Compare actual result of doctest to expected, modulo some
+     * acceptable differences. Currently just trims the strings
+     * before comparing, but should ignore differences in line numbers
+     * for error messages for example.
+     *
+     * @param expected the expected string
+     * @param actual the actual string
+     * @return true iff actual matches expected modulo some acceptable
+     *      differences
+     */
+    private boolean doctestOutputMatches(String expected, String actual) {
+<span class="nc" id="L509">        expected = expected.trim();</span>
+<span class="nc" id="L510">        actual = actual.trim().replace(&quot;\r\n&quot;, &quot;\n&quot;);</span>
+<span class="nc bnc" id="L511" title="All 2 branches missed.">        if (expected.equals(actual))</span>
+<span class="nc" id="L512">            return true;</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">        for (Map.Entry&lt;String,String&gt; entry: doctestCanonicalizations.entrySet()) {</span>
+<span class="nc" id="L514">            expected = expected.replace(entry.getKey(), entry.getValue());</span>
+<span class="nc" id="L515">        }</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">        if (expected.equals(actual))</span>
+<span class="nc" id="L517">            return true;</span>
+        // java.lang.Object.toString() prints out a unique hex number associated
+        // with each object. This number changes from run to run, so we want to
+        // ignore differences between these numbers in the output. We search for a
+        // regexp that matches the hex number preceded by '@', then enter mappings into
+        // &quot;doctestCanonicalizations&quot; so that we ensure that the mappings are
+        // consistent within a session.
+<span class="nc" id="L524">        Pattern p = Pattern.compile(&quot;@[0-9a-fA-F]+&quot;);</span>
+<span class="nc" id="L525">        Matcher expectedMatcher = p.matcher(expected);</span>
+<span class="nc" id="L526">        Matcher actualMatcher = p.matcher(actual);</span>
+        for (;;) {
+<span class="nc bnc" id="L528" title="All 2 branches missed.">            if (!expectedMatcher.find())</span>
+<span class="nc" id="L529">                return false;</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">            if (!actualMatcher.find())</span>
+<span class="nc" id="L531">                return false;</span>
+<span class="nc bnc" id="L532" title="All 2 branches missed.">            if (actualMatcher.start() != expectedMatcher.start())</span>
+<span class="nc" id="L533">                return false;</span>
+<span class="nc" id="L534">            int start = expectedMatcher.start();</span>
+<span class="nc bnc" id="L535" title="All 2 branches missed.">            if (!expected.substring(0, start).equals(actual.substring(0, start)))</span>
+<span class="nc" id="L536">                return false;</span>
+<span class="nc" id="L537">            String expectedGroup = expectedMatcher.group();</span>
+<span class="nc" id="L538">            String actualGroup = actualMatcher.group();</span>
+<span class="nc" id="L539">            String mapping = doctestCanonicalizations.get(expectedGroup);</span>
+<span class="nc bnc" id="L540" title="All 2 branches missed.">            if (mapping == null) {</span>
+<span class="nc" id="L541">                doctestCanonicalizations.put(expectedGroup, actualGroup);</span>
+<span class="nc" id="L542">                expected = expected.replace(expectedGroup, actualGroup);</span>
+<span class="nc bnc" id="L543" title="All 2 branches missed.">            } else if (!actualGroup.equals(mapping)) {</span>
+<span class="nc" id="L544">                return false; // wrong object!</span>
+            }
+<span class="nc bnc" id="L546" title="All 2 branches missed.">            if (expected.equals(actual))</span>
+<span class="nc" id="L547">                return true;</span>
+<span class="nc" id="L548">        }</span>
+    }
+
+    /**
+     * The spawn function runs a given function or script in a different
+     * thread.
+     *
+     * js&gt; function g() { a = 7; }
+     * js&gt; a = 3;
+     * 3
+     * js&gt; spawn(g)
+     * Thread[Thread-1,5,main]
+     * js&gt; a
+     * 3
+     */
+    public static Object spawn(Context cx, Scriptable thisObj, Object[] args,
+                               Function funObj)
+    {
+<span class="nc" id="L566">        Scriptable scope = funObj.getParentScope();</span>
+        Runner runner;
+<span class="nc bnc" id="L568" title="All 4 branches missed.">        if (args.length != 0 &amp;&amp; args[0] instanceof Function) {</span>
+<span class="nc" id="L569">            Object[] newArgs = null;</span>
+<span class="nc bnc" id="L570" title="All 4 branches missed.">            if (args.length &gt; 1 &amp;&amp; args[1] instanceof Scriptable) {</span>
+<span class="nc" id="L571">                newArgs = cx.getElements((Scriptable) args[1]);</span>
+            }
+<span class="nc bnc" id="L573" title="All 2 branches missed.">            if (newArgs == null) { newArgs = ScriptRuntime.emptyArgs; }</span>
+<span class="nc" id="L574">            runner = new Runner(scope, (Function) args[0], newArgs);</span>
+<span class="nc bnc" id="L575" title="All 4 branches missed.">        } else if (args.length != 0 &amp;&amp; args[0] instanceof Script) {</span>
+<span class="nc" id="L576">            runner = new Runner(scope, (Script) args[0]);</span>
+        } else {
+<span class="nc" id="L578">            throw reportRuntimeError(&quot;msg.spawn.args&quot;);</span>
+        }
+<span class="nc" id="L580">        runner.factory = cx.getFactory();</span>
+<span class="nc" id="L581">        Thread thread = new Thread(runner);</span>
+<span class="nc" id="L582">        thread.start();</span>
+<span class="nc" id="L583">        return thread;</span>
+    }
+
+    /**
+     * The sync function creates a synchronized function (in the sense
+     * of a Java synchronized method) from an existing function. The
+     * new function synchronizes on the the second argument if it is
+     * defined, or otherwise the &lt;code&gt;this&lt;/code&gt; object of
+     * its invocation.
+     * js&gt; var o = { f : sync(function(x) {
+     *       print(&quot;entry&quot;);
+     *       Packages.java.lang.Thread.sleep(x*1000);
+     *       print(&quot;exit&quot;);
+     *     })};
+     * js&gt; spawn(function() {o.f(5);});
+     * Thread[Thread-0,5,main]
+     * entry
+     * js&gt; spawn(function() {o.f(5);});
+     * Thread[Thread-1,5,main]
+     * js&gt;
+     * exit
+     * entry
+     * exit
+     */
+    public static Object sync(Context cx, Scriptable thisObj, Object[] args,
+                              Function funObj)
+    {
+<span class="nc bnc" id="L610" title="All 6 branches missed.">        if (args.length &gt;= 1 &amp;&amp; args.length &lt;= 2 &amp;&amp; args[0] instanceof Function) {</span>
+<span class="nc" id="L611">            Object syncObject = null;</span>
+<span class="nc bnc" id="L612" title="All 4 branches missed.">            if (args.length == 2 &amp;&amp; args[1] != Undefined.instance) {</span>
+<span class="nc" id="L613">                syncObject = args[1];</span>
+            }
+<span class="nc" id="L615">            return new Synchronizer((Function)args[0], syncObject);</span>
+        }
+        else {
+<span class="nc" id="L618">            throw reportRuntimeError(&quot;msg.sync.args&quot;);</span>
+        }
+    }
+
+    /**
+     * Execute the specified command with the given argument and options
+     * as a separate process and return the exit status of the process.
+     * &lt;p&gt;
+     * Usage:
+     * &lt;pre&gt;
+     * runCommand(command)
+     * runCommand(command, arg1, ..., argN)
+     * runCommand(command, arg1, ..., argN, options)
+     * &lt;/pre&gt;
+     * All except the last arguments to runCommand are converted to strings
+     * and denote command name and its arguments. If the last argument is a
+     * JavaScript object, it is an option object. Otherwise it is converted to
+     * string denoting the last argument and options objects assumed to be
+     * empty.
+     * The following properties of the option object are processed:
+     * &lt;ul&gt;
+     * &lt;li&gt;&lt;tt&gt;args&lt;/tt&gt; - provides an array of additional command arguments
+     * &lt;li&gt;&lt;tt&gt;env&lt;/tt&gt; - explicit environment object. All its enumerable
+     *   properties define the corresponding environment variable names.
+     * &lt;li&gt;&lt;tt&gt;input&lt;/tt&gt; - the process input. If it is not
+     *   java.io.InputStream, it is converted to string and sent to the process
+     *   as its input. If not specified, no input is provided to the process.
+     * &lt;li&gt;&lt;tt&gt;output&lt;/tt&gt; - the process output instead of
+     *   java.lang.System.out. If it is not instance of java.io.OutputStream,
+     *   the process output is read, converted to a string, appended to the
+     *   output property value converted to string and put as the new value of
+     *   the output property.
+     * &lt;li&gt;&lt;tt&gt;err&lt;/tt&gt; - the process error output instead of
+     *   java.lang.System.err. If it is not instance of java.io.OutputStream,
+     *   the process error output is read, converted to a string, appended to
+     *   the err property value converted to string and put as the new
+     *   value of the err property.
+     * &lt;li&gt;&lt;tt&gt;dir&lt;/tt&gt; - the working direcotry to run the commands.
+     * &lt;/ul&gt;
+     */
+    public static Object runCommand(Context cx, Scriptable thisObj,
+                                    Object[] args, Function funObj)
+        throws IOException
+    {
+<span class="nc" id="L662">        int L = args.length;</span>
+<span class="nc bnc" id="L663" title="All 6 branches missed.">        if (L == 0 || (L == 1 &amp;&amp; args[0] instanceof Scriptable)) {</span>
+<span class="nc" id="L664">            throw reportRuntimeError(&quot;msg.runCommand.bad.args&quot;);</span>
+        }
+<span class="nc" id="L666">        File wd = null;</span>
+<span class="nc" id="L667">        InputStream in = null;</span>
+<span class="nc" id="L668">        OutputStream out = null, err = null;</span>
+<span class="nc" id="L669">        ByteArrayOutputStream outBytes = null, errBytes = null;</span>
+<span class="nc" id="L670">        Object outObj = null, errObj = null;</span>
+<span class="nc" id="L671">        String[] environment = null;</span>
+<span class="nc" id="L672">        Scriptable params = null;</span>
+<span class="nc" id="L673">        Object[] addArgs = null;</span>
+<span class="nc bnc" id="L674" title="All 2 branches missed.">        if (args[L - 1] instanceof Scriptable) {</span>
+<span class="nc" id="L675">            params = (Scriptable)args[L - 1];</span>
+<span class="nc" id="L676">            --L;</span>
+<span class="nc" id="L677">            Object envObj = ScriptableObject.getProperty(params, &quot;env&quot;);</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">            if (envObj != Scriptable.NOT_FOUND) {</span>
+<span class="nc bnc" id="L679" title="All 2 branches missed.">                if (envObj == null) {</span>
+<span class="nc" id="L680">                    environment = new String[0];</span>
+                } else {
+<span class="nc bnc" id="L682" title="All 2 branches missed.">                    if (!(envObj instanceof Scriptable)) {</span>
+<span class="nc" id="L683">                        throw reportRuntimeError(&quot;msg.runCommand.bad.env&quot;);</span>
+                    }
+<span class="nc" id="L685">                    Scriptable envHash = (Scriptable)envObj;</span>
+<span class="nc" id="L686">                    Object[] ids = ScriptableObject.getPropertyIds(envHash);</span>
+<span class="nc" id="L687">                    environment = new String[ids.length];</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">                    for (int i = 0; i != ids.length; ++i) {</span>
+<span class="nc" id="L689">                        Object keyObj = ids[i], val;</span>
+                        String key;
+<span class="nc bnc" id="L691" title="All 2 branches missed.">                        if (keyObj instanceof String) {</span>
+<span class="nc" id="L692">                            key = (String)keyObj;</span>
+<span class="nc" id="L693">                            val = ScriptableObject.getProperty(envHash, key);</span>
+                        } else {
+<span class="nc" id="L695">                            int ikey = ((Number)keyObj).intValue();</span>
+<span class="nc" id="L696">                            key = Integer.toString(ikey);</span>
+<span class="nc" id="L697">                            val = ScriptableObject.getProperty(envHash, ikey);</span>
+                        }
+<span class="nc bnc" id="L699" title="All 2 branches missed.">                        if (val == ScriptableObject.NOT_FOUND) {</span>
+<span class="nc" id="L700">                            val = Undefined.instance;</span>
+                        }
+<span class="nc" id="L702">                        environment[i] = key+'='+ScriptRuntime.toString(val);</span>
+                    }
+                }
+            }
+<span class="nc" id="L706">            Object wdObj = ScriptableObject.getProperty(params, &quot;dir&quot;);</span>
+<span class="nc bnc" id="L707" title="All 2 branches missed.">            if(wdObj != Scriptable.NOT_FOUND){</span>
+<span class="nc" id="L708">                wd = new File(ScriptRuntime.toString(wdObj));</span>
+            }
+
+<span class="nc" id="L711">            Object inObj = ScriptableObject.getProperty(params, &quot;input&quot;);</span>
+<span class="nc bnc" id="L712" title="All 2 branches missed.">            if (inObj != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L713">                in = toInputStream(inObj);</span>
+            }
+<span class="nc" id="L715">            outObj = ScriptableObject.getProperty(params, &quot;output&quot;);</span>
+<span class="nc bnc" id="L716" title="All 2 branches missed.">            if (outObj != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L717">                out = toOutputStream(outObj);</span>
+<span class="nc bnc" id="L718" title="All 2 branches missed.">                if (out == null) {</span>
+<span class="nc" id="L719">                    outBytes = new ByteArrayOutputStream();</span>
+<span class="nc" id="L720">                    out = outBytes;</span>
+                }
+            }
+<span class="nc" id="L723">            errObj = ScriptableObject.getProperty(params, &quot;err&quot;);</span>
+<span class="nc bnc" id="L724" title="All 2 branches missed.">            if (errObj != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L725">                err = toOutputStream(errObj);</span>
+<span class="nc bnc" id="L726" title="All 2 branches missed.">                if (err == null) {</span>
+<span class="nc" id="L727">                    errBytes = new ByteArrayOutputStream();</span>
+<span class="nc" id="L728">                    err = errBytes;</span>
+                }
+            }
+<span class="nc" id="L731">            Object addArgsObj = ScriptableObject.getProperty(params, &quot;args&quot;);</span>
+<span class="nc bnc" id="L732" title="All 2 branches missed.">            if (addArgsObj != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L733">                Scriptable s = Context.toObject(addArgsObj,</span>
+<span class="nc" id="L734">                                                getTopLevelScope(thisObj));</span>
+<span class="nc" id="L735">                addArgs = cx.getElements(s);</span>
+            }
+        }
+<span class="nc" id="L738">        Global global = getInstance(funObj);</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">        if (out == null) {</span>
+<span class="nc bnc" id="L740" title="All 2 branches missed.">            out = (global != null) ? global.getOut() : System.out;</span>
+        }
+<span class="nc bnc" id="L742" title="All 2 branches missed.">        if (err == null) {</span>
+<span class="nc bnc" id="L743" title="All 2 branches missed.">            err = (global != null) ? global.getErr() : System.err;</span>
+        }
+        // If no explicit input stream, do not send any input to process,
+        // in particular, do not use System.in to avoid deadlocks
+        // when waiting for user input to send to process which is already
+        // terminated as it is not always possible to interrupt read method.
+
+<span class="nc bnc" id="L750" title="All 2 branches missed.">        String[] cmd = new String[(addArgs == null) ? L : L + addArgs.length];</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">        for (int i = 0; i != L; ++i) {</span>
+<span class="nc" id="L752">            cmd[i] = ScriptRuntime.toString(args[i]);</span>
+        }
+<span class="nc bnc" id="L754" title="All 2 branches missed.">        if (addArgs != null) {</span>
+<span class="nc bnc" id="L755" title="All 2 branches missed.">            for (int i = 0; i != addArgs.length; ++i) {</span>
+<span class="nc" id="L756">                cmd[L + i] = ScriptRuntime.toString(addArgs[i]);</span>
+            }
+        }
+
+<span class="nc" id="L760">        int exitCode = runProcess(cmd, environment, wd, in, out, err);</span>
+<span class="nc bnc" id="L761" title="All 2 branches missed.">        if (outBytes != null) {</span>
+<span class="nc" id="L762">            String s = ScriptRuntime.toString(outObj) + outBytes.toString();</span>
+<span class="nc" id="L763">            ScriptableObject.putProperty(params, &quot;output&quot;, s);</span>
+        }
+<span class="nc bnc" id="L765" title="All 2 branches missed.">        if (errBytes != null) {</span>
+<span class="nc" id="L766">            String s = ScriptRuntime.toString(errObj) + errBytes.toString();</span>
+<span class="nc" id="L767">            ScriptableObject.putProperty(params, &quot;err&quot;, s);</span>
+        }
+
+<span class="nc" id="L770">        return new Integer(exitCode);</span>
+    }
+
+    /**
+     * The seal function seals all supplied arguments.
+     */
+    public static void seal(Context cx, Scriptable thisObj, Object[] args,
+                            Function funObj)
+    {
+<span class="nc bnc" id="L779" title="All 2 branches missed.">        for (int i = 0; i != args.length; ++i) {</span>
+<span class="nc" id="L780">            Object arg = args[i];</span>
+<span class="nc bnc" id="L781" title="All 4 branches missed.">            if (!(arg instanceof ScriptableObject) || arg == Undefined.instance)</span>
+            {
+<span class="nc bnc" id="L783" title="All 4 branches missed.">                if (!(arg instanceof Scriptable) || arg == Undefined.instance)</span>
+                {
+<span class="nc" id="L785">                    throw reportRuntimeError(&quot;msg.shell.seal.not.object&quot;);</span>
+                } else {
+<span class="nc" id="L787">                    throw reportRuntimeError(&quot;msg.shell.seal.not.scriptable&quot;);</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L792" title="All 2 branches missed.">        for (int i = 0; i != args.length; ++i) {</span>
+<span class="nc" id="L793">            Object arg = args[i];</span>
+<span class="nc" id="L794">            ((ScriptableObject)arg).sealObject();</span>
+        }
+<span class="nc" id="L796">    }</span>
+
+    /**
+     * The readFile reads the given file content and convert it to a string
+     * using the specified character coding or default character coding if
+     * explicit coding argument is not given.
+     * &lt;p&gt;
+     * Usage:
+     * &lt;pre&gt;
+     * readFile(filePath)
+     * readFile(filePath, charCoding)
+     * &lt;/pre&gt;
+     * The first form converts file's context to string using the default
+     * character coding.
+     */
+    public static Object readFile(Context cx, Scriptable thisObj, Object[] args,
+                                  Function funObj)
+        throws IOException
+    {
+<span class="nc bnc" id="L815" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L816">            throw reportRuntimeError(&quot;msg.shell.readFile.bad.args&quot;);</span>
+        }
+<span class="nc" id="L818">        String path = ScriptRuntime.toString(args[0]);</span>
+<span class="nc" id="L819">        String charCoding = null;</span>
+<span class="nc bnc" id="L820" title="All 2 branches missed.">        if (args.length &gt;= 2) {</span>
+<span class="nc" id="L821">            charCoding = ScriptRuntime.toString(args[1]);</span>
+        }
+
+<span class="nc" id="L824">        return readUrl(path, charCoding, true);</span>
+    }
+
+    /**
+     * The readUrl opens connection to the given URL, read all its data
+     * and converts them to a string
+     * using the specified character coding or default character coding if
+     * explicit coding argument is not given.
+     * &lt;p&gt;
+     * Usage:
+     * &lt;pre&gt;
+     * readUrl(url)
+     * readUrl(url, charCoding)
+     * &lt;/pre&gt;
+     * The first form converts file's context to string using the default
+     * charCoding.
+     */
+    public static Object readUrl(Context cx, Scriptable thisObj, Object[] args,
+                                 Function funObj)
+        throws IOException
+    {
+<span class="nc bnc" id="L845" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L846">            throw reportRuntimeError(&quot;msg.shell.readUrl.bad.args&quot;);</span>
+        }
+<span class="nc" id="L848">        String url = ScriptRuntime.toString(args[0]);</span>
+<span class="nc" id="L849">        String charCoding = null;</span>
+<span class="nc bnc" id="L850" title="All 2 branches missed.">        if (args.length &gt;= 2) {</span>
+<span class="nc" id="L851">            charCoding = ScriptRuntime.toString(args[1]);</span>
+        }
+
+<span class="nc" id="L854">        return readUrl(url, charCoding, false);</span>
+    }
+
+    /**
+     * Convert the argument to int32 number.
+     */
+    public static Object toint32(Context cx, Scriptable thisObj, Object[] args,
+                                 Function funObj)
+    {
+<span class="nc bnc" id="L863" title="All 2 branches missed.">        Object arg = (args.length != 0 ? args[0] : Undefined.instance);</span>
+<span class="nc bnc" id="L864" title="All 2 branches missed.">        if (arg instanceof Integer)</span>
+<span class="nc" id="L865">            return arg;</span>
+<span class="nc" id="L866">        return ScriptRuntime.wrapInt(ScriptRuntime.toInt32(arg));</span>
+    }
+
+    private boolean loadJLine(Charset cs) {
+<span class="nc bnc" id="L870" title="All 2 branches missed.">        if (!attemptedJLineLoad) {</span>
+            // Check if we can use JLine for better command line handling
+<span class="nc" id="L872">            attemptedJLineLoad = true;</span>
+<span class="nc" id="L873">            console = ShellConsole.getConsole(this, cs);</span>
+        }
+<span class="nc bnc" id="L875" title="All 2 branches missed.">        return console != null;</span>
+    }
+
+    public ShellConsole getConsole(Charset cs) {
+<span class="nc bnc" id="L879" title="All 2 branches missed.">        if (!loadJLine(cs)) {</span>
+<span class="nc" id="L880">            console = ShellConsole.getConsole(getIn(), getErr(), cs);</span>
+        }
+<span class="nc" id="L882">        return console;</span>
+    }
+
+    public InputStream getIn() {
+<span class="nc bnc" id="L886" title="All 4 branches missed.">        if (inStream == null &amp;&amp; !attemptedJLineLoad) {</span>
+<span class="nc bnc" id="L887" title="All 2 branches missed.">            if (loadJLine(Charset.defaultCharset())) {</span>
+<span class="nc" id="L888">                inStream = console.getIn();</span>
+            }
+        }
+<span class="nc bnc" id="L891" title="All 2 branches missed.">        return inStream == null ? System.in : inStream;</span>
+    }
+
+    public void setIn(InputStream in) {
+<span class="nc" id="L895">        inStream = in;</span>
+<span class="nc" id="L896">    }</span>
+
+    public PrintStream getOut() {
+<span class="nc bnc" id="L899" title="All 2 branches missed.">        return outStream == null ? System.out : outStream;</span>
+    }
+
+    public void setOut(PrintStream out) {
+<span class="nc" id="L903">        outStream = out;</span>
+<span class="nc" id="L904">    }</span>
+
+    public PrintStream getErr() {
+<span class="nc bnc" id="L907" title="All 2 branches missed.">        return errStream == null ? System.err : errStream;</span>
+    }
+
+    public void setErr(PrintStream err) {
+<span class="nc" id="L911">        errStream = err;</span>
+<span class="nc" id="L912">    }</span>
+
+    public void setSealedStdLib(boolean value)
+    {
+<span class="nc" id="L916">        sealedStdLib = value;</span>
+<span class="nc" id="L917">    }</span>
+
+    private static Global getInstance(Function function)
+    {
+<span class="nc" id="L921">        Scriptable scope = function.getParentScope();</span>
+<span class="nc bnc" id="L922" title="All 2 branches missed.">        if (!(scope instanceof Global))</span>
+<span class="nc" id="L923">            throw reportRuntimeError(&quot;msg.bad.shell.function.scope&quot;,</span>
+<span class="nc" id="L924">                                     String.valueOf(scope));</span>
+<span class="nc" id="L925">        return (Global)scope;</span>
+    }
+
+    /**
+     * Runs the given process using Runtime.exec().
+     * If any of in, out, err is null, the corresponding process stream will
+     * be closed immediately, otherwise it will be closed as soon as
+     * all data will be read from/written to process
+     *
+     * @return Exit value of process.
+     * @throws IOException If there was an error executing the process.
+     */
+    private static int runProcess(String[] cmd, String[] environment,
+                                  File wd, InputStream in, OutputStream out,
+                                  OutputStream err)
+        throws IOException
+    {
+        Process p;
+<span class="nc bnc" id="L943" title="All 2 branches missed.">        if (environment == null) {</span>
+<span class="nc" id="L944">            p = Runtime.getRuntime().exec(cmd,null,wd);</span>
+        } else {
+<span class="nc" id="L946">            p = Runtime.getRuntime().exec(cmd, environment,wd);</span>
+        }
+
+        try {
+<span class="nc" id="L950">            PipeThread inThread = null;</span>
+<span class="nc bnc" id="L951" title="All 2 branches missed.">            if (in != null) {</span>
+<span class="nc" id="L952">                inThread = new PipeThread(false, in, p.getOutputStream());</span>
+<span class="nc" id="L953">                inThread.start();</span>
+            } else {
+<span class="nc" id="L955">                p.getOutputStream().close();</span>
+            }
+
+<span class="nc" id="L958">            PipeThread outThread = null;</span>
+<span class="nc bnc" id="L959" title="All 2 branches missed.">            if (out != null) {</span>
+<span class="nc" id="L960">                outThread = new PipeThread(true, p.getInputStream(), out);</span>
+<span class="nc" id="L961">                outThread.start();</span>
+            } else {
+<span class="nc" id="L963">                p.getInputStream().close();</span>
+            }
+
+<span class="nc" id="L966">            PipeThread errThread = null;</span>
+<span class="nc bnc" id="L967" title="All 2 branches missed.">            if (err != null) {</span>
+<span class="nc" id="L968">                errThread = new PipeThread(true, p.getErrorStream(), err);</span>
+<span class="nc" id="L969">                errThread.start();</span>
+            } else {
+<span class="nc" id="L971">                p.getErrorStream().close();</span>
+            }
+
+            // wait for process completion
+            for (;;) {
+                try {
+<span class="nc" id="L977">                    p.waitFor();</span>
+<span class="nc bnc" id="L978" title="All 2 branches missed.">                    if (outThread != null) {</span>
+<span class="nc" id="L979">                        outThread.join();</span>
+                    }
+<span class="nc bnc" id="L981" title="All 2 branches missed.">                    if (inThread != null) {</span>
+<span class="nc" id="L982">                        inThread.join();</span>
+                    }
+<span class="nc bnc" id="L984" title="All 2 branches missed.">                    if (errThread != null) {</span>
+<span class="nc" id="L985">                        errThread.join();</span>
+                    }
+<span class="nc" id="L987">                    break;</span>
+<span class="nc" id="L988">                } catch (InterruptedException ignore) {</span>
+<span class="nc" id="L989">                }</span>
+            }
+
+<span class="nc" id="L992">            return p.exitValue();</span>
+        } finally {
+<span class="nc" id="L994">            p.destroy();</span>
+<span class="nc" id="L995">        }</span>
+    }
+
+    static void pipe(boolean fromProcess, InputStream from, OutputStream to)
+        throws IOException
+    {
+        try {
+<span class="nc" id="L1002">            final int SIZE = 4096;</span>
+<span class="nc" id="L1003">            byte[] buffer = new byte[SIZE];</span>
+            for (;;) {
+                int n;
+<span class="nc bnc" id="L1006" title="All 2 branches missed.">                if (!fromProcess) {</span>
+<span class="nc" id="L1007">                    n = from.read(buffer, 0, SIZE);</span>
+                } else {
+                    try {
+<span class="nc" id="L1010">                        n = from.read(buffer, 0, SIZE);</span>
+<span class="nc" id="L1011">                    } catch (IOException ex) {</span>
+                        // Ignore exception as it can be cause by closed pipe
+<span class="nc" id="L1013">                        break;</span>
+<span class="nc" id="L1014">                    }</span>
+                }
+<span class="nc bnc" id="L1016" title="All 2 branches missed.">                if (n &lt; 0) { break; }</span>
+<span class="nc bnc" id="L1017" title="All 2 branches missed.">                if (fromProcess) {</span>
+<span class="nc" id="L1018">                    to.write(buffer, 0, n);</span>
+<span class="nc" id="L1019">                    to.flush();</span>
+                } else {
+                    try {
+<span class="nc" id="L1022">                        to.write(buffer, 0, n);</span>
+<span class="nc" id="L1023">                        to.flush();</span>
+<span class="nc" id="L1024">                    } catch (IOException ex) {</span>
+                        // Ignore exception as it can be cause by closed pipe
+<span class="nc" id="L1026">                        break;</span>
+<span class="nc" id="L1027">                    }</span>
+                }
+<span class="nc" id="L1029">            }</span>
+        } finally {
+<span class="nc" id="L1031">            try {</span>
+<span class="nc bnc" id="L1032" title="All 4 branches missed.">                if (fromProcess) {</span>
+<span class="nc" id="L1033">                    from.close();</span>
+                } else {
+<span class="nc" id="L1035">                    to.close();</span>
+                }
+<span class="nc" id="L1037">            } catch (IOException ex) {</span>
+                // Ignore errors on close. On Windows JVM may throw invalid
+                // refrence exception if process terminates too fast.
+<span class="nc" id="L1040">            }</span>
+<span class="nc" id="L1041">        }</span>
+<span class="nc" id="L1042">    }</span>
+
+    private static InputStream toInputStream(Object value)
+        throws IOException
+    {
+<span class="nc" id="L1047">        InputStream is = null;</span>
+<span class="nc" id="L1048">        String s = null;</span>
+<span class="nc bnc" id="L1049" title="All 2 branches missed.">        if (value instanceof Wrapper) {</span>
+<span class="nc" id="L1050">            Object unwrapped = ((Wrapper)value).unwrap();</span>
+<span class="nc bnc" id="L1051" title="All 2 branches missed.">            if (unwrapped instanceof InputStream) {</span>
+<span class="nc" id="L1052">                is = (InputStream)unwrapped;</span>
+<span class="nc bnc" id="L1053" title="All 2 branches missed.">            } else if (unwrapped instanceof byte[]) {</span>
+<span class="nc" id="L1054">                is = new ByteArrayInputStream((byte[])unwrapped);</span>
+<span class="nc bnc" id="L1055" title="All 2 branches missed.">            } else if (unwrapped instanceof Reader) {</span>
+<span class="nc" id="L1056">                s = readReader((Reader)unwrapped);</span>
+<span class="nc bnc" id="L1057" title="All 2 branches missed.">            } else if (unwrapped instanceof char[]) {</span>
+<span class="nc" id="L1058">                s = new String((char[])unwrapped);</span>
+            }
+        }
+<span class="nc bnc" id="L1061" title="All 2 branches missed.">        if (is == null) {</span>
+<span class="nc bnc" id="L1062" title="All 2 branches missed.">            if (s == null) { s = ScriptRuntime.toString(value); }</span>
+<span class="nc" id="L1063">            is = new ByteArrayInputStream(s.getBytes());</span>
+        }
+<span class="nc" id="L1065">        return is;</span>
+    }
+
+    private static OutputStream toOutputStream(Object value) {
+<span class="nc" id="L1069">        OutputStream os = null;</span>
+<span class="nc bnc" id="L1070" title="All 2 branches missed.">        if (value instanceof Wrapper) {</span>
+<span class="nc" id="L1071">            Object unwrapped = ((Wrapper)value).unwrap();</span>
+<span class="nc bnc" id="L1072" title="All 2 branches missed.">            if (unwrapped instanceof OutputStream) {</span>
+<span class="nc" id="L1073">                os = (OutputStream)unwrapped;</span>
+            }
+        }
+<span class="nc" id="L1076">        return os;</span>
+    }
+
+    private static String readUrl(String filePath, String charCoding,
+                                  boolean urlIsFile)
+        throws IOException
+    {
+        int chunkLength;
+<span class="nc" id="L1084">        InputStream is = null;</span>
+        try {
+<span class="nc bnc" id="L1086" title="All 2 branches missed.">            if (!urlIsFile) {</span>
+<span class="nc" id="L1087">                URL urlObj = new URL(filePath);</span>
+<span class="nc" id="L1088">                URLConnection uc = urlObj.openConnection();</span>
+<span class="nc" id="L1089">                is = uc.getInputStream();</span>
+<span class="nc" id="L1090">                chunkLength = uc.getContentLength();</span>
+<span class="nc bnc" id="L1091" title="All 2 branches missed.">                if (chunkLength &lt;= 0)</span>
+<span class="nc" id="L1092">                    chunkLength = 1024;</span>
+<span class="nc bnc" id="L1093" title="All 2 branches missed.">                if (charCoding == null) {</span>
+<span class="nc" id="L1094">                    String type = uc.getContentType();</span>
+<span class="nc bnc" id="L1095" title="All 2 branches missed.">                    if (type != null) {</span>
+<span class="nc" id="L1096">                        charCoding = getCharCodingFromType(type);</span>
+                    }
+                }
+<span class="nc" id="L1099">            } else {</span>
+<span class="nc" id="L1100">                File f = new File(filePath);</span>
+<span class="nc bnc" id="L1101" title="All 2 branches missed.">                if (!f.exists()) {</span>
+<span class="nc" id="L1102">                    throw new FileNotFoundException(&quot;File not found: &quot; + filePath);</span>
+<span class="nc bnc" id="L1103" title="All 2 branches missed.">                } else if (!f.canRead()) {</span>
+<span class="nc" id="L1104">                    throw new IOException(&quot;Cannot read file: &quot; + filePath);</span>
+                }
+<span class="nc" id="L1106">                long length = f.length();</span>
+<span class="nc" id="L1107">                chunkLength = (int)length;</span>
+<span class="nc bnc" id="L1108" title="All 2 branches missed.">                if (chunkLength != length)</span>
+<span class="nc" id="L1109">                    throw new IOException(&quot;Too big file size: &quot;+length);</span>
+
+<span class="nc bnc" id="L1111" title="All 2 branches missed.">                if (chunkLength == 0) { return &quot;&quot;; }</span>
+
+<span class="nc" id="L1113">                is = new FileInputStream(f);</span>
+            }
+
+            Reader r;
+<span class="nc bnc" id="L1117" title="All 2 branches missed.">            if (charCoding == null) {</span>
+<span class="nc" id="L1118">                r = new InputStreamReader(is);</span>
+            } else {
+<span class="nc" id="L1120">                r = new InputStreamReader(is, charCoding);</span>
+            }
+<span class="nc" id="L1122">            return readReader(r, chunkLength);</span>
+
+        } finally {
+<span class="nc bnc" id="L1125" title="All 6 branches missed.">            if (is != null)</span>
+<span class="nc" id="L1126">                is.close();</span>
+<span class="nc" id="L1127">        }</span>
+    }
+
+    /**
+     * The readline reads one line from the standard input. &quot;Prompt&quot; is optional.
+     * &lt;p&gt;
+     * Usage:
+     * &lt;pre&gt;
+     * readline(prompt)
+     * &lt;/pre&gt;
+     */
+     public static Object readline(Context cx, Scriptable thisObj, Object[] args, Function funObj)
+         throws IOException
+     {
+<span class="nc" id="L1141">         Global self = getInstance(funObj);</span>
+
+<span class="nc bnc" id="L1143" title="All 2 branches missed.">         if (args.length &gt; 0) {</span>
+<span class="nc" id="L1144">             return self.console.readLine(Context.toString(args[0]));</span>
+         }
+<span class="nc" id="L1146">         return self.console.readLine();</span>
+     }
+
+    private static String getCharCodingFromType(String type)
+    {
+<span class="nc" id="L1151">        int i = type.indexOf(';');</span>
+<span class="nc bnc" id="L1152" title="All 2 branches missed.">        if (i &gt;= 0) {</span>
+<span class="nc" id="L1153">            int end = type.length();</span>
+<span class="nc" id="L1154">            ++i;</span>
+<span class="nc bnc" id="L1155" title="All 4 branches missed.">            while (i != end &amp;&amp; type.charAt(i) &lt;= ' ') {</span>
+<span class="nc" id="L1156">                ++i;</span>
+            }
+<span class="nc" id="L1158">            String charset = &quot;charset&quot;;</span>
+<span class="nc bnc" id="L1159" title="All 2 branches missed.">            if (charset.regionMatches(true, 0, type, i, charset.length()))</span>
+            {
+<span class="nc" id="L1161">                i += charset.length();</span>
+<span class="nc bnc" id="L1162" title="All 4 branches missed.">                while (i != end &amp;&amp; type.charAt(i) &lt;= ' ') {</span>
+<span class="nc" id="L1163">                    ++i;</span>
+                }
+<span class="nc bnc" id="L1165" title="All 4 branches missed.">                if (i != end &amp;&amp; type.charAt(i) == '=') {</span>
+<span class="nc" id="L1166">                    ++i;</span>
+<span class="nc bnc" id="L1167" title="All 4 branches missed.">                    while (i != end &amp;&amp; type.charAt(i) &lt;= ' ') {</span>
+<span class="nc" id="L1168">                        ++i;</span>
+                    }
+<span class="nc bnc" id="L1170" title="All 2 branches missed.">                    if (i != end) {</span>
+                        // i is at the start of non-empty
+                        // charCoding spec
+<span class="nc bnc" id="L1173" title="All 2 branches missed.">                        while (type.charAt(end -1) &lt;= ' ') {</span>
+<span class="nc" id="L1174">                            --end;</span>
+                        }
+<span class="nc" id="L1176">                        return type.substring(i, end);</span>
+                    }
+                }
+            }
+        }
+<span class="nc" id="L1181">        return null;</span>
+    }
+
+    private static String readReader(Reader reader)
+        throws IOException
+    {
+<span class="nc" id="L1187">        return readReader(reader, 4096);</span>
+    }
+
+    private static String readReader(Reader reader, int initialBufferSize)
+        throws IOException
+    {
+<span class="nc" id="L1193">        char[] buffer = new char[initialBufferSize];</span>
+<span class="nc" id="L1194">        int offset = 0;</span>
+        for (;;) {
+<span class="nc" id="L1196">            int n = reader.read(buffer, offset, buffer.length - offset);</span>
+<span class="nc bnc" id="L1197" title="All 2 branches missed.">            if (n &lt; 0) { break;    }</span>
+<span class="nc" id="L1198">            offset += n;</span>
+<span class="nc bnc" id="L1199" title="All 2 branches missed.">            if (offset == buffer.length) {</span>
+<span class="nc" id="L1200">                char[] tmp = new char[buffer.length * 2];</span>
+<span class="nc" id="L1201">                System.arraycopy(buffer, 0, tmp, 0, offset);</span>
+<span class="nc" id="L1202">                buffer = tmp;</span>
+            }
+<span class="nc" id="L1204">        }</span>
+<span class="nc" id="L1205">        return new String(buffer, 0, offset);</span>
+    }
+
+    static RuntimeException reportRuntimeError(String msgId) {
+<span class="nc" id="L1209">        String message = ToolErrorReporter.getMessage(msgId);</span>
+<span class="nc" id="L1210">        return Context.reportRuntimeError(message);</span>
+    }
+
+    static RuntimeException reportRuntimeError(String msgId, String msgArg)
+    {
+<span class="nc" id="L1215">        String message = ToolErrorReporter.getMessage(msgId, msgArg);</span>
+<span class="nc" id="L1216">        return Context.reportRuntimeError(message);</span>
+    }
+}
+
+
+class Runner implements Runnable, ContextAction {
+
+<span class="nc" id="L1223">    Runner(Scriptable scope, Function func, Object[] args) {</span>
+<span class="nc" id="L1224">        this.scope = scope;</span>
+<span class="nc" id="L1225">        f = func;</span>
+<span class="nc" id="L1226">        this.args = args;</span>
+<span class="nc" id="L1227">    }</span>
+
+<span class="nc" id="L1229">    Runner(Scriptable scope, Script script) {</span>
+<span class="nc" id="L1230">        this.scope = scope;</span>
+<span class="nc" id="L1231">        s = script;</span>
+<span class="nc" id="L1232">    }</span>
+
+    public void run()
+    {
+<span class="nc" id="L1236">        factory.call(this);</span>
+<span class="nc" id="L1237">    }</span>
+
+    public Object run(Context cx)
+    {
+<span class="nc bnc" id="L1241" title="All 2 branches missed.">        if (f != null)</span>
+<span class="nc" id="L1242">            return f.call(cx, scope, scope, args);</span>
+        else
+<span class="nc" id="L1244">            return s.exec(cx, scope);</span>
+    }
+
+    ContextFactory factory;
+    private Scriptable scope;
+    private Function f;
+    private Script s;
+    private Object[] args;
+}
+
+class PipeThread extends Thread {
+
+<span class="nc" id="L1256">    PipeThread(boolean fromProcess, InputStream from, OutputStream to) {</span>
+<span class="nc" id="L1257">        setDaemon(true);</span>
+<span class="nc" id="L1258">        this.fromProcess = fromProcess;</span>
+<span class="nc" id="L1259">        this.from = from;</span>
+<span class="nc" id="L1260">        this.to = to;</span>
+<span class="nc" id="L1261">    }</span>
+
+    @Override
+    public void run() {
+        try {
+<span class="nc" id="L1266">            Global.pipe(fromProcess, from, to);</span>
+<span class="nc" id="L1267">        } catch (IOException ex) {</span>
+<span class="nc" id="L1268">            throw Context.throwAsScriptRuntimeEx(ex);</span>
+<span class="nc" id="L1269">        }</span>
+<span class="nc" id="L1270">    }</span>
+
+    private boolean fromProcess;
+    private InputStream from;
+    private OutputStream to;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

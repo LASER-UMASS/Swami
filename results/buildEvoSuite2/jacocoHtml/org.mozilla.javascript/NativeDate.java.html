@@ -1,0 +1,1787 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeDate.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeDate.java</span></div><h1>NativeDate.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Date;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
+import java.util.TimeZone;
+
+/**
+ * This class implements the Date native object.
+ * See ECMA 15.9.
+ * @author Mike McCabe
+ *
+ * Significant parts of this code are adapted from the venerable jsdate.cpp (also Mozilla):
+ * https://dxr.mozilla.org/mozilla-central/source/js/src/jsdate.cpp
+ */
+<span class="nc bnc" id="L23" title="All 2 branches missed.">final class NativeDate extends IdScriptableObject</span>
+{
+    static final long serialVersionUID = -8307438915861678966L;
+
+<span class="nc" id="L27">    private static final Object DATE_TAG = &quot;Date&quot;;</span>
+
+    private static final String js_NaN_date_str = &quot;Invalid Date&quot;;
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L33">        NativeDate obj = new NativeDate();</span>
+        // Set the value of the prototype Date to NaN ('invalid date');
+<span class="nc" id="L35">        obj.date = ScriptRuntime.NaN;</span>
+<span class="nc" id="L36">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L37">    }</span>
+
+    private NativeDate()
+<span class="nc" id="L40">    {</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (thisTimeZone == null) {</span>
+            // j.u.TimeZone is synchronized, so setting class statics from it
+            // should be OK.
+<span class="nc" id="L44">            thisTimeZone = TimeZone.getDefault();</span>
+<span class="nc" id="L45">            LocalTZA = thisTimeZone.getRawOffset();</span>
+        }
+<span class="nc" id="L47">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L52">        return &quot;Date&quot;;</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; typeHint)
+    {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (typeHint == null)</span>
+<span class="nc" id="L59">            typeHint = ScriptRuntime.StringClass;</span>
+<span class="nc" id="L60">        return super.getDefaultValue(typeHint);</span>
+    }
+
+    double getJSTimeValue()
+    {
+<span class="nc" id="L65">        return date;</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="nc" id="L71">        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_now,</span>
+                              &quot;now&quot;, 0);
+<span class="nc" id="L73">        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_parse,</span>
+                              &quot;parse&quot;, 1);
+<span class="nc" id="L75">        addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_UTC,</span>
+                              &quot;UTC&quot;, 7);
+<span class="nc" id="L77">        super.fillConstructorProperties(ctor);</span>
+<span class="nc" id="L78">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="nc bnc" id="L85" title="All 48 branches missed.">        switch (id) {</span>
+<span class="nc" id="L86">          case Id_constructor:        arity=7; s=&quot;constructor&quot;;        break;</span>
+<span class="nc" id="L87">          case Id_toString:           arity=0; s=&quot;toString&quot;;           break;</span>
+<span class="nc" id="L88">          case Id_toTimeString:       arity=0; s=&quot;toTimeString&quot;;       break;</span>
+<span class="nc" id="L89">          case Id_toDateString:       arity=0; s=&quot;toDateString&quot;;       break;</span>
+<span class="nc" id="L90">          case Id_toLocaleString:     arity=0; s=&quot;toLocaleString&quot;;     break;</span>
+<span class="nc" id="L91">          case Id_toLocaleTimeString: arity=0; s=&quot;toLocaleTimeString&quot;; break;</span>
+<span class="nc" id="L92">          case Id_toLocaleDateString: arity=0; s=&quot;toLocaleDateString&quot;; break;</span>
+<span class="nc" id="L93">          case Id_toUTCString:        arity=0; s=&quot;toUTCString&quot;;        break;</span>
+<span class="nc" id="L94">          case Id_toSource:           arity=0; s=&quot;toSource&quot;;           break;</span>
+<span class="nc" id="L95">          case Id_valueOf:            arity=0; s=&quot;valueOf&quot;;            break;</span>
+<span class="nc" id="L96">          case Id_getTime:            arity=0; s=&quot;getTime&quot;;            break;</span>
+<span class="nc" id="L97">          case Id_getYear:            arity=0; s=&quot;getYear&quot;;            break;</span>
+<span class="nc" id="L98">          case Id_getFullYear:        arity=0; s=&quot;getFullYear&quot;;        break;</span>
+<span class="nc" id="L99">          case Id_getUTCFullYear:     arity=0; s=&quot;getUTCFullYear&quot;;     break;</span>
+<span class="nc" id="L100">          case Id_getMonth:           arity=0; s=&quot;getMonth&quot;;           break;</span>
+<span class="nc" id="L101">          case Id_getUTCMonth:        arity=0; s=&quot;getUTCMonth&quot;;        break;</span>
+<span class="nc" id="L102">          case Id_getDate:            arity=0; s=&quot;getDate&quot;;            break;</span>
+<span class="nc" id="L103">          case Id_getUTCDate:         arity=0; s=&quot;getUTCDate&quot;;         break;</span>
+<span class="nc" id="L104">          case Id_getDay:             arity=0; s=&quot;getDay&quot;;             break;</span>
+<span class="nc" id="L105">          case Id_getUTCDay:          arity=0; s=&quot;getUTCDay&quot;;          break;</span>
+<span class="nc" id="L106">          case Id_getHours:           arity=0; s=&quot;getHours&quot;;           break;</span>
+<span class="nc" id="L107">          case Id_getUTCHours:        arity=0; s=&quot;getUTCHours&quot;;        break;</span>
+<span class="nc" id="L108">          case Id_getMinutes:         arity=0; s=&quot;getMinutes&quot;;         break;</span>
+<span class="nc" id="L109">          case Id_getUTCMinutes:      arity=0; s=&quot;getUTCMinutes&quot;;      break;</span>
+<span class="nc" id="L110">          case Id_getSeconds:         arity=0; s=&quot;getSeconds&quot;;         break;</span>
+<span class="nc" id="L111">          case Id_getUTCSeconds:      arity=0; s=&quot;getUTCSeconds&quot;;      break;</span>
+<span class="nc" id="L112">          case Id_getMilliseconds:    arity=0; s=&quot;getMilliseconds&quot;;    break;</span>
+<span class="nc" id="L113">          case Id_getUTCMilliseconds: arity=0; s=&quot;getUTCMilliseconds&quot;; break;</span>
+<span class="nc" id="L114">          case Id_getTimezoneOffset:  arity=0; s=&quot;getTimezoneOffset&quot;;  break;</span>
+<span class="nc" id="L115">          case Id_setTime:            arity=1; s=&quot;setTime&quot;;            break;</span>
+<span class="nc" id="L116">          case Id_setMilliseconds:    arity=1; s=&quot;setMilliseconds&quot;;    break;</span>
+<span class="nc" id="L117">          case Id_setUTCMilliseconds: arity=1; s=&quot;setUTCMilliseconds&quot;; break;</span>
+<span class="nc" id="L118">          case Id_setSeconds:         arity=2; s=&quot;setSeconds&quot;;         break;</span>
+<span class="nc" id="L119">          case Id_setUTCSeconds:      arity=2; s=&quot;setUTCSeconds&quot;;      break;</span>
+<span class="nc" id="L120">          case Id_setMinutes:         arity=3; s=&quot;setMinutes&quot;;         break;</span>
+<span class="nc" id="L121">          case Id_setUTCMinutes:      arity=3; s=&quot;setUTCMinutes&quot;;      break;</span>
+<span class="nc" id="L122">          case Id_setHours:           arity=4; s=&quot;setHours&quot;;           break;</span>
+<span class="nc" id="L123">          case Id_setUTCHours:        arity=4; s=&quot;setUTCHours&quot;;        break;</span>
+<span class="nc" id="L124">          case Id_setDate:            arity=1; s=&quot;setDate&quot;;            break;</span>
+<span class="nc" id="L125">          case Id_setUTCDate:         arity=1; s=&quot;setUTCDate&quot;;         break;</span>
+<span class="nc" id="L126">          case Id_setMonth:           arity=2; s=&quot;setMonth&quot;;           break;</span>
+<span class="nc" id="L127">          case Id_setUTCMonth:        arity=2; s=&quot;setUTCMonth&quot;;        break;</span>
+<span class="nc" id="L128">          case Id_setFullYear:        arity=3; s=&quot;setFullYear&quot;;        break;</span>
+<span class="nc" id="L129">          case Id_setUTCFullYear:     arity=3; s=&quot;setUTCFullYear&quot;;     break;</span>
+<span class="nc" id="L130">          case Id_setYear:            arity=1; s=&quot;setYear&quot;;            break;</span>
+<span class="nc" id="L131">          case Id_toISOString:        arity=0; s=&quot;toISOString&quot;;        break;</span>
+<span class="nc" id="L132">          case Id_toJSON:             arity=1; s=&quot;toJSON&quot;;             break;</span>
+<span class="nc" id="L133">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L135">        initPrototypeMethod(DATE_TAG, id, s, arity);</span>
+<span class="nc" id="L136">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        if (!f.hasTag(DATE_TAG)) {</span>
+<span class="nc" id="L143">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L145">        int id = f.methodId();</span>
+<span class="nc bnc" id="L146" title="All 6 branches missed.">        switch (id) {</span>
+          case ConstructorId_now:
+<span class="nc" id="L148">            return ScriptRuntime.wrapNumber(now());</span>
+
+          case ConstructorId_parse:
+            {
+<span class="nc" id="L152">                String dataStr = ScriptRuntime.toString(args, 0);</span>
+<span class="nc" id="L153">                return ScriptRuntime.wrapNumber(date_parseString(dataStr));</span>
+            }
+
+          case ConstructorId_UTC:
+<span class="nc" id="L157">            return ScriptRuntime.wrapNumber(jsStaticFunction_UTC(args));</span>
+
+          case Id_constructor:
+            {
+                // if called as a function, just return a string
+                // representing the current time.
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                if (thisObj != null)</span>
+<span class="nc" id="L164">                    return date_format(now(), Id_toString);</span>
+<span class="nc" id="L165">                return jsConstructor(args);</span>
+            }
+
+          case Id_toJSON:
+            {
+<span class="nc" id="L170">                final String toISOString = &quot;toISOString&quot;;</span>
+
+<span class="nc" id="L172">                Scriptable o = ScriptRuntime.toObject(cx, scope, thisObj);</span>
+<span class="nc" id="L173">                Object tv = ScriptRuntime.toPrimitive(o, ScriptRuntime.NumberClass);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                if (tv instanceof Number) {</span>
+<span class="nc" id="L175">                    double d = ((Number) tv).doubleValue();</span>
+<span class="nc bnc" id="L176" title="All 4 branches missed.">                    if (d != d || Double.isInfinite(d)) {</span>
+<span class="nc" id="L177">                        return null;</span>
+                    }
+                }
+<span class="nc" id="L180">                Object toISO = ScriptableObject.getProperty(o, toISOString);</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                if (toISO == NOT_FOUND) {</span>
+<span class="nc" id="L182">                    throw ScriptRuntime.typeError2(&quot;msg.function.not.found.in&quot;,</span>
+                            toISOString,
+<span class="nc" id="L184">                            ScriptRuntime.toString(o));</span>
+                }
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                if ( !(toISO instanceof Callable) ) {</span>
+<span class="nc" id="L187">                    throw ScriptRuntime.typeError3(&quot;msg.isnt.function.in&quot;,</span>
+                            toISOString,
+<span class="nc" id="L189">                            ScriptRuntime.toString(o),</span>
+<span class="nc" id="L190">                            ScriptRuntime.toString(toISO));</span>
+                }
+<span class="nc" id="L192">                Object result = ((Callable) toISO).call(cx, scope, o,</span>
+                            ScriptRuntime.emptyArgs);
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                if ( !ScriptRuntime.isPrimitive(result) ) {</span>
+<span class="nc" id="L195">                    throw ScriptRuntime.typeError1(&quot;msg.toisostring.must.return.primitive&quot;,</span>
+<span class="nc" id="L196">                            ScriptRuntime.toString(result));</span>
+                }
+<span class="nc" id="L198">                return result;</span>
+            }
+
+        }
+
+        // The rest of Date.prototype methods require thisObj to be Date
+
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (!(thisObj instanceof NativeDate))</span>
+<span class="nc" id="L206">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L207">        NativeDate realThis = (NativeDate)thisObj;</span>
+<span class="nc" id="L208">        double t = realThis.date;</span>
+
+<span class="nc bnc" id="L210" title="All 20 branches missed.">        switch (id) {</span>
+
+          case Id_toString:
+          case Id_toTimeString:
+          case Id_toDateString:
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc" id="L216">                return date_format(t, id);</span>
+            }
+<span class="nc" id="L218">            return js_NaN_date_str;</span>
+
+          case Id_toLocaleString:
+          case Id_toLocaleTimeString:
+          case Id_toLocaleDateString:
+<span class="nc bnc" id="L223" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc" id="L224">                return toLocale_helper(t, id);</span>
+            }
+<span class="nc" id="L226">            return js_NaN_date_str;</span>
+
+          case Id_toUTCString:
+<span class="nc bnc" id="L229" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc" id="L230">                return js_toUTCString(t);</span>
+            }
+<span class="nc" id="L232">            return js_NaN_date_str;</span>
+
+          case Id_toSource:
+<span class="nc" id="L235">            return &quot;(new Date(&quot;+ScriptRuntime.toString(t)+&quot;))&quot;;</span>
+
+          case Id_valueOf:
+          case Id_getTime:
+<span class="nc" id="L239">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getYear:
+          case Id_getFullYear:
+          case Id_getUTCFullYear:
+<span class="nc bnc" id="L244" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">                if (id != Id_getUTCFullYear) t = LocalTime(t);</span>
+<span class="nc" id="L246">                t = YearFromTime(t);</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                if (id == Id_getYear) {</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                    if (cx.hasFeature(Context.FEATURE_NON_ECMA_GET_YEAR)) {</span>
+<span class="nc bnc" id="L249" title="All 4 branches missed.">                        if (1900 &lt;= t &amp;&amp; t &lt; 2000) {</span>
+<span class="nc" id="L250">                            t -= 1900;</span>
+                        }
+                    } else {
+<span class="nc" id="L253">                        t -= 1900;</span>
+                    }
+                }
+            }
+<span class="nc" id="L257">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getMonth:
+          case Id_getUTCMonth:
+<span class="nc bnc" id="L261" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                if (id == Id_getMonth) t = LocalTime(t);</span>
+<span class="nc" id="L263">                t = MonthFromTime(t);</span>
+            }
+<span class="nc" id="L265">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getDate:
+          case Id_getUTCDate:
+<span class="nc bnc" id="L269" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                if (id == Id_getDate) t = LocalTime(t);</span>
+<span class="nc" id="L271">                t = DateFromTime(t);</span>
+            }
+<span class="nc" id="L273">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getDay:
+          case Id_getUTCDay:
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                if (id == Id_getDay) t = LocalTime(t);</span>
+<span class="nc" id="L279">                t = WeekDay(t);</span>
+            }
+<span class="nc" id="L281">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getHours:
+          case Id_getUTCHours:
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                if (id == Id_getHours) t = LocalTime(t);</span>
+<span class="nc" id="L287">                t = HourFromTime(t);</span>
+            }
+<span class="nc" id="L289">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getMinutes:
+          case Id_getUTCMinutes:
+<span class="nc bnc" id="L293" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">                if (id == Id_getMinutes) t = LocalTime(t);</span>
+<span class="nc" id="L295">                t = MinFromTime(t);</span>
+            }
+<span class="nc" id="L297">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getSeconds:
+          case Id_getUTCSeconds:
+<span class="nc bnc" id="L301" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                if (id == Id_getSeconds) t = LocalTime(t);</span>
+<span class="nc" id="L303">                t = SecFromTime(t);</span>
+            }
+<span class="nc" id="L305">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getMilliseconds:
+          case Id_getUTCMilliseconds:
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                if (id == Id_getMilliseconds) t = LocalTime(t);</span>
+<span class="nc" id="L311">                t = msFromTime(t);</span>
+            }
+<span class="nc" id="L313">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_getTimezoneOffset:
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc" id="L317">                t = (t - LocalTime(t)) / msPerMinute;</span>
+            }
+<span class="nc" id="L319">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_setTime:
+<span class="nc" id="L322">            t = TimeClip(ScriptRuntime.toNumber(args, 0));</span>
+<span class="nc" id="L323">            realThis.date = t;</span>
+<span class="nc" id="L324">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_setMilliseconds:
+          case Id_setUTCMilliseconds:
+          case Id_setSeconds:
+          case Id_setUTCSeconds:
+          case Id_setMinutes:
+          case Id_setUTCMinutes:
+          case Id_setHours:
+          case Id_setUTCHours:
+<span class="nc" id="L334">            t = makeTime(t, args, id);</span>
+<span class="nc" id="L335">            realThis.date = t;</span>
+<span class="nc" id="L336">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_setDate:
+          case Id_setUTCDate:
+          case Id_setMonth:
+          case Id_setUTCMonth:
+          case Id_setFullYear:
+          case Id_setUTCFullYear:
+<span class="nc" id="L344">            t = makeDate(t, args, id);</span>
+<span class="nc" id="L345">            realThis.date = t;</span>
+<span class="nc" id="L346">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_setYear:
+            {
+<span class="nc" id="L350">                double year = ScriptRuntime.toNumber(args, 0);</span>
+
+<span class="nc bnc" id="L352" title="All 4 branches missed.">                if (year != year || Double.isInfinite(year)) {</span>
+<span class="nc" id="L353">                    t = ScriptRuntime.NaN;</span>
+                } else {
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                    if (t != t) {</span>
+<span class="nc" id="L356">                        t = 0;</span>
+                    } else {
+<span class="nc" id="L358">                        t = LocalTime(t);</span>
+                    }
+
+<span class="nc bnc" id="L361" title="All 4 branches missed.">                    if (year &gt;= 0 &amp;&amp; year &lt;= 99)</span>
+<span class="nc" id="L362">                        year += 1900;</span>
+
+<span class="nc" id="L364">                    double day = MakeDay(year, MonthFromTime(t),</span>
+<span class="nc" id="L365">                                         DateFromTime(t));</span>
+<span class="nc" id="L366">                    t = MakeDate(day, TimeWithinDay(t));</span>
+<span class="nc" id="L367">                    t = internalUTC(t);</span>
+<span class="nc" id="L368">                    t = TimeClip(t);</span>
+                }
+            }
+<span class="nc" id="L371">            realThis.date = t;</span>
+<span class="nc" id="L372">            return ScriptRuntime.wrapNumber(t);</span>
+
+          case Id_toISOString:
+<span class="nc bnc" id="L375" title="All 2 branches missed.">            if (t == t) {</span>
+<span class="nc" id="L376">                return js_toISOString(t);</span>
+            }
+<span class="nc" id="L378">            String msg = ScriptRuntime.getMessage0(&quot;msg.invalid.date&quot;);</span>
+<span class="nc" id="L379">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, msg);</span>
+
+<span class="nc" id="L381">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+
+    }
+
+    /* ECMA helper functions */
+
+    private static final double HalfTimeDomain = 8.64e15;
+    private static final double HoursPerDay    = 24.0;
+    private static final double MinutesPerHour = 60.0;
+    private static final double SecondsPerMinute = 60.0;
+    private static final double msPerSecond    = 1000.0;
+    private static final double MinutesPerDay  = (HoursPerDay * MinutesPerHour);
+    private static final double SecondsPerDay  = (MinutesPerDay * SecondsPerMinute);
+    private static final double SecondsPerHour = (MinutesPerHour * SecondsPerMinute);
+    private static final double msPerDay       = (SecondsPerDay * msPerSecond);
+    private static final double msPerHour      = (SecondsPerHour * msPerSecond);
+    private static final double msPerMinute    = (SecondsPerMinute * msPerSecond);
+
+    private static double Day(double t)
+    {
+<span class="nc" id="L402">        return Math.floor(t / msPerDay);</span>
+    }
+
+    private static double TimeWithinDay(double t)
+    {
+        double result;
+<span class="nc" id="L408">        result = t % msPerDay;</span>
+<span class="nc bnc" id="L409" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L410">            result += msPerDay;</span>
+<span class="nc" id="L411">        return result;</span>
+    }
+
+    private static boolean IsLeapYear(int year)
+    {
+<span class="nc bnc" id="L416" title="All 6 branches missed.">        return year % 4 == 0 &amp;&amp; (year % 100 != 0 || year % 400 == 0);</span>
+    }
+
+    /* math here has to be f.p, because we need
+     *  floor((1968 - 1969) / 4) == -1
+     */
+    private static double DayFromYear(double y)
+    {
+<span class="nc" id="L424">        return ((365 * ((y)-1970) + Math.floor(((y)-1969)/4.0)</span>
+<span class="nc" id="L425">                 - Math.floor(((y)-1901)/100.0) + Math.floor(((y)-1601)/400.0)));</span>
+    }
+
+    private static double TimeFromYear(double y)
+    {
+<span class="nc" id="L430">        return DayFromYear(y) * msPerDay;</span>
+    }
+
+    private static int YearFromTime(double t)
+    {
+<span class="nc bnc" id="L435" title="All 4 branches missed.">        if (Double.isInfinite(t) || Double.isNaN(t)) {</span>
+<span class="nc" id="L436">            return 0;</span>
+        }
+
+<span class="nc" id="L439">        double y = Math.floor(t / (msPerDay * 365.2425)) + 1970;</span>
+<span class="nc" id="L440">        double t2 = TimeFromYear(y);</span>
+
+        /*
+         * Adjust the year if the approximation was wrong.  Since the year was
+         * computed using the average number of ms per year, it will usually
+         * be wrong for dates within several hours of a year transition.
+         */
+<span class="nc bnc" id="L447" title="All 2 branches missed.">        if (t2 &gt; t) {</span>
+<span class="nc" id="L448">            y--;</span>
+        } else {
+<span class="nc bnc" id="L450" title="All 2 branches missed.">            if (t2 + msPerDay * DaysInYear(y) &lt;= t)</span>
+<span class="nc" id="L451">                y++;</span>
+        }
+<span class="nc" id="L453">        return (int)y;</span>
+    }
+
+    private static double DayFromMonth(int m, int year)
+    {
+<span class="nc" id="L458">        int day = m * 30;</span>
+
+<span class="nc bnc" id="L460" title="All 2 branches missed.">        if (m &gt;= 7) { day += m / 2 - 1; }</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">        else if (m &gt;= 2) { day += (m - 1) / 2 - 1; }</span>
+<span class="nc" id="L462">        else { day += m; }</span>
+
+<span class="nc bnc" id="L464" title="All 4 branches missed.">        if (m &gt;= 2 &amp;&amp; IsLeapYear(year)) { ++day; }</span>
+
+<span class="nc" id="L466">        return day;</span>
+    }
+
+    private static double DaysInYear(double year)
+    {
+<span class="nc bnc" id="L471" title="All 4 branches missed.">        if (Double.isInfinite(year) || Double.isNaN(year)) {</span>
+<span class="nc" id="L472">            return ScriptRuntime.NaN;</span>
+        }
+<span class="nc bnc" id="L474" title="All 2 branches missed.">        return IsLeapYear((int)year) ? 366.0 : 365.0;</span>
+    }
+
+    private static int DaysInMonth(int year, int month)
+    {
+        // month is 1-based for DaysInMonth!
+<span class="nc bnc" id="L480" title="All 2 branches missed.">        if (month == 2)</span>
+<span class="nc bnc" id="L481" title="All 2 branches missed.">            return IsLeapYear(year) ? 29 : 28;</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">        return month &gt;= 8</span>
+               ? 31 - (month &amp; 1)
+               : 30 + (month &amp; 1);
+    }
+
+    private static int MonthFromTime(double t)
+    {
+<span class="nc" id="L489">        int year = YearFromTime(t);</span>
+<span class="nc" id="L490">        int d = (int)(Day(t) - DayFromYear(year));</span>
+
+<span class="nc" id="L492">        d -= 31 + 28;</span>
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        if (d &lt; 0) {</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">            return (d &lt; -28) ? 0 : 1;</span>
+        }
+
+<span class="nc bnc" id="L497" title="All 2 branches missed.">        if (IsLeapYear(year)) {</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            if (d == 0)</span>
+<span class="nc" id="L499">                return 1; // 29 February</span>
+<span class="nc" id="L500">            --d;</span>
+        }
+
+        // d: date count from 1 March
+<span class="nc" id="L504">        int estimate = d / 30; // approx number of month since March</span>
+        int mstart;
+<span class="nc bnc" id="L506" title="All 12 branches missed.">        switch (estimate) {</span>
+<span class="nc" id="L507">            case 0: return 2;</span>
+<span class="nc" id="L508">            case 1: mstart = 31; break;</span>
+<span class="nc" id="L509">            case 2: mstart = 31+30; break;</span>
+<span class="nc" id="L510">            case 3: mstart = 31+30+31; break;</span>
+<span class="nc" id="L511">            case 4: mstart = 31+30+31+30; break;</span>
+<span class="nc" id="L512">            case 5: mstart = 31+30+31+30+31; break;</span>
+<span class="nc" id="L513">            case 6: mstart = 31+30+31+30+31+31; break;</span>
+<span class="nc" id="L514">            case 7: mstart = 31+30+31+30+31+31+30; break;</span>
+<span class="nc" id="L515">            case 8: mstart = 31+30+31+30+31+31+30+31; break;</span>
+<span class="nc" id="L516">            case 9: mstart = 31+30+31+30+31+31+30+31+30; break;</span>
+<span class="nc" id="L517">            case 10: return 11; //Late december</span>
+<span class="nc" id="L518">            default: throw Kit.codeBug();</span>
+        }
+        // if d &lt; mstart then real month since March == estimate - 1
+<span class="nc bnc" id="L521" title="All 2 branches missed.">        return (d &gt;= mstart) ? estimate + 2 : estimate + 1;</span>
+    }
+
+    private static int DateFromTime(double t)
+    {
+<span class="nc" id="L526">        int year = YearFromTime(t);</span>
+<span class="nc" id="L527">        int d = (int)(Day(t) - DayFromYear(year));</span>
+
+<span class="nc" id="L529">        d -= 31 + 28;</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        if (d &lt; 0) {</span>
+<span class="nc bnc" id="L531" title="All 2 branches missed.">            return (d &lt; -28) ? d + 31 + 28 + 1 : d + 28 + 1;</span>
+        }
+
+<span class="nc bnc" id="L534" title="All 2 branches missed.">        if (IsLeapYear(year)) {</span>
+<span class="nc bnc" id="L535" title="All 2 branches missed.">            if (d == 0)</span>
+<span class="nc" id="L536">                return 29; // 29 February</span>
+<span class="nc" id="L537">            --d;</span>
+        }
+
+        // d: date count from 1 March
+        int mdays, mstart;
+<span class="nc bnc" id="L542" title="All 12 branches missed.">        switch (Math.round(d / 30)) { // approx number of month since March</span>
+<span class="nc" id="L543">            case 0: return d + 1;</span>
+<span class="nc" id="L544">            case 1: mdays = 31; mstart = 31; break;</span>
+<span class="nc" id="L545">            case 2: mdays = 30; mstart = 31+30; break;</span>
+<span class="nc" id="L546">            case 3: mdays = 31; mstart = 31+30+31; break;</span>
+<span class="nc" id="L547">            case 4: mdays = 30; mstart = 31+30+31+30; break;</span>
+<span class="nc" id="L548">            case 5: mdays = 31; mstart = 31+30+31+30+31; break;</span>
+<span class="nc" id="L549">            case 6: mdays = 31; mstart = 31+30+31+30+31+31; break;</span>
+<span class="nc" id="L550">            case 7: mdays = 30; mstart = 31+30+31+30+31+31+30; break;</span>
+<span class="nc" id="L551">            case 8: mdays = 31; mstart = 31+30+31+30+31+31+30+31; break;</span>
+<span class="nc" id="L552">            case 9: mdays = 30; mstart = 31+30+31+30+31+31+30+31+30; break;</span>
+            case 10:
+<span class="nc" id="L554">                return d - (31+30+31+30+31+31+30+31+30) + 1; //Late december</span>
+<span class="nc" id="L555">            default: throw Kit.codeBug();</span>
+        }
+<span class="nc" id="L557">        d -= mstart;</span>
+<span class="nc bnc" id="L558" title="All 2 branches missed.">        if (d &lt; 0) {</span>
+            // wrong estimate: sfhift to previous month
+<span class="nc" id="L560">            d += mdays;</span>
+        }
+<span class="nc" id="L562">        return d + 1;</span>
+     }
+
+    private static int WeekDay(double t)
+    {
+        double result;
+<span class="nc" id="L568">        result = Day(t) + 4;</span>
+<span class="nc" id="L569">        result = result % 7;</span>
+<span class="nc bnc" id="L570" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L571">            result += 7;</span>
+<span class="nc" id="L572">        return (int) result;</span>
+    }
+
+    private static double now()
+    {
+<span class="nc" id="L577">        return System.currentTimeMillis();</span>
+    }
+
+    private static double DaylightSavingTA(double t)
+    {
+        // Another workaround!  The JRE doesn't seem to know about DST
+        // before year 1 AD, so we map to equivalent dates for the
+        // purposes of finding DST. To be safe, we do this for years
+        // before 1970.
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        if (t &lt; 0.0) {</span>
+<span class="nc" id="L587">            int year = EquivalentYear(YearFromTime(t));</span>
+<span class="nc" id="L588">            double day = MakeDay(year, MonthFromTime(t), DateFromTime(t));</span>
+<span class="nc" id="L589">            t = MakeDate(day, TimeWithinDay(t));</span>
+        }
+<span class="nc" id="L591">        Date date = new Date((long) t);</span>
+<span class="nc bnc" id="L592" title="All 2 branches missed.">        if (thisTimeZone.inDaylightTime(date))</span>
+<span class="nc" id="L593">            return msPerHour;</span>
+        else
+<span class="nc" id="L595">            return 0;</span>
+    }
+
+    /*
+     * Find a year for which any given date will fall on the same weekday.
+     *
+     * This function should be used with caution when used other than
+     * for determining DST; it hasn't been proven not to produce an
+     * incorrect year for times near year boundaries.
+     */
+    private static int EquivalentYear(int year)
+    {
+<span class="nc" id="L607">        int day = (int) DayFromYear(year) + 4;</span>
+<span class="nc" id="L608">        day = day % 7;</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">        if (day &lt; 0)</span>
+<span class="nc" id="L610">            day += 7;</span>
+        // Years and leap years on which Jan 1 is a Sunday, Monday, etc.
+<span class="nc bnc" id="L612" title="All 2 branches missed.">        if (IsLeapYear(year)) {</span>
+<span class="nc bnc" id="L613" title="All 8 branches missed.">            switch (day) {</span>
+<span class="nc" id="L614">                case 0: return 1984;</span>
+<span class="nc" id="L615">                case 1: return 1996;</span>
+<span class="nc" id="L616">                case 2: return 1980;</span>
+<span class="nc" id="L617">                case 3: return 1992;</span>
+<span class="nc" id="L618">                case 4: return 1976;</span>
+<span class="nc" id="L619">                case 5: return 1988;</span>
+<span class="nc" id="L620">                case 6: return 1972;</span>
+            }
+        } else {
+<span class="nc bnc" id="L623" title="All 8 branches missed.">            switch (day) {</span>
+<span class="nc" id="L624">                case 0: return 1978;</span>
+<span class="nc" id="L625">                case 1: return 1973;</span>
+<span class="nc" id="L626">                case 2: return 1985;</span>
+<span class="nc" id="L627">                case 3: return 1986;</span>
+<span class="nc" id="L628">                case 4: return 1981;</span>
+<span class="nc" id="L629">                case 5: return 1971;</span>
+<span class="nc" id="L630">                case 6: return 1977;</span>
+            }
+        }
+        // Unreachable
+<span class="nc" id="L634">        throw Kit.codeBug();</span>
+    }
+
+    private static double LocalTime(double t)
+    {
+<span class="nc" id="L639">        return t + LocalTZA + DaylightSavingTA(t);</span>
+    }
+
+    private static double internalUTC(double t)
+    {
+<span class="nc" id="L644">        return t - LocalTZA - DaylightSavingTA(t - LocalTZA);</span>
+    }
+
+    private static int HourFromTime(double t)
+    {
+        double result;
+<span class="nc" id="L650">        result = Math.floor(t / msPerHour) % HoursPerDay;</span>
+<span class="nc bnc" id="L651" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L652">            result += HoursPerDay;</span>
+<span class="nc" id="L653">        return (int) result;</span>
+    }
+
+    private static int MinFromTime(double t)
+    {
+        double result;
+<span class="nc" id="L659">        result = Math.floor(t / msPerMinute) % MinutesPerHour;</span>
+<span class="nc bnc" id="L660" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L661">            result += MinutesPerHour;</span>
+<span class="nc" id="L662">        return (int) result;</span>
+    }
+
+    private static int SecFromTime(double t)
+    {
+        double result;
+<span class="nc" id="L668">        result = Math.floor(t / msPerSecond) % SecondsPerMinute;</span>
+<span class="nc bnc" id="L669" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L670">            result += SecondsPerMinute;</span>
+<span class="nc" id="L671">        return (int) result;</span>
+    }
+
+    private static int msFromTime(double t)
+    {
+        double result;
+<span class="nc" id="L677">        result =  t % msPerSecond;</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">        if (result &lt; 0)</span>
+<span class="nc" id="L679">            result += msPerSecond;</span>
+<span class="nc" id="L680">        return (int) result;</span>
+    }
+
+    private static double MakeTime(double hour, double min,
+                                   double sec, double ms)
+    {
+<span class="nc" id="L686">        return ((hour * MinutesPerHour + min) * SecondsPerMinute + sec)</span>
+            * msPerSecond + ms;
+    }
+
+    private static double MakeDay(double year, double month, double date)
+    {
+<span class="nc" id="L692">        year += Math.floor(month / 12);</span>
+
+<span class="nc" id="L694">        month = month % 12;</span>
+<span class="nc bnc" id="L695" title="All 2 branches missed.">        if (month &lt; 0)</span>
+<span class="nc" id="L696">            month += 12;</span>
+
+<span class="nc" id="L698">        double yearday = Math.floor(TimeFromYear(year) / msPerDay);</span>
+<span class="nc" id="L699">        double monthday = DayFromMonth((int)month, (int)year);</span>
+
+<span class="nc" id="L701">        return yearday + monthday + date - 1;</span>
+    }
+
+    private static double MakeDate(double day, double time)
+    {
+<span class="nc" id="L706">        return day * msPerDay + time;</span>
+    }
+
+    private static double TimeClip(double d)
+    {
+<span class="nc bnc" id="L711" title="All 6 branches missed.">        if (d != d ||</span>
+            d == Double.POSITIVE_INFINITY ||
+            d == Double.NEGATIVE_INFINITY ||
+<span class="nc bnc" id="L714" title="All 2 branches missed.">            Math.abs(d) &gt; HalfTimeDomain)</span>
+        {
+<span class="nc" id="L716">            return ScriptRuntime.NaN;</span>
+        }
+<span class="nc bnc" id="L718" title="All 2 branches missed.">        if (d &gt; 0.0)</span>
+<span class="nc" id="L719">            return Math.floor(d + 0.);</span>
+        else
+<span class="nc" id="L721">            return Math.ceil(d + 0.);</span>
+    }
+
+    /* end of ECMA helper functions */
+
+    /* find UTC time from given date... no 1900 correction! */
+    private static double date_msecFromDate(double year, double mon,
+                                            double mday, double hour,
+                                            double min, double sec,
+                                            double msec)
+    {
+        double day;
+        double time;
+        double result;
+
+<span class="nc" id="L736">        day = MakeDay(year, mon, mday);</span>
+<span class="nc" id="L737">        time = MakeTime(hour, min, sec, msec);</span>
+<span class="nc" id="L738">        result = MakeDate(day, time);</span>
+<span class="nc" id="L739">        return result;</span>
+    }
+
+    /* compute the time in msec (unclipped) from the given args */
+    private static final int MAXARGS = 7;
+    private static double date_msecFromArgs(Object[] args)
+    {
+<span class="nc" id="L746">        double array[] = new double[MAXARGS];</span>
+        int loop;
+        double d;
+
+<span class="nc bnc" id="L750" title="All 2 branches missed.">        for (loop = 0; loop &lt; MAXARGS; loop++) {</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">            if (loop &lt; args.length) {</span>
+<span class="nc" id="L752">                d = ScriptRuntime.toNumber(args[loop]);</span>
+<span class="nc bnc" id="L753" title="All 4 branches missed.">                if (d != d || Double.isInfinite(d)) {</span>
+<span class="nc" id="L754">                    return ScriptRuntime.NaN;</span>
+                }
+<span class="nc" id="L756">                array[loop] = ScriptRuntime.toInteger(args[loop]);</span>
+            } else {
+<span class="nc bnc" id="L758" title="All 2 branches missed.">                if (loop == 2) {</span>
+<span class="nc" id="L759">                    array[loop] = 1; /* Default the date argument to 1. */</span>
+                } else {
+<span class="nc" id="L761">                    array[loop] = 0;</span>
+                }
+            }
+        }
+
+        /* adjust 2-digit years into the 20th century */
+<span class="nc bnc" id="L767" title="All 4 branches missed.">        if (array[0] &gt;= 0 &amp;&amp; array[0] &lt;= 99)</span>
+<span class="nc" id="L768">            array[0] += 1900;</span>
+
+<span class="nc" id="L770">        return date_msecFromDate(array[0], array[1], array[2],</span>
+                                 array[3], array[4], array[5], array[6]);
+    }
+
+    private static double jsStaticFunction_UTC(Object[] args)
+    {
+<span class="nc" id="L776">        return TimeClip(date_msecFromArgs(args));</span>
+    }
+
+    /**
+     * 15.9.1.15 Date Time String Format&lt;br&gt;
+     * Parse input string according to simplified ISO-8601 Extended Format:
+     * &lt;ul&gt;
+     * &lt;li&gt;&lt;code&gt;YYYY-MM-DD'T'HH:mm:ss.sss'Z'&lt;/code&gt;&lt;/li&gt;
+     * &lt;li&gt;or &lt;code&gt;YYYY-MM-DD'T'HH:mm:ss.sss[+-]hh:mm&lt;/code&gt;&lt;/li&gt;
+     * &lt;/ul&gt;
+     */
+    private static double parseISOString(String s) {
+        // we use a simple state machine to parse the input string
+<span class="nc" id="L789">        final int ERROR = -1;</span>
+<span class="nc" id="L790">        final int YEAR = 0, MONTH = 1, DAY = 2;</span>
+<span class="nc" id="L791">        final int HOUR = 3, MIN = 4, SEC = 5, MSEC = 6;</span>
+<span class="nc" id="L792">        final int TZHOUR = 7, TZMIN = 8;</span>
+<span class="nc" id="L793">        int state = YEAR;</span>
+        // default values per [15.9.1.15 Date Time String Format]
+<span class="nc" id="L795">        int[] values = { 1970, 1, 1, 0, 0, 0, 0, -1, -1 };</span>
+<span class="nc" id="L796">        int yearlen = 4, yearmod = 1, tzmod = 1;</span>
+<span class="nc" id="L797">        int i = 0, len = s.length();</span>
+<span class="nc bnc" id="L798" title="All 2 branches missed.">        if (len != 0) {</span>
+<span class="nc" id="L799">            char c = s.charAt(0);</span>
+<span class="nc bnc" id="L800" title="All 4 branches missed.">            if (c == '+' || c == '-') {</span>
+                // 15.9.1.15.1 Extended years
+<span class="nc" id="L802">                i += 1;</span>
+<span class="nc" id="L803">                yearlen = 6;</span>
+<span class="nc bnc" id="L804" title="All 2 branches missed.">                yearmod = (c == '-') ? -1 : 1;</span>
+<span class="nc bnc" id="L805" title="All 2 branches missed.">            } else if (c == 'T') {</span>
+                // time-only forms no longer in spec, but follow spidermonkey here
+<span class="nc" id="L807">                i += 1;</span>
+<span class="nc" id="L808">                state = HOUR;</span>
+            }
+        }
+<span class="nc bnc" id="L811" title="All 2 branches missed.">        loop: while (state != ERROR) {</span>
+<span class="nc bnc" id="L812" title="All 4 branches missed.">            int m = i + (state == YEAR ? yearlen : state == MSEC ? 3 : 2);</span>
+<span class="nc bnc" id="L813" title="All 2 branches missed.">            if (m &gt; len) {</span>
+<span class="nc" id="L814">                state = ERROR;</span>
+<span class="nc" id="L815">                break;</span>
+            }
+
+<span class="nc" id="L818">            int value = 0;</span>
+<span class="nc bnc" id="L819" title="All 2 branches missed.">            for (; i &lt; m; ++i) {</span>
+<span class="nc" id="L820">                char c = s.charAt(i);</span>
+<span class="nc bnc" id="L821" title="All 4 branches missed.">                if (c &lt; '0' || c &gt; '9') { state = ERROR; break loop; }</span>
+<span class="nc" id="L822">                value = 10 * value + (c - '0');</span>
+            }
+<span class="nc" id="L824">            values[state] = value;</span>
+
+<span class="nc bnc" id="L826" title="All 2 branches missed.">            if (i == len) {</span>
+                // reached EOF, check for end state
+<span class="nc bnc" id="L828" title="All 2 branches missed.">                switch (state) {</span>
+                case HOUR:
+                case TZHOUR:
+<span class="nc" id="L831">                    state = ERROR;</span>
+                }
+<span class="nc" id="L833">                break;</span>
+            }
+
+<span class="nc" id="L836">            char c = s.charAt(i++);</span>
+<span class="nc bnc" id="L837" title="All 2 branches missed.">            if (c == 'Z') {</span>
+                // handle abbrevation for UTC timezone
+<span class="nc" id="L839">                values[TZHOUR] = 0;</span>
+<span class="nc" id="L840">                values[TZMIN] = 0;</span>
+<span class="nc bnc" id="L841" title="All 2 branches missed.">                switch (state) {</span>
+                case MIN:
+                case SEC:
+                case MSEC:
+<span class="nc" id="L845">                    break;</span>
+                default:
+<span class="nc" id="L847">                    state = ERROR;</span>
+                }
+<span class="nc" id="L849">                break;</span>
+            }
+
+            // state transition
+<span class="nc bnc" id="L853" title="All 9 branches missed.">            switch (state) {</span>
+            case YEAR:
+            case MONTH:
+<span class="nc bnc" id="L856" title="All 4 branches missed.">                state = (c == '-' ? state + 1 : c == 'T' ? HOUR : ERROR);</span>
+<span class="nc" id="L857">                break;</span>
+            case DAY:
+<span class="nc bnc" id="L859" title="All 2 branches missed.">                state = (c == 'T' ? HOUR : ERROR);</span>
+<span class="nc" id="L860">                break;</span>
+            case HOUR:
+<span class="nc bnc" id="L862" title="All 2 branches missed.">                state = (c == ':' ? MIN : ERROR);</span>
+<span class="nc" id="L863">                break;</span>
+            case TZHOUR:
+                // state = (c == ':' ? state + 1 : ERROR);
+                // Non-standard extension, https://bugzilla.mozilla.org/show_bug.cgi?id=682754
+<span class="nc bnc" id="L867" title="All 2 branches missed.">                if (c != ':') {</span>
+                    // back off by one and try to read without ':' separator
+<span class="nc" id="L869">                    i -= 1;</span>
+                }
+<span class="nc" id="L871">                state = TZMIN;</span>
+<span class="nc" id="L872">                break;</span>
+            case MIN:
+<span class="nc bnc" id="L874" title="All 6 branches missed.">                state = (c == ':' ? SEC : c == '+' || c == '-' ? TZHOUR : ERROR);</span>
+<span class="nc" id="L875">                break;</span>
+            case SEC:
+<span class="nc bnc" id="L877" title="All 6 branches missed.">                state = (c == '.' ? MSEC : c == '+' || c == '-' ? TZHOUR : ERROR);</span>
+<span class="nc" id="L878">                break;</span>
+            case MSEC:
+<span class="nc bnc" id="L880" title="All 4 branches missed.">                state = (c == '+' || c == '-' ? TZHOUR : ERROR);</span>
+<span class="nc" id="L881">                break;</span>
+            case TZMIN:
+<span class="nc" id="L883">                state = ERROR;</span>
+                break;
+            }
+<span class="nc bnc" id="L886" title="All 2 branches missed.">            if (state == TZHOUR) {</span>
+                // save timezone modificator
+<span class="nc bnc" id="L888" title="All 2 branches missed.">                tzmod = (c == '-') ? -1 : 1;</span>
+            }
+<span class="nc" id="L890">        }</span>
+
+        syntax: {
+            // error or unparsed characters
+<span class="nc bnc" id="L894" title="All 4 branches missed.">            if (state == ERROR || i != len) break syntax;</span>
+
+            // check values
+<span class="nc" id="L897">            int year = values[YEAR], month = values[MONTH], day = values[DAY];</span>
+<span class="nc" id="L898">            int hour = values[HOUR], min = values[MIN], sec = values[SEC], msec = values[MSEC];</span>
+<span class="nc" id="L899">            int tzhour = values[TZHOUR], tzmin = values[TZMIN];</span>
+<span class="nc bnc" id="L900" title="All 8 branches missed.">            if (year &gt; 275943 // ceil(1e8/365) + 1970 = 275943</span>
+                || (month &lt; 1 || month &gt; 12)
+<span class="nc bnc" id="L902" title="All 20 branches missed.">                || (day &lt; 1 || day &gt; DaysInMonth(year, month))</span>
+                || hour &gt; 24
+                || (hour == 24 &amp;&amp; (min &gt; 0 || sec &gt; 0 || msec &gt; 0))
+                || min &gt; 59
+                || sec &gt; 59
+                || tzhour &gt; 23
+                || tzmin &gt; 59
+               ) {
+<span class="nc" id="L910">                break syntax;</span>
+            }
+            // valid ISO-8601 format, compute date in milliseconds
+<span class="nc" id="L913">            double date = date_msecFromDate(year * yearmod, month - 1, day,</span>
+                                            hour, min, sec, msec);
+<span class="nc bnc" id="L915" title="All 2 branches missed.">            if (tzhour == -1) {</span>
+                // Spec says to use UTC timezone, the following bug report says
+                // that local timezone was meant to be used. Stick with spec for now.
+                // https://bugs.ecmascript.org/show_bug.cgi?id=112
+                // date = internalUTC(date);
+            } else {
+<span class="nc" id="L921">                date -= (tzhour * 60 + tzmin) * msPerMinute * tzmod;</span>
+            }
+
+<span class="nc bnc" id="L924" title="All 4 branches missed.">            if (date &lt; -HalfTimeDomain || date &gt; HalfTimeDomain) break syntax;</span>
+<span class="nc" id="L925">            return date;</span>
+        }
+
+        // invalid ISO-8601 format, return NaN
+<span class="nc" id="L929">        return ScriptRuntime.NaN;</span>
+    }
+
+    private static double date_parseString(String s)
+    {
+<span class="nc" id="L934">        double d = parseISOString(s);</span>
+<span class="nc bnc" id="L935" title="All 2 branches missed.">        if (d == d) {</span>
+<span class="nc" id="L936">            return d;</span>
+        }
+
+<span class="nc" id="L939">        int year = -1;</span>
+<span class="nc" id="L940">        int mon = -1;</span>
+<span class="nc" id="L941">        int mday = -1;</span>
+<span class="nc" id="L942">        int hour = -1;</span>
+<span class="nc" id="L943">        int min = -1;</span>
+<span class="nc" id="L944">        int sec = -1;</span>
+<span class="nc" id="L945">        char c = 0;</span>
+<span class="nc" id="L946">        char si = 0;</span>
+<span class="nc" id="L947">        int i = 0;</span>
+<span class="nc" id="L948">        int n = -1;</span>
+<span class="nc" id="L949">        double tzoffset = -1;</span>
+<span class="nc" id="L950">        char prevc = 0;</span>
+<span class="nc" id="L951">        int limit = 0;</span>
+<span class="nc" id="L952">        boolean seenplusminus = false;</span>
+
+<span class="nc" id="L954">        limit = s.length();</span>
+<span class="nc bnc" id="L955" title="All 2 branches missed.">        while (i &lt; limit) {</span>
+<span class="nc" id="L956">            c = s.charAt(i);</span>
+<span class="nc" id="L957">            i++;</span>
+<span class="nc bnc" id="L958" title="All 6 branches missed.">            if (c &lt;= ' ' || c == ',' || c == '-') {</span>
+<span class="nc bnc" id="L959" title="All 2 branches missed.">                if (i &lt; limit) {</span>
+<span class="nc" id="L960">                    si = s.charAt(i);</span>
+<span class="nc bnc" id="L961" title="All 6 branches missed.">                    if (c == '-' &amp;&amp; '0' &lt;= si &amp;&amp; si &lt;= '9') {</span>
+<span class="nc" id="L962">                        prevc = c;</span>
+                    }
+                }
+                continue;
+            }
+<span class="nc bnc" id="L967" title="All 2 branches missed.">            if (c == '(') { /* comments) */</span>
+<span class="nc" id="L968">                int depth = 1;</span>
+<span class="nc bnc" id="L969" title="All 2 branches missed.">                while (i &lt; limit) {</span>
+<span class="nc" id="L970">                    c = s.charAt(i);</span>
+<span class="nc" id="L971">                    i++;</span>
+<span class="nc bnc" id="L972" title="All 2 branches missed.">                    if (c == '(')</span>
+<span class="nc" id="L973">                        depth++;</span>
+<span class="nc bnc" id="L974" title="All 2 branches missed.">                    else if (c == ')')</span>
+<span class="nc bnc" id="L975" title="All 2 branches missed.">                        if (--depth &lt;= 0)</span>
+<span class="nc" id="L976">                            break;</span>
+                }
+                continue;
+            }
+<span class="nc bnc" id="L980" title="All 4 branches missed.">            if ('0' &lt;= c &amp;&amp; c &lt;= '9') {</span>
+<span class="nc" id="L981">                n = c - '0';</span>
+<span class="nc bnc" id="L982" title="All 6 branches missed.">                while (i &lt; limit &amp;&amp; '0' &lt;= (c = s.charAt(i)) &amp;&amp; c &lt;= '9') {</span>
+<span class="nc" id="L983">                    n = n * 10 + c - '0';</span>
+<span class="nc" id="L984">                    i++;</span>
+                }
+
+                /* allow TZA before the year, so
+                 * 'Wed Nov 05 21:49:11 GMT-0800 1997'
+                 * works */
+
+                /* uses of seenplusminus allow : in TZA, so Java
+                 * no-timezone style of GMT+4:30 works
+                 */
+<span class="nc bnc" id="L994" title="All 4 branches missed.">                if ((prevc == '+' || prevc == '-')/*  &amp;&amp; year&gt;=0 */) {</span>
+                    /* make ':' case below change tzoffset */
+<span class="nc" id="L996">                    seenplusminus = true;</span>
+
+                    /* offset */
+<span class="nc bnc" id="L999" title="All 2 branches missed.">                    if (n &lt; 24)</span>
+<span class="nc" id="L1000">                        n = n * 60; /* EG. &quot;GMT-3&quot; */</span>
+                    else
+<span class="nc" id="L1002">                        n = n % 100 + n / 100 * 60; /* eg &quot;GMT-0430&quot; */</span>
+<span class="nc bnc" id="L1003" title="All 2 branches missed.">                    if (prevc == '+')       /* plus means east of GMT */</span>
+<span class="nc" id="L1004">                        n = -n;</span>
+<span class="nc bnc" id="L1005" title="All 4 branches missed.">                    if (tzoffset != 0 &amp;&amp; tzoffset != -1)</span>
+<span class="nc" id="L1006">                        return ScriptRuntime.NaN;</span>
+<span class="nc" id="L1007">                    tzoffset = n;</span>
+<span class="nc bnc" id="L1008" title="All 10 branches missed.">                } else if (n &gt;= 70  ||</span>
+                           (prevc == '/' &amp;&amp; mon &gt;= 0 &amp;&amp; mday &gt;= 0
+                            &amp;&amp; year &lt; 0))
+                {
+<span class="nc bnc" id="L1012" title="All 2 branches missed.">                    if (year &gt;= 0)</span>
+<span class="nc" id="L1013">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1014" title="All 8 branches missed.">                    else if (c &lt;= ' ' || c == ',' || c == '/' || i &gt;= limit)</span>
+<span class="nc bnc" id="L1015" title="All 2 branches missed.">                        year = n &lt; 100 ? n + 1900 : n;</span>
+                    else
+<span class="nc" id="L1017">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1018" title="All 2 branches missed.">                } else if (c == ':') {</span>
+<span class="nc bnc" id="L1019" title="All 2 branches missed.">                    if (hour &lt; 0)</span>
+<span class="nc" id="L1020">                        hour = /*byte*/ n;</span>
+<span class="nc bnc" id="L1021" title="All 2 branches missed.">                    else if (min &lt; 0)</span>
+<span class="nc" id="L1022">                        min = /*byte*/ n;</span>
+                    else
+<span class="nc" id="L1024">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1025" title="All 2 branches missed.">                } else if (c == '/') {</span>
+<span class="nc bnc" id="L1026" title="All 2 branches missed.">                    if (mon &lt; 0)</span>
+<span class="nc" id="L1027">                        mon = /*byte*/ n-1;</span>
+<span class="nc bnc" id="L1028" title="All 2 branches missed.">                    else if (mday &lt; 0)</span>
+<span class="nc" id="L1029">                        mday = /*byte*/ n;</span>
+                    else
+<span class="nc" id="L1031">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1032" title="All 8 branches missed.">                } else if (i &lt; limit &amp;&amp; c != ',' &amp;&amp; c &gt; ' ' &amp;&amp; c != '-') {</span>
+<span class="nc" id="L1033">                    return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1034" title="All 4 branches missed.">                } else if (seenplusminus &amp;&amp; n &lt; 60) {  /* handle GMT-3:30 */</span>
+<span class="nc bnc" id="L1035" title="All 2 branches missed.">                    if (tzoffset &lt; 0)</span>
+<span class="nc" id="L1036">                        tzoffset -= n;</span>
+                    else
+<span class="nc" id="L1038">                        tzoffset += n;</span>
+<span class="nc bnc" id="L1039" title="All 4 branches missed.">                } else if (hour &gt;= 0 &amp;&amp; min &lt; 0) {</span>
+<span class="nc" id="L1040">                    min = /*byte*/ n;</span>
+<span class="nc bnc" id="L1041" title="All 4 branches missed.">                } else if (min &gt;= 0 &amp;&amp; sec &lt; 0) {</span>
+<span class="nc" id="L1042">                    sec = /*byte*/ n;</span>
+<span class="nc bnc" id="L1043" title="All 2 branches missed.">                } else if (mday &lt; 0) {</span>
+<span class="nc" id="L1044">                    mday = /*byte*/ n;</span>
+                } else {
+<span class="nc" id="L1046">                    return ScriptRuntime.NaN;</span>
+                }
+<span class="nc" id="L1048">                prevc = 0;</span>
+<span class="nc bnc" id="L1049" title="All 8 branches missed.">            } else if (c == '/' || c == ':' || c == '+' || c == '-') {</span>
+<span class="nc" id="L1050">                prevc = c;</span>
+            } else {
+<span class="nc" id="L1052">                int st = i - 1;</span>
+<span class="nc bnc" id="L1053" title="All 2 branches missed.">                while (i &lt; limit) {</span>
+<span class="nc" id="L1054">                    c = s.charAt(i);</span>
+<span class="nc bnc" id="L1055" title="All 8 branches missed.">                    if (!(('A' &lt;= c &amp;&amp; c &lt;= 'Z') || ('a' &lt;= c &amp;&amp; c &lt;= 'z')))</span>
+<span class="nc" id="L1056">                        break;</span>
+<span class="nc" id="L1057">                    i++;</span>
+                }
+<span class="nc" id="L1059">                int letterCount = i - st;</span>
+<span class="nc bnc" id="L1060" title="All 2 branches missed.">                if (letterCount &lt; 2)</span>
+<span class="nc" id="L1061">                    return ScriptRuntime.NaN;</span>
+               /*
+                * Use ported code from jsdate.c rather than the locale-specific
+                * date-parsing code from Java, to keep js and rhino consistent.
+                * Is this the right strategy?
+                */
+<span class="nc" id="L1067">                String wtb = &quot;am;pm;&quot;</span>
+                            +&quot;monday;tuesday;wednesday;thursday;friday;&quot;
+                            +&quot;saturday;sunday;&quot;
+                            +&quot;january;february;march;april;may;june;&quot;
+                            +&quot;july;august;september;october;november;december;&quot;
+                            +&quot;gmt;ut;utc;est;edt;cst;cdt;mst;mdt;pst;pdt;&quot;;
+<span class="nc" id="L1073">                int index = 0;</span>
+<span class="nc" id="L1074">                for (int wtbOffset = 0; ;) {</span>
+<span class="nc" id="L1075">                    int wtbNext = wtb.indexOf(';', wtbOffset);</span>
+<span class="nc bnc" id="L1076" title="All 2 branches missed.">                    if (wtbNext &lt; 0)</span>
+<span class="nc" id="L1077">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1078" title="All 2 branches missed.">                    if (wtb.regionMatches(true, wtbOffset, s, st, letterCount))</span>
+<span class="nc" id="L1079">                        break;</span>
+<span class="nc" id="L1080">                    wtbOffset = wtbNext + 1;</span>
+<span class="nc" id="L1081">                    ++index;</span>
+<span class="nc" id="L1082">                }</span>
+<span class="nc bnc" id="L1083" title="All 2 branches missed.">                if (index &lt; 2) {</span>
+                    /*
+                     * AM/PM. Count 12:30 AM as 00:30, 12:30 PM as
+                     * 12:30, instead of blindly adding 12 if PM.
+                     */
+<span class="nc bnc" id="L1088" title="All 4 branches missed.">                    if (hour &gt; 12 || hour &lt; 0) {</span>
+<span class="nc" id="L1089">                        return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1090" title="All 2 branches missed.">                    } else if (index == 0) {</span>
+                        // AM
+<span class="nc bnc" id="L1092" title="All 2 branches missed.">                        if (hour == 12)</span>
+<span class="nc" id="L1093">                            hour = 0;</span>
+                    } else {
+                        // PM
+<span class="nc bnc" id="L1096" title="All 2 branches missed.">                        if (hour != 12)</span>
+<span class="nc" id="L1097">                            hour += 12;</span>
+                    }
+<span class="nc bnc" id="L1099" title="All 2 branches missed.">                } else if ((index -= 2) &lt; 7) {</span>
+                    // ignore week days
+<span class="nc bnc" id="L1101" title="All 2 branches missed.">                } else if ((index -= 7) &lt; 12) {</span>
+                    // month
+<span class="nc bnc" id="L1103" title="All 2 branches missed.">                    if (mon &lt; 0) {</span>
+<span class="nc" id="L1104">                        mon = index;</span>
+                    } else {
+<span class="nc" id="L1106">                        return ScriptRuntime.NaN;</span>
+                    }
+                } else {
+<span class="nc" id="L1109">                    index -= 12;</span>
+                    // timezones
+<span class="nc bnc" id="L1111" title="All 12 branches missed.">                    switch (index) {</span>
+<span class="nc" id="L1112">                      case 0 /* gmt */: tzoffset = 0; break;</span>
+<span class="nc" id="L1113">                      case 1 /* ut */:  tzoffset = 0; break;</span>
+<span class="nc" id="L1114">                      case 2 /* utc */: tzoffset = 0; break;</span>
+<span class="nc" id="L1115">                      case 3 /* est */: tzoffset = 5 * 60; break;</span>
+<span class="nc" id="L1116">                      case 4 /* edt */: tzoffset = 4 * 60; break;</span>
+<span class="nc" id="L1117">                      case 5 /* cst */: tzoffset = 6 * 60; break;</span>
+<span class="nc" id="L1118">                      case 6 /* cdt */: tzoffset = 5 * 60; break;</span>
+<span class="nc" id="L1119">                      case 7 /* mst */: tzoffset = 7 * 60; break;</span>
+<span class="nc" id="L1120">                      case 8 /* mdt */: tzoffset = 6 * 60; break;</span>
+<span class="nc" id="L1121">                      case 9 /* pst */: tzoffset = 8 * 60; break;</span>
+<span class="nc" id="L1122">                      case 10 /* pdt */:tzoffset = 7 * 60; break;</span>
+<span class="nc" id="L1123">                      default: Kit.codeBug();</span>
+                    }
+                }
+<span class="nc" id="L1126">            }</span>
+        }
+<span class="nc bnc" id="L1128" title="All 6 branches missed.">        if (year &lt; 0 || mon &lt; 0 || mday &lt; 0)</span>
+<span class="nc" id="L1129">            return ScriptRuntime.NaN;</span>
+<span class="nc bnc" id="L1130" title="All 2 branches missed.">        if (sec &lt; 0)</span>
+<span class="nc" id="L1131">            sec = 0;</span>
+<span class="nc bnc" id="L1132" title="All 2 branches missed.">        if (min &lt; 0)</span>
+<span class="nc" id="L1133">            min = 0;</span>
+<span class="nc bnc" id="L1134" title="All 2 branches missed.">        if (hour &lt; 0)</span>
+<span class="nc" id="L1135">            hour = 0;</span>
+
+<span class="nc" id="L1137">        double msec = date_msecFromDate(year, mon, mday, hour, min, sec, 0);</span>
+<span class="nc bnc" id="L1138" title="All 2 branches missed.">        if (tzoffset == -1) { /* no time zone specified, have to use local */</span>
+<span class="nc" id="L1139">            return internalUTC(msec);</span>
+        } else {
+<span class="nc" id="L1141">            return msec + tzoffset * msPerMinute;</span>
+        }
+    }
+
+    private static String date_format(double t, int methodId)
+    {
+<span class="nc" id="L1147">        StringBuilder result = new StringBuilder(60);</span>
+<span class="nc" id="L1148">        double local = LocalTime(t);</span>
+
+        /* Tue Oct 31 09:41:40 GMT-0800 (PST) 2000 */
+        /* Tue Oct 31 2000 */
+        /* 09:41:40 GMT-0800 (PST) */
+
+<span class="nc bnc" id="L1154" title="All 2 branches missed.">        if (methodId != Id_toTimeString) {</span>
+<span class="nc" id="L1155">            appendWeekDayName(result, WeekDay(local));</span>
+<span class="nc" id="L1156">            result.append(' ');</span>
+<span class="nc" id="L1157">            appendMonthName(result, MonthFromTime(local));</span>
+<span class="nc" id="L1158">            result.append(' ');</span>
+<span class="nc" id="L1159">            append0PaddedUint(result, DateFromTime(local), 2);</span>
+<span class="nc" id="L1160">            result.append(' ');</span>
+<span class="nc" id="L1161">            int year = YearFromTime(local);</span>
+<span class="nc bnc" id="L1162" title="All 2 branches missed.">            if (year &lt; 0) {</span>
+<span class="nc" id="L1163">                result.append('-');</span>
+<span class="nc" id="L1164">                year = -year;</span>
+            }
+<span class="nc" id="L1166">            append0PaddedUint(result, year, 4);</span>
+<span class="nc bnc" id="L1167" title="All 2 branches missed.">            if (methodId != Id_toDateString)</span>
+<span class="nc" id="L1168">                result.append(' ');</span>
+        }
+
+<span class="nc bnc" id="L1171" title="All 2 branches missed.">        if (methodId != Id_toDateString) {</span>
+<span class="nc" id="L1172">            append0PaddedUint(result, HourFromTime(local), 2);</span>
+<span class="nc" id="L1173">            result.append(':');</span>
+<span class="nc" id="L1174">            append0PaddedUint(result, MinFromTime(local), 2);</span>
+<span class="nc" id="L1175">            result.append(':');</span>
+<span class="nc" id="L1176">            append0PaddedUint(result, SecFromTime(local), 2);</span>
+
+            // offset from GMT in minutes.  The offset includes daylight
+            // savings, if it applies.
+<span class="nc" id="L1180">            int minutes = (int) Math.floor((LocalTZA + DaylightSavingTA(t))</span>
+                                           / msPerMinute);
+            // map 510 minutes to 0830 hours
+<span class="nc" id="L1183">            int offset = (minutes / 60) * 100 + minutes % 60;</span>
+<span class="nc bnc" id="L1184" title="All 2 branches missed.">            if (offset &gt; 0) {</span>
+<span class="nc" id="L1185">                result.append(&quot; GMT+&quot;);</span>
+            } else {
+<span class="nc" id="L1187">                result.append(&quot; GMT-&quot;);</span>
+<span class="nc" id="L1188">                offset = -offset;</span>
+            }
+<span class="nc" id="L1190">            append0PaddedUint(result, offset, 4);</span>
+
+<span class="nc bnc" id="L1192" title="All 2 branches missed.">            if (timeZoneFormatter == null)</span>
+<span class="nc" id="L1193">                timeZoneFormatter = new SimpleDateFormat(&quot;zzz&quot;);</span>
+
+            // Find an equivalent year before getting the timezone
+            // comment.  See DaylightSavingTA.
+<span class="nc bnc" id="L1197" title="All 2 branches missed.">            if (t &lt; 0.0) {</span>
+<span class="nc" id="L1198">                int equiv = EquivalentYear(YearFromTime(local));</span>
+<span class="nc" id="L1199">                double day = MakeDay(equiv, MonthFromTime(t), DateFromTime(t));</span>
+<span class="nc" id="L1200">                t = MakeDate(day, TimeWithinDay(t));</span>
+            }
+<span class="nc" id="L1202">            result.append(&quot; (&quot;);</span>
+<span class="nc" id="L1203">            Date date = new Date((long) t);</span>
+<span class="nc" id="L1204">            synchronized (timeZoneFormatter) {</span>
+<span class="nc" id="L1205">                result.append(timeZoneFormatter.format(date));</span>
+<span class="nc" id="L1206">            }</span>
+<span class="nc" id="L1207">            result.append(')');</span>
+        }
+<span class="nc" id="L1209">        return result.toString();</span>
+    }
+
+    /* the javascript constructor */
+    private static Object jsConstructor(Object[] args)
+    {
+<span class="nc" id="L1215">        NativeDate obj = new NativeDate();</span>
+
+        // if called as a constructor with no args,
+        // return a new Date with the current time.
+<span class="nc bnc" id="L1219" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L1220">            obj.date = now();</span>
+<span class="nc" id="L1221">            return obj;</span>
+        }
+
+        // if called with just one arg -
+<span class="nc bnc" id="L1225" title="All 2 branches missed.">        if (args.length == 1) {</span>
+<span class="nc" id="L1226">            Object arg0 = args[0];</span>
+<span class="nc bnc" id="L1227" title="All 2 branches missed.">            if (arg0 instanceof Scriptable)</span>
+<span class="nc" id="L1228">                arg0 = ((Scriptable) arg0).getDefaultValue(null);</span>
+            double date;
+<span class="nc bnc" id="L1230" title="All 2 branches missed.">            if (arg0 instanceof CharSequence) {</span>
+                // it's a string; parse it.
+<span class="nc" id="L1232">                date = date_parseString(arg0.toString());</span>
+            } else {
+                // if it's not a string, use it as a millisecond date
+<span class="nc" id="L1235">                date = ScriptRuntime.toNumber(arg0);</span>
+            }
+<span class="nc" id="L1237">            obj.date = TimeClip(date);</span>
+<span class="nc" id="L1238">            return obj;</span>
+        }
+
+<span class="nc" id="L1241">        double time = date_msecFromArgs(args);</span>
+
+<span class="nc bnc" id="L1243" title="All 4 branches missed.">        if (!Double.isNaN(time) &amp;&amp; !Double.isInfinite(time))</span>
+<span class="nc" id="L1244">            time = TimeClip(internalUTC(time));</span>
+
+<span class="nc" id="L1246">        obj.date = time;</span>
+
+<span class="nc" id="L1248">        return obj;</span>
+    }
+
+    private static String toLocale_helper(double t, int methodId)
+    {
+        DateFormat formatter;
+<span class="nc bnc" id="L1254" title="All 4 branches missed.">        switch (methodId) {</span>
+          case Id_toLocaleString:
+<span class="nc bnc" id="L1256" title="All 2 branches missed.">            if (localeDateTimeFormatter == null) {</span>
+<span class="nc" id="L1257">                localeDateTimeFormatter</span>
+<span class="nc" id="L1258">                    = DateFormat.getDateTimeInstance(DateFormat.LONG,</span>
+                                                     DateFormat.LONG);
+            }
+<span class="nc" id="L1261">            formatter = localeDateTimeFormatter;</span>
+<span class="nc" id="L1262">            break;</span>
+          case Id_toLocaleTimeString:
+<span class="nc bnc" id="L1264" title="All 2 branches missed.">            if (localeTimeFormatter == null) {</span>
+<span class="nc" id="L1265">                localeTimeFormatter</span>
+<span class="nc" id="L1266">                    = DateFormat.getTimeInstance(DateFormat.LONG);</span>
+            }
+<span class="nc" id="L1268">            formatter = localeTimeFormatter;</span>
+<span class="nc" id="L1269">            break;</span>
+          case Id_toLocaleDateString:
+<span class="nc bnc" id="L1271" title="All 2 branches missed.">            if (localeDateFormatter == null) {</span>
+<span class="nc" id="L1272">                localeDateFormatter</span>
+<span class="nc" id="L1273">                    = DateFormat.getDateInstance(DateFormat.LONG);</span>
+            }
+<span class="nc" id="L1275">            formatter = localeDateFormatter;</span>
+<span class="nc" id="L1276">            break;</span>
+<span class="nc" id="L1277">          default: throw new AssertionError(); // unreachable</span>
+        }
+
+<span class="nc" id="L1280">        synchronized (formatter) {</span>
+<span class="nc" id="L1281">            return formatter.format(new Date((long) t));</span>
+<span class="nc" id="L1282">        }</span>
+    }
+
+    private static String js_toUTCString(double date)
+    {
+<span class="nc" id="L1287">        StringBuilder result = new StringBuilder(60);</span>
+
+<span class="nc" id="L1289">        appendWeekDayName(result, WeekDay(date));</span>
+<span class="nc" id="L1290">        result.append(&quot;, &quot;);</span>
+<span class="nc" id="L1291">        append0PaddedUint(result, DateFromTime(date), 2);</span>
+<span class="nc" id="L1292">        result.append(' ');</span>
+<span class="nc" id="L1293">        appendMonthName(result, MonthFromTime(date));</span>
+<span class="nc" id="L1294">        result.append(' ');</span>
+<span class="nc" id="L1295">        int year = YearFromTime(date);</span>
+<span class="nc bnc" id="L1296" title="All 2 branches missed.">        if (year &lt; 0) {</span>
+<span class="nc" id="L1297">            result.append('-'); year = -year;</span>
+        }
+<span class="nc" id="L1299">        append0PaddedUint(result, year, 4);</span>
+<span class="nc" id="L1300">        result.append(' ');</span>
+<span class="nc" id="L1301">        append0PaddedUint(result, HourFromTime(date), 2);</span>
+<span class="nc" id="L1302">        result.append(':');</span>
+<span class="nc" id="L1303">        append0PaddedUint(result, MinFromTime(date), 2);</span>
+<span class="nc" id="L1304">        result.append(':');</span>
+<span class="nc" id="L1305">        append0PaddedUint(result, SecFromTime(date), 2);</span>
+<span class="nc" id="L1306">        result.append(&quot; GMT&quot;);</span>
+<span class="nc" id="L1307">        return result.toString();</span>
+    }
+
+    private static String js_toISOString(double t) {
+<span class="nc" id="L1311">        StringBuilder result = new StringBuilder(27);</span>
+
+<span class="nc" id="L1313">        int year = YearFromTime(t);</span>
+<span class="nc bnc" id="L1314" title="All 2 branches missed.">        if (year &lt; 0) {</span>
+<span class="nc" id="L1315">            result.append('-');</span>
+<span class="nc" id="L1316">            append0PaddedUint(result, -year, 6);</span>
+<span class="nc bnc" id="L1317" title="All 2 branches missed.">        } else if (year &gt; 9999) {</span>
+<span class="nc" id="L1318">            append0PaddedUint(result, year, 6);</span>
+        } else {
+<span class="nc" id="L1320">            append0PaddedUint(result, year, 4);</span>
+        }
+<span class="nc" id="L1322">        result.append('-');</span>
+<span class="nc" id="L1323">        append0PaddedUint(result, MonthFromTime(t) + 1, 2);</span>
+<span class="nc" id="L1324">        result.append('-');</span>
+<span class="nc" id="L1325">        append0PaddedUint(result, DateFromTime(t), 2);</span>
+<span class="nc" id="L1326">        result.append('T');</span>
+<span class="nc" id="L1327">        append0PaddedUint(result, HourFromTime(t), 2);</span>
+<span class="nc" id="L1328">        result.append(':');</span>
+<span class="nc" id="L1329">        append0PaddedUint(result, MinFromTime(t), 2);</span>
+<span class="nc" id="L1330">        result.append(':');</span>
+<span class="nc" id="L1331">        append0PaddedUint(result, SecFromTime(t), 2);</span>
+<span class="nc" id="L1332">        result.append('.');</span>
+<span class="nc" id="L1333">        append0PaddedUint(result, msFromTime(t), 3);</span>
+<span class="nc" id="L1334">        result.append('Z');</span>
+<span class="nc" id="L1335">        return result.toString();</span>
+    }
+
+    private static void append0PaddedUint(StringBuilder sb, int i, int minWidth)
+    {
+<span class="nc bnc" id="L1340" title="All 2 branches missed.">        if (i &lt; 0) Kit.codeBug();</span>
+<span class="nc" id="L1341">        int scale = 1;</span>
+<span class="nc" id="L1342">        --minWidth;</span>
+<span class="nc bnc" id="L1343" title="All 2 branches missed.">        if (i &gt;= 10) {</span>
+<span class="nc bnc" id="L1344" title="All 2 branches missed.">            if (i &lt; 1000 * 1000 * 1000) {</span>
+                for (;;) {
+<span class="nc" id="L1346">                    int newScale = scale * 10;</span>
+<span class="nc bnc" id="L1347" title="All 2 branches missed.">                    if (i &lt; newScale) { break; }</span>
+<span class="nc" id="L1348">                    --minWidth;</span>
+<span class="nc" id="L1349">                    scale = newScale;</span>
+<span class="nc" id="L1350">                }</span>
+            } else {
+                // Separated case not to check against 10 * 10^9 overflow
+<span class="nc" id="L1353">                minWidth -= 9;</span>
+<span class="nc" id="L1354">                scale = 1000 * 1000 * 1000;</span>
+            }
+        }
+<span class="nc bnc" id="L1357" title="All 2 branches missed.">        while (minWidth &gt; 0) {</span>
+<span class="nc" id="L1358">            sb.append('0');</span>
+<span class="nc" id="L1359">            --minWidth;</span>
+        }
+<span class="nc bnc" id="L1361" title="All 2 branches missed.">        while (scale != 1) {</span>
+<span class="nc" id="L1362">            sb.append((char)('0' + (i / scale)));</span>
+<span class="nc" id="L1363">            i %= scale;</span>
+<span class="nc" id="L1364">            scale /= 10;</span>
+        }
+<span class="nc" id="L1366">        sb.append((char)('0' + i));</span>
+<span class="nc" id="L1367">    }</span>
+
+    private static void appendMonthName(StringBuilder sb, int index)
+    {
+        // Take advantage of the fact that all month abbreviations
+        // have the same length to minimize amount of strings runtime has
+        // to keep in memory
+<span class="nc" id="L1374">        String months = &quot;Jan&quot;+&quot;Feb&quot;+&quot;Mar&quot;+&quot;Apr&quot;+&quot;May&quot;+&quot;Jun&quot;</span>
+                       +&quot;Jul&quot;+&quot;Aug&quot;+&quot;Sep&quot;+&quot;Oct&quot;+&quot;Nov&quot;+&quot;Dec&quot;;
+<span class="nc" id="L1376">        index *= 3;</span>
+<span class="nc bnc" id="L1377" title="All 2 branches missed.">        for (int i = 0; i != 3; ++i) {</span>
+<span class="nc" id="L1378">            sb.append(months.charAt(index + i));</span>
+        }
+<span class="nc" id="L1380">    }</span>
+
+    private static void appendWeekDayName(StringBuilder sb, int index)
+    {
+<span class="nc" id="L1384">        String days = &quot;Sun&quot;+&quot;Mon&quot;+&quot;Tue&quot;+&quot;Wed&quot;+&quot;Thu&quot;+&quot;Fri&quot;+&quot;Sat&quot;;</span>
+<span class="nc" id="L1385">        index *= 3;</span>
+<span class="nc bnc" id="L1386" title="All 2 branches missed.">        for (int i = 0; i != 3; ++i) {</span>
+<span class="nc" id="L1387">            sb.append(days.charAt(index + i));</span>
+        }
+<span class="nc" id="L1389">    }</span>
+
+    private static double makeTime(double date, Object[] args, int methodId)
+    {
+<span class="nc bnc" id="L1393" title="All 2 branches missed.">        if (args.length == 0) {</span>
+            /*
+             * Satisfy the ECMA rule that if a function is called with
+             * fewer arguments than the specified formal arguments, the
+             * remaining arguments are set to undefined.  Seems like all
+             * the Date.setWhatever functions in ECMA are only varargs
+             * beyond the first argument; this should be set to undefined
+             * if it's not given.  This means that &quot;d = new Date();
+             * d.setMilliseconds()&quot; returns NaN.  Blech.
+             */
+<span class="nc" id="L1403">            return ScriptRuntime.NaN;</span>
+        }
+
+        int maxargs;
+<span class="nc" id="L1407">        boolean local = true;</span>
+<span class="nc bnc" id="L1408" title="All 9 branches missed.">        switch (methodId) {</span>
+          case Id_setUTCMilliseconds:
+<span class="nc" id="L1410">              local = false;</span>
+            // fallthrough
+          case Id_setMilliseconds:
+<span class="nc" id="L1413">            maxargs = 1;</span>
+<span class="nc" id="L1414">            break;</span>
+
+          case Id_setUTCSeconds:
+<span class="nc" id="L1417">              local = false;</span>
+            // fallthrough
+          case Id_setSeconds:
+<span class="nc" id="L1420">            maxargs = 2;</span>
+<span class="nc" id="L1421">            break;</span>
+
+          case Id_setUTCMinutes:
+<span class="nc" id="L1424">              local = false;</span>
+            // fallthrough
+          case Id_setMinutes:
+<span class="nc" id="L1427">            maxargs = 3;</span>
+<span class="nc" id="L1428">            break;</span>
+
+          case Id_setUTCHours:
+<span class="nc" id="L1431">              local = false;</span>
+            // fallthrough
+          case Id_setHours:
+<span class="nc" id="L1434">            maxargs = 4;</span>
+<span class="nc" id="L1435">            break;</span>
+
+          default:
+<span class="nc" id="L1438">              throw Kit.codeBug();</span>
+        }
+
+<span class="nc" id="L1441">        boolean hasNaN = false;</span>
+<span class="nc bnc" id="L1442" title="All 2 branches missed.">        int numNums = args.length &lt; maxargs ? args.length : maxargs;</span>
+<span class="nc bnc" id="L1443" title="All 4 branches missed.">        assert numNums &lt;= 4;</span>
+<span class="nc" id="L1444">        double[] nums = new double[4];</span>
+<span class="nc bnc" id="L1445" title="All 2 branches missed.">        for (int i = 0; i &lt; numNums; i++) {</span>
+<span class="nc" id="L1446">            double d = ScriptRuntime.toNumber(args[i]);</span>
+<span class="nc bnc" id="L1447" title="All 4 branches missed.">            if (d != d || Double.isInfinite(d)) {</span>
+<span class="nc" id="L1448">                hasNaN = true;</span>
+            } else {
+<span class="nc" id="L1450">                nums[i] = ScriptRuntime.toInteger(d);</span>
+            }
+        }
+
+        // just return NaN if the date is already NaN,
+        // limit checks that happen in MakeTime in ECMA.
+<span class="nc bnc" id="L1456" title="All 4 branches missed.">        if (hasNaN || date != date) {</span>
+<span class="nc" id="L1457">            return ScriptRuntime.NaN;</span>
+        }
+
+<span class="nc" id="L1460">        int i = 0, stop = numNums;</span>
+        double hour, min, sec, msec;
+        double lorutime;  /* Local or UTC version of date */
+
+<span class="nc bnc" id="L1464" title="All 2 branches missed.">        if (local)</span>
+<span class="nc" id="L1465">            lorutime = LocalTime(date);</span>
+        else
+<span class="nc" id="L1467">            lorutime = date;</span>
+
+<span class="nc bnc" id="L1469" title="All 4 branches missed.">        if (maxargs &gt;= 4 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1470">            hour = nums[i++];</span>
+        else
+<span class="nc" id="L1472">            hour = HourFromTime(lorutime);</span>
+
+<span class="nc bnc" id="L1474" title="All 4 branches missed.">        if (maxargs &gt;= 3 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1475">            min = nums[i++];</span>
+        else
+<span class="nc" id="L1477">            min = MinFromTime(lorutime);</span>
+
+<span class="nc bnc" id="L1479" title="All 4 branches missed.">        if (maxargs &gt;= 2 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1480">            sec = nums[i++];</span>
+        else
+<span class="nc" id="L1482">            sec = SecFromTime(lorutime);</span>
+
+<span class="nc bnc" id="L1484" title="All 4 branches missed.">        if (maxargs &gt;= 1 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1485">            msec = nums[i++];</span>
+        else
+<span class="nc" id="L1487">            msec = msFromTime(lorutime);</span>
+
+<span class="nc" id="L1489">        double time = MakeTime(hour, min, sec, msec);</span>
+<span class="nc" id="L1490">        double result = MakeDate(Day(lorutime), time);</span>
+
+<span class="nc bnc" id="L1492" title="All 2 branches missed.">        if (local)</span>
+<span class="nc" id="L1493">            result = internalUTC(result);</span>
+
+<span class="nc" id="L1495">        return TimeClip(result);</span>
+    }
+
+    private static double makeDate(double date, Object[] args, int methodId)
+    {
+        /* see complaint about ECMA in date_MakeTime */
+<span class="nc bnc" id="L1501" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L1502">            return ScriptRuntime.NaN;</span>
+        }
+
+        int maxargs;
+<span class="nc" id="L1506">        boolean local = true;</span>
+<span class="nc bnc" id="L1507" title="All 7 branches missed.">        switch (methodId) {</span>
+          case Id_setUTCDate:
+<span class="nc" id="L1509">              local = false;</span>
+            // fallthrough
+          case Id_setDate:
+<span class="nc" id="L1512">              maxargs = 1;</span>
+<span class="nc" id="L1513">            break;</span>
+
+          case Id_setUTCMonth:
+<span class="nc" id="L1516">              local = false;</span>
+            // fallthrough
+          case Id_setMonth:
+<span class="nc" id="L1519">              maxargs = 2;</span>
+<span class="nc" id="L1520">            break;</span>
+
+          case Id_setUTCFullYear:
+<span class="nc" id="L1523">              local = false;</span>
+            // fallthrough
+          case Id_setFullYear:
+<span class="nc" id="L1526">              maxargs = 3;</span>
+<span class="nc" id="L1527">            break;</span>
+
+          default:
+<span class="nc" id="L1530">              throw Kit.codeBug();</span>
+        }
+
+<span class="nc" id="L1533">        boolean hasNaN = false;</span>
+<span class="nc bnc" id="L1534" title="All 2 branches missed.">        int numNums = args.length &lt; maxargs ? args.length : maxargs;</span>
+<span class="nc bnc" id="L1535" title="All 6 branches missed.">        assert 1 &lt;= numNums &amp;&amp; numNums &lt;= 3;</span>
+<span class="nc" id="L1536">        double[] nums = new double[3];</span>
+<span class="nc bnc" id="L1537" title="All 2 branches missed.">        for (int i = 0; i &lt; numNums; i++) {</span>
+<span class="nc" id="L1538">            double d = ScriptRuntime.toNumber(args[i]);</span>
+<span class="nc bnc" id="L1539" title="All 4 branches missed.">            if (d != d || Double.isInfinite(d)) {</span>
+<span class="nc" id="L1540">                hasNaN = true;</span>
+            } else {
+<span class="nc" id="L1542">                nums[i] = ScriptRuntime.toInteger(d);</span>
+            }
+        }
+
+        // limit checks that happen in MakeTime in ECMA.
+<span class="nc bnc" id="L1547" title="All 2 branches missed.">        if (hasNaN) {</span>
+<span class="nc" id="L1548">            return ScriptRuntime.NaN;</span>
+        }
+
+<span class="nc" id="L1551">        int i = 0, stop = numNums;</span>
+        double year, month, day;
+        double lorutime;  /* Local or UTC version of date */
+
+        /* return NaN if date is NaN and we're not setting the year,
+         * If we are, use 0 as the time. */
+<span class="nc bnc" id="L1557" title="All 2 branches missed.">        if (date != date) {</span>
+<span class="nc bnc" id="L1558" title="All 2 branches missed.">            if (maxargs &lt; 3) {</span>
+<span class="nc" id="L1559">                return ScriptRuntime.NaN;</span>
+            } else {
+<span class="nc" id="L1561">                lorutime = 0;</span>
+            }
+        } else {
+<span class="nc bnc" id="L1564" title="All 2 branches missed.">            if (local)</span>
+<span class="nc" id="L1565">                lorutime = LocalTime(date);</span>
+            else
+<span class="nc" id="L1567">                lorutime = date;</span>
+        }
+
+<span class="nc bnc" id="L1570" title="All 4 branches missed.">        if (maxargs &gt;= 3 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1571">            year = nums[i++];</span>
+        else
+<span class="nc" id="L1573">            year = YearFromTime(lorutime);</span>
+
+<span class="nc bnc" id="L1575" title="All 4 branches missed.">        if (maxargs &gt;= 2 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1576">            month = nums[i++];</span>
+        else
+<span class="nc" id="L1578">            month = MonthFromTime(lorutime);</span>
+
+<span class="nc bnc" id="L1580" title="All 4 branches missed.">        if (maxargs &gt;= 1 &amp;&amp; i &lt; stop)</span>
+<span class="nc" id="L1581">            day = nums[i++];</span>
+        else
+<span class="nc" id="L1583">            day = DateFromTime(lorutime);</span>
+
+<span class="nc" id="L1585">        day = MakeDay(year, month, day); /* day within year */</span>
+<span class="nc" id="L1586">        double result = MakeDate(day, TimeWithinDay(lorutime));</span>
+
+<span class="nc bnc" id="L1588" title="All 2 branches missed.">        if (local)</span>
+<span class="nc" id="L1589">            result = internalUTC(result);</span>
+
+<span class="nc" id="L1591">        return TimeClip(result);</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2009-07-22 05:44:02 EST
+<span class="nc" id="L1601">        L0: { id = 0; String X = null; int c;</span>
+<span class="nc bnc" id="L1602" title="All 13 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L1603">            case 6: c=s.charAt(0);</span>
+<span class="nc bnc" id="L1604" title="All 2 branches missed.">                if (c=='g') { X=&quot;getDay&quot;;id=Id_getDay; }</span>
+<span class="nc bnc" id="L1605" title="All 2 branches missed.">                else if (c=='t') { X=&quot;toJSON&quot;;id=Id_toJSON; }</span>
+                break L;
+<span class="nc bnc" id="L1607" title="All 5 branches missed.">            case 7: switch (s.charAt(3)) {</span>
+<span class="nc" id="L1608">                case 'D': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1609" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getDate&quot;;id=Id_getDate; }</span>
+<span class="nc bnc" id="L1610" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setDate&quot;;id=Id_setDate; }</span>
+                    break L;
+<span class="nc" id="L1612">                case 'T': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1613" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getTime&quot;;id=Id_getTime; }</span>
+<span class="nc bnc" id="L1614" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setTime&quot;;id=Id_setTime; }</span>
+                    break L;
+<span class="nc" id="L1616">                case 'Y': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1617" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getYear&quot;;id=Id_getYear; }</span>
+<span class="nc bnc" id="L1618" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setYear&quot;;id=Id_setYear; }</span>
+                    break L;
+<span class="nc" id="L1620">                case 'u': X=&quot;valueOf&quot;;id=Id_valueOf; break L;</span>
+<span class="nc" id="L1621">                } break L;</span>
+<span class="nc bnc" id="L1622" title="All 5 branches missed.">            case 8: switch (s.charAt(3)) {</span>
+<span class="nc" id="L1623">                case 'H': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1624" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getHours&quot;;id=Id_getHours; }</span>
+<span class="nc bnc" id="L1625" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setHours&quot;;id=Id_setHours; }</span>
+                    break L;
+<span class="nc" id="L1627">                case 'M': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1628" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getMonth&quot;;id=Id_getMonth; }</span>
+<span class="nc bnc" id="L1629" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setMonth&quot;;id=Id_setMonth; }</span>
+                    break L;
+<span class="nc" id="L1631">                case 'o': X=&quot;toSource&quot;;id=Id_toSource; break L;</span>
+<span class="nc" id="L1632">                case 't': X=&quot;toString&quot;;id=Id_toString; break L;</span>
+<span class="nc" id="L1633">                } break L;</span>
+<span class="nc" id="L1634">            case 9: X=&quot;getUTCDay&quot;;id=Id_getUTCDay; break L;</span>
+<span class="nc" id="L1635">            case 10: c=s.charAt(3);</span>
+<span class="nc bnc" id="L1636" title="All 2 branches missed.">                if (c=='M') {</span>
+<span class="nc" id="L1637">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L1638" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getMinutes&quot;;id=Id_getMinutes; }</span>
+<span class="nc bnc" id="L1639" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setMinutes&quot;;id=Id_setMinutes; }</span>
+                }
+<span class="nc bnc" id="L1641" title="All 2 branches missed.">                else if (c=='S') {</span>
+<span class="nc" id="L1642">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L1643" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getSeconds&quot;;id=Id_getSeconds; }</span>
+<span class="nc bnc" id="L1644" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setSeconds&quot;;id=Id_setSeconds; }</span>
+                }
+<span class="nc bnc" id="L1646" title="All 2 branches missed.">                else if (c=='U') {</span>
+<span class="nc" id="L1647">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L1648" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getUTCDate&quot;;id=Id_getUTCDate; }</span>
+<span class="nc bnc" id="L1649" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setUTCDate&quot;;id=Id_setUTCDate; }</span>
+                }
+                break L;
+<span class="nc bnc" id="L1652" title="All 7 branches missed.">            case 11: switch (s.charAt(3)) {</span>
+<span class="nc" id="L1653">                case 'F': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1654" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getFullYear&quot;;id=Id_getFullYear; }</span>
+<span class="nc bnc" id="L1655" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setFullYear&quot;;id=Id_setFullYear; }</span>
+                    break L;
+<span class="nc" id="L1657">                case 'M': X=&quot;toGMTString&quot;;id=Id_toGMTString; break L;</span>
+<span class="nc" id="L1658">                case 'S': X=&quot;toISOString&quot;;id=Id_toISOString; break L;</span>
+<span class="nc" id="L1659">                case 'T': X=&quot;toUTCString&quot;;id=Id_toUTCString; break L;</span>
+<span class="nc" id="L1660">                case 'U': c=s.charAt(0);</span>
+<span class="nc bnc" id="L1661" title="All 2 branches missed.">                    if (c=='g') {</span>
+<span class="nc" id="L1662">                        c=s.charAt(9);</span>
+<span class="nc bnc" id="L1663" title="All 2 branches missed.">                        if (c=='r') { X=&quot;getUTCHours&quot;;id=Id_getUTCHours; }</span>
+<span class="nc bnc" id="L1664" title="All 2 branches missed.">                        else if (c=='t') { X=&quot;getUTCMonth&quot;;id=Id_getUTCMonth; }</span>
+                    }
+<span class="nc bnc" id="L1666" title="All 2 branches missed.">                    else if (c=='s') {</span>
+<span class="nc" id="L1667">                        c=s.charAt(9);</span>
+<span class="nc bnc" id="L1668" title="All 2 branches missed.">                        if (c=='r') { X=&quot;setUTCHours&quot;;id=Id_setUTCHours; }</span>
+<span class="nc bnc" id="L1669" title="All 2 branches missed.">                        else if (c=='t') { X=&quot;setUTCMonth&quot;;id=Id_setUTCMonth; }</span>
+                    }
+                    break L;
+<span class="nc" id="L1672">                case 's': X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+<span class="nc" id="L1673">                } break L;</span>
+<span class="nc" id="L1674">            case 12: c=s.charAt(2);</span>
+<span class="nc bnc" id="L1675" title="All 2 branches missed.">                if (c=='D') { X=&quot;toDateString&quot;;id=Id_toDateString; }</span>
+<span class="nc bnc" id="L1676" title="All 2 branches missed.">                else if (c=='T') { X=&quot;toTimeString&quot;;id=Id_toTimeString; }</span>
+                break L;
+<span class="nc" id="L1678">            case 13: c=s.charAt(0);</span>
+<span class="nc bnc" id="L1679" title="All 2 branches missed.">                if (c=='g') {</span>
+<span class="nc" id="L1680">                    c=s.charAt(6);</span>
+<span class="nc bnc" id="L1681" title="All 2 branches missed.">                    if (c=='M') { X=&quot;getUTCMinutes&quot;;id=Id_getUTCMinutes; }</span>
+<span class="nc bnc" id="L1682" title="All 2 branches missed.">                    else if (c=='S') { X=&quot;getUTCSeconds&quot;;id=Id_getUTCSeconds; }</span>
+                }
+<span class="nc bnc" id="L1684" title="All 2 branches missed.">                else if (c=='s') {</span>
+<span class="nc" id="L1685">                    c=s.charAt(6);</span>
+<span class="nc bnc" id="L1686" title="All 2 branches missed.">                    if (c=='M') { X=&quot;setUTCMinutes&quot;;id=Id_setUTCMinutes; }</span>
+<span class="nc bnc" id="L1687" title="All 2 branches missed.">                    else if (c=='S') { X=&quot;setUTCSeconds&quot;;id=Id_setUTCSeconds; }</span>
+                }
+                break L;
+<span class="nc" id="L1690">            case 14: c=s.charAt(0);</span>
+<span class="nc bnc" id="L1691" title="All 2 branches missed.">                if (c=='g') { X=&quot;getUTCFullYear&quot;;id=Id_getUTCFullYear; }</span>
+<span class="nc bnc" id="L1692" title="All 2 branches missed.">                else if (c=='s') { X=&quot;setUTCFullYear&quot;;id=Id_setUTCFullYear; }</span>
+<span class="nc bnc" id="L1693" title="All 2 branches missed.">                else if (c=='t') { X=&quot;toLocaleString&quot;;id=Id_toLocaleString; }</span>
+                break L;
+<span class="nc" id="L1695">            case 15: c=s.charAt(0);</span>
+<span class="nc bnc" id="L1696" title="All 2 branches missed.">                if (c=='g') { X=&quot;getMilliseconds&quot;;id=Id_getMilliseconds; }</span>
+<span class="nc bnc" id="L1697" title="All 2 branches missed.">                else if (c=='s') { X=&quot;setMilliseconds&quot;;id=Id_setMilliseconds; }</span>
+                break L;
+<span class="nc" id="L1699">            case 17: X=&quot;getTimezoneOffset&quot;;id=Id_getTimezoneOffset; break L;</span>
+<span class="nc" id="L1700">            case 18: c=s.charAt(0);</span>
+<span class="nc bnc" id="L1701" title="All 2 branches missed.">                if (c=='g') { X=&quot;getUTCMilliseconds&quot;;id=Id_getUTCMilliseconds; }</span>
+<span class="nc bnc" id="L1702" title="All 2 branches missed.">                else if (c=='s') { X=&quot;setUTCMilliseconds&quot;;id=Id_setUTCMilliseconds; }</span>
+<span class="nc bnc" id="L1703" title="All 2 branches missed.">                else if (c=='t') {</span>
+<span class="nc" id="L1704">                    c=s.charAt(8);</span>
+<span class="nc bnc" id="L1705" title="All 2 branches missed.">                    if (c=='D') { X=&quot;toLocaleDateString&quot;;id=Id_toLocaleDateString; }</span>
+<span class="nc bnc" id="L1706" title="All 2 branches missed.">                    else if (c=='T') { X=&quot;toLocaleTimeString&quot;;id=Id_toLocaleTimeString; }</span>
+                }
+                break L;
+            }
+<span class="nc bnc" id="L1710" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L1714">        return id;</span>
+    }
+
+    private static final int
+        ConstructorId_now       = -3,
+        ConstructorId_parse     = -2,
+        ConstructorId_UTC       = -1,
+
+        Id_constructor          =  1,
+        Id_toString             =  2,
+        Id_toTimeString         =  3,
+        Id_toDateString         =  4,
+        Id_toLocaleString       =  5,
+        Id_toLocaleTimeString   =  6,
+        Id_toLocaleDateString   =  7,
+        Id_toUTCString          =  8,
+        Id_toSource             =  9,
+        Id_valueOf              = 10,
+        Id_getTime              = 11,
+        Id_getYear              = 12,
+        Id_getFullYear          = 13,
+        Id_getUTCFullYear       = 14,
+        Id_getMonth             = 15,
+        Id_getUTCMonth          = 16,
+        Id_getDate              = 17,
+        Id_getUTCDate           = 18,
+        Id_getDay               = 19,
+        Id_getUTCDay            = 20,
+        Id_getHours             = 21,
+        Id_getUTCHours          = 22,
+        Id_getMinutes           = 23,
+        Id_getUTCMinutes        = 24,
+        Id_getSeconds           = 25,
+        Id_getUTCSeconds        = 26,
+        Id_getMilliseconds      = 27,
+        Id_getUTCMilliseconds   = 28,
+        Id_getTimezoneOffset    = 29,
+        Id_setTime              = 30,
+        Id_setMilliseconds      = 31,
+        Id_setUTCMilliseconds   = 32,
+        Id_setSeconds           = 33,
+        Id_setUTCSeconds        = 34,
+        Id_setMinutes           = 35,
+        Id_setUTCMinutes        = 36,
+        Id_setHours             = 37,
+        Id_setUTCHours          = 38,
+        Id_setDate              = 39,
+        Id_setUTCDate           = 40,
+        Id_setMonth             = 41,
+        Id_setUTCMonth          = 42,
+        Id_setFullYear          = 43,
+        Id_setUTCFullYear       = 44,
+        Id_setYear              = 45,
+        Id_toISOString          = 46,
+        Id_toJSON               = 47,
+
+        MAX_PROTOTYPE_ID        = Id_toJSON;
+
+    private static final int
+        Id_toGMTString  =  Id_toUTCString; // Alias, see Ecma B.2.6
+// #/string_id_map#
+
+    /* cached values */
+    private static TimeZone thisTimeZone;
+    private static double LocalTZA;
+    private static DateFormat timeZoneFormatter;
+    private static DateFormat localeDateTimeFormatter;
+    private static DateFormat localeDateFormatter;
+    private static DateFormat localeTimeFormatter;
+
+    private double date;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArrayComprehensionLoop.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ArrayComprehensionLoop.java</span></div><h1>ArrayComprehensionLoop.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for a single 'for (foo in bar)' loop construct in a JavaScript 1.7
+ * Array comprehension.  This node type is almost equivalent to a
+ * {@link ForInLoop}, except that it has no body statement.
+ * Node type is {@link Token#FOR}.&lt;p&gt;
+ */
+public class ArrayComprehensionLoop extends ForInLoop {
+
+<span class="nc" id="L19">    public ArrayComprehensionLoop() {</span>
+<span class="nc" id="L20">    }</span>
+
+    public ArrayComprehensionLoop(int pos) {
+<span class="nc" id="L23">        super(pos);</span>
+<span class="nc" id="L24">    }</span>
+
+    public ArrayComprehensionLoop(int pos, int len) {
+<span class="nc" id="L27">        super(pos, len);</span>
+<span class="nc" id="L28">    }</span>
+    
+    /**
+     * Returns {@code null} for loop body
+     * @return loop body (always {@code null} for this node type)
+     */
+    @Override
+    public AstNode getBody() {
+<span class="nc" id="L36">        return null;</span>
+    }
+
+    /**
+     * Throws an exception on attempts to set the loop body.
+     * @param body loop body
+     * @throws UnsupportedOperationException
+     */
+    @Override
+    public void setBody(AstNode body) {
+<span class="nc" id="L46">        throw new UnsupportedOperationException(&quot;this node type has no body&quot;);</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L51">        return makeIndent(depth)</span>
+                + &quot; for &quot;
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                + (isForEach()?&quot;each &quot;:&quot;&quot;)</span>
+                + &quot;(&quot;
+<span class="nc" id="L55">                + iterator.toSource(0)</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                + (isForOf()?&quot; of &quot;:&quot; in &quot;)</span>
+<span class="nc" id="L57">                + iteratedObject.toSource(0)</span>
+                + &quot;)&quot;;
+    }
+
+    /**
+     * Visits the iterator expression and the iterated object expression.
+     * There is no body-expression for this loop type.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L68">            iterator.visit(v);</span>
+<span class="nc" id="L69">            iteratedObject.visit(v);</span>
+        }
+<span class="nc" id="L71">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

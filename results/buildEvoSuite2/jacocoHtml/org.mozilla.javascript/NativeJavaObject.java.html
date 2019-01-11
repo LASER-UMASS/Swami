@@ -1,0 +1,978 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeJavaObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeJavaObject.java</span></div><h1>NativeJavaObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.*;
+import java.lang.reflect.*;
+import java.util.Map;
+import java.util.Date;
+
+/**
+ * This class reflects non-Array Java objects into the JavaScript environment.  It
+ * reflect fields directly, and uses NativeJavaMethod objects to reflect (possibly
+ * overloaded) methods.&lt;p&gt;
+ *
+ * @author Mike Shaver
+ * @see NativeJavaArray
+ * @see NativeJavaPackage
+ * @see NativeJavaClass
+ */
+
+public class NativeJavaObject implements Scriptable, Wrapper, Serializable
+{
+    static final long serialVersionUID = -6948590651130498591L;
+
+<span class="nc" id="L29">    public NativeJavaObject() { }</span>
+
+    public NativeJavaObject(Scriptable scope, Object javaObject,
+                            Class&lt;?&gt; staticType)
+    {
+<span class="nc" id="L34">        this(scope, javaObject, staticType, false);</span>
+<span class="nc" id="L35">    }</span>
+
+    public NativeJavaObject(Scriptable scope, Object javaObject,
+                            Class&lt;?&gt; staticType, boolean isAdapter)
+<span class="nc" id="L39">    {</span>
+<span class="nc" id="L40">        this.parent = scope;</span>
+<span class="nc" id="L41">        this.javaObject = javaObject;</span>
+<span class="nc" id="L42">        this.staticType = staticType;</span>
+<span class="nc" id="L43">        this.isAdapter = isAdapter;</span>
+<span class="nc" id="L44">        initMembers();</span>
+<span class="nc" id="L45">    }</span>
+
+    protected void initMembers() {
+        Class&lt;?&gt; dynamicType;
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (javaObject != null) {</span>
+<span class="nc" id="L50">            dynamicType = javaObject.getClass();</span>
+        } else {
+<span class="nc" id="L52">            dynamicType = staticType;</span>
+        }
+<span class="nc" id="L54">        members = JavaMembers.lookupClass(parent, dynamicType, staticType,</span>
+                                          isAdapter);
+<span class="nc" id="L56">        fieldAndMethods</span>
+<span class="nc" id="L57">            = members.getFieldAndMethodsObjects(this, javaObject, false);</span>
+<span class="nc" id="L58">    }</span>
+
+    public boolean has(String name, Scriptable start) {
+<span class="nc" id="L61">        return members.has(name, false);</span>
+    }
+
+    public boolean has(int index, Scriptable start) {
+<span class="nc" id="L65">        return false;</span>
+    }
+
+    public Object get(String name, Scriptable start) {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (fieldAndMethods != null) {</span>
+<span class="nc" id="L70">            Object result = fieldAndMethods.get(name);</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (result != null) {</span>
+<span class="nc" id="L72">                return result;</span>
+            }
+        }
+        // TODO: passing 'this' as the scope is bogus since it has
+        //  no parent scope
+<span class="nc" id="L77">        return members.get(this, name, javaObject, false);</span>
+    }
+
+    public Object get(int index, Scriptable start) {
+<span class="nc" id="L81">        throw members.reportMemberNotFound(Integer.toString(index));</span>
+    }
+
+    public void put(String name, Scriptable start, Object value) {
+        // We could be asked to modify the value of a property in the
+        // prototype. Since we can't add a property to a Java object,
+        // we modify it in the prototype rather than copy it down.
+<span class="nc bnc" id="L88" title="All 4 branches missed.">        if (prototype == null || members.has(name, false))</span>
+<span class="nc" id="L89">            members.put(this, name, javaObject, value, false);</span>
+        else
+<span class="nc" id="L91">            prototype.put(name, prototype, value);</span>
+<span class="nc" id="L92">    }</span>
+
+    public void put(int index, Scriptable start, Object value) {
+<span class="nc" id="L95">        throw members.reportMemberNotFound(Integer.toString(index));</span>
+    }
+
+    public boolean hasInstance(Scriptable value) {
+        // This is an instance of a Java class, so always return false
+<span class="nc" id="L100">        return false;</span>
+    }
+
+    public void delete(String name) {
+<span class="nc" id="L104">    }</span>
+
+    public void delete(int index) {
+<span class="nc" id="L107">    }</span>
+
+    public Scriptable getPrototype() {
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        if (prototype == null &amp;&amp; javaObject instanceof String) {</span>
+<span class="nc" id="L111">            return TopLevel.getBuiltinPrototype(</span>
+<span class="nc" id="L112">                    ScriptableObject.getTopLevelScope(parent),</span>
+                    TopLevel.Builtins.String);
+        }
+<span class="nc" id="L115">        return prototype;</span>
+    }
+
+    /**
+     * Sets the prototype of the object.
+     */
+    public void setPrototype(Scriptable m) {
+<span class="nc" id="L122">        prototype = m;</span>
+<span class="nc" id="L123">    }</span>
+
+    /**
+     * Returns the parent (enclosing) scope of the object.
+     */
+    public Scriptable getParentScope() {
+<span class="nc" id="L129">        return parent;</span>
+    }
+
+    /**
+     * Sets the parent (enclosing) scope of the object.
+     */
+    public void setParentScope(Scriptable m) {
+<span class="nc" id="L136">        parent = m;</span>
+<span class="nc" id="L137">    }</span>
+
+    public Object[] getIds() {
+<span class="nc" id="L140">        return members.getIds(false);</span>
+    }
+
+    /**
+     * @deprecated Use {@link Context#getWrapFactory()} together with calling {@link
+     * WrapFactory#wrap(Context, Scriptable, Object, Class)}
+     */
+    @Deprecated
+    public static Object wrap(Scriptable scope, Object obj, Class&lt;?&gt; staticType) {
+
+<span class="nc" id="L150">        Context cx = Context.getContext();</span>
+<span class="nc" id="L151">        return cx.getWrapFactory().wrap(cx, scope, obj, staticType);</span>
+    }
+
+    public Object unwrap() {
+<span class="nc" id="L155">        return javaObject;</span>
+    }
+
+    public String getClassName() {
+<span class="nc" id="L159">        return &quot;JavaObject&quot;;</span>
+    }
+
+    public Object getDefaultValue(Class&lt;?&gt; hint)
+    {
+        Object value;
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (hint == null) {</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (javaObject instanceof Boolean) {</span>
+<span class="nc" id="L167">                hint = ScriptRuntime.BooleanClass;</span>
+            }
+        }
+<span class="nc bnc" id="L170" title="All 4 branches missed.">        if (hint == null || hint == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L171">            value = javaObject.toString();</span>
+        } else {
+            String converterName;
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (hint == ScriptRuntime.BooleanClass) {</span>
+<span class="nc" id="L175">                converterName = &quot;booleanValue&quot;;</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            } else if (hint == ScriptRuntime.NumberClass) {</span>
+<span class="nc" id="L177">                converterName = &quot;doubleValue&quot;;</span>
+            } else {
+<span class="nc" id="L179">                throw Context.reportRuntimeError0(&quot;msg.default.value&quot;);</span>
+            }
+<span class="nc" id="L181">            Object converterObject = get(converterName, this);</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            if (converterObject instanceof Function) {</span>
+<span class="nc" id="L183">                Function f = (Function)converterObject;</span>
+<span class="nc" id="L184">                value = f.call(Context.getContext(), f.getParentScope(),</span>
+                               this, ScriptRuntime.emptyArgs);
+<span class="nc" id="L186">            } else {</span>
+<span class="nc bnc" id="L187" title="All 4 branches missed.">                if (hint == ScriptRuntime.NumberClass</span>
+                    &amp;&amp; javaObject instanceof Boolean)
+                {
+<span class="nc" id="L190">                    boolean b = ((Boolean)javaObject).booleanValue();</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                    value = ScriptRuntime.wrapNumber(b ? 1.0 : 0.0);</span>
+<span class="nc" id="L192">                } else {</span>
+<span class="nc" id="L193">                    value = javaObject.toString();</span>
+                }
+            }
+        }
+<span class="nc" id="L197">        return value;</span>
+    }
+
+    /**
+     * Determine whether we can/should convert between the given type and the
+     * desired one.  This should be superceded by a conversion-cost calculation
+     * function, but for now I'll hide behind precedent.
+     */
+    public static boolean canConvert(Object fromObj, Class&lt;?&gt; to) {
+<span class="nc" id="L206">        int weight = getConversionWeight(fromObj, to);</span>
+
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        return (weight &lt; CONVERSION_NONE);</span>
+    }
+
+    private static final int JSTYPE_UNDEFINED   = 0; // undefined type
+    private static final int JSTYPE_NULL        = 1; // null
+    private static final int JSTYPE_BOOLEAN     = 2; // boolean
+    private static final int JSTYPE_NUMBER      = 3; // number
+    private static final int JSTYPE_STRING      = 4; // string
+    private static final int JSTYPE_JAVA_CLASS  = 5; // JavaClass
+    private static final int JSTYPE_JAVA_OBJECT = 6; // JavaObject
+    private static final int JSTYPE_JAVA_ARRAY  = 7; // JavaArray
+    private static final int JSTYPE_OBJECT      = 8; // Scriptable
+
+    static final byte CONVERSION_TRIVIAL      = 1;
+    static final byte CONVERSION_NONTRIVIAL   = 0;
+    static final byte CONVERSION_NONE         = 99;
+
+    /**
+     * Derive a ranking based on how &quot;natural&quot; the conversion is.
+     * The special value CONVERSION_NONE means no conversion is possible,
+     * and CONVERSION_NONTRIVIAL signals that more type conformance testing
+     * is required.
+     * Based on
+     * &lt;a href=&quot;http://www.mozilla.org/js/liveconnect/lc3_method_overloading.html&quot;&gt;
+     * &quot;preferred method conversions&quot; from Live Connect 3&lt;/a&gt;
+     */
+    static int getConversionWeight(Object fromObj, Class&lt;?&gt; to) {
+<span class="nc" id="L235">        int fromCode = getJSTypeCode(fromObj);</span>
+
+<span class="nc bnc" id="L237" title="All 9 branches missed.">        switch (fromCode) {</span>
+
+        case JSTYPE_UNDEFINED:
+<span class="nc bnc" id="L240" title="All 4 branches missed.">            if (to == ScriptRuntime.StringClass ||</span>
+                to == ScriptRuntime.ObjectClass) {
+<span class="nc" id="L242">                return 1;</span>
+            }
+            break;
+
+        case JSTYPE_NULL:
+<span class="nc bnc" id="L247" title="All 2 branches missed.">            if (!to.isPrimitive()) {</span>
+<span class="nc" id="L248">                return 1;</span>
+            }
+            break;
+
+        case JSTYPE_BOOLEAN:
+            // &quot;boolean&quot; is #1
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            if (to == Boolean.TYPE) {</span>
+<span class="nc" id="L255">                return 1;</span>
+            }
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            else if (to == ScriptRuntime.BooleanClass) {</span>
+<span class="nc" id="L258">                return 2;</span>
+            }
+<span class="nc bnc" id="L260" title="All 2 branches missed.">            else if (to == ScriptRuntime.ObjectClass) {</span>
+<span class="nc" id="L261">                return 3;</span>
+            }
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            else if (to == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L264">                return 4;</span>
+            }
+            break;
+
+        case JSTYPE_NUMBER:
+<span class="nc bnc" id="L269" title="All 2 branches missed.">            if (to.isPrimitive()) {</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                if (to == Double.TYPE) {</span>
+<span class="nc" id="L271">                    return 1;</span>
+                }
+<span class="nc bnc" id="L273" title="All 2 branches missed.">                else if (to != Boolean.TYPE) {</span>
+<span class="nc" id="L274">                    return 1 + getSizeRank(to);</span>
+                }
+            }
+            else {
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                if (to == ScriptRuntime.StringClass) {</span>
+                    // native numbers are #1-8
+<span class="nc" id="L280">                    return 9;</span>
+                }
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                else if (to == ScriptRuntime.ObjectClass) {</span>
+<span class="nc" id="L283">                    return 10;</span>
+                }
+<span class="nc bnc" id="L285" title="All 2 branches missed.">                else if (ScriptRuntime.NumberClass.isAssignableFrom(to)) {</span>
+                    // &quot;double&quot; is #1
+<span class="nc" id="L287">                    return 2;</span>
+                }
+            }
+            break;
+
+        case JSTYPE_STRING:
+<span class="nc bnc" id="L293" title="All 2 branches missed.">            if (to == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L294">                return 1;</span>
+            }
+<span class="nc bnc" id="L296" title="All 2 branches missed.">            else if (to.isInstance(fromObj)) {</span>
+<span class="nc" id="L297">                return 2;</span>
+            }
+<span class="nc bnc" id="L299" title="All 2 branches missed.">            else if (to.isPrimitive()) {</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">                if (to == Character.TYPE) {</span>
+<span class="nc" id="L301">                    return 3;</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                } else if (to != Boolean.TYPE) {</span>
+<span class="nc" id="L303">                    return 4;</span>
+                }
+            }
+            break;
+
+        case JSTYPE_JAVA_CLASS:
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            if (to == ScriptRuntime.ClassClass) {</span>
+<span class="nc" id="L310">                return 1;</span>
+            }
+<span class="nc bnc" id="L312" title="All 2 branches missed.">            else if (to == ScriptRuntime.ObjectClass) {</span>
+<span class="nc" id="L313">                return 3;</span>
+            }
+<span class="nc bnc" id="L315" title="All 2 branches missed.">            else if (to == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L316">                return 4;</span>
+            }
+            break;
+
+        case JSTYPE_JAVA_OBJECT:
+        case JSTYPE_JAVA_ARRAY:
+<span class="nc" id="L322">            Object javaObj = fromObj;</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">            if (javaObj instanceof Wrapper) {</span>
+<span class="nc" id="L324">                javaObj = ((Wrapper)javaObj).unwrap();</span>
+            }
+<span class="nc bnc" id="L326" title="All 2 branches missed.">            if (to.isInstance(javaObj)) {</span>
+<span class="nc" id="L327">                return CONVERSION_NONTRIVIAL;</span>
+            }
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (to == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L330">                return 2;</span>
+            }
+<span class="nc bnc" id="L332" title="All 4 branches missed.">            else if (to.isPrimitive() &amp;&amp; to != Boolean.TYPE) {</span>
+<span class="nc bnc" id="L333" title="All 2 branches missed.">                return (fromCode == JSTYPE_JAVA_ARRAY)</span>
+<span class="nc" id="L334">                       ? CONVERSION_NONE : 2 + getSizeRank(to);</span>
+            }
+            break;
+
+        case JSTYPE_OBJECT:
+            // Other objects takes #1-#3 spots
+<span class="nc bnc" id="L340" title="All 4 branches missed.">            if (to != ScriptRuntime.ObjectClass &amp;&amp; to.isInstance(fromObj)) {</span>
+                // No conversion required, but don't apply for java.lang.Object
+<span class="nc" id="L342">                return 1;</span>
+            }
+<span class="nc bnc" id="L344" title="All 2 branches missed.">            if (to.isArray()) {</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">                if (fromObj instanceof NativeArray) {</span>
+                    // This is a native array conversion to a java array
+                    // Array conversions are all equal, and preferable to object
+                    // and string conversion, per LC3.
+<span class="nc" id="L349">                    return 2;</span>
+                }
+            }
+<span class="nc bnc" id="L352" title="All 2 branches missed.">            else if (to == ScriptRuntime.ObjectClass) {</span>
+<span class="nc" id="L353">                return 3;</span>
+            }
+<span class="nc bnc" id="L355" title="All 2 branches missed.">            else if (to == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L356">                return 4;</span>
+            }
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            else if (to == ScriptRuntime.DateClass) {</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                if (fromObj instanceof NativeDate) {</span>
+                    // This is a native date to java date conversion
+<span class="nc" id="L361">                    return 1;</span>
+                }
+            }
+<span class="nc bnc" id="L364" title="All 2 branches missed.">            else if (to.isInterface()) {</span>
+
+<span class="nc bnc" id="L366" title="All 2 branches missed.">                if (fromObj instanceof NativeFunction) {</span>
+                    // See comments in createInterfaceAdapter
+<span class="nc" id="L368">                    return 1;</span>
+                }
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                if (fromObj instanceof NativeObject) {</span>
+<span class="nc" id="L371">                    return 2;</span>
+                }
+<span class="nc" id="L373">                return 12;</span>
+            }
+<span class="nc bnc" id="L375" title="All 4 branches missed.">            else if (to.isPrimitive() &amp;&amp; to != Boolean.TYPE) {</span>
+<span class="nc" id="L376">                return 4 + getSizeRank(to);</span>
+            }
+            break;
+        }
+
+<span class="nc" id="L381">        return CONVERSION_NONE;</span>
+    }
+
+    static int getSizeRank(Class&lt;?&gt; aType) {
+<span class="nc bnc" id="L385" title="All 2 branches missed.">        if (aType == Double.TYPE) {</span>
+<span class="nc" id="L386">            return 1;</span>
+        }
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        else if (aType == Float.TYPE) {</span>
+<span class="nc" id="L389">            return 2;</span>
+        }
+<span class="nc bnc" id="L391" title="All 2 branches missed.">        else if (aType == Long.TYPE) {</span>
+<span class="nc" id="L392">            return 3;</span>
+        }
+<span class="nc bnc" id="L394" title="All 2 branches missed.">        else if (aType == Integer.TYPE) {</span>
+<span class="nc" id="L395">            return 4;</span>
+        }
+<span class="nc bnc" id="L397" title="All 2 branches missed.">        else if (aType == Short.TYPE) {</span>
+<span class="nc" id="L398">            return 5;</span>
+        }
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        else if (aType == Character.TYPE) {</span>
+<span class="nc" id="L401">            return 6;</span>
+        }
+<span class="nc bnc" id="L403" title="All 2 branches missed.">        else if (aType == Byte.TYPE) {</span>
+<span class="nc" id="L404">            return 7;</span>
+        }
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        else if (aType == Boolean.TYPE) {</span>
+<span class="nc" id="L407">            return CONVERSION_NONE;</span>
+        }
+        else {
+<span class="nc" id="L410">            return 8;</span>
+        }
+    }
+
+    private static int getJSTypeCode(Object value) {
+<span class="nc bnc" id="L415" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L416">            return JSTYPE_NULL;</span>
+        }
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        else if (value == Undefined.instance) {</span>
+<span class="nc" id="L419">            return JSTYPE_UNDEFINED;</span>
+        }
+<span class="nc bnc" id="L421" title="All 2 branches missed.">        else if (value instanceof CharSequence) {</span>
+<span class="nc" id="L422">            return JSTYPE_STRING;</span>
+        }
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        else if (value instanceof Number) {</span>
+<span class="nc" id="L425">            return JSTYPE_NUMBER;</span>
+        }
+<span class="nc bnc" id="L427" title="All 2 branches missed.">        else if (value instanceof Boolean) {</span>
+<span class="nc" id="L428">            return JSTYPE_BOOLEAN;</span>
+        }
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        else if (value instanceof Scriptable) {</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            if (value instanceof NativeJavaClass) {</span>
+<span class="nc" id="L432">                return JSTYPE_JAVA_CLASS;</span>
+            }
+<span class="nc bnc" id="L434" title="All 2 branches missed.">            else if (value instanceof NativeJavaArray) {</span>
+<span class="nc" id="L435">                return JSTYPE_JAVA_ARRAY;</span>
+            }
+<span class="nc bnc" id="L437" title="All 2 branches missed.">            else if (value instanceof Wrapper) {</span>
+<span class="nc" id="L438">                return JSTYPE_JAVA_OBJECT;</span>
+            }
+            else {
+<span class="nc" id="L441">                return JSTYPE_OBJECT;</span>
+            }
+        }
+<span class="nc bnc" id="L444" title="All 2 branches missed.">        else if (value instanceof Class) {</span>
+<span class="nc" id="L445">            return JSTYPE_JAVA_CLASS;</span>
+        }
+        else {
+<span class="nc" id="L448">            Class&lt;?&gt; valueClass = value.getClass();</span>
+<span class="nc bnc" id="L449" title="All 2 branches missed.">            if (valueClass.isArray()) {</span>
+<span class="nc" id="L450">                return JSTYPE_JAVA_ARRAY;</span>
+            }
+            else {
+<span class="nc" id="L453">                return JSTYPE_JAVA_OBJECT;</span>
+            }
+        }
+    }
+
+    /**
+     * Not intended for public use. Callers should use the
+     * public API Context.toType.
+     * @deprecated as of 1.5 Release 4
+     * @see org.mozilla.javascript.Context#jsToJava(Object, Class)
+     */
+    @Deprecated
+    public static Object coerceType(Class&lt;?&gt; type, Object value)
+    {
+<span class="nc" id="L467">        return coerceTypeImpl(type, value);</span>
+    }
+
+    /**
+     * Type-munging for field setting and method invocation.
+     * Conforms to LC3 specification
+     */
+    static Object coerceTypeImpl(Class&lt;?&gt; type, Object value)
+    {
+<span class="nc bnc" id="L476" title="All 4 branches missed.">        if (value != null &amp;&amp; value.getClass() == type) {</span>
+<span class="nc" id="L477">            return value;</span>
+        }
+
+<span class="nc bnc" id="L480" title="All 9 branches missed.">        switch (getJSTypeCode(value)) {</span>
+
+        case JSTYPE_NULL:
+            // raise error if type.isPrimitive()
+<span class="nc bnc" id="L484" title="All 2 branches missed.">            if (type.isPrimitive()) {</span>
+<span class="nc" id="L485">                reportConversionError(value, type);</span>
+            }
+<span class="nc" id="L487">            return null;</span>
+
+        case JSTYPE_UNDEFINED:
+<span class="nc bnc" id="L490" title="All 4 branches missed.">            if (type == ScriptRuntime.StringClass ||</span>
+                type == ScriptRuntime.ObjectClass) {
+<span class="nc" id="L492">                return &quot;undefined&quot;;</span>
+            }
+            else {
+<span class="nc" id="L495">                reportConversionError(&quot;undefined&quot;, type);</span>
+            }
+<span class="nc" id="L497">            break;</span>
+
+        case JSTYPE_BOOLEAN:
+            // Under LC3, only JS Booleans can be coerced into a Boolean value
+<span class="nc bnc" id="L501" title="All 6 branches missed.">            if (type == Boolean.TYPE ||</span>
+                type == ScriptRuntime.BooleanClass ||
+                type == ScriptRuntime.ObjectClass) {
+<span class="nc" id="L504">                return value;</span>
+            }
+<span class="nc bnc" id="L506" title="All 2 branches missed.">            else if (type == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L507">                return value.toString();</span>
+            }
+            else {
+<span class="nc" id="L510">                reportConversionError(value, type);</span>
+            }
+<span class="nc" id="L512">            break;</span>
+
+        case JSTYPE_NUMBER:
+<span class="nc bnc" id="L515" title="All 2 branches missed.">            if (type == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L516">                return ScriptRuntime.toString(value);</span>
+            }
+<span class="nc bnc" id="L518" title="All 2 branches missed.">            else if (type == ScriptRuntime.ObjectClass) {</span>
+<span class="nc" id="L519">                Context context = Context.getCurrentContext();</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">                if(context.hasFeature(Context.FEATURE_INTEGER_WITHOUT_DECIMAL_PLACE)) {</span>
+                    //to process numbers like 2.0 as 2 without decimal place
+<span class="nc" id="L522">                    long roundedValue = Math.round(toDouble(value));</span>
+<span class="nc bnc" id="L523" title="All 2 branches missed.">                    if(roundedValue == toDouble(value)) {</span>
+<span class="nc" id="L524">                        return coerceToNumber(Long.TYPE, value);</span>
+                    }
+                }
+<span class="nc" id="L527">                return coerceToNumber(Double.TYPE, value);</span>
+            }
+<span class="nc bnc" id="L529" title="All 4 branches missed.">            else if ((type.isPrimitive() &amp;&amp; type != Boolean.TYPE) ||</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                     ScriptRuntime.NumberClass.isAssignableFrom(type)) {</span>
+<span class="nc" id="L531">                return coerceToNumber(type, value);</span>
+            }
+            else {
+<span class="nc" id="L534">                reportConversionError(value, type);</span>
+            }
+<span class="nc" id="L536">            break;</span>
+
+        case JSTYPE_STRING:
+<span class="nc bnc" id="L539" title="All 4 branches missed.">            if (type == ScriptRuntime.StringClass || type.isInstance(value)) {</span>
+<span class="nc" id="L540">                return value.toString();</span>
+            }
+<span class="nc bnc" id="L542" title="All 4 branches missed.">            else if (type == Character.TYPE</span>
+                     || type == ScriptRuntime.CharacterClass)
+            {
+                // Special case for converting a single char string to a
+                // character
+                // Placed here because it applies *only* to JS strings,
+                // not other JS objects converted to strings
+<span class="nc bnc" id="L549" title="All 2 branches missed.">                if (((CharSequence)value).length() == 1) {</span>
+<span class="nc" id="L550">                    return Character.valueOf(((CharSequence)value).charAt(0));</span>
+                }
+                else {
+<span class="nc" id="L553">                    return coerceToNumber(type, value);</span>
+                }
+            }
+<span class="nc bnc" id="L556" title="All 4 branches missed.">            else if ((type.isPrimitive() &amp;&amp; type != Boolean.TYPE)</span>
+<span class="nc bnc" id="L557" title="All 2 branches missed.">                     || ScriptRuntime.NumberClass.isAssignableFrom(type))</span>
+            {
+<span class="nc" id="L559">                return coerceToNumber(type, value);</span>
+            }
+            else {
+<span class="nc" id="L562">                reportConversionError(value, type);</span>
+            }
+<span class="nc" id="L564">            break;</span>
+
+        case JSTYPE_JAVA_CLASS:
+<span class="nc bnc" id="L567" title="All 2 branches missed.">            if (value instanceof Wrapper) {</span>
+<span class="nc" id="L568">                value = ((Wrapper)value).unwrap();</span>
+            }
+
+<span class="nc bnc" id="L571" title="All 4 branches missed.">            if (type == ScriptRuntime.ClassClass ||</span>
+                type == ScriptRuntime.ObjectClass) {
+<span class="nc" id="L573">                return value;</span>
+            }
+<span class="nc bnc" id="L575" title="All 2 branches missed.">            else if (type == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L576">                return value.toString();</span>
+            }
+            else {
+<span class="nc" id="L579">                reportConversionError(value, type);</span>
+            }
+<span class="nc" id="L581">            break;</span>
+
+        case JSTYPE_JAVA_OBJECT:
+        case JSTYPE_JAVA_ARRAY:
+<span class="nc bnc" id="L585" title="All 2 branches missed.">            if (value instanceof Wrapper) {</span>
+<span class="nc" id="L586">              value = ((Wrapper)value).unwrap();</span>
+            }
+<span class="nc bnc" id="L588" title="All 2 branches missed.">            if (type.isPrimitive()) {</span>
+<span class="nc bnc" id="L589" title="All 2 branches missed.">                if (type == Boolean.TYPE) {</span>
+<span class="nc" id="L590">                    reportConversionError(value, type);</span>
+                }
+<span class="nc" id="L592">                return coerceToNumber(type, value);</span>
+            }
+            else {
+<span class="nc bnc" id="L595" title="All 2 branches missed.">              if (type == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L596">                    return value.toString();</span>
+                }
+                else {
+<span class="nc bnc" id="L599" title="All 2 branches missed.">                    if (type.isInstance(value)) {</span>
+<span class="nc" id="L600">                        return value;</span>
+                    }
+                    else {
+<span class="nc" id="L603">                        reportConversionError(value, type);</span>
+                    }
+                }
+            }
+<span class="nc" id="L607">            break;</span>
+
+        case JSTYPE_OBJECT:
+<span class="nc bnc" id="L610" title="All 2 branches missed.">            if (type == ScriptRuntime.StringClass) {</span>
+<span class="nc" id="L611">                return ScriptRuntime.toString(value);</span>
+            }
+<span class="nc bnc" id="L613" title="All 2 branches missed.">            else if (type.isPrimitive()) {</span>
+<span class="nc bnc" id="L614" title="All 2 branches missed.">                if (type == Boolean.TYPE) {</span>
+<span class="nc" id="L615">                    reportConversionError(value, type);</span>
+                }
+<span class="nc" id="L617">                return coerceToNumber(type, value);</span>
+            }
+<span class="nc bnc" id="L619" title="All 2 branches missed.">            else if (type.isInstance(value)) {</span>
+<span class="nc" id="L620">                return value;</span>
+            }
+<span class="nc bnc" id="L622" title="All 4 branches missed.">            else if (type == ScriptRuntime.DateClass</span>
+                     &amp;&amp; value instanceof NativeDate)
+            {
+<span class="nc" id="L625">                double time = ((NativeDate)value).getJSTimeValue();</span>
+                // XXX: This will replace NaN by 0
+<span class="nc" id="L627">                return new Date((long)time);</span>
+            }
+<span class="nc bnc" id="L629" title="All 4 branches missed.">            else if (type.isArray() &amp;&amp; value instanceof NativeArray) {</span>
+                // Make a new java array, and coerce the JS array components
+                // to the target (component) type.
+<span class="nc" id="L632">                NativeArray array = (NativeArray) value;</span>
+<span class="nc" id="L633">                long length = array.getLength();</span>
+<span class="nc" id="L634">                Class&lt;?&gt; arrayType = type.getComponentType();</span>
+<span class="nc" id="L635">                Object Result = Array.newInstance(arrayType, (int)length);</span>
+<span class="nc bnc" id="L636" title="All 2 branches missed.">                for (int i = 0 ; i &lt; length ; ++i) {</span>
+                    try  {
+<span class="nc" id="L638">                        Array.set(Result, i, coerceTypeImpl(</span>
+<span class="nc" id="L639">                                arrayType, array.get(i, array)));</span>
+                    }
+<span class="nc" id="L641">                    catch (EvaluatorException ee) {</span>
+<span class="nc" id="L642">                        reportConversionError(value, type);</span>
+<span class="nc" id="L643">                    }</span>
+                }
+
+<span class="nc" id="L646">                return Result;</span>
+            }
+<span class="nc bnc" id="L648" title="All 2 branches missed.">            else if (value instanceof Wrapper) {</span>
+<span class="nc" id="L649">                value = ((Wrapper)value).unwrap();</span>
+<span class="nc bnc" id="L650" title="All 2 branches missed.">                if (type.isInstance(value))</span>
+<span class="nc" id="L651">                    return value;</span>
+<span class="nc" id="L652">                reportConversionError(value, type);</span>
+            }
+<span class="nc bnc" id="L654" title="All 6 branches missed.">            else if (type.isInterface() &amp;&amp; (value instanceof NativeObject</span>
+                    || value instanceof NativeFunction)) {
+                // Try to use function/object as implementation of Java interface.
+<span class="nc" id="L657">                return createInterfaceAdapter(type, (ScriptableObject) value);</span>
+            } else {
+<span class="nc" id="L659">                reportConversionError(value, type);</span>
+            }
+            break;
+        }
+
+<span class="nc" id="L664">        return value;</span>
+    }
+
+    protected static Object createInterfaceAdapter(Class&lt;?&gt;type, ScriptableObject so) {
+        // XXX: Currently only instances of ScriptableObject are
+        // supported since the resulting interface proxies should
+        // be reused next time conversion is made and generic
+        // Callable has no storage for it. Weak references can
+        // address it but for now use this restriction.
+
+<span class="nc" id="L674">        Object key = Kit.makeHashKeyFromPair(COERCED_INTERFACE_KEY, type);</span>
+<span class="nc" id="L675">        Object old = so.getAssociatedValue(key);</span>
+<span class="nc bnc" id="L676" title="All 2 branches missed.">        if (old != null) {</span>
+            // Function was already wrapped
+<span class="nc" id="L678">            return old;</span>
+        }
+<span class="nc" id="L680">        Context cx = Context.getContext();</span>
+<span class="nc" id="L681">        Object glue = InterfaceAdapter.create(cx, type, so);</span>
+        // Store for later retrieval
+<span class="nc" id="L683">        glue = so.associateValue(key, glue);</span>
+<span class="nc" id="L684">        return glue;</span>
+    }
+
+    private static Object coerceToNumber(Class&lt;?&gt; type, Object value)
+    {
+<span class="nc" id="L689">        Class&lt;?&gt; valueClass = value.getClass();</span>
+
+        // Character
+<span class="nc bnc" id="L692" title="All 4 branches missed.">        if (type == Character.TYPE || type == ScriptRuntime.CharacterClass) {</span>
+<span class="nc bnc" id="L693" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.CharacterClass) {</span>
+<span class="nc" id="L694">                return value;</span>
+            }
+<span class="nc" id="L696">            return Character.valueOf((char)toInteger(value,</span>
+                                                 ScriptRuntime.CharacterClass,
+                                                 Character.MIN_VALUE,
+                                                 Character.MAX_VALUE));
+        }
+
+        // Double, Float
+<span class="nc bnc" id="L703" title="All 6 branches missed.">        if (type == ScriptRuntime.ObjectClass ||</span>
+            type == ScriptRuntime.DoubleClass || type == Double.TYPE) {
+<span class="nc bnc" id="L705" title="All 2 branches missed.">            return valueClass == ScriptRuntime.DoubleClass</span>
+                ? value
+<span class="nc" id="L707">                : new Double(toDouble(value));</span>
+        }
+
+<span class="nc bnc" id="L710" title="All 4 branches missed.">        if (type == ScriptRuntime.FloatClass || type == Float.TYPE) {</span>
+<span class="nc bnc" id="L711" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.FloatClass) {</span>
+<span class="nc" id="L712">                return value;</span>
+            }
+            else {
+<span class="nc" id="L715">                double number = toDouble(value);</span>
+<span class="nc bnc" id="L716" title="All 6 branches missed.">                if (Double.isInfinite(number) || Double.isNaN(number)</span>
+                    || number == 0.0) {
+<span class="nc" id="L718">                    return new Float((float)number);</span>
+                }
+                else {
+<span class="nc" id="L721">                    double absNumber = Math.abs(number);</span>
+<span class="nc bnc" id="L722" title="All 2 branches missed.">                    if (absNumber &lt; Float.MIN_VALUE) {</span>
+<span class="nc bnc" id="L723" title="All 2 branches missed.">                        return new Float((number &gt; 0.0) ? +0.0 : -0.0);</span>
+                    }
+<span class="nc bnc" id="L725" title="All 2 branches missed.">                    else if (absNumber &gt; Float.MAX_VALUE) {</span>
+<span class="nc bnc" id="L726" title="All 2 branches missed.">                        return new Float((number &gt; 0.0) ?</span>
+                                         Float.POSITIVE_INFINITY :
+                                         Float.NEGATIVE_INFINITY);
+                    }
+                    else {
+<span class="nc" id="L731">                        return new Float((float)number);</span>
+                    }
+                }
+            }
+        }
+
+        // Integer, Long, Short, Byte
+<span class="nc bnc" id="L738" title="All 4 branches missed.">        if (type == ScriptRuntime.IntegerClass || type == Integer.TYPE) {</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.IntegerClass) {</span>
+<span class="nc" id="L740">                return value;</span>
+            }
+            else {
+<span class="nc" id="L743">                return Integer.valueOf((int)toInteger(value,</span>
+                                                  ScriptRuntime.IntegerClass,
+                                                  Integer.MIN_VALUE,
+                                                  Integer.MAX_VALUE));
+            }
+        }
+
+<span class="nc bnc" id="L750" title="All 4 branches missed.">        if (type == ScriptRuntime.LongClass || type == Long.TYPE) {</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.LongClass) {</span>
+<span class="nc" id="L752">                return value;</span>
+            } else {
+                /* Long values cannot be expressed exactly in doubles.
+                 * We thus use the largest and smallest double value that
+                 * has a value expressible as a long value. We build these
+                 * numerical values from their hexidecimal representations
+                 * to avoid any problems caused by attempting to parse a
+                 * decimal representation.
+                 */
+<span class="nc" id="L761">                final double max = Double.longBitsToDouble(0x43dfffffffffffffL);</span>
+<span class="nc" id="L762">                final double min = Double.longBitsToDouble(0xc3e0000000000000L);</span>
+<span class="nc" id="L763">                return Long.valueOf(toInteger(value,</span>
+                                          ScriptRuntime.LongClass,
+                                          min,
+                                          max));
+            }
+        }
+
+<span class="nc bnc" id="L770" title="All 4 branches missed.">        if (type == ScriptRuntime.ShortClass || type == Short.TYPE) {</span>
+<span class="nc bnc" id="L771" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.ShortClass) {</span>
+<span class="nc" id="L772">                return value;</span>
+            }
+            else {
+<span class="nc" id="L775">                return Short.valueOf((short)toInteger(value,</span>
+                                                  ScriptRuntime.ShortClass,
+                                                  Short.MIN_VALUE,
+                                                  Short.MAX_VALUE));
+            }
+        }
+
+<span class="nc bnc" id="L782" title="All 4 branches missed.">        if (type == ScriptRuntime.ByteClass || type == Byte.TYPE) {</span>
+<span class="nc bnc" id="L783" title="All 2 branches missed.">            if (valueClass == ScriptRuntime.ByteClass) {</span>
+<span class="nc" id="L784">                return value;</span>
+            }
+            else {
+<span class="nc" id="L787">                return Byte.valueOf((byte)toInteger(value,</span>
+                                                ScriptRuntime.ByteClass,
+                                                Byte.MIN_VALUE,
+                                                Byte.MAX_VALUE));
+            }
+        }
+
+<span class="nc" id="L794">        return new Double(toDouble(value));</span>
+    }
+
+
+    private static double toDouble(Object value)
+    {
+<span class="nc bnc" id="L800" title="All 2 branches missed.">        if (value instanceof Number) {</span>
+<span class="nc" id="L801">            return ((Number)value).doubleValue();</span>
+        }
+<span class="nc bnc" id="L803" title="All 2 branches missed.">        else if (value instanceof String) {</span>
+<span class="nc" id="L804">            return ScriptRuntime.toNumber((String)value);</span>
+        }
+<span class="nc bnc" id="L806" title="All 2 branches missed.">        else if (value instanceof Scriptable) {</span>
+<span class="nc bnc" id="L807" title="All 2 branches missed.">            if (value instanceof Wrapper) {</span>
+                // XXX: optimize tail-recursion?
+<span class="nc" id="L809">                return toDouble(((Wrapper)value).unwrap());</span>
+            }
+            else {
+<span class="nc" id="L812">                return ScriptRuntime.toNumber(value);</span>
+            }
+        }
+        else {
+            Method meth;
+            try {
+<span class="nc" id="L818">                meth = value.getClass().getMethod(&quot;doubleValue&quot;, (Class [])null);</span>
+            }
+<span class="nc" id="L820">            catch (NoSuchMethodException e) {</span>
+<span class="nc" id="L821">                meth = null;</span>
+            }
+<span class="nc" id="L823">            catch (SecurityException e) {</span>
+<span class="nc" id="L824">                meth = null;</span>
+<span class="nc" id="L825">            }</span>
+<span class="nc bnc" id="L826" title="All 2 branches missed.">            if (meth != null) {</span>
+                try {
+<span class="nc" id="L828">                    return ((Number)meth.invoke(value, (Object [])null)).doubleValue();</span>
+                }
+<span class="nc" id="L830">                catch (IllegalAccessException e) {</span>
+                    // XXX: ignore, or error message?
+<span class="nc" id="L832">                    reportConversionError(value, Double.TYPE);</span>
+                }
+<span class="nc" id="L834">                catch (InvocationTargetException e) {</span>
+                    // XXX: ignore, or error message?
+<span class="nc" id="L836">                    reportConversionError(value, Double.TYPE);</span>
+<span class="nc" id="L837">                }</span>
+            }
+<span class="nc" id="L839">            return ScriptRuntime.toNumber(value.toString());</span>
+        }
+    }
+
+    private static long toInteger(Object value, Class&lt;?&gt; type,
+                                  double min, double max)
+    {
+<span class="nc" id="L846">        double d = toDouble(value);</span>
+
+<span class="nc bnc" id="L848" title="All 4 branches missed.">        if (Double.isInfinite(d) || Double.isNaN(d)) {</span>
+            // Convert to string first, for more readable message
+<span class="nc" id="L850">            reportConversionError(ScriptRuntime.toString(value), type);</span>
+        }
+
+<span class="nc bnc" id="L853" title="All 2 branches missed.">        if (d &gt; 0.0) {</span>
+<span class="nc" id="L854">            d = Math.floor(d);</span>
+        }
+        else {
+<span class="nc" id="L857">            d = Math.ceil(d);</span>
+        }
+
+<span class="nc bnc" id="L860" title="All 4 branches missed.">        if (d &lt; min || d &gt; max) {</span>
+            // Convert to string first, for more readable message
+<span class="nc" id="L862">            reportConversionError(ScriptRuntime.toString(value), type);</span>
+        }
+<span class="nc" id="L864">        return (long)d;</span>
+    }
+
+    static void reportConversionError(Object value, Class&lt;?&gt; type)
+    {
+        // It uses String.valueOf(value), not value.toString() since
+        // value can be null, bug 282447.
+<span class="nc" id="L871">        throw Context.reportRuntimeError2(</span>
+            &quot;msg.conversion.not.allowed&quot;,
+<span class="nc" id="L873">            String.valueOf(value),</span>
+<span class="nc" id="L874">            JavaMembers.javaSignature(type));</span>
+    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+<span class="nc" id="L880">        out.defaultWriteObject();</span>
+
+<span class="nc" id="L882">        out.writeBoolean(isAdapter);</span>
+<span class="nc bnc" id="L883" title="All 2 branches missed.">        if (isAdapter) {</span>
+<span class="nc bnc" id="L884" title="All 2 branches missed.">            if (adapter_writeAdapterObject == null) {</span>
+<span class="nc" id="L885">                throw new IOException();</span>
+            }
+<span class="nc" id="L887">            Object[] args = { javaObject, out };</span>
+            try {
+<span class="nc" id="L889">                adapter_writeAdapterObject.invoke(null, args);</span>
+<span class="nc" id="L890">            } catch (Exception ex) {</span>
+<span class="nc" id="L891">                throw new IOException();</span>
+<span class="nc" id="L892">            }</span>
+<span class="nc" id="L893">        } else {</span>
+<span class="nc" id="L894">            out.writeObject(javaObject);</span>
+        }
+
+<span class="nc bnc" id="L897" title="All 2 branches missed.">        if (staticType != null) {</span>
+<span class="nc" id="L898">            out.writeObject(staticType.getClass().getName());</span>
+        } else {
+<span class="nc" id="L900">            out.writeObject(null);</span>
+        }
+<span class="nc" id="L902">    }</span>
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc" id="L907">        in.defaultReadObject();</span>
+
+<span class="nc" id="L909">        isAdapter = in.readBoolean();</span>
+<span class="nc bnc" id="L910" title="All 2 branches missed.">        if (isAdapter) {</span>
+<span class="nc bnc" id="L911" title="All 2 branches missed.">            if (adapter_readAdapterObject == null)</span>
+<span class="nc" id="L912">                throw new ClassNotFoundException();</span>
+<span class="nc" id="L913">            Object[] args = { this, in };</span>
+            try {
+<span class="nc" id="L915">                javaObject = adapter_readAdapterObject.invoke(null, args);</span>
+<span class="nc" id="L916">            } catch (Exception ex) {</span>
+<span class="nc" id="L917">                throw new IOException();</span>
+<span class="nc" id="L918">            }</span>
+<span class="nc" id="L919">        } else {</span>
+<span class="nc" id="L920">            javaObject = in.readObject();</span>
+        }
+
+<span class="nc" id="L923">        String className = (String)in.readObject();</span>
+<span class="nc bnc" id="L924" title="All 2 branches missed.">        if (className != null) {</span>
+<span class="nc" id="L925">            staticType = Class.forName(className);</span>
+        } else {
+<span class="nc" id="L927">            staticType = null;</span>
+        }
+
+<span class="nc" id="L930">        initMembers();</span>
+<span class="nc" id="L931">    }</span>
+
+    /**
+     * The prototype of this object.
+     */
+    protected Scriptable prototype;
+
+    /**
+     * The parent scope of this object.
+     */
+    protected Scriptable parent;
+
+    protected transient Object javaObject;
+
+    protected transient Class&lt;?&gt; staticType;
+    protected transient JavaMembers members;
+    private transient Map&lt;String,FieldAndMethods&gt; fieldAndMethods;
+    protected transient boolean isAdapter;
+
+<span class="nc" id="L950">    private static final Object COERCED_INTERFACE_KEY = &quot;Coerced Interface&quot;;</span>
+    private static Method adapter_writeAdapterObject;
+    private static Method adapter_readAdapterObject;
+
+    static {
+        // Reflection in java is verbose
+<span class="nc" id="L956">        Class&lt;?&gt;[] sig2 = new Class[2];</span>
+<span class="nc" id="L957">        Class&lt;?&gt; cl = Kit.classOrNull(&quot;org.mozilla.javascript.JavaAdapter&quot;);</span>
+<span class="nc bnc" id="L958" title="All 2 branches missed.">        if (cl != null) {</span>
+            try {
+<span class="nc" id="L960">                sig2[0] = ScriptRuntime.ObjectClass;</span>
+<span class="nc" id="L961">                sig2[1] = Kit.classOrNull(&quot;java.io.ObjectOutputStream&quot;);</span>
+<span class="nc" id="L962">                adapter_writeAdapterObject = cl.getMethod(&quot;writeAdapterObject&quot;,</span>
+                                                          sig2);
+
+<span class="nc" id="L965">                sig2[0] = ScriptRuntime.ScriptableClass;</span>
+<span class="nc" id="L966">                sig2[1] = Kit.classOrNull(&quot;java.io.ObjectInputStream&quot;);</span>
+<span class="nc" id="L967">                adapter_readAdapterObject = cl.getMethod(&quot;readAdapterObject&quot;,</span>
+                                                         sig2);
+
+<span class="nc" id="L970">            } catch (NoSuchMethodException e) {</span>
+<span class="nc" id="L971">                adapter_writeAdapterObject = null;</span>
+<span class="nc" id="L972">                adapter_readAdapterObject = null;</span>
+<span class="nc" id="L973">            }</span>
+        }
+<span class="nc" id="L975">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

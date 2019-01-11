@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArrayComprehension.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ArrayComprehension.java</span></div><h1>ArrayComprehension.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * AST node for a JavaScript 1.7 Array comprehension.
+ * Node type is {@link Token#ARRAYCOMP}.&lt;p&gt;
+ */
+public class ArrayComprehension extends Scope {
+
+    private AstNode result;
+<span class="nc" id="L21">    private List&lt;ArrayComprehensionLoop&gt; loops =</span>
+        new ArrayList&lt;ArrayComprehensionLoop&gt;();
+    private AstNode filter;
+<span class="nc" id="L24">    private int ifPosition = -1;</span>
+<span class="nc" id="L25">    private int lp = -1;</span>
+<span class="nc" id="L26">    private int rp = -1;</span>
+
+    {
+<span class="nc" id="L29">        type = Token.ARRAYCOMP;</span>
+    }
+
+<span class="nc" id="L32">    public ArrayComprehension() {</span>
+<span class="nc" id="L33">    }</span>
+
+    public ArrayComprehension(int pos) {
+<span class="nc" id="L36">        super(pos);</span>
+<span class="nc" id="L37">    }</span>
+
+    public ArrayComprehension(int pos, int len) {
+<span class="nc" id="L40">        super(pos, len);</span>
+<span class="nc" id="L41">    }</span>
+
+    /**
+     * Returns result expression node (just after opening bracket)
+     */
+    public AstNode getResult() {
+<span class="nc" id="L47">        return result;</span>
+    }
+
+    /**
+     * Sets result expression, and sets its parent to this node.
+     * @throws IllegalArgumentException if result is {@code null}
+     */
+    public void setResult(AstNode result) {
+<span class="nc" id="L55">        assertNotNull(result);</span>
+<span class="nc" id="L56">        this.result = result;</span>
+<span class="nc" id="L57">        result.setParent(this);</span>
+<span class="nc" id="L58">    }</span>
+
+    /**
+     * Returns loop list
+     */
+    public List&lt;ArrayComprehensionLoop&gt; getLoops() {
+<span class="nc" id="L64">        return loops;</span>
+    }
+
+    /**
+     * Sets loop list
+     * @throws IllegalArgumentException if loops is {@code null}
+     */
+    public void setLoops(List&lt;ArrayComprehensionLoop&gt; loops) {
+<span class="nc" id="L72">        assertNotNull(loops);</span>
+<span class="nc" id="L73">        this.loops.clear();</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        for (ArrayComprehensionLoop acl : loops) {</span>
+<span class="nc" id="L75">            addLoop(acl);</span>
+<span class="nc" id="L76">        }</span>
+<span class="nc" id="L77">    }</span>
+
+    /**
+     * Adds a child loop node, and sets its parent to this node.
+     * @throws IllegalArgumentException if acl is {@code null}
+     */
+    public void addLoop(ArrayComprehensionLoop acl) {
+<span class="nc" id="L84">        assertNotNull(acl);</span>
+<span class="nc" id="L85">        loops.add(acl);</span>
+<span class="nc" id="L86">        acl.setParent(this);</span>
+<span class="nc" id="L87">    }</span>
+
+    /**
+     * Returns filter expression, or {@code null} if not present
+     */
+    public AstNode getFilter() {
+<span class="nc" id="L93">        return filter;</span>
+    }
+
+    /**
+     * Sets filter expression, and sets its parent to this node.
+     * Can be {@code null}.
+     */
+    public void setFilter(AstNode filter) {
+<span class="nc" id="L101">        this.filter = filter;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (filter != null)</span>
+<span class="nc" id="L103">            filter.setParent(this);</span>
+<span class="nc" id="L104">    }</span>
+
+    /**
+     * Returns position of 'if' keyword, -1 if not present
+     */
+    public int getIfPosition() {
+<span class="nc" id="L110">        return ifPosition;</span>
+    }
+
+    /**
+     * Sets position of 'if' keyword
+     */
+    public void setIfPosition(int ifPosition) {
+<span class="nc" id="L117">        this.ifPosition = ifPosition;</span>
+<span class="nc" id="L118">    }</span>
+
+    /**
+     * Returns filter left paren position, or -1 if no filter
+     */
+    public int getFilterLp() {
+<span class="nc" id="L124">        return lp;</span>
+    }
+
+    /**
+     * Sets filter left paren position, or -1 if no filter
+     */
+    public void setFilterLp(int lp) {
+<span class="nc" id="L131">        this.lp = lp;</span>
+<span class="nc" id="L132">    }</span>
+
+    /**
+     * Returns filter right paren position, or -1 if no filter
+     */
+    public int getFilterRp() {
+<span class="nc" id="L138">        return rp;</span>
+    }
+
+    /**
+     * Sets filter right paren position, or -1 if no filter
+     */
+    public void setFilterRp(int rp) {
+<span class="nc" id="L145">        this.rp = rp;</span>
+<span class="nc" id="L146">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L150">        StringBuilder sb = new StringBuilder(250);</span>
+<span class="nc" id="L151">        sb.append(&quot;[&quot;);</span>
+<span class="nc" id="L152">        sb.append(result.toSource(0));</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        for (ArrayComprehensionLoop loop : loops) {</span>
+<span class="nc" id="L154">            sb.append(loop.toSource(0));</span>
+<span class="nc" id="L155">        }</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (filter != null) {</span>
+<span class="nc" id="L157">            sb.append(&quot; if (&quot;);</span>
+<span class="nc" id="L158">            sb.append(filter.toSource(0));</span>
+<span class="nc" id="L159">            sb.append(&quot;)&quot;);</span>
+        }
+<span class="nc" id="L161">        sb.append(&quot;]&quot;);</span>
+<span class="nc" id="L162">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the result expression, the loops, and the optional
+     * filter.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        if (!v.visit(this)) {</span>
+<span class="nc" id="L172">            return;</span>
+        }
+<span class="nc" id="L174">        result.visit(v);</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        for (ArrayComprehensionLoop loop : loops) {</span>
+<span class="nc" id="L176">            loop.visit(v);</span>
+<span class="nc" id="L177">        }</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (filter != null) {</span>
+<span class="nc" id="L179">            filter.visit(v);</span>
+        }
+<span class="nc" id="L181">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

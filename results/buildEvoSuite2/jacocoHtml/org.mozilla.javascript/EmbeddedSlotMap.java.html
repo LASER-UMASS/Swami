@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EmbeddedSlotMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">EmbeddedSlotMap.java</span></div><h1>EmbeddedSlotMap.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/*
+ * This class implements the SlotMap interface using an embedded hash table. This hash table
+ * has the minimum overhead needed to get the job done. In particular, it embeds the Slot
+ * directly into the hash table rather than creating an intermediate object, which seems
+ * to have a measurable performance benefit.
+ */
+
+import java.util.Iterator;
+import static org.mozilla.javascript.ScriptableObject.SlotAccess.*;
+
+public class EmbeddedSlotMap
+    implements SlotMap {
+
+    private ScriptableObject.Slot[] slots;
+
+    // gateways into the definition-order linked list of slots
+    private ScriptableObject.Slot firstAdded;
+    private ScriptableObject.Slot lastAdded;
+
+    private int count;
+
+    // initial slot array size, must be a power of 2
+    private static final int INITIAL_SLOT_SIZE = 4;
+
+    private static final class Iter
+        implements Iterator&lt;ScriptableObject.Slot&gt;
+    {
+        private ScriptableObject.Slot next;
+
+<span class="nc" id="L38">        Iter(ScriptableObject.Slot slot) {</span>
+<span class="nc" id="L39">            next = slot;</span>
+<span class="nc" id="L40">        }</span>
+
+        @Override
+        public boolean hasNext() {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">            return next != null;</span>
+        }
+
+        @Override
+        public ScriptableObject.Slot next() {
+<span class="nc" id="L49">            ScriptableObject.Slot ret = next;</span>
+<span class="nc" id="L50">            next = next.orderedNext;</span>
+<span class="nc" id="L51">            return ret;</span>
+        }
+    }
+
+    public EmbeddedSlotMap()
+<span class="nc" id="L56">    {</span>
+<span class="nc" id="L57">    }</span>
+
+    @Override
+    public int size() {
+<span class="nc" id="L61">        return count;</span>
+    }
+
+    @Override
+    public boolean isEmpty() {
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        return count == 0;</span>
+    }
+
+    @Override
+    public Iterator&lt;ScriptableObject.Slot&gt; iterator() {
+<span class="nc" id="L71">        return new Iter(firstAdded);</span>
+    }
+
+    /**
+     * Locate the slot with the given name or index.
+     */
+    @Override
+    public ScriptableObject.Slot query(Object key, int index)
+    {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (slots == null) {</span>
+<span class="nc" id="L81">            return null;</span>
+        }
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        final int indexOrHash = (key != null ? key.hashCode() : index);</span>
+<span class="nc" id="L85">        final int slotIndex = getSlotIndex(slots.length, indexOrHash);</span>
+<span class="nc" id="L86">        for (ScriptableObject.Slot slot = slots[slotIndex];</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            slot != null;</span>
+<span class="nc" id="L88">            slot = slot.next) {</span>
+<span class="nc" id="L89">            Object skey = slot.name;</span>
+<span class="nc bnc" id="L90" title="All 6 branches missed.">            if (indexOrHash == slot.indexOrHash &amp;&amp;</span>
+                (skey == key ||
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                    (key != null &amp;&amp; key.equals(skey)))) {</span>
+<span class="nc" id="L93">                return slot;</span>
+            }
+        }
+<span class="nc" id="L96">        return null;</span>
+    }
+
+    /**
+     * Locate the slot with given name or index. Depending on the accessType
+     * parameter and the current slot status, a new slot may be allocated.
+     *
+     * @param key either a String or a Symbol object that identifies the property
+     * @param index index or 0 if slot holds property name.
+     */
+    @Override
+    public ScriptableObject.Slot get(Object key, int index, ScriptableObject.SlotAccess accessType)
+    {
+<span class="nc bnc" id="L109" title="All 4 branches missed.">        if (slots == null &amp;&amp; accessType == QUERY) {</span>
+<span class="nc" id="L110">            return null;</span>
+        }
+
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        final int indexOrHash = (key != null ? key.hashCode() : index);</span>
+<span class="nc" id="L114">        ScriptableObject.Slot slot = null;</span>
+
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (slots != null) {</span>
+<span class="nc" id="L117">            final int slotIndex = getSlotIndex(slots.length, indexOrHash);</span>
+<span class="nc" id="L118">            for (slot = slots[slotIndex];</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                 slot != null;</span>
+<span class="nc" id="L120">                 slot = slot.next) {</span>
+<span class="nc" id="L121">                Object skey = slot.name;</span>
+<span class="nc bnc" id="L122" title="All 6 branches missed.">                if (indexOrHash == slot.indexOrHash &amp;&amp;</span>
+                        (skey == key ||
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                                (key != null &amp;&amp; key.equals(skey)))) {</span>
+<span class="nc" id="L125">                    break;</span>
+                }
+            }
+<span class="nc bnc" id="L128" title="All 5 branches missed.">            switch (accessType) {</span>
+                case QUERY:
+<span class="nc" id="L130">                    return slot;</span>
+                case MODIFY:
+                case MODIFY_CONST:
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                    if (slot != null) {</span>
+<span class="nc" id="L134">                        return slot;</span>
+                    }
+                    break;
+                case MODIFY_GETTER_SETTER:
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                    if (slot instanceof ScriptableObject.GetterSlot) {</span>
+<span class="nc" id="L139">                        return slot;</span>
+                    }
+                    break;
+                case CONVERT_ACCESSOR_TO_DATA:
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                    if ( !(slot instanceof ScriptableObject.GetterSlot) ) {</span>
+<span class="nc" id="L144">                        return slot;</span>
+                    }
+                    break;
+            }
+        }
+
+        // A new slot has to be inserted or the old has to be replaced
+        // by GetterSlot. Time to synchronize.
+<span class="nc" id="L152">        return createSlot(key, indexOrHash, accessType, slot);</span>
+    }
+
+    private ScriptableObject.Slot createSlot(Object key, int indexOrHash,
+        ScriptableObject.SlotAccess accessType, ScriptableObject.Slot existingSlot) {
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (count == 0) {</span>
+            // Always throw away old slots if any on empty insert.
+<span class="nc" id="L159">            slots = new ScriptableObject.Slot[INITIAL_SLOT_SIZE];</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        } else if (existingSlot != null) {</span>
+            // Re-search the slot list because it is a singly-linked list to find
+            // where to replace it with a new object if necessary
+<span class="nc" id="L163">            final int insertPos = getSlotIndex(slots.length, indexOrHash);</span>
+<span class="nc" id="L164">            ScriptableObject.Slot prev = slots[insertPos];</span>
+<span class="nc" id="L165">            ScriptableObject.Slot slot = prev;</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            while (slot != null) {</span>
+<span class="nc bnc" id="L167" title="All 6 branches missed.">                if (slot.indexOrHash == indexOrHash &amp;&amp;</span>
+                    (slot.name == key ||
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                        (key != null &amp;&amp; key.equals(slot.name)))) {</span>
+<span class="nc" id="L170">                    break;</span>
+                }
+<span class="nc" id="L172">                prev = slot;</span>
+<span class="nc" id="L173">                slot = slot.next;</span>
+            }
+
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            if (slot != null) {</span>
+                // A slot with same name/index already exists. This means that
+                // a slot is being redefined from a value to a getter slot or
+                // vice versa, or it could be a race in application code.
+                // Check if we need to replace the slot depending on the
+                // accessType flag and return the appropriate slot instance.
+                ScriptableObject.Slot newSlot;
+
+<span class="nc bnc" id="L184" title="All 4 branches missed.">                if (accessType == MODIFY_GETTER_SETTER</span>
+                    &amp;&amp; !(slot instanceof ScriptableObject.GetterSlot)) {
+<span class="nc" id="L186">                    newSlot = new ScriptableObject.GetterSlot(key, indexOrHash,</span>
+<span class="nc" id="L187">                        slot.getAttributes());</span>
+<span class="nc bnc" id="L188" title="All 4 branches missed.">                } else if (accessType == CONVERT_ACCESSOR_TO_DATA</span>
+                    &amp;&amp; (slot instanceof ScriptableObject.GetterSlot)) {
+<span class="nc" id="L190">                    newSlot = new ScriptableObject.Slot(key, indexOrHash, slot.getAttributes());</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                } else if (accessType == MODIFY_CONST) {</span>
+<span class="nc" id="L192">                    return null;</span>
+                } else {
+<span class="nc" id="L194">                    return slot;</span>
+                }
+
+<span class="nc" id="L197">                newSlot.value = slot.value;</span>
+<span class="nc" id="L198">                newSlot.next = slot.next;</span>
+
+                // Replace new slot in linked list, keeping same order
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                if (slot == firstAdded) {</span>
+<span class="nc" id="L202">                    firstAdded = newSlot;</span>
+                } else {
+<span class="nc" id="L204">                    ScriptableObject.Slot ps = firstAdded;</span>
+<span class="nc bnc" id="L205" title="All 4 branches missed.">                    while ((ps != null) &amp;&amp; (ps.orderedNext != slot)) {</span>
+<span class="nc" id="L206">                        ps = ps.orderedNext;</span>
+                    }
+<span class="nc bnc" id="L208" title="All 2 branches missed.">                    if (ps != null) {</span>
+<span class="nc" id="L209">                        ps.orderedNext = newSlot;</span>
+                    }
+                }
+<span class="nc" id="L212">                newSlot.orderedNext = slot.orderedNext;</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">                if (slot == lastAdded) {</span>
+<span class="nc" id="L214">                    lastAdded = newSlot;</span>
+                }
+
+                // add new slot to hash table
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                if (prev == slot) {</span>
+<span class="nc" id="L219">                    slots[insertPos] = newSlot;</span>
+                } else {
+<span class="nc" id="L221">                    prev.next = newSlot;</span>
+                }
+<span class="nc" id="L223">                return newSlot;</span>
+            }
+        }
+
+        // If we get here, then we are going to insert a new slot
+        // Check if the table is not too full before inserting.
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (4 * (count + 1) &gt; 3 * slots.length) {</span>
+            // table size must be a power of 2 -- always grow by x2!
+<span class="nc" id="L231">            ScriptableObject.Slot[] newSlots = new ScriptableObject.Slot[slots.length * 2];</span>
+<span class="nc" id="L232">            copyTable(slots, newSlots);</span>
+<span class="nc" id="L233">            slots = newSlots;</span>
+        }
+
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        ScriptableObject.Slot newSlot = (accessType == MODIFY_GETTER_SETTER</span>
+                ? new ScriptableObject.GetterSlot(key, indexOrHash, 0)
+                : new ScriptableObject.Slot(key, indexOrHash, 0));
+<span class="nc bnc" id="L239" title="All 2 branches missed.">        if (accessType == MODIFY_CONST) {</span>
+<span class="nc" id="L240">            newSlot.setAttributes(ScriptableObject.CONST);</span>
+        }
+<span class="nc" id="L242">        insertNewSlot(newSlot);</span>
+<span class="nc" id="L243">        return newSlot;</span>
+    }
+
+    @Override
+    public void addSlot(ScriptableObject.Slot newSlot) {
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (slots == null) {</span>
+<span class="nc" id="L249">            slots = new ScriptableObject.Slot[INITIAL_SLOT_SIZE];</span>
+        }
+<span class="nc" id="L251">        insertNewSlot(newSlot);</span>
+<span class="nc" id="L252">    }</span>
+
+    private void insertNewSlot(ScriptableObject.Slot newSlot) {
+<span class="nc" id="L255">        ++count;</span>
+        // add new slot to linked list
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        if (lastAdded != null) {</span>
+<span class="nc" id="L258">            lastAdded.orderedNext = newSlot;</span>
+        }
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (firstAdded == null) {</span>
+<span class="nc" id="L261">            firstAdded = newSlot;</span>
+        }
+<span class="nc" id="L263">        lastAdded = newSlot;</span>
+        // add new slot to hash table, return it
+<span class="nc" id="L265">        addKnownAbsentSlot(slots, newSlot);</span>
+<span class="nc" id="L266">    }</span>
+
+    @Override
+    public void remove(Object key, int index) {
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        int indexOrHash = (key != null ? key.hashCode() : index);</span>
+
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (count != 0) {</span>
+<span class="nc" id="L273">            final int slotIndex = getSlotIndex(slots.length, indexOrHash);</span>
+<span class="nc" id="L274">            ScriptableObject.Slot prev = slots[slotIndex];</span>
+<span class="nc" id="L275">            ScriptableObject.Slot slot = prev;</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">            while (slot != null) {</span>
+<span class="nc bnc" id="L277" title="All 6 branches missed.">                if (slot.indexOrHash == indexOrHash &amp;&amp;</span>
+                        (slot.name == key ||
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                                (key != null &amp;&amp; key.equals(slot.name))))</span>
+                {
+<span class="nc" id="L281">                    break;</span>
+                }
+<span class="nc" id="L283">                prev = slot;</span>
+<span class="nc" id="L284">                slot = slot.next;</span>
+            }
+<span class="nc bnc" id="L286" title="All 2 branches missed.">            if (slot != null) {</span>
+                // non-configurable
+<span class="nc bnc" id="L288" title="All 2 branches missed.">                if ((slot.getAttributes() &amp; ScriptableObject.PERMANENT) != 0) {</span>
+<span class="nc" id="L289">                    Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">                    if (cx.isStrictMode()) {</span>
+<span class="nc" id="L291">                        throw ScriptRuntime.typeError1(&quot;msg.delete.property.with.configurable.false&quot;, key);</span>
+                    }
+<span class="nc" id="L293">                    return;</span>
+                }
+<span class="nc" id="L295">                count--;</span>
+                // remove slot from hash table
+<span class="nc bnc" id="L297" title="All 2 branches missed.">                if (prev == slot) {</span>
+<span class="nc" id="L298">                    slots[slotIndex] = slot.next;</span>
+                } else {
+<span class="nc" id="L300">                    prev.next = slot.next;</span>
+                }
+
+                // remove from ordered list. Previously this was done lazily in
+                // getIds() but delete is an infrequent operation so O(n)
+                // should be ok
+
+                // ordered list always uses the actual slot
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                if (slot == firstAdded) {</span>
+<span class="nc" id="L309">                    prev = null;</span>
+<span class="nc" id="L310">                    firstAdded = slot.orderedNext;</span>
+                } else {
+<span class="nc" id="L312">                    prev = firstAdded;</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                    while (prev.orderedNext != slot) {</span>
+<span class="nc" id="L314">                        prev = prev.orderedNext;</span>
+                    }
+<span class="nc" id="L316">                    prev.orderedNext = slot.orderedNext;</span>
+                }
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                if (slot == lastAdded) {</span>
+<span class="nc" id="L319">                    lastAdded = prev;</span>
+                }
+            }
+        }
+<span class="nc" id="L323">    }</span>
+
+    private void copyTable(ScriptableObject.Slot[] oldSlots, ScriptableObject.Slot[] newSlots)
+    {
+<span class="nc bnc" id="L327" title="All 2 branches missed.">        for (ScriptableObject.Slot slot : oldSlots) {</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">            while (slot != null) {</span>
+<span class="nc" id="L329">                ScriptableObject.Slot nextSlot = slot.next;</span>
+<span class="nc" id="L330">                slot.next = null;</span>
+<span class="nc" id="L331">                addKnownAbsentSlot(newSlots, slot);</span>
+<span class="nc" id="L332">                slot = nextSlot;</span>
+<span class="nc" id="L333">            }</span>
+        }
+<span class="nc" id="L335">    }</span>
+
+    /**
+     * Add slot with keys that are known to absent from the table.
+     * This is an optimization to use when inserting into empty table,
+     * after table growth or during deserialization.
+     */
+    private void addKnownAbsentSlot(ScriptableObject.Slot[] addSlots, ScriptableObject.Slot slot)
+    {
+<span class="nc" id="L344">        final int insertPos = getSlotIndex(addSlots.length, slot.indexOrHash);</span>
+<span class="nc" id="L345">        ScriptableObject.Slot old = addSlots[insertPos];</span>
+<span class="nc" id="L346">        addSlots[insertPos] = slot;</span>
+<span class="nc" id="L347">        slot.next = old;</span>
+<span class="nc" id="L348">    }</span>
+
+    private static int getSlotIndex(int tableSize, int indexOrHash)
+    {
+        // This is a Java trick to efficiently &quot;mod&quot; the hash code by the table size.
+        // It only works if the table size is a power of 2.
+        // The performance improvement is measurable.
+<span class="nc" id="L355">        return indexOrHash &amp; (tableSize - 1);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
