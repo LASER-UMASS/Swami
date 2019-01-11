@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QName.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">QName.java</span></div><h1>QName.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+
+/**
+ * Class QName
+ *
+ */
+final class QName extends IdScriptableObject
+{
+    static final long serialVersionUID = 416745167693026750L;
+
+<span class="nc" id="L19">    private static final Object QNAME_TAG = &quot;QName&quot;;</span>
+
+    private XMLLibImpl lib;
+
+    private QName prototype;
+
+    private XmlNode.QName delegate;
+
+<span class="nc" id="L27">    private QName() {</span>
+<span class="nc" id="L28">    }</span>
+
+    static QName create(XMLLibImpl lib, Scriptable scope, QName prototype, XmlNode.QName delegate) {
+<span class="nc" id="L31">        QName rv = new QName();</span>
+<span class="nc" id="L32">        rv.lib = lib;</span>
+<span class="nc" id="L33">        rv.setParentScope(scope);</span>
+<span class="nc" id="L34">        rv.prototype = prototype;</span>
+<span class="nc" id="L35">        rv.setPrototype(prototype);</span>
+<span class="nc" id="L36">        rv.delegate = delegate;</span>
+<span class="nc" id="L37">        return rv;</span>
+    }
+
+//    /** @deprecated */
+//    static QName create(XMLLibImpl lib, XmlNode.QName nodeQname) {
+//        return create(lib, lib.globalScope(), lib.qnamePrototype(), nodeQname);
+//    }
+
+    void exportAsJSClass(boolean sealed) {
+<span class="nc" id="L46">        exportAsJSClass(MAX_PROTOTYPE_ID, getParentScope(), sealed);</span>
+<span class="nc" id="L47">    }</span>
+
+    @Override
+    public String toString() {
+        //    ECMA357 13.3.4.2
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (delegate.getNamespace() == null) {</span>
+<span class="nc" id="L53">            return &quot;*::&quot; + localName();</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        } else if (delegate.getNamespace().isGlobal()) {</span>
+            //    leave as empty
+<span class="nc" id="L56">            return localName();</span>
+        } else {
+<span class="nc" id="L58">            return uri() + &quot;::&quot; + localName();</span>
+        }
+    }
+
+    public String localName() {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (delegate.getLocalName() == null) return &quot;*&quot;;</span>
+<span class="nc" id="L64">        return delegate.getLocalName();</span>
+    }
+
+    /*
+     * TODO This property is supposed to be invisible and I think we can
+     *  make it private at some point, though Namespace might need it
+     */
+    String prefix() {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (delegate.getNamespace() == null) return null;</span>
+<span class="nc" id="L73">        return delegate.getNamespace().getPrefix();</span>
+    }
+
+    String uri() {
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (delegate.getNamespace() == null) return null;</span>
+<span class="nc" id="L78">        return delegate.getNamespace().getUri();</span>
+    }
+
+    /** @deprecated */
+    @Deprecated
+    final XmlNode.QName toNodeQname() {
+<span class="nc" id="L84">        return delegate;</span>
+    }
+
+    final XmlNode.QName getDelegate() {
+<span class="nc" id="L88">        return delegate;</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if(!(obj instanceof QName)) return false;</span>
+<span class="nc" id="L94">        return equals((QName)obj);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L99">        return delegate.hashCode();</span>
+    }
+
+    @Override
+    protected Object equivalentValues(Object value)
+    {
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if(!(value instanceof QName)) return Scriptable.NOT_FOUND;</span>
+<span class="nc" id="L106">        boolean result = equals((QName)value);</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        return result ? Boolean.TRUE : Boolean.FALSE;</span>
+    }
+
+    private boolean equals(QName q) {
+<span class="nc" id="L111">        return this.delegate.equals(q.delegate);</span>
+    }
+
+    @Override
+    public String getClassName() {
+<span class="nc" id="L116">        return &quot;QName&quot;;</span>
+    }
+
+    @Override
+    public Object getDefaultValue(Class&lt;?&gt; hint) {
+<span class="nc" id="L121">        return toString();</span>
+    }
+
+// #string_id_map#
+    private static final int
+        Id_localName            = 1,
+        Id_uri                  = 2,
+        MAX_INSTANCE_ID         = 2;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L133">        return super.getMaxInstanceId() + MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2007-08-20 08:21:41 EDT
+<span class="nc" id="L141">        L0: { id = 0; String X = null;</span>
+<span class="nc" id="L142">            int s_length = s.length();</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            if (s_length==3) { X=&quot;uri&quot;;id=Id_uri; }</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            else if (s_length==9) { X=&quot;localName&quot;;id=Id_localName; }</span>
+<span class="nc bnc" id="L145" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        switch (id) {</span>
+          case Id_localName:
+          case Id_uri:
+<span class="nc" id="L156">            attr = PERMANENT | READONLY;</span>
+<span class="nc" id="L157">            break;</span>
+<span class="nc" id="L158">          default: throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L160">        return instanceIdInfo(attr, super.getMaxInstanceId() + id);</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc bnc" id="L167" title="All 3 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+<span class="nc" id="L168">          case Id_localName: return &quot;localName&quot;;</span>
+<span class="nc" id="L169">          case Id_uri: return &quot;uri&quot;;</span>
+        }
+<span class="nc" id="L171">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="nc bnc" id="L177" title="All 3 branches missed.">        switch (id - super.getMaxInstanceId()) {</span>
+<span class="nc" id="L178">          case Id_localName: return localName();</span>
+<span class="nc" id="L179">          case Id_uri: return uri();</span>
+        }
+<span class="nc" id="L181">        return super.getInstanceIdValue(id);</span>
+    }
+
+// #string_id_map#
+    private static final int
+        Id_constructor          = 1,
+        Id_toString             = 2,
+        Id_toSource             = 3,
+        MAX_PROTOTYPE_ID        = 3;
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-08-20 08:21:41 EDT
+<span class="nc" id="L196">        L0: { id = 0; String X = null; int c;</span>
+<span class="nc" id="L197">            int s_length = s.length();</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">            if (s_length==8) {</span>
+<span class="nc" id="L199">                c=s.charAt(3);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+            }
+<span class="nc bnc" id="L203" title="All 2 branches missed.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="nc bnc" id="L204" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L208">        return id;</span>
+    }
+// #/string_id_map#
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="nc bnc" id="L217" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L218">          case Id_constructor: arity=2; s=&quot;constructor&quot;; break;</span>
+<span class="nc" id="L219">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="nc" id="L220">          case Id_toSource:    arity=0; s=&quot;toSource&quot;;    break;</span>
+<span class="nc" id="L221">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L223">        initPrototypeMethod(QNAME_TAG, id, s, arity);</span>
+<span class="nc" id="L224">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f,
+                             Context cx,
+                             Scriptable scope,
+                             Scriptable thisObj,
+                             Object[] args)
+    {
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        if (!f.hasTag(QNAME_TAG)) {</span>
+<span class="nc" id="L234">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L236">        int id = f.methodId();</span>
+<span class="nc bnc" id="L237" title="All 4 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            return jsConstructor(cx, (thisObj == null), args);</span>
+          case Id_toString:
+<span class="nc" id="L241">            return realThis(thisObj, f).toString();</span>
+          case Id_toSource:
+<span class="nc" id="L243">            return realThis(thisObj, f).js_toSource();</span>
+        }
+<span class="nc" id="L245">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private QName realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if(!(thisObj instanceof QName))</span>
+<span class="nc" id="L251">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L252">        return (QName)thisObj;</span>
+    }
+
+    QName newQName(XMLLibImpl lib, String q_uri, String q_localName, String q_prefix) {
+<span class="nc" id="L256">        QName prototype = this.prototype;</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        if (prototype == null) {</span>
+<span class="nc" id="L258">            prototype = this;</span>
+        }
+<span class="nc" id="L260">        XmlNode.Namespace ns = null;</span>
+<span class="nc bnc" id="L261" title="All 2 branches missed.">        if (q_prefix != null) {</span>
+<span class="nc" id="L262">            ns = XmlNode.Namespace.create(q_prefix, q_uri);</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">        } else if (q_uri != null) {</span>
+<span class="nc" id="L264">            ns = XmlNode.Namespace.create(q_uri);</span>
+        } else {
+<span class="nc" id="L266">            ns = null;</span>
+        }
+<span class="nc bnc" id="L268" title="All 4 branches missed.">        if (q_localName != null &amp;&amp; q_localName.equals(&quot;*&quot;)) q_localName = null;</span>
+<span class="nc" id="L269">        return create(lib, this.getParentScope(), prototype, XmlNode.QName.create(ns, q_localName));</span>
+    }
+
+    //    See ECMA357 13.3.2
+    QName constructQName(XMLLibImpl lib, Context cx, Object namespace, Object name) {
+<span class="nc" id="L274">        String nameString = null;</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">        if (name instanceof QName) {</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">            if (namespace == Undefined.instance) {</span>
+<span class="nc" id="L277">                return (QName)name;</span>
+            } else {
+<span class="nc" id="L279">                nameString = ((QName)name).localName();</span>
+            }
+        }
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        if (name == Undefined.instance) {</span>
+<span class="nc" id="L283">            nameString = &quot;&quot;;</span>
+        } else {
+<span class="nc" id="L285">            nameString = ScriptRuntime.toString(name);</span>
+        }
+
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        if (namespace == Undefined.instance) {</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">            if (&quot;*&quot;.equals(nameString)) {</span>
+<span class="nc" id="L290">                namespace = null;</span>
+            } else {
+<span class="nc" id="L292">                namespace = lib.getDefaultNamespace(cx);</span>
+            }
+        }
+<span class="nc" id="L295">        Namespace namespaceNamespace = null;</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (namespace == null) {</span>
+            //    leave as null
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        } else if (namespace instanceof Namespace) {</span>
+<span class="nc" id="L299">            namespaceNamespace = (Namespace)namespace;</span>
+        } else {
+<span class="nc" id="L301">            namespaceNamespace = lib.newNamespace(ScriptRuntime.toString(namespace));</span>
+        }
+<span class="nc" id="L303">        String q_localName = nameString;</span>
+        String q_uri;
+        String q_prefix;
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        if (namespace == null) {</span>
+<span class="nc" id="L307">            q_uri = null;</span>
+<span class="nc" id="L308">            q_prefix = null;    //    corresponds to undefined; see QName class</span>
+        } else {
+<span class="nc" id="L310">            q_uri = namespaceNamespace.uri();</span>
+<span class="nc" id="L311">            q_prefix = namespaceNamespace.prefix();</span>
+        }
+<span class="nc" id="L313">        return newQName(lib, q_uri, q_localName, q_prefix);</span>
+    }
+
+    QName constructQName(XMLLibImpl lib, Context cx, Object nameValue) {
+<span class="nc" id="L317">        return constructQName(lib, cx, Undefined.instance, nameValue);</span>
+    }
+
+    QName castToQName(XMLLibImpl lib, Context cx, Object qnameValue) {
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        if (qnameValue instanceof QName) {</span>
+<span class="nc" id="L322">            return (QName)qnameValue;</span>
+        }
+<span class="nc" id="L324">        return constructQName(lib, cx, qnameValue);</span>
+    }
+
+    private Object jsConstructor(Context cx, boolean inNewExpr, Object[] args) {
+        //    See ECMA357 13.3.2
+<span class="nc bnc" id="L329" title="All 4 branches missed.">        if (!inNewExpr &amp;&amp; args.length == 1) {</span>
+<span class="nc" id="L330">            return castToQName(lib, cx, args[0]);</span>
+        }
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L333">            return constructQName(lib, cx, Undefined.instance);</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        } else if (args.length == 1) {</span>
+<span class="nc" id="L335">            return constructQName(lib, cx, args[0]);</span>
+        } else {
+<span class="nc" id="L337">            return constructQName(lib, cx, args[0], args[1]);</span>
+        }
+    }
+
+    private String js_toSource() {
+<span class="nc" id="L342">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L343">        sb.append('(');</span>
+<span class="nc" id="L344">        toSourceImpl(uri(), localName(), prefix(), sb);</span>
+<span class="nc" id="L345">        sb.append(')');</span>
+<span class="nc" id="L346">        return sb.toString();</span>
+    }
+
+    private static void toSourceImpl(String uri, String localName, String prefix, StringBuilder sb) {
+<span class="nc" id="L350">        sb.append(&quot;new QName(&quot;);</span>
+<span class="nc bnc" id="L351" title="All 4 branches missed.">        if (uri == null &amp;&amp; prefix == null) {</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">            if (!&quot;*&quot;.equals(localName)) {</span>
+<span class="nc" id="L353">                sb.append(&quot;null, &quot;);</span>
+            }
+        } else {
+<span class="nc" id="L356">            Namespace.toSourceImpl(prefix, uri, sb);</span>
+<span class="nc" id="L357">            sb.append(&quot;, &quot;);</span>
+        }
+<span class="nc" id="L359">        sb.append('\'');</span>
+<span class="nc" id="L360">        sb.append(ScriptRuntime.escapeString(localName, '\''));</span>
+<span class="nc" id="L361">        sb.append(&quot;')&quot;);</span>
+<span class="nc" id="L362">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

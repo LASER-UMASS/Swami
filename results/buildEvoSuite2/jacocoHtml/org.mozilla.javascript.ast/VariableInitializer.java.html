@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VariableInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">VariableInitializer.java</span></div><h1>VariableInitializer.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * A variable declaration or initializer, part of a {@link VariableDeclaration}
+ * expression.  The variable &quot;target&quot; can be a simple name or a destructuring
+ * form.  The initializer, if present, can be any expression.&lt;p&gt;
+ *
+ * Node type is one of {@link Token#VAR}, {@link Token#CONST}, or
+ * {@link Token#LET}.&lt;p&gt;
+ */
+public class VariableInitializer extends AstNode {
+
+    private AstNode target;
+    private AstNode initializer;
+
+    {
+<span class="nc" id="L25">        type = Token.VAR;</span>
+    }
+
+    /**
+     * Sets the node type.
+     * @throws IllegalArgumentException if {@code nodeType} is not one of
+     * {@link Token#VAR}, {@link Token#CONST}, or {@link Token#LET}
+     */
+    public void setNodeType(int nodeType) {
+<span class="nc bnc" id="L34" title="All 6 branches missed.">        if (nodeType != Token.VAR</span>
+            &amp;&amp; nodeType != Token.CONST
+            &amp;&amp; nodeType != Token.LET)
+<span class="nc" id="L37">            throw new IllegalArgumentException(&quot;invalid node type&quot;);</span>
+<span class="nc" id="L38">        setType(nodeType);</span>
+<span class="nc" id="L39">    }</span>
+
+<span class="nc" id="L41">    public VariableInitializer() {</span>
+<span class="nc" id="L42">    }</span>
+
+    public VariableInitializer(int pos) {
+<span class="nc" id="L45">        super(pos);</span>
+<span class="nc" id="L46">    }</span>
+
+    public VariableInitializer(int pos, int len) {
+<span class="nc" id="L49">        super(pos, len);</span>
+<span class="nc" id="L50">    }</span>
+
+
+    /**
+     * Returns true if this is a destructuring assignment.  If so, the
+     * initializer must be non-{@code null}.
+     * @return {@code true} if the {@code target} field is a destructuring form
+     * (an {@link ArrayLiteral} or {@link ObjectLiteral} node)
+     */
+    public boolean isDestructuring() {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        return !(target instanceof Name);</span>
+    }
+
+    /**
+     * Returns the variable name or destructuring form
+     */
+    public AstNode getTarget() {
+<span class="nc" id="L67">        return target;</span>
+    }
+
+    /**
+     * Sets the variable name or destructuring form, and sets
+     * its parent to this node.
+     * @throws IllegalArgumentException if target is {@code null}
+     */
+    public void setTarget(AstNode target) {
+        // Don't throw exception if target is an &quot;invalid&quot; node type.
+        // See mozilla/js/tests/js1_7/block/regress-350279.js
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (target == null)</span>
+<span class="nc" id="L79">            throw new IllegalArgumentException(&quot;invalid target arg&quot;);</span>
+<span class="nc" id="L80">        this.target = target;</span>
+<span class="nc" id="L81">        target.setParent(this);</span>
+<span class="nc" id="L82">    }</span>
+
+    /**
+     * Returns the initial value, or {@code null} if not provided
+     */
+    public AstNode getInitializer() {
+<span class="nc" id="L88">        return initializer;</span>
+    }
+
+    /**
+     * Sets the initial value expression, and sets its parent to this node.
+     * @param initializer the initial value.  May be {@code null}.
+     */
+    public void setInitializer(AstNode initializer) {
+<span class="nc" id="L96">        this.initializer = initializer;</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (initializer != null)</span>
+<span class="nc" id="L98">            initializer.setParent(this);</span>
+<span class="nc" id="L99">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L103">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L104">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L105">        sb.append(target.toSource(0));</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (initializer != null) {</span>
+<span class="nc" id="L107">            sb.append (&quot; = &quot;);</span>
+<span class="nc" id="L108">            sb.append(initializer.toSource(0));</span>
+        }
+<span class="nc" id="L110">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the target expression, then the initializer
+     * expression if present.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L120">            target.visit(v);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if (initializer != null) {</span>
+<span class="nc" id="L122">                initializer.visit(v);</span>
+            }
+        }
+<span class="nc" id="L125">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeDataView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.typedarrays</a> &gt; <span class="el_source">NativeDataView.java</span></div><h1>NativeDataView.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.typedarrays;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.IdFunctionObject;
+import org.mozilla.javascript.ScriptRuntime;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.Undefined;
+
+/**
+ * This class represents the JavaScript &quot;DataView&quot; interface, which allows direct manipulations of the
+ * bytes in a NativeArrayBuffer. Java programmers would be best off getting the underling &quot;byte[]&quot; array
+ * from the NativeArrayBuffer and manipulating it directly, perhaps using the &quot;ByteIo&quot; class as a helper.
+ */
+
+public class NativeDataView
+    extends NativeArrayBufferView
+{
+    private static final long serialVersionUID = 1427967607557438968L;
+
+    public static final String CLASS_NAME = &quot;DataView&quot;;
+
+    public NativeDataView()
+    {
+<span class="nc" id="L30">        super();</span>
+<span class="nc" id="L31">    }</span>
+
+    public NativeDataView(NativeArrayBuffer ab, int offset, int length)
+    {
+<span class="nc" id="L35">        super(ab, offset, length);</span>
+<span class="nc" id="L36">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L41">        return CLASS_NAME;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L46">        NativeDataView dv = new NativeDataView();</span>
+<span class="nc" id="L47">        dv.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L48">    }</span>
+
+    private void rangeCheck(int offset, int len)
+    {
+<span class="nc bnc" id="L52" title="All 4 branches missed.">        if ((offset &lt; 0) || ((offset + len) &gt; byteLength)) {</span>
+<span class="nc" id="L53">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset out of range&quot;);</span>
+        }
+<span class="nc" id="L55">    }</span>
+
+    private void checkOffset(Object[] args, int pos)
+    {
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (args.length &lt;= pos) {</span>
+<span class="nc" id="L60">            throw ScriptRuntime.constructError(&quot;TypeError&quot;, &quot;missing required offset parameter&quot;);</span>
+        }
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (Undefined.instance.equals(args[pos])) {</span>
+<span class="nc" id="L63">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;invalid offset&quot;);</span>
+        }
+<span class="nc" id="L65">    }</span>
+
+    private void checkValue(Object[] args, int pos)
+    {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (args.length &lt;= pos) {</span>
+<span class="nc" id="L70">            throw ScriptRuntime.constructError(&quot;TypeError&quot;, &quot;missing required value parameter&quot;);</span>
+        }
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (Undefined.instance.equals(args[pos])) {</span>
+<span class="nc" id="L73">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;invalid value parameter&quot;);</span>
+        }
+<span class="nc" id="L75">    }</span>
+
+    private static NativeDataView realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (!(thisObj instanceof NativeDataView))</span>
+<span class="nc" id="L80">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L81">        return (NativeDataView)thisObj;</span>
+    }
+
+    private NativeDataView js_constructor(NativeArrayBuffer ab, int offset, int length)
+    {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (length &lt; 0) {</span>
+<span class="nc" id="L87">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;length out of range&quot;);</span>
+        }
+<span class="nc bnc" id="L89" title="All 4 branches missed.">        if ((offset &lt; 0) || ((offset + length) &gt; ab.getLength())) {</span>
+<span class="nc" id="L90">            throw ScriptRuntime.constructError(&quot;RangeError&quot;, &quot;offset out of range&quot;);</span>
+        }
+<span class="nc" id="L92">        return new NativeDataView(ab, offset, length);</span>
+    }
+
+    private Object js_getInt(int bytes, boolean signed, Object[] args)
+    {
+<span class="nc" id="L97">        checkOffset(args, 0);</span>
+
+<span class="nc" id="L99">        int pos = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc" id="L100">        rangeCheck(pos, bytes);</span>
+
+<span class="nc" id="L102">        boolean littleEndian =</span>
+<span class="nc bnc" id="L103" title="All 6 branches missed.">            (isArg(args, 1) &amp;&amp; (bytes &gt; 1) &amp;&amp; ScriptRuntime.toBoolean(args[1]));</span>
+
+<span class="nc bnc" id="L105" title="All 4 branches missed.">        switch (bytes) {</span>
+        case 1:
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            return (signed ? ByteIo.readInt8(arrayBuffer.buffer, offset + pos) :</span>
+<span class="nc" id="L108">                             ByteIo.readUint8(arrayBuffer.buffer, offset + pos));</span>
+        case 2:
+<span class="nc bnc" id="L110" title="All 2 branches missed.">            return (signed ? ByteIo.readInt16(arrayBuffer.buffer, offset + pos, littleEndian) :</span>
+<span class="nc" id="L111">                             ByteIo.readUint16(arrayBuffer.buffer, offset + pos, littleEndian));</span>
+        case 4:
+<span class="nc bnc" id="L113" title="All 2 branches missed.">            return (signed ? ByteIo.readInt32(arrayBuffer.buffer, offset + pos, littleEndian) :</span>
+<span class="nc" id="L114">                             ByteIo.readUint32(arrayBuffer.buffer, offset + pos, littleEndian));</span>
+        default:
+<span class="nc" id="L116">            throw new AssertionError();</span>
+        }
+    }
+
+    private Object js_getFloat(int bytes, Object[] args)
+    {
+<span class="nc" id="L122">        checkOffset(args, 0);</span>
+
+<span class="nc" id="L124">        int pos = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc" id="L125">        rangeCheck(pos, bytes);</span>
+
+<span class="nc" id="L127">        boolean littleEndian =</span>
+<span class="nc bnc" id="L128" title="All 6 branches missed.">            (isArg(args, 1) &amp;&amp; (bytes &gt; 1) &amp;&amp; ScriptRuntime.toBoolean(args[1]));</span>
+
+<span class="nc bnc" id="L130" title="All 3 branches missed.">        switch (bytes) {</span>
+        case 4:
+<span class="nc" id="L132">            return ByteIo.readFloat32(arrayBuffer.buffer, offset + pos, littleEndian);</span>
+        case 8:
+<span class="nc" id="L134">            return ByteIo.readFloat64(arrayBuffer.buffer, offset + pos, littleEndian);</span>
+        default:
+<span class="nc" id="L136">            throw new AssertionError();</span>
+        }
+    }
+
+    private void js_setInt(int bytes, boolean signed, Object[] args)
+    {
+<span class="nc" id="L142">        checkOffset(args, 0);</span>
+<span class="nc" id="L143">        checkValue(args, 1);</span>
+
+<span class="nc" id="L145">        int pos = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc" id="L146">        rangeCheck(pos, bytes);</span>
+
+<span class="nc" id="L148">        boolean littleEndian =</span>
+<span class="nc bnc" id="L149" title="All 6 branches missed.">            (isArg(args, 2) &amp;&amp; (bytes &gt; 1) &amp;&amp; ScriptRuntime.toBoolean(args[2]));</span>
+
+<span class="nc bnc" id="L151" title="All 4 branches missed.">        switch (bytes) {</span>
+        case 1:
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if (signed) {</span>
+<span class="nc" id="L154">                ByteIo.writeInt8(arrayBuffer.buffer, offset + pos, Conversions.toInt8(args[1]));</span>
+            } else {
+<span class="nc" id="L156">                ByteIo.writeUint8(arrayBuffer.buffer, offset + pos, Conversions.toUint8(args[1]));</span>
+            }
+<span class="nc" id="L158">            break;</span>
+        case 2:
+<span class="nc bnc" id="L160" title="All 2 branches missed.">            if (signed) {</span>
+<span class="nc" id="L161">                ByteIo.writeInt16(arrayBuffer.buffer, offset + pos, Conversions.toInt16(args[1]), littleEndian);</span>
+            } else {
+<span class="nc" id="L163">                ByteIo.writeUint16(arrayBuffer.buffer, offset + pos, Conversions.toUint16(args[1]), littleEndian);</span>
+            }
+<span class="nc" id="L165">            break;</span>
+        case 4:
+<span class="nc bnc" id="L167" title="All 2 branches missed.">            if (signed) {</span>
+<span class="nc" id="L168">                ByteIo.writeInt32(arrayBuffer.buffer, offset + pos, Conversions.toInt32(args[1]), littleEndian);</span>
+            } else {
+<span class="nc" id="L170">                ByteIo.writeUint32(arrayBuffer.buffer, offset + pos, Conversions.toUint32(args[1]), littleEndian);</span>
+            }
+<span class="nc" id="L172">            break;</span>
+        default:
+<span class="nc" id="L174">            throw new AssertionError();</span>
+        }
+<span class="nc" id="L176">    }</span>
+
+    private void js_setFloat(int bytes, Object[] args)
+    {
+<span class="nc" id="L180">        checkOffset(args, 0);</span>
+<span class="nc" id="L181">        checkValue(args, 1);</span>
+
+<span class="nc" id="L183">        int pos = ScriptRuntime.toInt32(args[0]);</span>
+<span class="nc" id="L184">        rangeCheck(pos, bytes);</span>
+
+<span class="nc" id="L186">        boolean littleEndian =</span>
+<span class="nc bnc" id="L187" title="All 6 branches missed.">            (isArg(args, 2) &amp;&amp; (bytes &gt; 1) &amp;&amp; ScriptRuntime.toBoolean(args[2]));</span>
+<span class="nc" id="L188">        double val = ScriptRuntime.toNumber(args[1]);</span>
+
+<span class="nc bnc" id="L190" title="All 3 branches missed.">        switch (bytes) {</span>
+        case 4:
+<span class="nc" id="L192">            ByteIo.writeFloat32(arrayBuffer.buffer, offset + pos, val, littleEndian);</span>
+<span class="nc" id="L193">            break;</span>
+        case 8:
+<span class="nc" id="L195">            ByteIo.writeFloat64(arrayBuffer.buffer, offset + pos, val, littleEndian);</span>
+<span class="nc" id="L196">            break;</span>
+        default:
+<span class="nc" id="L198">            throw new AssertionError();</span>
+        }
+<span class="nc" id="L200">    }</span>
+
+    // Function dispatcher
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        if (!f.hasTag(getClassName())) {</span>
+<span class="nc" id="L209">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L211">        int id = f.methodId();</span>
+<span class="nc bnc" id="L212" title="All 18 branches missed.">        switch (id) {</span>
+        case Id_constructor:
+<span class="nc bnc" id="L214" title="All 4 branches missed.">            if (isArg(args, 0) &amp;&amp; (args[0] instanceof NativeArrayBuffer)) {</span>
+<span class="nc" id="L215">                NativeArrayBuffer ab = (NativeArrayBuffer)args[0];</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                int off = isArg(args, 1) ? ScriptRuntime.toInt32(args[1]) : 0;</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                int len = isArg(args, 2) ? ScriptRuntime.toInt32(args[2]) : ab.getLength() - off;</span>
+<span class="nc" id="L218">                return js_constructor(ab, off, len);</span>
+            } else {
+<span class="nc" id="L220">                throw ScriptRuntime.constructError(&quot;TypeError&quot;, &quot;Missing parameters&quot;);</span>
+            }
+        case Id_getInt8:
+<span class="nc" id="L223">            return realThis(thisObj, f).js_getInt(1, true, args);</span>
+        case Id_getUint8:
+<span class="nc" id="L225">            return realThis(thisObj, f).js_getInt(1, false, args);</span>
+        case Id_getInt16:
+<span class="nc" id="L227">            return realThis(thisObj, f).js_getInt(2, true, args);</span>
+        case Id_getUint16:
+<span class="nc" id="L229">            return realThis(thisObj, f).js_getInt(2, false, args);</span>
+        case Id_getInt32:
+<span class="nc" id="L231">            return realThis(thisObj, f).js_getInt(4, true, args);</span>
+        case Id_getUint32:
+<span class="nc" id="L233">            return realThis(thisObj, f).js_getInt(4, false, args);</span>
+        case Id_getFloat32:
+<span class="nc" id="L235">            return realThis(thisObj, f).js_getFloat(4, args);</span>
+        case Id_getFloat64:
+<span class="nc" id="L237">            return realThis(thisObj, f).js_getFloat(8, args);</span>
+        case Id_setInt8:
+<span class="nc" id="L239">            realThis(thisObj, f).js_setInt(1, true, args);</span>
+<span class="nc" id="L240">            return Undefined.instance;</span>
+        case Id_setUint8:
+<span class="nc" id="L242">            realThis(thisObj, f).js_setInt(1, false, args);</span>
+<span class="nc" id="L243">            return Undefined.instance;</span>
+        case Id_setInt16:
+<span class="nc" id="L245">            realThis(thisObj, f).js_setInt(2, true, args);</span>
+<span class="nc" id="L246">            return Undefined.instance;</span>
+        case Id_setUint16:
+<span class="nc" id="L248">            realThis(thisObj, f).js_setInt(2, false, args);</span>
+<span class="nc" id="L249">            return Undefined.instance;</span>
+        case Id_setInt32:
+<span class="nc" id="L251">            realThis(thisObj, f).js_setInt(4, true, args);</span>
+<span class="nc" id="L252">            return Undefined.instance;</span>
+        case Id_setUint32:
+<span class="nc" id="L254">            realThis(thisObj, f).js_setInt(4, false, args);</span>
+<span class="nc" id="L255">            return Undefined.instance;</span>
+        case Id_setFloat32:
+<span class="nc" id="L257">            realThis(thisObj, f).js_setFloat(4, args);</span>
+<span class="nc" id="L258">            return Undefined.instance;</span>
+        case Id_setFloat64:
+<span class="nc" id="L260">            realThis(thisObj, f).js_setFloat(8, args);</span>
+<span class="nc" id="L261">            return Undefined.instance;</span>
+        }
+<span class="nc" id="L263">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="nc bnc" id="L271" title="All 18 branches missed.">        switch (id) {</span>
+<span class="nc" id="L272">        case Id_constructor:    arity = 1; s = &quot;constructor&quot;; break;</span>
+<span class="nc" id="L273">        case Id_getInt8:        arity = 1; s = &quot;getInt8&quot;; break;</span>
+<span class="nc" id="L274">        case Id_getUint8:       arity = 1; s = &quot;getUint8&quot;; break;</span>
+<span class="nc" id="L275">        case Id_getInt16:       arity = 1; s = &quot;getInt16&quot;; break;</span>
+<span class="nc" id="L276">        case Id_getUint16:      arity = 1; s = &quot;getUint16&quot;; break;</span>
+<span class="nc" id="L277">        case Id_getInt32:       arity = 1; s = &quot;getInt32&quot;; break;</span>
+<span class="nc" id="L278">        case Id_getUint32:      arity = 1; s = &quot;getUint32&quot;; break;</span>
+<span class="nc" id="L279">        case Id_getFloat32:     arity = 1; s = &quot;getFloat32&quot;; break;</span>
+<span class="nc" id="L280">        case Id_getFloat64:     arity = 1; s = &quot;getFloat64&quot;; break;</span>
+<span class="nc" id="L281">        case Id_setInt8:        arity = 2; s = &quot;setInt8&quot;; break;</span>
+<span class="nc" id="L282">        case Id_setUint8:       arity = 2; s = &quot;setUint8&quot;; break;</span>
+<span class="nc" id="L283">        case Id_setInt16:       arity = 2; s = &quot;setInt16&quot;; break;</span>
+<span class="nc" id="L284">        case Id_setUint16:      arity = 2; s = &quot;setUint16&quot;; break;</span>
+<span class="nc" id="L285">        case Id_setInt32:       arity = 2; s = &quot;setInt32&quot;; break;</span>
+<span class="nc" id="L286">        case Id_setUint32:      arity = 2; s = &quot;setUint32&quot;; break;</span>
+<span class="nc" id="L287">        case Id_setFloat32:     arity = 2; s = &quot;setFloat32&quot;; break;</span>
+<span class="nc" id="L288">        case Id_setFloat64:     arity = 2; s = &quot;setFloat64&quot;; break;</span>
+<span class="nc" id="L289">        default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L291">        initPrototypeMethod(getClassName(), id, s, arity);</span>
+<span class="nc" id="L292">    }</span>
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2014-12-08 17:26:24 PST
+<span class="nc" id="L301">        L0: { id = 0; String X = null; int c;</span>
+<span class="nc bnc" id="L302" title="All 6 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L303">            case 7: c=s.charAt(0);</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                if (c=='g') { X=&quot;getInt8&quot;;id=Id_getInt8; }</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                else if (c=='s') { X=&quot;setInt8&quot;;id=Id_setInt8; }</span>
+                break L;
+<span class="nc" id="L307">            case 8: c=s.charAt(6);</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                if (c=='1') {</span>
+<span class="nc" id="L309">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getInt16&quot;;id=Id_getInt16; }</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setInt16&quot;;id=Id_setInt16; }</span>
+                }
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                else if (c=='3') {</span>
+<span class="nc" id="L314">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getInt32&quot;;id=Id_getInt32; }</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setInt32&quot;;id=Id_setInt32; }</span>
+                }
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                else if (c=='t') {</span>
+<span class="nc" id="L319">                    c=s.charAt(0);</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">                    if (c=='g') { X=&quot;getUint8&quot;;id=Id_getUint8; }</span>
+<span class="nc bnc" id="L321" title="All 2 branches missed.">                    else if (c=='s') { X=&quot;setUint8&quot;;id=Id_setUint8; }</span>
+                }
+                break L;
+<span class="nc" id="L324">            case 9: c=s.charAt(0);</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">                if (c=='g') {</span>
+<span class="nc" id="L326">                    c=s.charAt(8);</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                    if (c=='2') { X=&quot;getUint32&quot;;id=Id_getUint32; }</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">                    else if (c=='6') { X=&quot;getUint16&quot;;id=Id_getUint16; }</span>
+                }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                else if (c=='s') {</span>
+<span class="nc" id="L331">                    c=s.charAt(8);</span>
+<span class="nc bnc" id="L332" title="All 2 branches missed.">                    if (c=='2') { X=&quot;setUint32&quot;;id=Id_setUint32; }</span>
+<span class="nc bnc" id="L333" title="All 2 branches missed.">                    else if (c=='6') { X=&quot;setUint16&quot;;id=Id_setUint16; }</span>
+                }
+                break L;
+<span class="nc" id="L336">            case 10: c=s.charAt(0);</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                if (c=='g') {</span>
+<span class="nc" id="L338">                    c=s.charAt(9);</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">                    if (c=='2') { X=&quot;getFloat32&quot;;id=Id_getFloat32; }</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">                    else if (c=='4') { X=&quot;getFloat64&quot;;id=Id_getFloat64; }</span>
+                }
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                else if (c=='s') {</span>
+<span class="nc" id="L343">                    c=s.charAt(9);</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">                    if (c=='2') { X=&quot;setFloat32&quot;;id=Id_setFloat32; }</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">                    else if (c=='4') { X=&quot;setFloat64&quot;;id=Id_setFloat64; }</span>
+                }
+                break L;
+<span class="nc" id="L348">            case 11: X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+            }
+<span class="nc bnc" id="L350" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L354">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor     = 1,
+        Id_getInt8         = 2,
+        Id_getUint8        = 3,
+        Id_getInt16        = 4,
+        Id_getUint16       = 5,
+        Id_getInt32        = 6,
+        Id_getUint32       = 7,
+        Id_getFloat32      = 8,
+        Id_getFloat64      = 9,
+        Id_setInt8         = 10,
+        Id_setUint8        = 11,
+        Id_setInt16        = 12,
+        Id_setUint16       = 13,
+        Id_setInt32        = 14,
+        Id_setUint32       = 15,
+        Id_setFloat32      = 16,
+        Id_setFloat64      = 17,
+        MAX_PROTOTYPE_ID   = Id_setFloat64;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

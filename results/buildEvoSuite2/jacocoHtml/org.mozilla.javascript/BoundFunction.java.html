@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BoundFunction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">BoundFunction.java</span></div><h1>BoundFunction.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * The class for results of the Function.bind operation
+ * EcmaScript 5 spec, 15.3.4.5
+ * @author Raphael Speyer
+ */
+public class BoundFunction extends BaseFunction {
+    
+  static final long serialVersionUID = 2118137342826470729L;
+    
+  private final Callable targetFunction;
+  private final Scriptable boundThis;
+  private final Object[] boundArgs;
+  private final int length;
+
+  public BoundFunction(Context cx, Scriptable scope, Callable targetFunction, Scriptable boundThis,
+                       Object[] boundArgs)
+<span class="nc" id="L25">  {</span>
+<span class="nc" id="L26">    this.targetFunction = targetFunction;</span>
+<span class="nc" id="L27">    this.boundThis = boundThis;</span>
+<span class="nc" id="L28">    this.boundArgs = boundArgs;</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">    if (targetFunction instanceof BaseFunction) {</span>
+<span class="nc" id="L30">      length = Math.max(0, ((BaseFunction) targetFunction).getLength() - boundArgs.length);</span>
+    } else {
+<span class="nc" id="L32">      length = 0;</span>
+    }
+
+<span class="nc" id="L35">    ScriptRuntime.setFunctionProtoAndParent(this, scope);</span>
+
+<span class="nc" id="L37">    Function thrower = ScriptRuntime.typeErrorThrower(cx);</span>
+<span class="nc" id="L38">    NativeObject throwing = new NativeObject();</span>
+<span class="nc" id="L39">    throwing.put(&quot;get&quot;, throwing, thrower);</span>
+<span class="nc" id="L40">    throwing.put(&quot;set&quot;, throwing, thrower);</span>
+<span class="nc" id="L41">    throwing.put(&quot;enumerable&quot;, throwing, false);</span>
+<span class="nc" id="L42">    throwing.put(&quot;configurable&quot;, throwing, false);</span>
+<span class="nc" id="L43">    throwing.preventExtensions();</span>
+
+<span class="nc" id="L45">    this.defineOwnProperty(cx, &quot;caller&quot;, throwing, false);</span>
+<span class="nc" id="L46">    this.defineOwnProperty(cx, &quot;arguments&quot;, throwing, false);</span>
+<span class="nc" id="L47">  }</span>
+
+  @Override
+  public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] extraArgs)
+  {
+<span class="nc bnc" id="L52" title="All 2 branches missed.">    Scriptable callThis = boundThis != null ? boundThis : ScriptRuntime.getTopCallScope(cx);</span>
+<span class="nc" id="L53">    return targetFunction.call(cx, scope, callThis, concat(boundArgs, extraArgs));</span>
+  }
+
+  @Override
+  public Scriptable construct(Context cx, Scriptable scope, Object[] extraArgs) {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">    if (targetFunction instanceof Function) {</span>
+<span class="nc" id="L59">      return ((Function) targetFunction).construct(cx, scope, concat(boundArgs, extraArgs));</span>
+    }
+<span class="nc" id="L61">    throw ScriptRuntime.typeError0(&quot;msg.not.ctor&quot;);</span>
+  }
+
+  @Override
+  public boolean hasInstance(Scriptable instance) {
+<span class="nc bnc" id="L66" title="All 2 branches missed.">    if (targetFunction instanceof Function) {</span>
+<span class="nc" id="L67">      return ((Function) targetFunction).hasInstance(instance);</span>
+    }
+<span class="nc" id="L69">    throw ScriptRuntime.typeError0(&quot;msg.not.ctor&quot;);</span>
+  }
+
+  @Override
+  public int getLength() {
+<span class="nc" id="L74">    return length;</span>
+  }
+
+  private Object[] concat(Object[] first, Object[] second) {
+<span class="nc" id="L78">    Object[] args = new Object[first.length + second.length];</span>
+<span class="nc" id="L79">    System.arraycopy(first, 0, args, 0, first.length);</span>
+<span class="nc" id="L80">    System.arraycopy(second, 0, args, first.length, second.length);</span>
+<span class="nc" id="L81">    return args;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

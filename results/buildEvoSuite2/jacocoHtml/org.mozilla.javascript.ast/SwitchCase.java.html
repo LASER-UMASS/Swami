@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SwitchCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">SwitchCase.java</span></div><h1>SwitchCase.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Switch-case AST node type.  The switch case is always part of a
+ * switch statement.
+ * Node type is {@link Token#CASE}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;CaseBlock&lt;/i&gt; :
+ *        { [CaseClauses] }
+ *        { [CaseClauses] DefaultClause [CaseClauses] }
+ * &lt;i&gt;CaseClauses&lt;/i&gt; :
+ *        CaseClause
+ *        CaseClauses CaseClause
+ * &lt;i&gt;CaseClause&lt;/i&gt; :
+ *        &lt;b&gt;case&lt;/b&gt; Expression : [StatementList]
+ * &lt;i&gt;DefaultClause&lt;/i&gt; :
+ *        &lt;b&gt;default&lt;/b&gt; : [StatementList]&lt;/pre&gt;
+ */
+public class SwitchCase extends AstNode {
+
+    private AstNode expression;
+    private List&lt;AstNode&gt; statements;
+
+    {
+<span class="nc" id="L36">        type = Token.CASE;</span>
+    }
+
+<span class="nc" id="L39">    public SwitchCase() {</span>
+<span class="nc" id="L40">    }</span>
+
+    public SwitchCase(int pos) {
+<span class="nc" id="L43">        super(pos);</span>
+<span class="nc" id="L44">    }</span>
+
+    public SwitchCase(int pos, int len) {
+<span class="nc" id="L47">        super(pos, len);</span>
+<span class="nc" id="L48">    }</span>
+
+    /**
+     * Returns the case expression, {@code null} for default case
+     */
+    public AstNode getExpression() {
+<span class="nc" id="L54">        return expression;</span>
+    }
+
+    /**
+     * Sets the case expression, {@code null} for default case.
+     * Note that for empty fall-through cases, they still have
+     * a case expression.  In {@code case 0: case 1: break;} the
+     * first case has an {@code expression} that is a
+     * {@link NumberLiteral} with value {@code 0}.
+     */
+    public void setExpression(AstNode expression) {
+<span class="nc" id="L65">        this.expression = expression;</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (expression != null)</span>
+<span class="nc" id="L67">            expression.setParent(this);</span>
+<span class="nc" id="L68">    }</span>
+
+    /**
+     * Return true if this is a default case.
+     * @return true if {@link #getExpression} would return {@code null}
+     */
+    public boolean isDefault() {
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        return expression == null;</span>
+    }
+
+    /**
+     * Returns statement list, which may be {@code null}.
+     */
+    public List&lt;AstNode&gt; getStatements() {
+<span class="nc" id="L82">        return statements;</span>
+    }
+
+    /**
+     * Sets statement list.  May be {@code null}.  Replaces any existing
+     * statements.  Each element in the list has its parent set to this node.
+     */
+    public void setStatements(List&lt;AstNode&gt; statements) {
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (this.statements != null) {</span>
+<span class="nc" id="L91">            this.statements.clear();</span>
+        }
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        for (AstNode s : statements) {</span>
+<span class="nc" id="L94">            addStatement(s);</span>
+<span class="nc" id="L95">        }</span>
+<span class="nc" id="L96">    }</span>
+
+    /**
+     * Adds a statement to the end of the statement list.
+     * Sets the parent of the new statement to this node, updates
+     * its start offset to be relative to this node, and sets the
+     * length of this node to include the new child.
+     *
+     * @param statement a child statement
+     * @throws IllegalArgumentException} if statement is {@code null}
+     */
+    public void addStatement(AstNode statement) {
+<span class="nc" id="L108">        assertNotNull(statement);</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (statements == null) {</span>
+<span class="nc" id="L110">            statements = new ArrayList&lt;AstNode&gt;();</span>
+        }
+<span class="nc" id="L112">        int end = statement.getPosition() + statement.getLength();</span>
+<span class="nc" id="L113">        this.setLength(end - this.getPosition());</span>
+<span class="nc" id="L114">        statements.add(statement);</span>
+<span class="nc" id="L115">        statement.setParent(this);</span>
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L120">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L121">        sb.append(makeIndent(depth));</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (expression == null) {</span>
+<span class="nc" id="L123">            sb.append(&quot;default:\n&quot;);</span>
+        } else {
+<span class="nc" id="L125">            sb.append(&quot;case &quot;);</span>
+<span class="nc" id="L126">            sb.append(expression.toSource(0));</span>
+<span class="nc" id="L127">            sb.append(&quot;:\n&quot;);</span>
+        }
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (statements != null) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            for (AstNode s : statements) {</span>
+<span class="nc" id="L131">                sb.append(s.toSource(depth+1));</span>
+<span class="nc" id="L132">            }</span>
+        }
+<span class="nc" id="L134">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the case expression if present, then
+     * each statement (if any are specified).
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if (expression != null) {</span>
+<span class="nc" id="L145">                expression.visit(v);</span>
+            }
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (statements != null) {</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                for (AstNode s : statements) {</span>
+<span class="nc" id="L149">                    s.visit(v);</span>
+<span class="nc" id="L150">                }</span>
+            }
+        }
+<span class="nc" id="L153">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

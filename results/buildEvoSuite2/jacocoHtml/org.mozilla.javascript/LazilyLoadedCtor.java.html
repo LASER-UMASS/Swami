@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LazilyLoadedCtor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">LazilyLoadedCtor.java</span></div><h1>LazilyLoadedCtor.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.lang.reflect.*;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
+/**
+ * Avoid loading classes unless they are used.
+ *
+ * &lt;p&gt; This improves startup time and average memory usage.
+ */
+public final class LazilyLoadedCtor implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private static final int STATE_BEFORE_INIT = 0;
+    private static final int STATE_INITIALIZING = 1;
+    private static final int STATE_WITH_VALUE = 2;
+
+    private final ScriptableObject scope;
+    private final String propertyName;
+    private final String className;
+    private final boolean sealed;
+    private final boolean privileged;
+    private Object initializedValue;
+    private int state;
+
+    public LazilyLoadedCtor(ScriptableObject scope, String propertyName,
+            String className, boolean sealed)
+    {
+<span class="nc" id="L36">        this(scope, propertyName, className, sealed, false);</span>
+<span class="nc" id="L37">    }</span>
+
+    LazilyLoadedCtor(ScriptableObject scope, String propertyName,
+            String className, boolean sealed, boolean privileged)
+<span class="nc" id="L41">    {</span>
+
+<span class="nc" id="L43">        this.scope = scope;</span>
+<span class="nc" id="L44">        this.propertyName = propertyName;</span>
+<span class="nc" id="L45">        this.className = className;</span>
+<span class="nc" id="L46">        this.sealed = sealed;</span>
+<span class="nc" id="L47">        this.privileged = privileged;</span>
+<span class="nc" id="L48">        this.state = STATE_BEFORE_INIT;</span>
+
+<span class="nc" id="L50">        scope.addLazilyInitializedValue(propertyName, 0, this,</span>
+                ScriptableObject.DONTENUM);
+<span class="nc" id="L52">    }</span>
+
+    void init()
+    {
+<span class="nc" id="L56">        synchronized (this) {</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">            if (state == STATE_INITIALIZING)</span>
+<span class="nc" id="L58">                throw new IllegalStateException(</span>
+                    &quot;Recursive initialization for &quot;+propertyName);
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            if (state == STATE_BEFORE_INIT) {</span>
+<span class="nc" id="L61">                state = STATE_INITIALIZING;</span>
+                // Set value now to have something to set in finally block if
+                // buildValue throws.
+<span class="nc" id="L64">                Object value = Scriptable.NOT_FOUND;</span>
+                try {
+<span class="nc" id="L66">                    value = buildValue();</span>
+                } finally {
+<span class="nc" id="L68">                    initializedValue = value;</span>
+<span class="nc" id="L69">                    state = STATE_WITH_VALUE;</span>
+<span class="nc" id="L70">                }</span>
+            }
+<span class="nc" id="L72">        }</span>
+<span class="nc" id="L73">    }</span>
+
+    Object getValue()
+    {
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (state != STATE_WITH_VALUE)</span>
+<span class="nc" id="L78">            throw new IllegalStateException(propertyName);</span>
+<span class="nc" id="L79">        return initializedValue;</span>
+    }
+
+    private Object buildValue()
+    {
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if(privileged)</span>
+        {
+<span class="nc" id="L86">            return AccessController.doPrivileged(new PrivilegedAction&lt;Object&gt;()</span>
+<span class="nc" id="L87">            {</span>
+                public Object run()
+                {
+<span class="nc" id="L90">                    return buildValue0();</span>
+                }
+            });
+        }
+        else
+        {
+<span class="nc" id="L96">            return buildValue0();</span>
+        }
+    }
+
+    private Object buildValue0()
+    {
+<span class="nc" id="L102">        Class&lt;? extends Scriptable&gt; cl = cast(Kit.classOrNull(className));</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (cl != null) {</span>
+            try {
+<span class="nc" id="L105">                Object value = ScriptableObject.buildClassCtor(scope, cl,</span>
+                                                               sealed, false);
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                if (value != null) {</span>
+<span class="nc" id="L108">                    return value;</span>
+                }
+                else {
+                    // cl has own static initializer which is expected
+                    // to set the property on its own.
+<span class="nc" id="L113">                    value = scope.get(propertyName, scope);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                    if (value != Scriptable.NOT_FOUND)</span>
+<span class="nc" id="L115">                        return value;</span>
+                }
+<span class="nc" id="L117">            } catch (InvocationTargetException ex) {</span>
+<span class="nc" id="L118">                Throwable target = ex.getTargetException();</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                if (target instanceof RuntimeException) {</span>
+<span class="nc" id="L120">                    throw (RuntimeException)target;</span>
+                }
+<span class="nc" id="L122">            } catch (RhinoException ex) {</span>
+<span class="nc" id="L123">            } catch (InstantiationException ex) {</span>
+<span class="nc" id="L124">            } catch (IllegalAccessException ex) {</span>
+<span class="nc" id="L125">            } catch (SecurityException ex) {</span>
+<span class="nc" id="L126">            }</span>
+        }
+<span class="nc" id="L128">        return Scriptable.NOT_FOUND;</span>
+    }
+
+    @SuppressWarnings({&quot;unchecked&quot;})
+    private Class&lt;? extends Scriptable&gt; cast(Class&lt;?&gt; cl) {
+<span class="nc" id="L133">        return (Class&lt;? extends Scriptable&gt;)cl;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

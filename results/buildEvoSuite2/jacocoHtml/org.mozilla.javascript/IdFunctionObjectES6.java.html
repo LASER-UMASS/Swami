@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdFunctionObjectES6.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">IdFunctionObjectES6.java</span></div><h1>IdFunctionObjectES6.java</h1><pre class="source lang-java linenums">package org.mozilla.javascript;
+
+public class IdFunctionObjectES6 extends IdFunctionObject{
+
+    public IdFunctionObjectES6(IdFunctionCall idcall, Object tag, int id, String name, int arity, Scriptable scope) {
+<span class="nc" id="L6">        super(idcall, tag, id, name, arity, scope);</span>
+<span class="nc" id="L7">    }</span>
+
+    private static final int
+        Id_length       = 1,
+        Id_name         = 3;
+
+<span class="nc" id="L13">    private boolean myLength = true;</span>
+<span class="nc" id="L14">    private boolean myName = true;</span>
+
+    @Override
+    protected int findInstanceIdInfo(String s) {
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        if (s.equals(&quot;length&quot;)) return instanceIdInfo(READONLY | DONTENUM, Id_length);</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        else if (s.equals(&quot;name&quot;)) return instanceIdInfo(READONLY | DONTENUM, Id_name);</span>
+<span class="nc" id="L20">        return super.findInstanceIdInfo(s);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id) {
+<span class="nc bnc" id="L25" title="All 4 branches missed.">        if (id == Id_length &amp;&amp; !myLength) {</span>
+<span class="nc" id="L26">            return NOT_FOUND;</span>
+<span class="nc bnc" id="L27" title="All 4 branches missed.">        } else if (id == Id_name &amp;&amp; !myName) {</span>
+<span class="nc" id="L28">            return NOT_FOUND;</span>
+        }
+<span class="nc" id="L30">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value) {
+<span class="nc bnc" id="L35" title="All 4 branches missed.">        if (id == Id_length &amp;&amp; value == NOT_FOUND) {</span>
+<span class="nc" id="L36">            this.myLength = false;</span>
+<span class="nc" id="L37">            return;</span>
+<span class="nc bnc" id="L38" title="All 4 branches missed.">        } else if (id == Id_name &amp;&amp; value == NOT_FOUND) {</span>
+<span class="nc" id="L39">            this.myName = false;</span>
+<span class="nc" id="L40">            return;</span>
+        }
+<span class="nc" id="L42">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L43">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DoubleConversion.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.v8dtoa</a> &gt; <span class="el_source">DoubleConversion.java</span></div><h1>DoubleConversion.java</h1><pre class="source lang-java linenums">// Copyright 2011 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Ported to Java from V8's conversions-inl.h and double.h files.
+// The original revision was r12273 from the bleeding_edge branch.
+
+package org.mozilla.javascript.v8dtoa;
+
+public final class DoubleConversion {
+    private static final long kSignMask = 0x8000000000000000L;
+    private static final long kExponentMask = 0x7FF0000000000000L;
+    private static final long kSignificandMask = 0x000FFFFFFFFFFFFFL;
+    private static final long kHiddenBit = 0x0010000000000000L;
+    private static final int kPhysicalSignificandSize = 52; // Excludes the hidden bit.
+    private static final int kSignificandSize = 53;
+    private static final int kExponentBias = 0x3FF + kPhysicalSignificandSize;
+    private static final int kDenormalExponent = -kExponentBias + 1;
+
+<span class="nc" id="L43">    private DoubleConversion() {</span>
+<span class="nc" id="L44">    }</span>
+
+    private static int exponent(long d64) {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (isDenormal(d64))</span>
+<span class="nc" id="L48">            return kDenormalExponent;</span>
+
+<span class="nc" id="L50">        int biased_e = (int) ((d64 &amp; kExponentMask) &gt;&gt; kPhysicalSignificandSize);</span>
+<span class="nc" id="L51">        return biased_e - kExponentBias;</span>
+    }
+
+    private static long significand(long d64) {
+<span class="nc" id="L55">        long significand = d64 &amp; kSignificandMask;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (!isDenormal(d64)) {</span>
+<span class="nc" id="L57">            return significand + kHiddenBit;</span>
+        } else {
+<span class="nc" id="L59">            return significand;</span>
+        }
+    }
+
+    // Returns true if the double is a denormal.
+    private static boolean isDenormal(long d64) {
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        return (d64 &amp; kExponentMask) == 0;</span>
+    }
+
+    private static int sign(long d64) {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        return (d64 &amp; kSignMask) == 0 ? 1 : -1;</span>
+    }
+
+    public static int doubleToInt32(double x) {
+<span class="nc" id="L73">        int i = (int) x;</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if ((double) i == x) {</span>
+<span class="nc" id="L75">            return i;</span>
+        }
+<span class="nc" id="L77">        long d64 = Double.doubleToLongBits(x);</span>
+<span class="nc" id="L78">        int exponent = exponent(d64);</span>
+<span class="nc bnc" id="L79" title="All 4 branches missed.">        if (exponent &lt;= -kSignificandSize || exponent &gt; 31) {</span>
+<span class="nc" id="L80">            return 0;</span>
+        }
+<span class="nc" id="L82">        long s = significand(d64);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        return sign(d64) * (int) (exponent &lt; 0 ? s &gt;&gt; -exponent : s &lt;&lt; exponent);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

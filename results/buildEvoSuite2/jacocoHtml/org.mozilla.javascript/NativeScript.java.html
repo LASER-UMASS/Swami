@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeScript.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeScript.java</span></div><h1>NativeScript.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * The JavaScript Script object.
+ *
+ * Note that the C version of the engine uses XDR as the format used
+ * by freeze and thaw. Since this depends on the internal format of
+ * structures in the C runtime, we cannot duplicate it.
+ *
+ * Since we cannot replace 'this' as a result of the compile method,
+ * will forward requests to execute to the nonnull 'script' field.
+ *
+ * @since 1.3
+ * @author Norris Boyd
+ */
+
+class NativeScript extends BaseFunction
+{
+    static final long serialVersionUID = -6795101161980121700L;
+
+<span class="nc" id="L27">    private static final Object SCRIPT_TAG = &quot;Script&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L31">        NativeScript obj = new NativeScript(null);</span>
+<span class="nc" id="L32">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L33">    }</span>
+
+    private NativeScript(Script script)
+<span class="nc" id="L36">    {</span>
+<span class="nc" id="L37">        this.script = script;</span>
+<span class="nc" id="L38">    }</span>
+
+    /**
+     * Returns the name of this JavaScript class, &quot;Script&quot;.
+     */
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L46">        return &quot;Script&quot;;</span>
+    }
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (script != null) {</span>
+<span class="nc" id="L54">            return script.exec(cx, scope);</span>
+        }
+<span class="nc" id="L56">        return Undefined.instance;</span>
+    }
+
+    @Override
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L62">        throw Context.reportRuntimeError0(&quot;msg.script.is.not.constructor&quot;);</span>
+    }
+
+    @Override
+    public int getLength()
+    {
+<span class="nc" id="L68">        return 0;</span>
+    }
+
+    @Override
+    public int getArity()
+    {
+<span class="nc" id="L74">        return 0;</span>
+    }
+
+    @Override
+    String decompile(int indent, int flags)
+    {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (script instanceof NativeFunction) {</span>
+<span class="nc" id="L81">            return ((NativeFunction)script).decompile(indent, flags);</span>
+        }
+<span class="nc" id="L83">        return super.decompile(indent, flags);</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="nc bnc" id="L91" title="All 5 branches missed.">        switch (id) {</span>
+<span class="nc" id="L92">          case Id_constructor: arity=1; s=&quot;constructor&quot;; break;</span>
+<span class="nc" id="L93">          case Id_toString:    arity=0; s=&quot;toString&quot;;    break;</span>
+<span class="nc" id="L94">          case Id_exec:        arity=0; s=&quot;exec&quot;;        break;</span>
+<span class="nc" id="L95">          case Id_compile:     arity=1; s=&quot;compile&quot;;     break;</span>
+<span class="nc" id="L96">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="nc" id="L98">        initPrototypeMethod(SCRIPT_TAG, id, s, arity);</span>
+<span class="nc" id="L99">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (!f.hasTag(SCRIPT_TAG)) {</span>
+<span class="nc" id="L106">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L108">        int id = f.methodId();</span>
+<span class="nc bnc" id="L109" title="All 5 branches missed.">        switch (id) {</span>
+          case Id_constructor: {
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            String source = (args.length == 0)</span>
+                            ? &quot;&quot;
+<span class="nc" id="L113">                            : ScriptRuntime.toString(args[0]);</span>
+<span class="nc" id="L114">            Script script = compile(cx, source);</span>
+<span class="nc" id="L115">            NativeScript nscript = new NativeScript(script);</span>
+<span class="nc" id="L116">            ScriptRuntime.setObjectProtoAndParent(nscript, scope);</span>
+<span class="nc" id="L117">            return nscript;</span>
+          }
+
+          case Id_toString: {
+<span class="nc" id="L121">            NativeScript real = realThis(thisObj, f);</span>
+<span class="nc" id="L122">            Script realScript = real.script;</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            if (realScript == null) { return &quot;&quot;; }</span>
+<span class="nc" id="L124">            return cx.decompileScript(realScript, 0);</span>
+          }
+
+          case Id_exec: {
+<span class="nc" id="L128">            throw Context.reportRuntimeError1(</span>
+                &quot;msg.cant.call.indirect&quot;, &quot;exec&quot;);
+          }
+
+          case Id_compile: {
+<span class="nc" id="L133">            NativeScript real = realThis(thisObj, f);</span>
+<span class="nc" id="L134">            String source = ScriptRuntime.toString(args, 0);</span>
+<span class="nc" id="L135">            real.script = compile(cx, source);</span>
+<span class="nc" id="L136">            return real;</span>
+          }
+        }
+<span class="nc" id="L139">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private static NativeScript realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (!(thisObj instanceof NativeScript))</span>
+<span class="nc" id="L145">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L146">        return (NativeScript)thisObj;</span>
+    }
+
+    private static Script compile(Context cx, String source)
+    {
+<span class="nc" id="L151">        int[] linep = { 0 };</span>
+<span class="nc" id="L152">        String filename = Context.getSourcePositionFromStack(linep);</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (filename == null) {</span>
+<span class="nc" id="L154">            filename = &quot;&lt;Script object&gt;&quot;;</span>
+<span class="nc" id="L155">            linep[0] = 1;</span>
+        }
+        ErrorReporter reporter;
+<span class="nc" id="L158">        reporter = DefaultErrorReporter.forEval(cx.getErrorReporter());</span>
+<span class="nc" id="L159">        return cx.compileString(source, null, reporter, filename,</span>
+                                linep[0], null);
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:16:01 EDT
+<span class="nc" id="L170">        L0: { id = 0; String X = null;</span>
+<span class="nc bnc" id="L171" title="All 5 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc" id="L172">            case 4: X=&quot;exec&quot;;id=Id_exec; break L;</span>
+<span class="nc" id="L173">            case 7: X=&quot;compile&quot;;id=Id_compile; break L;</span>
+<span class="nc" id="L174">            case 8: X=&quot;toString&quot;;id=Id_toString; break L;</span>
+<span class="nc" id="L175">            case 11: X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+            }
+<span class="nc bnc" id="L177" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L181">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor    = 1,
+        Id_toString       = 2,
+        Id_compile        = 3,
+        Id_exec           = 4,
+        MAX_PROTOTYPE_ID  = 4;
+
+// #/string_id_map#
+
+    private Script script;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

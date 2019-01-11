@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XMLWithScope.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.xmlimpl</a> &gt; <span class="el_source">XMLWithScope.java</span></div><h1>XMLWithScope.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.xmlimpl;
+
+import org.mozilla.javascript.*;
+import org.mozilla.javascript.xml.*;
+
+final class XMLWithScope extends NativeWith
+{
+    private static final long serialVersionUID = -696429282095170887L;
+
+    private XMLLibImpl lib;
+    private int         _currIndex;
+    private XMLList     _xmlList;
+    private XMLObject   _dqPrototype;
+
+    XMLWithScope(XMLLibImpl lib, Scriptable parent, XMLObject prototype)
+    {
+<span class="nc" id="L23">        super(parent, prototype);</span>
+<span class="nc" id="L24">        this.lib = lib;</span>
+<span class="nc" id="L25">    }</span>
+
+    void initAsDotQuery()
+    {
+<span class="nc" id="L29">        XMLObject prototype = (XMLObject)getPrototype();</span>
+        // XMLWithScope also handles the .(xxx) DotQuery for XML
+        // basically DotQuery is a for/in/with statement and in
+        // the following 3 statements we setup to signal it's
+        // DotQuery,
+        // the index and the object being looped over.  The
+        // xws.setPrototype is the scope of the object which is
+        // is a element of the lhs (XMLList).
+<span class="nc" id="L37">        _currIndex = 0;</span>
+<span class="nc" id="L38">        _dqPrototype = prototype;</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (prototype instanceof XMLList) {</span>
+<span class="nc" id="L40">            XMLList xl = (XMLList)prototype;</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">            if (xl.length() &gt; 0) {</span>
+<span class="nc" id="L42">                setPrototype((Scriptable)(xl.get(0, null)));</span>
+            }
+        }
+        // Always return the outer-most type of XML lValue of
+        // XML to left of dotQuery.
+<span class="nc" id="L47">        _xmlList = lib.newXMLList();</span>
+<span class="nc" id="L48">    }</span>
+
+    @Override
+    protected Object updateDotQuery(boolean value)
+    {
+        // Return null to continue looping
+
+<span class="nc" id="L55">        XMLObject seed = _dqPrototype;</span>
+<span class="nc" id="L56">        XMLList xmlL = _xmlList;</span>
+
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (seed instanceof XMLList) {</span>
+            // We're a list so keep testing each element of the list if the
+            // result on the top of stack is true then that element is added
+            // to our result list.  If false, we try the next element.
+<span class="nc" id="L62">            XMLList orgXmlL = (XMLList)seed;</span>
+
+<span class="nc" id="L64">            int idx = _currIndex;</span>
+
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            if (value) {</span>
+<span class="nc" id="L67">                xmlL.addToList(orgXmlL.get(idx, null));</span>
+            }
+
+            // More elements to test?
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (++idx &lt; orgXmlL.length()) {</span>
+                // Yes, set our new index, get the next element and
+                // reset the expression to run with this object as
+                // the WITH selector.
+<span class="nc" id="L75">                _currIndex = idx;</span>
+<span class="nc" id="L76">                setPrototype((Scriptable)(orgXmlL.get(idx, null)));</span>
+
+                // continue looping
+<span class="nc" id="L79">                return null;</span>
+            }
+<span class="nc" id="L81">        } else {</span>
+            // If we're not a XMLList then there's no looping
+            // just return DQPrototype if the result is true.
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            if (value) {</span>
+<span class="nc" id="L85">              xmlL.addToList(seed);</span>
+            }
+        }
+
+<span class="nc" id="L89">        return xmlL;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,3550 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SwingGui.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.debugger</a> &gt; <span class="el_source">SwingGui.java</span></div><h1>SwingGui.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+package org.mozilla.javascript.tools.debugger;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import javax.swing.event.*;
+import javax.swing.table.*;
+import java.awt.EventQueue;
+import java.awt.ActiveEvent;
+import java.awt.AWTEvent;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Event;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.MenuComponent;
+import java.awt.Point;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.event.*;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EventObject;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
+import java.io.*;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.TreePath;
+import java.lang.reflect.Method;
+
+import org.mozilla.javascript.Kit;
+import org.mozilla.javascript.SecurityUtilities;
+
+import org.mozilla.javascript.tools.shell.ConsoleTextArea;
+
+import org.mozilla.javascript.tools.debugger.treetable.JTreeTable;
+import org.mozilla.javascript.tools.debugger.treetable.TreeTableModel;
+import org.mozilla.javascript.tools.debugger.treetable.TreeTableModelAdapter;
+
+/**
+ * GUI for the Rhino debugger.
+ */
+public class SwingGui extends JFrame implements GuiCallback {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -8217029773456711621L;
+
+    /**
+     * The debugger.
+     */
+    Dim dim;
+
+    /**
+     * The action to run when the 'Exit' menu item is chosen or the
+     * frame is closed.
+     */
+    private Runnable exitAction;
+
+    /**
+     * The {@link JDesktopPane} that holds the script windows.
+     */
+    private JDesktopPane desk;
+
+    /**
+     * The {@link JPanel} that shows information about the context.
+     */
+    private ContextWindow context;
+
+    /**
+     * The menu bar.
+     */
+    private Menubar menubar;
+
+    /**
+     * The tool bar.
+     */
+    private JToolBar toolBar;
+
+    /**
+     * The console that displays I/O from the script.
+     */
+    private JSInternalConsole console;
+
+    /**
+     * The {@link JSplitPane} that separates {@link #desk} from
+     * {@link org.mozilla.javascript.Context}.
+     */
+    private JSplitPane split1;
+
+    /**
+     * The status bar.
+     */
+    private JLabel statusBar;
+
+    /**
+     * Hash table of internal frame names to the internal frames themselves.
+     */
+<span class="nc" id="L118">    private final Map&lt;String,JFrame&gt; toplevels =</span>
+<span class="nc" id="L119">        Collections.synchronizedMap(new HashMap&lt;String,JFrame&gt;());</span>
+
+    /**
+     * Hash table of script URLs to their internal frames.
+     */
+<span class="nc" id="L124">    private final Map&lt;String,FileWindow&gt; fileWindows =</span>
+<span class="nc" id="L125">        Collections.synchronizedMap(new HashMap&lt;String,FileWindow&gt;());</span>
+
+
+    /**
+     * The {@link FileWindow} that last had the focus.
+     */
+    private FileWindow currentWindow;
+
+    /**
+     * File choose dialog for loading a script.
+     */
+    JFileChooser dlg;
+
+    /**
+     * The AWT EventQueue.  Used for manually pumping AWT events from
+     * {@link #dispatchNextGuiEvent()}.
+     */
+    private EventQueue awtEventQueue;
+
+    /**
+     * Creates a new SwingGui.
+     */
+    public SwingGui(Dim dim, String title) {
+<span class="nc" id="L148">        super(title);</span>
+<span class="nc" id="L149">        this.dim = dim;</span>
+<span class="nc" id="L150">        init();</span>
+<span class="nc" id="L151">        dim.setGuiCallback(this);</span>
+<span class="nc" id="L152">    }</span>
+
+    /**
+     * Returns the Menubar of this debugger frame.
+     */
+    public Menubar getMenubar() {
+<span class="nc" id="L158">        return menubar;</span>
+    }
+
+    /**
+     * Sets the {@link Runnable} that will be run when the &quot;Exit&quot; menu
+     * item is chosen.
+     */
+    public void setExitAction(Runnable r) {
+<span class="nc" id="L166">        exitAction = r;</span>
+<span class="nc" id="L167">    }</span>
+
+    /**
+     * Returns the debugger console component.
+     */
+    public JSInternalConsole getConsole() {
+<span class="nc" id="L173">        return console;</span>
+    }
+
+    /**
+     * Sets the visibility of the debugger GUI.
+     */
+    @Override
+    public void setVisible(boolean b) {
+<span class="nc" id="L181">        super.setVisible(b);</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (b) {</span>
+            // this needs to be done after the window is visible
+<span class="nc" id="L184">            console.consoleTextArea.requestFocus();</span>
+<span class="nc" id="L185">            context.split.setDividerLocation(0.5);</span>
+            try {
+<span class="nc" id="L187">                console.setMaximum(true);</span>
+<span class="nc" id="L188">                console.setSelected(true);</span>
+<span class="nc" id="L189">                console.show();</span>
+<span class="nc" id="L190">                console.consoleTextArea.requestFocus();</span>
+<span class="nc" id="L191">            } catch (Exception exc) {</span>
+<span class="nc" id="L192">            }</span>
+        }
+<span class="nc" id="L194">    }</span>
+
+    /**
+     * Records a new internal frame.
+     */
+    void addTopLevel(String key, JFrame frame) {
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (frame != this) {</span>
+<span class="nc" id="L201">            toplevels.put(key, frame);</span>
+        }
+<span class="nc" id="L203">    }</span>
+
+    /**
+     * Constructs the debugger GUI.
+     */
+    private void init() {
+<span class="nc" id="L209">        menubar = new Menubar(this);</span>
+<span class="nc" id="L210">        setJMenuBar(menubar);</span>
+<span class="nc" id="L211">        toolBar = new JToolBar();</span>
+        JButton button;
+        JButton breakButton, goButton, stepIntoButton,
+            stepOverButton, stepOutButton;
+<span class="nc" id="L215">        String [] toolTips = {&quot;Break (Pause)&quot;,</span>
+                              &quot;Go (F5)&quot;,
+                              &quot;Step Into (F11)&quot;,
+                              &quot;Step Over (F7)&quot;,
+                              &quot;Step Out (F8)&quot;};
+<span class="nc" id="L220">        int count = 0;</span>
+<span class="nc" id="L221">        button = breakButton = new JButton(&quot;Break&quot;);</span>
+<span class="nc" id="L222">        button.setToolTipText(&quot;Break&quot;);</span>
+<span class="nc" id="L223">        button.setActionCommand(&quot;Break&quot;);</span>
+<span class="nc" id="L224">        button.addActionListener(menubar);</span>
+<span class="nc" id="L225">        button.setEnabled(true);</span>
+<span class="nc" id="L226">        button.setToolTipText(toolTips[count++]);</span>
+
+<span class="nc" id="L228">        button = goButton = new JButton(&quot;Go&quot;);</span>
+<span class="nc" id="L229">        button.setToolTipText(&quot;Go&quot;);</span>
+<span class="nc" id="L230">        button.setActionCommand(&quot;Go&quot;);</span>
+<span class="nc" id="L231">        button.addActionListener(menubar);</span>
+<span class="nc" id="L232">        button.setEnabled(false);</span>
+<span class="nc" id="L233">        button.setToolTipText(toolTips[count++]);</span>
+
+<span class="nc" id="L235">        button = stepIntoButton = new JButton(&quot;Step Into&quot;);</span>
+<span class="nc" id="L236">        button.setToolTipText(&quot;Step Into&quot;);</span>
+<span class="nc" id="L237">        button.setActionCommand(&quot;Step Into&quot;);</span>
+<span class="nc" id="L238">        button.addActionListener(menubar);</span>
+<span class="nc" id="L239">        button.setEnabled(false);</span>
+<span class="nc" id="L240">        button.setToolTipText(toolTips[count++]);</span>
+
+<span class="nc" id="L242">        button = stepOverButton = new JButton(&quot;Step Over&quot;);</span>
+<span class="nc" id="L243">        button.setToolTipText(&quot;Step Over&quot;);</span>
+<span class="nc" id="L244">        button.setActionCommand(&quot;Step Over&quot;);</span>
+<span class="nc" id="L245">        button.setEnabled(false);</span>
+<span class="nc" id="L246">        button.addActionListener(menubar);</span>
+<span class="nc" id="L247">        button.setToolTipText(toolTips[count++]);</span>
+
+<span class="nc" id="L249">        button = stepOutButton = new JButton(&quot;Step Out&quot;);</span>
+<span class="nc" id="L250">        button.setToolTipText(&quot;Step Out&quot;);</span>
+<span class="nc" id="L251">        button.setActionCommand(&quot;Step Out&quot;);</span>
+<span class="nc" id="L252">        button.setEnabled(false);</span>
+<span class="nc" id="L253">        button.addActionListener(menubar);</span>
+<span class="nc" id="L254">        button.setToolTipText(toolTips[count++]);</span>
+
+<span class="nc" id="L256">        Dimension dim = stepOverButton.getPreferredSize();</span>
+<span class="nc" id="L257">        breakButton.setPreferredSize(dim);</span>
+<span class="nc" id="L258">        breakButton.setMinimumSize(dim);</span>
+<span class="nc" id="L259">        breakButton.setMaximumSize(dim);</span>
+<span class="nc" id="L260">        breakButton.setSize(dim);</span>
+<span class="nc" id="L261">        goButton.setPreferredSize(dim);</span>
+<span class="nc" id="L262">        goButton.setMinimumSize(dim);</span>
+<span class="nc" id="L263">        goButton.setMaximumSize(dim);</span>
+<span class="nc" id="L264">        stepIntoButton.setPreferredSize(dim);</span>
+<span class="nc" id="L265">        stepIntoButton.setMinimumSize(dim);</span>
+<span class="nc" id="L266">        stepIntoButton.setMaximumSize(dim);</span>
+<span class="nc" id="L267">        stepOverButton.setPreferredSize(dim);</span>
+<span class="nc" id="L268">        stepOverButton.setMinimumSize(dim);</span>
+<span class="nc" id="L269">        stepOverButton.setMaximumSize(dim);</span>
+<span class="nc" id="L270">        stepOutButton.setPreferredSize(dim);</span>
+<span class="nc" id="L271">        stepOutButton.setMinimumSize(dim);</span>
+<span class="nc" id="L272">        stepOutButton.setMaximumSize(dim);</span>
+<span class="nc" id="L273">        toolBar.add(breakButton);</span>
+<span class="nc" id="L274">        toolBar.add(goButton);</span>
+<span class="nc" id="L275">        toolBar.add(stepIntoButton);</span>
+<span class="nc" id="L276">        toolBar.add(stepOverButton);</span>
+<span class="nc" id="L277">        toolBar.add(stepOutButton);</span>
+
+<span class="nc" id="L279">        JPanel contentPane = new JPanel();</span>
+<span class="nc" id="L280">        contentPane.setLayout(new BorderLayout());</span>
+<span class="nc" id="L281">        getContentPane().add(toolBar, BorderLayout.NORTH);</span>
+<span class="nc" id="L282">        getContentPane().add(contentPane, BorderLayout.CENTER);</span>
+<span class="nc" id="L283">        desk = new JDesktopPane();</span>
+<span class="nc" id="L284">        desk.setPreferredSize(new Dimension(600, 300));</span>
+<span class="nc" id="L285">        desk.setMinimumSize(new Dimension(150, 50));</span>
+<span class="nc" id="L286">        desk.add(console = new JSInternalConsole(&quot;JavaScript Console&quot;));</span>
+<span class="nc" id="L287">        context = new ContextWindow(this);</span>
+<span class="nc" id="L288">        context.setPreferredSize(new Dimension(600, 120));</span>
+<span class="nc" id="L289">        context.setMinimumSize(new Dimension(50, 50));</span>
+
+<span class="nc" id="L291">        split1 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, desk,</span>
+                                          context);
+<span class="nc" id="L293">        split1.setOneTouchExpandable(true);</span>
+<span class="nc" id="L294">        SwingGui.setResizeWeight(split1, 0.66);</span>
+<span class="nc" id="L295">        contentPane.add(split1, BorderLayout.CENTER);</span>
+<span class="nc" id="L296">        statusBar = new JLabel();</span>
+<span class="nc" id="L297">        statusBar.setText(&quot;Thread: &quot;);</span>
+<span class="nc" id="L298">        contentPane.add(statusBar, BorderLayout.SOUTH);</span>
+<span class="nc" id="L299">        dlg = new JFileChooser();</span>
+
+<span class="nc" id="L301">        javax.swing.filechooser.FileFilter filter =</span>
+<span class="nc" id="L302">            new javax.swing.filechooser.FileFilter() {</span>
+                    @Override
+                    public boolean accept(File f) {
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                        if (f.isDirectory()) {</span>
+<span class="nc" id="L306">                            return true;</span>
+                        }
+<span class="nc" id="L308">                        String n = f.getName();</span>
+<span class="nc" id="L309">                        int i = n.lastIndexOf('.');</span>
+<span class="nc bnc" id="L310" title="All 4 branches missed.">                        if (i &gt; 0 &amp;&amp; i &lt; n.length() -1) {</span>
+<span class="nc" id="L311">                            String ext = n.substring(i + 1).toLowerCase();</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                            if (ext.equals(&quot;js&quot;)) {</span>
+<span class="nc" id="L313">                                return true;</span>
+                            }
+                        }
+<span class="nc" id="L316">                        return false;</span>
+                    }
+
+                    @Override
+                    public String getDescription() {
+<span class="nc" id="L321">                        return &quot;JavaScript Files (*.js)&quot;;</span>
+                    }
+                };
+<span class="nc" id="L324">        dlg.addChoosableFileFilter(filter);</span>
+<span class="nc" id="L325">        addWindowListener(new WindowAdapter() {</span>
+                @Override
+                public void windowClosing(WindowEvent e) {
+<span class="nc" id="L328">                    exit();</span>
+<span class="nc" id="L329">                }</span>
+            });
+<span class="nc" id="L331">    }</span>
+
+    /**
+     * Runs the {@link #exitAction}.
+     */
+    private void exit() {
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        if (exitAction != null) {</span>
+<span class="nc" id="L338">            SwingUtilities.invokeLater(exitAction);</span>
+        }
+<span class="nc" id="L340">        dim.setReturnValue(Dim.EXIT);</span>
+<span class="nc" id="L341">    }</span>
+
+    /**
+     * Returns the {@link FileWindow} for the given URL.
+     */
+    FileWindow getFileWindow(String url) {
+<span class="nc bnc" id="L347" title="All 4 branches missed.">        if (url == null || url.equals(&quot;&lt;stdin&gt;&quot;)) {</span>
+<span class="nc" id="L348">            return null;</span>
+        }
+<span class="nc" id="L350">        return fileWindows.get(url);</span>
+    }
+
+    /**
+     * Returns a short version of the given URL.
+     */
+    static String getShortName(String url) {
+<span class="nc" id="L357">        int lastSlash = url.lastIndexOf('/');</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        if (lastSlash &lt; 0) {</span>
+<span class="nc" id="L359">            lastSlash = url.lastIndexOf('\\');</span>
+        }
+<span class="nc" id="L361">        String shortName = url;</span>
+<span class="nc bnc" id="L362" title="All 4 branches missed.">        if (lastSlash &gt;= 0 &amp;&amp; lastSlash + 1 &lt; url.length()) {</span>
+<span class="nc" id="L363">            shortName = url.substring(lastSlash + 1);</span>
+        }
+<span class="nc" id="L365">        return shortName;</span>
+    }
+
+    /**
+     * Closes the given {@link FileWindow}.
+     */
+    void removeWindow(FileWindow w) {
+<span class="nc" id="L372">        fileWindows.remove(w.getUrl());</span>
+<span class="nc" id="L373">        JMenu windowMenu = getWindowMenu();</span>
+<span class="nc" id="L374">        int count = windowMenu.getItemCount();</span>
+<span class="nc" id="L375">        JMenuItem lastItem = windowMenu.getItem(count -1);</span>
+<span class="nc" id="L376">        String name = getShortName(w.getUrl());</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">        for (int i = 5; i &lt; count; i++) {</span>
+<span class="nc" id="L378">            JMenuItem item = windowMenu.getItem(i);</span>
+<span class="nc bnc" id="L379" title="All 2 branches missed.">            if (item == null) continue; // separator</span>
+<span class="nc" id="L380">            String text = item.getText();</span>
+            //1 D:\foo.js
+            //2 D:\bar.js
+<span class="nc" id="L383">            int pos = text.indexOf(' ');</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">            if (text.substring(pos + 1).equals(name)) {</span>
+<span class="nc" id="L385">                windowMenu.remove(item);</span>
+                // Cascade    [0]
+                // Tile       [1]
+                // -------    [2]
+                // Console    [3]
+                // -------    [4]
+<span class="nc bnc" id="L391" title="All 2 branches missed.">                if (count == 6) {</span>
+                    // remove the final separator
+<span class="nc" id="L393">                    windowMenu.remove(4);</span>
+                } else {
+<span class="nc" id="L395">                    int j = i - 4;</span>
+<span class="nc bnc" id="L396" title="All 2 branches missed.">                    for (;i &lt; count -1; i++) {</span>
+<span class="nc" id="L397">                        JMenuItem thisItem = windowMenu.getItem(i);</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                        if (thisItem != null) {</span>
+                            //1 D:\foo.js
+                            //2 D:\bar.js
+<span class="nc" id="L401">                            text = thisItem.getText();</span>
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                            if (text.equals(&quot;More Windows...&quot;)) {</span>
+<span class="nc" id="L403">                                break;</span>
+                            } else {
+<span class="nc" id="L405">                                pos = text.indexOf(' ');</span>
+<span class="nc" id="L406">                                thisItem.setText((char)('0' + j) + &quot; &quot; +</span>
+<span class="nc" id="L407">                                                 text.substring(pos + 1));</span>
+<span class="nc" id="L408">                                thisItem.setMnemonic('0' + j);</span>
+<span class="nc" id="L409">                                j++;</span>
+                            }
+                        }
+                    }
+<span class="nc bnc" id="L413" title="All 4 branches missed.">                    if (count - 6 == 0 &amp;&amp; lastItem != item) {</span>
+<span class="nc bnc" id="L414" title="All 2 branches missed.">                        if (lastItem.getText().equals(&quot;More Windows...&quot;)) {</span>
+<span class="nc" id="L415">                            windowMenu.remove(lastItem);</span>
+                        }
+                    }
+                }
+<span class="nc" id="L419">                break;</span>
+            }
+        }
+<span class="nc" id="L422">        windowMenu.revalidate();</span>
+<span class="nc" id="L423">    }</span>
+
+    /**
+     * Shows the line at which execution in the given stack frame just stopped.
+     */
+    void showStopLine(Dim.StackFrame frame) {
+<span class="nc" id="L429">        String sourceName = frame.getUrl();</span>
+<span class="nc bnc" id="L430" title="All 4 branches missed.">        if (sourceName == null || sourceName.equals(&quot;&lt;stdin&gt;&quot;)) {</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            if (console.isVisible()) {</span>
+<span class="nc" id="L432">                console.show();</span>
+            }
+        } else {
+<span class="nc" id="L435">            showFileWindow(sourceName, -1);</span>
+<span class="nc" id="L436">            int lineNumber = frame.getLineNumber();</span>
+<span class="nc" id="L437">            FileWindow w = getFileWindow(sourceName);</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">            if (w != null) {</span>
+<span class="nc" id="L439">                setFilePosition(w, lineNumber);</span>
+            }
+        }
+<span class="nc" id="L442">    }</span>
+
+    /**
+     * Shows a {@link FileWindow} for the given source, creating it
+     * if it doesn't exist yet. if &lt;code&gt;lineNumber&lt;/code&gt; is greater
+     * than -1, it indicates the line number to select and display.
+     * @param sourceUrl the source URL
+     * @param lineNumber the line number to select, or -1
+     */
+    protected void showFileWindow(String sourceUrl, int lineNumber) {
+<span class="nc" id="L452">        FileWindow w = getFileWindow(sourceUrl);</span>
+<span class="nc bnc" id="L453" title="All 2 branches missed.">        if (w == null) {</span>
+<span class="nc" id="L454">            Dim.SourceInfo si = dim.sourceInfo(sourceUrl);</span>
+<span class="nc" id="L455">            createFileWindow(si, -1);</span>
+<span class="nc" id="L456">            w = getFileWindow(sourceUrl);</span>
+        }
+<span class="nc bnc" id="L458" title="All 2 branches missed.">        if (lineNumber &gt; -1) {</span>
+<span class="nc" id="L459">            int start = w.getPosition(lineNumber-1);</span>
+<span class="nc" id="L460">            int end = w.getPosition(lineNumber)-1;</span>
+<span class="nc" id="L461">            w.textArea.select(start);</span>
+<span class="nc" id="L462">            w.textArea.setCaretPosition(start);</span>
+<span class="nc" id="L463">            w.textArea.moveCaretPosition(end);</span>
+        }
+        try {
+<span class="nc bnc" id="L466" title="All 2 branches missed.">            if (w.isIcon()) {</span>
+<span class="nc" id="L467">                w.setIcon(false);</span>
+            }
+<span class="nc" id="L469">            w.setVisible(true);</span>
+<span class="nc" id="L470">            w.moveToFront();</span>
+<span class="nc" id="L471">            w.setSelected(true);</span>
+<span class="nc" id="L472">            requestFocus();</span>
+<span class="nc" id="L473">            w.requestFocus();</span>
+<span class="nc" id="L474">            w.textArea.requestFocus();</span>
+<span class="nc" id="L475">        } catch (Exception exc) {</span>
+<span class="nc" id="L476">        }</span>
+<span class="nc" id="L477">    }</span>
+
+    /**
+     * Creates and shows a new {@link FileWindow} for the given source.
+     */
+    protected void createFileWindow(Dim.SourceInfo sourceInfo, int line) {
+<span class="nc" id="L483">        boolean activate = true;</span>
+
+<span class="nc" id="L485">        String url = sourceInfo.url();</span>
+<span class="nc" id="L486">        FileWindow w = new FileWindow(this, sourceInfo);</span>
+<span class="nc" id="L487">        fileWindows.put(url, w);</span>
+<span class="nc bnc" id="L488" title="All 2 branches missed.">        if (line != -1) {</span>
+<span class="nc bnc" id="L489" title="All 2 branches missed.">            if (currentWindow != null) {</span>
+<span class="nc" id="L490">                currentWindow.setPosition(-1);</span>
+            }
+            try {
+<span class="nc" id="L493">                w.setPosition(w.textArea.getLineStartOffset(line-1));</span>
+<span class="nc" id="L494">            } catch (BadLocationException exc) {</span>
+                try {
+<span class="nc" id="L496">                    w.setPosition(w.textArea.getLineStartOffset(0));</span>
+<span class="nc" id="L497">                } catch (BadLocationException ee) {</span>
+<span class="nc" id="L498">                    w.setPosition(-1);</span>
+<span class="nc" id="L499">                }</span>
+<span class="nc" id="L500">            }</span>
+        }
+<span class="nc" id="L502">        desk.add(w);</span>
+<span class="nc bnc" id="L503" title="All 2 branches missed.">        if (line != -1) {</span>
+<span class="nc" id="L504">            currentWindow = w;</span>
+        }
+<span class="nc" id="L506">        menubar.addFile(url);</span>
+<span class="nc" id="L507">        w.setVisible(true);</span>
+
+<span class="nc bnc" id="L509" title="All 2 branches missed.">        if (activate) {</span>
+            try {
+<span class="nc" id="L511">                w.setMaximum(true);</span>
+<span class="nc" id="L512">                w.setSelected(true);</span>
+<span class="nc" id="L513">                w.moveToFront();</span>
+<span class="nc" id="L514">            } catch (Exception exc) {</span>
+<span class="nc" id="L515">            }</span>
+        }
+<span class="nc" id="L517">    }</span>
+
+    /**
+     * Update the source text for &lt;code&gt;sourceInfo&lt;/code&gt;. This returns true
+     * if a {@link FileWindow} for the given source exists and could be updated.
+     * Otherwise, this does nothing and returns false.
+     * @param sourceInfo the source info
+     * @return true if a {@link FileWindow} for the given source exists
+     *              and could be updated, false otherwise.
+     */
+    protected boolean updateFileWindow(Dim.SourceInfo sourceInfo) {
+<span class="nc" id="L528">        String fileName = sourceInfo.url();</span>
+<span class="nc" id="L529">        FileWindow w = getFileWindow(fileName);</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        if (w != null) {</span>
+<span class="nc" id="L531">            w.updateText(sourceInfo);</span>
+<span class="nc" id="L532">            w.show();</span>
+<span class="nc" id="L533">            return true;</span>
+        }
+<span class="nc" id="L535">        return false;</span>
+    }
+
+    /**
+     * Moves the current position in the given {@link FileWindow} to the
+     * given line.
+     */
+    private void setFilePosition(FileWindow w, int line) {
+<span class="nc" id="L543">        boolean activate = true;</span>
+<span class="nc" id="L544">        JTextArea ta = w.textArea;</span>
+        try {
+<span class="nc bnc" id="L546" title="All 2 branches missed.">            if (line == -1) {</span>
+<span class="nc" id="L547">                w.setPosition(-1);</span>
+<span class="nc bnc" id="L548" title="All 2 branches missed.">                if (currentWindow == w) {</span>
+<span class="nc" id="L549">                    currentWindow = null;</span>
+                }
+            } else {
+<span class="nc" id="L552">                int loc = ta.getLineStartOffset(line-1);</span>
+<span class="nc bnc" id="L553" title="All 4 branches missed.">                if (currentWindow != null &amp;&amp; currentWindow != w) {</span>
+<span class="nc" id="L554">                    currentWindow.setPosition(-1);</span>
+                }
+<span class="nc" id="L556">                w.setPosition(loc);</span>
+<span class="nc" id="L557">                currentWindow = w;</span>
+            }
+<span class="nc" id="L559">        } catch (BadLocationException exc) {</span>
+            // fix me
+<span class="nc" id="L561">        }</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        if (activate) {</span>
+<span class="nc bnc" id="L563" title="All 2 branches missed.">            if (w.isIcon()) {</span>
+<span class="nc" id="L564">                desk.getDesktopManager().deiconifyFrame(w);</span>
+            }
+<span class="nc" id="L566">            desk.getDesktopManager().activateFrame(w);</span>
+            try {
+<span class="nc" id="L568">                w.show();</span>
+<span class="nc" id="L569">                w.toFront();  // required for correct frame layering (JDK 1.4.1)</span>
+<span class="nc" id="L570">                w.setSelected(true);</span>
+<span class="nc" id="L571">            } catch (Exception exc) {</span>
+<span class="nc" id="L572">            }</span>
+        }
+<span class="nc" id="L574">    }</span>
+
+    /**
+     * Handles script interruption.
+     */
+    void enterInterruptImpl(Dim.StackFrame lastFrame,
+                            String threadTitle, String alertMessage) {
+<span class="nc" id="L581">        statusBar.setText(&quot;Thread: &quot; + threadTitle);</span>
+
+<span class="nc" id="L583">        showStopLine(lastFrame);</span>
+
+<span class="nc bnc" id="L585" title="All 2 branches missed.">        if (alertMessage != null) {</span>
+<span class="nc" id="L586">            MessageDialogWrapper.showMessageDialog(this,</span>
+                                                   alertMessage,
+                                                   &quot;Exception in Script&quot;,
+                                                   JOptionPane.ERROR_MESSAGE);
+        }
+
+<span class="nc" id="L592">        updateEnabled(true);</span>
+
+<span class="nc" id="L594">        Dim.ContextData contextData = lastFrame.contextData();</span>
+
+<span class="nc" id="L596">        JComboBox ctx = context.context;</span>
+<span class="nc" id="L597">        List&lt;String&gt; toolTips = context.toolTips;</span>
+<span class="nc" id="L598">        context.disableUpdate();</span>
+<span class="nc" id="L599">        int frameCount = contextData.frameCount();</span>
+<span class="nc" id="L600">        ctx.removeAllItems();</span>
+        // workaround for JDK 1.4 bug that caches selected value even after
+        // removeAllItems() is called
+<span class="nc" id="L603">        ctx.setSelectedItem(null);</span>
+<span class="nc" id="L604">        toolTips.clear();</span>
+<span class="nc bnc" id="L605" title="All 2 branches missed.">        for (int i = 0; i &lt; frameCount; i++) {</span>
+<span class="nc" id="L606">            Dim.StackFrame frame = contextData.getFrame(i);</span>
+<span class="nc" id="L607">            String url = frame.getUrl();</span>
+<span class="nc" id="L608">            int lineNumber = frame.getLineNumber();</span>
+<span class="nc" id="L609">            String shortName = url;</span>
+<span class="nc bnc" id="L610" title="All 2 branches missed.">            if (url.length() &gt; 20) {</span>
+<span class="nc" id="L611">                shortName = &quot;...&quot; + url.substring(url.length() - 17);</span>
+            }
+<span class="nc" id="L613">            String location = &quot;\&quot;&quot; + shortName + &quot;\&quot;, line &quot; + lineNumber;</span>
+<span class="nc" id="L614">            ctx.insertItemAt(location, i);</span>
+<span class="nc" id="L615">            location = &quot;\&quot;&quot; + url + &quot;\&quot;, line &quot; + lineNumber;</span>
+<span class="nc" id="L616">            toolTips.add(location);</span>
+        }
+<span class="nc" id="L618">        context.enableUpdate();</span>
+<span class="nc" id="L619">        ctx.setSelectedIndex(0);</span>
+<span class="nc" id="L620">        ctx.setMinimumSize(new Dimension(50, ctx.getMinimumSize().height));</span>
+<span class="nc" id="L621">    }</span>
+
+    /**
+     * Returns the 'Window' menu.
+     */
+    private JMenu getWindowMenu() {
+<span class="nc" id="L627">        return menubar.getMenu(3);</span>
+    }
+
+    /**
+     * Displays a {@link JFileChooser} and returns the selected filename.
+     */
+    private String chooseFile(String title) {
+<span class="nc" id="L634">        dlg.setDialogTitle(title);</span>
+<span class="nc" id="L635">        File CWD = null;</span>
+<span class="nc" id="L636">        String dir = SecurityUtilities.getSystemProperty(&quot;user.dir&quot;);</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">        if (dir != null) {</span>
+<span class="nc" id="L638">            CWD = new File(dir);</span>
+        }
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (CWD != null) {</span>
+<span class="nc" id="L641">            dlg.setCurrentDirectory(CWD);</span>
+        }
+<span class="nc" id="L643">        int returnVal = dlg.showOpenDialog(this);</span>
+<span class="nc bnc" id="L644" title="All 2 branches missed.">        if (returnVal == JFileChooser.APPROVE_OPTION) {</span>
+            try {
+<span class="nc" id="L646">                String result = dlg.getSelectedFile().getCanonicalPath();</span>
+<span class="nc" id="L647">                CWD = dlg.getSelectedFile().getParentFile();</span>
+<span class="nc" id="L648">                Properties props = System.getProperties();</span>
+<span class="nc" id="L649">                props.put(&quot;user.dir&quot;, CWD.getPath());</span>
+<span class="nc" id="L650">                System.setProperties(props);</span>
+<span class="nc" id="L651">                return result;</span>
+<span class="nc" id="L652">            } catch (IOException ignored) {</span>
+<span class="nc" id="L653">            } catch (SecurityException ignored) {</span>
+<span class="nc" id="L654">            }</span>
+        }
+<span class="nc" id="L656">        return null;</span>
+    }
+
+    /**
+     * Returns the current selected internal frame.
+     */
+    private JInternalFrame getSelectedFrame() {
+<span class="nc" id="L663">       JInternalFrame[] frames = desk.getAllFrames();</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">       for (int i = 0; i &lt; frames.length; i++) {</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">           if (frames[i].isShowing()) {</span>
+<span class="nc" id="L666">               return frames[i];</span>
+           }
+       }
+<span class="nc" id="L669">       return frames[frames.length - 1];</span>
+    }
+
+    /**
+     * Enables or disables the menu and tool bars with respect to the
+     * state of script execution.
+     */
+    private void updateEnabled(boolean interrupted) {
+<span class="nc" id="L677">        ((Menubar)getJMenuBar()).updateEnabled(interrupted);</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">        for (int ci = 0, cc = toolBar.getComponentCount(); ci &lt; cc; ci++) {</span>
+            boolean enableButton;
+<span class="nc bnc" id="L680" title="All 2 branches missed.">            if (ci == 0) {</span>
+                // Break
+<span class="nc bnc" id="L682" title="All 2 branches missed.">                enableButton = !interrupted;</span>
+            } else {
+<span class="nc" id="L684">                enableButton = interrupted;</span>
+            }
+<span class="nc" id="L686">            toolBar.getComponent(ci).setEnabled(enableButton);</span>
+        }
+<span class="nc bnc" id="L688" title="All 2 branches missed.">        if (interrupted) {</span>
+<span class="nc" id="L689">            toolBar.setEnabled(true);</span>
+            // raise the debugger window
+<span class="nc" id="L691">            int state = getExtendedState();</span>
+<span class="nc bnc" id="L692" title="All 2 branches missed.">            if (state == Frame.ICONIFIED) {</span>
+<span class="nc" id="L693">                setExtendedState(Frame.NORMAL);</span>
+            }
+<span class="nc" id="L695">            toFront();</span>
+<span class="nc" id="L696">            context.setEnabled(true);</span>
+<span class="nc" id="L697">        } else {</span>
+<span class="nc bnc" id="L698" title="All 2 branches missed.">            if (currentWindow != null) currentWindow.setPosition(-1);</span>
+<span class="nc" id="L699">            context.setEnabled(false);</span>
+        }
+<span class="nc" id="L701">    }</span>
+
+    /**
+     * Calls {@link JSplitPane#setResizeWeight} via reflection.
+     * For compatibility, since JDK &amp;lt; 1.3 does not have this method.
+     */
+    static void setResizeWeight(JSplitPane pane, double weight) {
+        try {
+<span class="nc" id="L709">            Method m = JSplitPane.class.getMethod(&quot;setResizeWeight&quot;,</span>
+                                                  new Class[]{double.class});
+<span class="nc" id="L711">            m.invoke(pane, new Object[]{new Double(weight)});</span>
+<span class="nc" id="L712">        } catch (NoSuchMethodException exc) {</span>
+<span class="nc" id="L713">        } catch (IllegalAccessException exc) {</span>
+<span class="nc" id="L714">        } catch (java.lang.reflect.InvocationTargetException exc) {</span>
+<span class="nc" id="L715">        }</span>
+<span class="nc" id="L716">    }</span>
+
+    /**
+     * Reads the file with the given name and returns its contents as a String.
+     */
+    private String readFile(String fileName) {
+        String text;
+        try {
+<span class="nc" id="L724">            Reader r = new FileReader(fileName);</span>
+            try {
+<span class="nc" id="L726">                text = Kit.readReader(r);</span>
+            } finally {
+<span class="nc" id="L728">                r.close();</span>
+<span class="nc" id="L729">            }</span>
+<span class="nc" id="L730">        } catch (IOException ex) {</span>
+<span class="nc" id="L731">            MessageDialogWrapper.showMessageDialog(this,</span>
+<span class="nc" id="L732">                                                   ex.getMessage(),</span>
+                                                   &quot;Error reading &quot;+fileName,
+                                                   JOptionPane.ERROR_MESSAGE);
+<span class="nc" id="L735">            text = null;</span>
+<span class="nc" id="L736">        }</span>
+<span class="nc" id="L737">        return text;</span>
+    }
+
+    // GuiCallback
+
+    /**
+     * Called when the source text for a script has been updated.
+     */
+    public void updateSourceText(Dim.SourceInfo sourceInfo) {
+<span class="nc" id="L746">        RunProxy proxy = new RunProxy(this, RunProxy.UPDATE_SOURCE_TEXT);</span>
+<span class="nc" id="L747">        proxy.sourceInfo = sourceInfo;</span>
+<span class="nc" id="L748">        SwingUtilities.invokeLater(proxy);</span>
+<span class="nc" id="L749">    }</span>
+
+    /**
+     * Called when the interrupt loop has been entered.
+     */
+    public void enterInterrupt(Dim.StackFrame lastFrame,
+                               String threadTitle,
+                               String alertMessage) {
+<span class="nc bnc" id="L757" title="All 2 branches missed.">        if (SwingUtilities.isEventDispatchThread()) {</span>
+<span class="nc" id="L758">            enterInterruptImpl(lastFrame, threadTitle, alertMessage);</span>
+        } else {
+<span class="nc" id="L760">            RunProxy proxy = new RunProxy(this, RunProxy.ENTER_INTERRUPT);</span>
+<span class="nc" id="L761">            proxy.lastFrame = lastFrame;</span>
+<span class="nc" id="L762">            proxy.threadTitle = threadTitle;</span>
+<span class="nc" id="L763">            proxy.alertMessage = alertMessage;</span>
+<span class="nc" id="L764">            SwingUtilities.invokeLater(proxy);</span>
+        }
+<span class="nc" id="L766">    }</span>
+
+    /**
+     * Returns whether the current thread is the GUI event thread.
+     */
+    public boolean isGuiEventThread() {
+<span class="nc" id="L772">        return SwingUtilities.isEventDispatchThread();</span>
+    }
+
+    /**
+     * Processes the next GUI event.
+     */
+    public void dispatchNextGuiEvent() throws InterruptedException {
+<span class="nc" id="L779">        EventQueue queue = awtEventQueue;</span>
+<span class="nc bnc" id="L780" title="All 2 branches missed.">        if (queue == null) {</span>
+<span class="nc" id="L781">            queue = Toolkit.getDefaultToolkit().getSystemEventQueue();</span>
+<span class="nc" id="L782">            awtEventQueue = queue;</span>
+        }
+<span class="nc" id="L784">        AWTEvent event = queue.getNextEvent();</span>
+<span class="nc bnc" id="L785" title="All 2 branches missed.">        if (event instanceof ActiveEvent) {</span>
+<span class="nc" id="L786">            ((ActiveEvent)event).dispatch();</span>
+        } else {
+<span class="nc" id="L788">            Object source = event.getSource();</span>
+<span class="nc bnc" id="L789" title="All 2 branches missed.">            if (source instanceof Component) {</span>
+<span class="nc" id="L790">                Component comp = (Component)source;</span>
+<span class="nc" id="L791">                comp.dispatchEvent(event);</span>
+<span class="nc bnc" id="L792" title="All 2 branches missed.">            } else if (source instanceof MenuComponent) {</span>
+<span class="nc" id="L793">                ((MenuComponent)source).dispatchEvent(event);</span>
+            }
+        }
+<span class="nc" id="L796">    }</span>
+
+    // ActionListener
+
+    /**
+     * Performs an action from the menu or toolbar.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L804">        String cmd = e.getActionCommand();</span>
+<span class="nc" id="L805">        int returnValue = -1;</span>
+<span class="nc bnc" id="L806" title="All 6 branches missed.">        if (cmd.equals(&quot;Cut&quot;) || cmd.equals(&quot;Copy&quot;) || cmd.equals(&quot;Paste&quot;)) {</span>
+<span class="nc" id="L807">            JInternalFrame f = getSelectedFrame();</span>
+<span class="nc bnc" id="L808" title="All 4 branches missed.">            if (f != null &amp;&amp; f instanceof ActionListener) {</span>
+<span class="nc" id="L809">                ((ActionListener)f).actionPerformed(e);</span>
+            }
+<span class="nc bnc" id="L811" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Step Over&quot;)) {</span>
+<span class="nc" id="L812">            returnValue = Dim.STEP_OVER;</span>
+<span class="nc bnc" id="L813" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Step Into&quot;)) {</span>
+<span class="nc" id="L814">            returnValue = Dim.STEP_INTO;</span>
+<span class="nc bnc" id="L815" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Step Out&quot;)) {</span>
+<span class="nc" id="L816">            returnValue = Dim.STEP_OUT;</span>
+<span class="nc bnc" id="L817" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Go&quot;)) {</span>
+<span class="nc" id="L818">            returnValue = Dim.GO;</span>
+<span class="nc bnc" id="L819" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Break&quot;)) {</span>
+<span class="nc" id="L820">            dim.setBreak();</span>
+<span class="nc bnc" id="L821" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Exit&quot;)) {</span>
+<span class="nc" id="L822">            exit();</span>
+<span class="nc bnc" id="L823" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Open&quot;)) {</span>
+<span class="nc" id="L824">            String fileName = chooseFile(&quot;Select a file to compile&quot;);</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">            if (fileName != null) {</span>
+<span class="nc" id="L826">                String text = readFile(fileName);</span>
+<span class="nc bnc" id="L827" title="All 2 branches missed.">                if (text != null) {</span>
+<span class="nc" id="L828">                    RunProxy proxy = new RunProxy(this, RunProxy.OPEN_FILE);</span>
+<span class="nc" id="L829">                    proxy.fileName = fileName;</span>
+<span class="nc" id="L830">                    proxy.text = text;</span>
+<span class="nc" id="L831">                    new Thread(proxy).start();</span>
+                }
+            }
+<span class="nc bnc" id="L834" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Load&quot;)) {</span>
+<span class="nc" id="L835">            String fileName = chooseFile(&quot;Select a file to execute&quot;);</span>
+<span class="nc bnc" id="L836" title="All 2 branches missed.">            if (fileName != null) {</span>
+<span class="nc" id="L837">                String text = readFile(fileName);</span>
+<span class="nc bnc" id="L838" title="All 2 branches missed.">                if (text != null) {</span>
+<span class="nc" id="L839">                    RunProxy proxy = new RunProxy(this, RunProxy.LOAD_FILE);</span>
+<span class="nc" id="L840">                    proxy.fileName = fileName;</span>
+<span class="nc" id="L841">                    proxy.text = text;</span>
+<span class="nc" id="L842">                    new Thread(proxy).start();</span>
+                }
+            }
+<span class="nc bnc" id="L845" title="All 2 branches missed.">        } else if (cmd.equals(&quot;More Windows...&quot;)) {</span>
+<span class="nc" id="L846">            MoreWindows dlg = new MoreWindows(this, fileWindows,</span>
+                                              &quot;Window&quot;, &quot;Files&quot;);
+<span class="nc" id="L848">            dlg.showDialog(this);</span>
+<span class="nc bnc" id="L849" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Console&quot;)) {</span>
+<span class="nc bnc" id="L850" title="All 2 branches missed.">            if (console.isIcon()) {</span>
+<span class="nc" id="L851">                desk.getDesktopManager().deiconifyFrame(console);</span>
+            }
+<span class="nc" id="L853">            console.show();</span>
+<span class="nc" id="L854">            desk.getDesktopManager().activateFrame(console);</span>
+<span class="nc" id="L855">            console.consoleTextArea.requestFocus();</span>
+<span class="nc bnc" id="L856" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Cut&quot;)) {</span>
+<span class="nc bnc" id="L857" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Copy&quot;)) {</span>
+<span class="nc bnc" id="L858" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Paste&quot;)) {</span>
+<span class="nc bnc" id="L859" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Go to function...&quot;)) {</span>
+<span class="nc" id="L860">            FindFunction dlg = new FindFunction(this, &quot;Go to function&quot;,</span>
+                                                &quot;Function&quot;);
+<span class="nc" id="L862">            dlg.showDialog(this);</span>
+<span class="nc bnc" id="L863" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Tile&quot;)) {</span>
+<span class="nc" id="L864">            JInternalFrame[] frames = desk.getAllFrames();</span>
+<span class="nc" id="L865">            int count = frames.length;</span>
+            int rows, cols;
+<span class="nc" id="L867">            rows = cols = (int)Math.sqrt(count);</span>
+<span class="nc bnc" id="L868" title="All 2 branches missed.">            if (rows*cols &lt; count) {</span>
+<span class="nc" id="L869">                cols++;</span>
+<span class="nc bnc" id="L870" title="All 2 branches missed.">                if (rows * cols &lt; count) {</span>
+<span class="nc" id="L871">                    rows++;</span>
+                }
+            }
+<span class="nc" id="L874">            Dimension size = desk.getSize();</span>
+<span class="nc" id="L875">            int w = size.width/cols;</span>
+<span class="nc" id="L876">            int h = size.height/rows;</span>
+<span class="nc" id="L877">            int x = 0;</span>
+<span class="nc" id="L878">            int y = 0;</span>
+<span class="nc bnc" id="L879" title="All 2 branches missed.">            for (int i = 0; i &lt; rows; i++) {</span>
+<span class="nc bnc" id="L880" title="All 2 branches missed.">                for (int j = 0; j &lt; cols; j++) {</span>
+<span class="nc" id="L881">                    int index = (i*cols) + j;</span>
+<span class="nc bnc" id="L882" title="All 2 branches missed.">                    if (index &gt;= frames.length) {</span>
+<span class="nc" id="L883">                        break;</span>
+                    }
+<span class="nc" id="L885">                    JInternalFrame f = frames[index];</span>
+                    try {
+<span class="nc" id="L887">                        f.setIcon(false);</span>
+<span class="nc" id="L888">                        f.setMaximum(false);</span>
+<span class="nc" id="L889">                    } catch (Exception exc) {</span>
+<span class="nc" id="L890">                    }</span>
+<span class="nc" id="L891">                    desk.getDesktopManager().setBoundsForFrame(f, x, y,</span>
+                                                               w, h);
+<span class="nc" id="L893">                    x += w;</span>
+                }
+<span class="nc" id="L895">                y += h;</span>
+<span class="nc" id="L896">                x = 0;</span>
+            }
+<span class="nc bnc" id="L898" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Cascade&quot;)) {</span>
+<span class="nc" id="L899">            JInternalFrame[] frames = desk.getAllFrames();</span>
+<span class="nc" id="L900">            int count = frames.length;</span>
+            int x, y, w, h;
+<span class="nc" id="L902">            x = y = 0;</span>
+<span class="nc" id="L903">            h = desk.getHeight();</span>
+<span class="nc" id="L904">            int d = h / count;</span>
+<span class="nc bnc" id="L905" title="All 2 branches missed.">            if (d &gt; 30) d = 30;</span>
+<span class="nc bnc" id="L906" title="All 2 branches missed.">            for (int i = count -1; i &gt;= 0; i--, x += d, y += d) {</span>
+<span class="nc" id="L907">                JInternalFrame f = frames[i];</span>
+                try {
+<span class="nc" id="L909">                    f.setIcon(false);</span>
+<span class="nc" id="L910">                    f.setMaximum(false);</span>
+<span class="nc" id="L911">                } catch (Exception exc) {</span>
+<span class="nc" id="L912">                }</span>
+<span class="nc" id="L913">                Dimension dimen = f.getPreferredSize();</span>
+<span class="nc" id="L914">                w = dimen.width;</span>
+<span class="nc" id="L915">                h = dimen.height;</span>
+<span class="nc" id="L916">                desk.getDesktopManager().setBoundsForFrame(f, x, y, w, h);</span>
+            }
+<span class="nc" id="L918">        } else {</span>
+<span class="nc" id="L919">            Object obj = getFileWindow(cmd);</span>
+<span class="nc bnc" id="L920" title="All 2 branches missed.">            if (obj != null) {</span>
+<span class="nc" id="L921">                FileWindow w = (FileWindow)obj;</span>
+                try {
+<span class="nc bnc" id="L923" title="All 2 branches missed.">                    if (w.isIcon()) {</span>
+<span class="nc" id="L924">                        w.setIcon(false);</span>
+                    }
+<span class="nc" id="L926">                    w.setVisible(true);</span>
+<span class="nc" id="L927">                    w.moveToFront();</span>
+<span class="nc" id="L928">                    w.setSelected(true);</span>
+<span class="nc" id="L929">                } catch (Exception exc) {</span>
+<span class="nc" id="L930">                }</span>
+            }
+        }
+<span class="nc bnc" id="L933" title="All 2 branches missed.">        if (returnValue != -1) {</span>
+<span class="nc" id="L934">            updateEnabled(false);</span>
+<span class="nc" id="L935">            dim.setReturnValue(returnValue);</span>
+        }
+<span class="nc" id="L937">    }</span>
+}
+
+/**
+ * Helper class for showing a message dialog.
+ */
+<span class="nc" id="L943">class MessageDialogWrapper {</span>
+
+    /**
+     * Shows a message dialog, wrapping the &lt;code&gt;msg&lt;/code&gt; at 60
+     * columns.
+     */
+    public static void showMessageDialog(Component parent, String msg,
+                                         String title, int flags) {
+<span class="nc bnc" id="L951" title="All 2 branches missed.">        if (msg.length() &gt; 60) {</span>
+<span class="nc" id="L952">            StringBuilder buf = new StringBuilder();</span>
+<span class="nc" id="L953">            int len = msg.length();</span>
+<span class="nc" id="L954">            int j = 0;</span>
+            int i;
+<span class="nc bnc" id="L956" title="All 2 branches missed.">            for (i = 0; i &lt; len; i++, j++) {</span>
+<span class="nc" id="L957">                char c = msg.charAt(i);</span>
+<span class="nc" id="L958">                buf.append(c);</span>
+<span class="nc bnc" id="L959" title="All 2 branches missed.">                if (Character.isWhitespace(c)) {</span>
+                    int k;
+<span class="nc bnc" id="L961" title="All 2 branches missed.">                    for (k = i + 1; k &lt; len; k++) {</span>
+<span class="nc bnc" id="L962" title="All 2 branches missed.">                        if (Character.isWhitespace(msg.charAt(k))) {</span>
+<span class="nc" id="L963">                            break;</span>
+                        }
+                    }
+<span class="nc bnc" id="L966" title="All 2 branches missed.">                    if (k &lt; len) {</span>
+<span class="nc" id="L967">                        int nextWordLen = k - i;</span>
+<span class="nc bnc" id="L968" title="All 2 branches missed.">                        if (j + nextWordLen &gt; 60) {</span>
+<span class="nc" id="L969">                            buf.append('\n');</span>
+<span class="nc" id="L970">                            j = 0;</span>
+                        }
+                    }
+                }
+            }
+<span class="nc" id="L975">            msg = buf.toString();</span>
+        }
+<span class="nc" id="L977">        JOptionPane.showMessageDialog(parent, msg, title, flags);</span>
+<span class="nc" id="L978">    }</span>
+}
+
+/**
+ * Extension of JTextArea for script evaluation input.
+ */
+class EvalTextArea
+    extends JTextArea
+    implements KeyListener, DocumentListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -3918033649601064194L;
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * History of expressions that have been evaluated
+     */
+    private List&lt;String&gt; history;
+
+    /**
+     * Index of the selected history item.
+     */
+<span class="nc" id="L1006">    private int historyIndex = -1;</span>
+
+    /**
+     * Position in the display where output should go.
+     */
+    private int outputMark;
+
+    /**
+     * Creates a new EvalTextArea.
+     */
+<span class="nc" id="L1016">    public EvalTextArea(SwingGui debugGui) {</span>
+<span class="nc" id="L1017">        this.debugGui = debugGui;</span>
+<span class="nc" id="L1018">        history = Collections.synchronizedList(new ArrayList&lt;String&gt;());</span>
+<span class="nc" id="L1019">        Document doc = getDocument();</span>
+<span class="nc" id="L1020">        doc.addDocumentListener(this);</span>
+<span class="nc" id="L1021">        addKeyListener(this);</span>
+<span class="nc" id="L1022">        setLineWrap(true);</span>
+<span class="nc" id="L1023">        setFont(new Font(&quot;Monospaced&quot;, 0, 12));</span>
+<span class="nc" id="L1024">        append(&quot;% &quot;);</span>
+<span class="nc" id="L1025">        outputMark = doc.getLength();</span>
+<span class="nc" id="L1026">    }</span>
+
+    /**
+     * Selects a subrange of the text.
+     */
+    @Override
+    public void select(int start, int end) {
+        //requestFocus();
+<span class="nc" id="L1034">        super.select(start, end);</span>
+<span class="nc" id="L1035">    }</span>
+
+    /**
+     * Called when Enter is pressed.
+     */
+    private synchronized void returnPressed() {
+<span class="nc" id="L1041">        Document doc = getDocument();</span>
+<span class="nc" id="L1042">        int len = doc.getLength();</span>
+<span class="nc" id="L1043">        Segment segment = new Segment();</span>
+        try {
+<span class="nc" id="L1045">            doc.getText(outputMark, len - outputMark, segment);</span>
+<span class="nc" id="L1046">        } catch (javax.swing.text.BadLocationException ignored) {</span>
+<span class="nc" id="L1047">            ignored.printStackTrace();</span>
+<span class="nc" id="L1048">        }</span>
+<span class="nc" id="L1049">        String text = segment.toString();</span>
+<span class="nc bnc" id="L1050" title="All 2 branches missed.">        if (debugGui.dim.stringIsCompilableUnit(text)) {</span>
+<span class="nc bnc" id="L1051" title="All 2 branches missed.">            if (text.trim().length() &gt; 0) {</span>
+<span class="nc" id="L1052">               history.add(text);</span>
+<span class="nc" id="L1053">               historyIndex = history.size();</span>
+            }
+<span class="nc" id="L1055">            append(&quot;\n&quot;);</span>
+<span class="nc" id="L1056">            String result = debugGui.dim.eval(text);</span>
+<span class="nc bnc" id="L1057" title="All 2 branches missed.">            if (result.length() &gt; 0) {</span>
+<span class="nc" id="L1058">                append(result);</span>
+<span class="nc" id="L1059">                append(&quot;\n&quot;);</span>
+            }
+<span class="nc" id="L1061">            append(&quot;% &quot;);</span>
+<span class="nc" id="L1062">            outputMark = doc.getLength();</span>
+<span class="nc" id="L1063">        } else {</span>
+<span class="nc" id="L1064">            append(&quot;\n&quot;);</span>
+        }
+<span class="nc" id="L1066">    }</span>
+
+    /**
+     * Writes output into the text area.
+     */
+    public synchronized void write(String str) {
+<span class="nc" id="L1072">        insert(str, outputMark);</span>
+<span class="nc" id="L1073">        int len = str.length();</span>
+<span class="nc" id="L1074">        outputMark += len;</span>
+<span class="nc" id="L1075">        select(outputMark, outputMark);</span>
+<span class="nc" id="L1076">    }</span>
+
+    // KeyListener
+
+    /**
+     * Called when a key is pressed.
+     */
+    public void keyPressed(KeyEvent e) {
+<span class="nc" id="L1084">        int code = e.getKeyCode();</span>
+<span class="nc bnc" id="L1085" title="All 4 branches missed.">        if (code == KeyEvent.VK_BACK_SPACE || code == KeyEvent.VK_LEFT) {</span>
+<span class="nc bnc" id="L1086" title="All 2 branches missed.">            if (outputMark == getCaretPosition()) {</span>
+<span class="nc" id="L1087">                e.consume();</span>
+            }
+<span class="nc bnc" id="L1089" title="All 2 branches missed.">        } else if (code == KeyEvent.VK_HOME) {</span>
+<span class="nc" id="L1090">           int caretPos = getCaretPosition();</span>
+<span class="nc bnc" id="L1091" title="All 2 branches missed.">           if (caretPos == outputMark) {</span>
+<span class="nc" id="L1092">               e.consume();</span>
+<span class="nc bnc" id="L1093" title="All 2 branches missed.">           } else if (caretPos &gt; outputMark) {</span>
+<span class="nc bnc" id="L1094" title="All 2 branches missed.">               if (!e.isControlDown()) {</span>
+<span class="nc bnc" id="L1095" title="All 2 branches missed.">                   if (e.isShiftDown()) {</span>
+<span class="nc" id="L1096">                       moveCaretPosition(outputMark);</span>
+                   } else {
+<span class="nc" id="L1098">                       setCaretPosition(outputMark);</span>
+                   }
+<span class="nc" id="L1100">                   e.consume();</span>
+               }
+           }
+<span class="nc bnc" id="L1103" title="All 2 branches missed.">        } else if (code == KeyEvent.VK_ENTER) {</span>
+<span class="nc" id="L1104">            returnPressed();</span>
+<span class="nc" id="L1105">            e.consume();</span>
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">        } else if (code == KeyEvent.VK_UP) {</span>
+<span class="nc" id="L1107">            historyIndex--;</span>
+<span class="nc bnc" id="L1108" title="All 2 branches missed.">            if (historyIndex &gt;= 0) {</span>
+<span class="nc bnc" id="L1109" title="All 2 branches missed.">                if (historyIndex &gt;= history.size()) {</span>
+<span class="nc" id="L1110">                    historyIndex = history.size() -1;</span>
+                }
+<span class="nc bnc" id="L1112" title="All 2 branches missed.">                if (historyIndex &gt;= 0) {</span>
+<span class="nc" id="L1113">                    String str = history.get(historyIndex);</span>
+<span class="nc" id="L1114">                    int len = getDocument().getLength();</span>
+<span class="nc" id="L1115">                    replaceRange(str, outputMark, len);</span>
+<span class="nc" id="L1116">                    int caretPos = outputMark + str.length();</span>
+<span class="nc" id="L1117">                    select(caretPos, caretPos);</span>
+<span class="nc" id="L1118">                } else {</span>
+<span class="nc" id="L1119">                    historyIndex++;</span>
+                }
+            } else {
+<span class="nc" id="L1122">                historyIndex++;</span>
+            }
+<span class="nc" id="L1124">            e.consume();</span>
+<span class="nc bnc" id="L1125" title="All 2 branches missed.">        } else if (code == KeyEvent.VK_DOWN) {</span>
+<span class="nc" id="L1126">            int caretPos = outputMark;</span>
+<span class="nc bnc" id="L1127" title="All 2 branches missed.">            if (history.size() &gt; 0) {</span>
+<span class="nc" id="L1128">                historyIndex++;</span>
+<span class="nc bnc" id="L1129" title="All 2 branches missed.">                if (historyIndex &lt; 0) {historyIndex = 0;}</span>
+<span class="nc" id="L1130">                int len = getDocument().getLength();</span>
+<span class="nc bnc" id="L1131" title="All 2 branches missed.">                if (historyIndex &lt; history.size()) {</span>
+<span class="nc" id="L1132">                    String str = history.get(historyIndex);</span>
+<span class="nc" id="L1133">                    replaceRange(str, outputMark, len);</span>
+<span class="nc" id="L1134">                    caretPos = outputMark + str.length();</span>
+<span class="nc" id="L1135">                } else {</span>
+<span class="nc" id="L1136">                    historyIndex = history.size();</span>
+<span class="nc" id="L1137">                    replaceRange(&quot;&quot;, outputMark, len);</span>
+                }
+            }
+<span class="nc" id="L1140">            select(caretPos, caretPos);</span>
+<span class="nc" id="L1141">            e.consume();</span>
+        }
+<span class="nc" id="L1143">    }</span>
+
+    /**
+     * Called when a key is typed.
+     */
+    public void keyTyped(KeyEvent e) {
+<span class="nc" id="L1149">        int keyChar = e.getKeyChar();</span>
+<span class="nc bnc" id="L1150" title="All 2 branches missed.">        if (keyChar == 0x8 /* KeyEvent.VK_BACK_SPACE */) {</span>
+<span class="nc bnc" id="L1151" title="All 2 branches missed.">            if (outputMark == getCaretPosition()) {</span>
+<span class="nc" id="L1152">                e.consume();</span>
+            }
+<span class="nc bnc" id="L1154" title="All 2 branches missed.">        } else if (getCaretPosition() &lt; outputMark) {</span>
+<span class="nc" id="L1155">            setCaretPosition(outputMark);</span>
+        }
+<span class="nc" id="L1157">    }</span>
+
+    /**
+     * Called when a key is released.
+     */
+    public synchronized void keyReleased(KeyEvent e) {
+<span class="nc" id="L1163">    }</span>
+
+    // DocumentListener
+
+    /**
+     * Called when text was inserted into the text area.
+     */
+    public synchronized void insertUpdate(DocumentEvent e) {
+<span class="nc" id="L1171">        int len = e.getLength();</span>
+<span class="nc" id="L1172">        int off = e.getOffset();</span>
+<span class="nc bnc" id="L1173" title="All 2 branches missed.">        if (outputMark &gt; off) {</span>
+<span class="nc" id="L1174">            outputMark += len;</span>
+        }
+<span class="nc" id="L1176">    }</span>
+
+    /**
+     * Called when text was removed from the text area.
+     */
+    public synchronized void removeUpdate(DocumentEvent e) {
+<span class="nc" id="L1182">        int len = e.getLength();</span>
+<span class="nc" id="L1183">        int off = e.getOffset();</span>
+<span class="nc bnc" id="L1184" title="All 2 branches missed.">        if (outputMark &gt; off) {</span>
+<span class="nc bnc" id="L1185" title="All 2 branches missed.">            if (outputMark &gt;= off + len) {</span>
+<span class="nc" id="L1186">                outputMark -= len;</span>
+            } else {
+<span class="nc" id="L1188">                outputMark = off;</span>
+            }
+        }
+<span class="nc" id="L1191">    }</span>
+
+    /**
+     * Attempts to clean up the damage done by {@link #updateUI()}.
+     */
+    public synchronized void postUpdateUI() {
+        //requestFocus();
+<span class="nc" id="L1198">        setCaret(getCaret());</span>
+<span class="nc" id="L1199">        select(outputMark, outputMark);</span>
+<span class="nc" id="L1200">    }</span>
+
+    /**
+     * Called when text has changed in the text area.
+     */
+    public synchronized void changedUpdate(DocumentEvent e) {
+<span class="nc" id="L1206">    }</span>
+}
+
+/**
+ * An internal frame for evaluating script.
+ */
+class EvalWindow extends JInternalFrame implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -2860585845212160176L;
+
+    /**
+     * The text area into which expressions can be typed.
+     */
+    private EvalTextArea evalTextArea;
+
+    /**
+     * Creates a new EvalWindow.
+     */
+    public EvalWindow(String name, SwingGui debugGui) {
+<span class="nc" id="L1228">        super(name, true, false, true, true);</span>
+<span class="nc" id="L1229">        evalTextArea = new EvalTextArea(debugGui);</span>
+<span class="nc" id="L1230">        evalTextArea.setRows(24);</span>
+<span class="nc" id="L1231">        evalTextArea.setColumns(80);</span>
+<span class="nc" id="L1232">        JScrollPane scroller = new JScrollPane(evalTextArea);</span>
+<span class="nc" id="L1233">        setContentPane(scroller);</span>
+        //scroller.setPreferredSize(new Dimension(600, 400));
+<span class="nc" id="L1235">        pack();</span>
+<span class="nc" id="L1236">        setVisible(true);</span>
+<span class="nc" id="L1237">    }</span>
+
+    /**
+     * Sets whether the text area is enabled.
+     */
+    @Override
+    public void setEnabled(boolean b) {
+<span class="nc" id="L1244">        super.setEnabled(b);</span>
+<span class="nc" id="L1245">        evalTextArea.setEnabled(b);</span>
+<span class="nc" id="L1246">    }</span>
+
+    // ActionListener
+
+    /**
+     * Performs an action on the text area.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L1254">        String cmd = e.getActionCommand();</span>
+<span class="nc bnc" id="L1255" title="All 2 branches missed.">        if (cmd.equals(&quot;Cut&quot;)) {</span>
+<span class="nc" id="L1256">            evalTextArea.cut();</span>
+<span class="nc bnc" id="L1257" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Copy&quot;)) {</span>
+<span class="nc" id="L1258">            evalTextArea.copy();</span>
+<span class="nc bnc" id="L1259" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Paste&quot;)) {</span>
+<span class="nc" id="L1260">            evalTextArea.paste();</span>
+        }
+<span class="nc" id="L1262">    }</span>
+}
+
+/**
+ * Internal frame for the console.
+ */
+class JSInternalConsole extends JInternalFrame implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -5523468828771087292L;
+
+    /**
+     * Creates a new JSInternalConsole.
+     */
+    public JSInternalConsole(String name) {
+<span class="nc" id="L1279">        super(name, true, false, true, true);</span>
+<span class="nc" id="L1280">        consoleTextArea = new ConsoleTextArea(null);</span>
+<span class="nc" id="L1281">        consoleTextArea.setRows(24);</span>
+<span class="nc" id="L1282">        consoleTextArea.setColumns(80);</span>
+<span class="nc" id="L1283">        JScrollPane scroller = new JScrollPane(consoleTextArea);</span>
+<span class="nc" id="L1284">        setContentPane(scroller);</span>
+<span class="nc" id="L1285">        pack();</span>
+<span class="nc" id="L1286">        addInternalFrameListener(new InternalFrameAdapter() {</span>
+                @Override
+                public void internalFrameActivated(InternalFrameEvent e) {
+                    // hack
+<span class="nc bnc" id="L1290" title="All 2 branches missed.">                    if (consoleTextArea.hasFocus()) {</span>
+<span class="nc" id="L1291">                        consoleTextArea.getCaret().setVisible(false);</span>
+<span class="nc" id="L1292">                        consoleTextArea.getCaret().setVisible(true);</span>
+                    }
+<span class="nc" id="L1294">                }</span>
+            });
+<span class="nc" id="L1296">    }</span>
+
+    /**
+     * The console text area.
+     */
+    ConsoleTextArea consoleTextArea;
+
+    /**
+     * Returns the input stream of the console text area.
+     */
+    public InputStream getIn() {
+<span class="nc" id="L1307">        return consoleTextArea.getIn();</span>
+    }
+
+    /**
+     * Returns the output stream of the console text area.
+     */
+    public PrintStream getOut() {
+<span class="nc" id="L1314">        return consoleTextArea.getOut();</span>
+    }
+
+    /**
+     * Returns the error stream of the console text area.
+     */
+    public PrintStream getErr() {
+<span class="nc" id="L1321">        return consoleTextArea.getErr();</span>
+    }
+
+    // ActionListener
+
+    /**
+     * Performs an action on the text area.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L1330">        String cmd = e.getActionCommand();</span>
+<span class="nc bnc" id="L1331" title="All 2 branches missed.">        if (cmd.equals(&quot;Cut&quot;)) {</span>
+<span class="nc" id="L1332">            consoleTextArea.cut();</span>
+<span class="nc bnc" id="L1333" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Copy&quot;)) {</span>
+<span class="nc" id="L1334">            consoleTextArea.copy();</span>
+<span class="nc bnc" id="L1335" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Paste&quot;)) {</span>
+<span class="nc" id="L1336">            consoleTextArea.paste();</span>
+        }
+<span class="nc" id="L1338">    }</span>
+}
+
+/**
+ * Popup menu class for right-clicking on {@link FileTextArea}s.
+ */
+class FilePopupMenu extends JPopupMenu {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 3589525009546013565L;
+
+    /**
+     * The popup x position.
+     */
+    int x;
+
+    /**
+     * The popup y position.
+     */
+    int y;
+
+    /**
+     * Creates a new FilePopupMenu.
+     */
+<span class="nc" id="L1364">    public FilePopupMenu(FileTextArea w) {</span>
+        JMenuItem item;
+<span class="nc" id="L1366">        add(item = new JMenuItem(&quot;Set Breakpoint&quot;));</span>
+<span class="nc" id="L1367">        item.addActionListener(w);</span>
+<span class="nc" id="L1368">        add(item = new JMenuItem(&quot;Clear Breakpoint&quot;));</span>
+<span class="nc" id="L1369">        item.addActionListener(w);</span>
+<span class="nc" id="L1370">        add(item = new JMenuItem(&quot;Run&quot;));</span>
+<span class="nc" id="L1371">        item.addActionListener(w);</span>
+<span class="nc" id="L1372">    }</span>
+
+    /**
+     * Displays the menu at the given coordinates.
+     */
+    public void show(JComponent comp, int x, int y) {
+<span class="nc" id="L1378">        this.x = x;</span>
+<span class="nc" id="L1379">        this.y = y;</span>
+<span class="nc" id="L1380">        super.show(comp, x, y);</span>
+<span class="nc" id="L1381">    }</span>
+}
+
+/**
+ * Text area to display script source.
+ */
+class FileTextArea
+    extends JTextArea
+    implements ActionListener, PopupMenuListener, KeyListener, MouseListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -25032065448563720L;
+
+    /**
+     * The owning {@link FileWindow}.
+     */
+    private FileWindow w;
+
+    /**
+     * The popup menu.
+     */
+    private FilePopupMenu popup;
+
+    /**
+     * Creates a new FileTextArea.
+     */
+<span class="nc" id="L1409">    public FileTextArea(FileWindow w) {</span>
+<span class="nc" id="L1410">        this.w = w;</span>
+<span class="nc" id="L1411">        popup = new FilePopupMenu(this);</span>
+<span class="nc" id="L1412">        popup.addPopupMenuListener(this);</span>
+<span class="nc" id="L1413">        addMouseListener(this);</span>
+<span class="nc" id="L1414">        addKeyListener(this);</span>
+<span class="nc" id="L1415">        setFont(new Font(&quot;Monospaced&quot;, 0, 12));</span>
+<span class="nc" id="L1416">    }</span>
+
+    /**
+     * Moves the selection to the given offset.
+     */
+    public void select(int pos) {
+<span class="nc bnc" id="L1422" title="All 2 branches missed.">        if (pos &gt;= 0) {</span>
+            try {
+<span class="nc" id="L1424">                int line = getLineOfOffset(pos);</span>
+<span class="nc" id="L1425">                Rectangle rect = modelToView(pos);</span>
+<span class="nc bnc" id="L1426" title="All 2 branches missed.">                if (rect == null) {</span>
+<span class="nc" id="L1427">                    select(pos, pos);</span>
+                } else {
+                    try {
+<span class="nc" id="L1430">                        Rectangle nrect =</span>
+<span class="nc" id="L1431">                            modelToView(getLineStartOffset(line + 1));</span>
+<span class="nc bnc" id="L1432" title="All 2 branches missed.">                        if (nrect != null) {</span>
+<span class="nc" id="L1433">                            rect = nrect;</span>
+                        }
+<span class="nc" id="L1435">                    } catch (Exception exc) {</span>
+<span class="nc" id="L1436">                    }</span>
+<span class="nc" id="L1437">                    JViewport vp = (JViewport)getParent();</span>
+<span class="nc" id="L1438">                    Rectangle viewRect = vp.getViewRect();</span>
+<span class="nc bnc" id="L1439" title="All 2 branches missed.">                    if (viewRect.y + viewRect.height &gt; rect.y) {</span>
+                        // need to scroll up
+<span class="nc" id="L1441">                        select(pos, pos);</span>
+                    } else {
+                        // need to scroll down
+<span class="nc" id="L1444">                        rect.y += (viewRect.height - rect.height)/2;</span>
+<span class="nc" id="L1445">                        scrollRectToVisible(rect);</span>
+<span class="nc" id="L1446">                        select(pos, pos);</span>
+                    }
+                }
+<span class="nc" id="L1449">            } catch (BadLocationException exc) {</span>
+<span class="nc" id="L1450">                select(pos, pos);</span>
+                //exc.printStackTrace();
+<span class="nc" id="L1452">            }</span>
+        }
+<span class="nc" id="L1454">    }</span>
+
+    /**
+     * Checks if the popup menu should be shown.
+     */
+    private void checkPopup(MouseEvent e) {
+<span class="nc bnc" id="L1460" title="All 2 branches missed.">        if (e.isPopupTrigger()) {</span>
+<span class="nc" id="L1461">            popup.show(this, e.getX(), e.getY());</span>
+        }
+<span class="nc" id="L1463">    }</span>
+
+    // MouseListener
+
+    /**
+     * Called when a mouse button is pressed.
+     */
+    public void mousePressed(MouseEvent e) {
+<span class="nc" id="L1471">        checkPopup(e);</span>
+<span class="nc" id="L1472">    }</span>
+
+    /**
+     * Called when the mouse is clicked.
+     */
+    public void mouseClicked(MouseEvent e) {
+<span class="nc" id="L1478">        checkPopup(e);</span>
+<span class="nc" id="L1479">        requestFocus();</span>
+<span class="nc" id="L1480">        getCaret().setVisible(true);</span>
+<span class="nc" id="L1481">    }</span>
+
+    /**
+     * Called when the mouse enters the component.
+     */
+    public void mouseEntered(MouseEvent e) {
+<span class="nc" id="L1487">    }</span>
+
+    /**
+     * Called when the mouse exits the component.
+     */
+    public void mouseExited(MouseEvent e) {
+<span class="nc" id="L1493">    }</span>
+
+    /**
+     * Called when a mouse button is released.
+     */
+    public void mouseReleased(MouseEvent e) {
+<span class="nc" id="L1499">        checkPopup(e);</span>
+<span class="nc" id="L1500">    }</span>
+
+    // PopupMenuListener
+
+    /**
+     * Called before the popup menu will become visible.
+     */
+    public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+<span class="nc" id="L1508">    }</span>
+
+    /**
+     * Called before the popup menu will become invisible.
+     */
+    public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+<span class="nc" id="L1514">    }</span>
+
+    /**
+     * Called when the popup menu is cancelled.
+     */
+    public void popupMenuCanceled(PopupMenuEvent e) {
+<span class="nc" id="L1520">    }</span>
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L1528">        int pos = viewToModel(new Point(popup.x, popup.y));</span>
+<span class="nc" id="L1529">        popup.setVisible(false);</span>
+<span class="nc" id="L1530">        String cmd = e.getActionCommand();</span>
+<span class="nc" id="L1531">        int line = -1;</span>
+        try {
+<span class="nc" id="L1533">            line = getLineOfOffset(pos);</span>
+<span class="nc" id="L1534">        } catch (Exception exc) {</span>
+<span class="nc" id="L1535">        }</span>
+<span class="nc bnc" id="L1536" title="All 2 branches missed.">        if (cmd.equals(&quot;Set Breakpoint&quot;)) {</span>
+<span class="nc" id="L1537">            w.setBreakPoint(line + 1);</span>
+<span class="nc bnc" id="L1538" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Clear Breakpoint&quot;)) {</span>
+<span class="nc" id="L1539">            w.clearBreakPoint(line + 1);</span>
+<span class="nc bnc" id="L1540" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Run&quot;)) {</span>
+<span class="nc" id="L1541">            w.load();</span>
+        }
+<span class="nc" id="L1543">    }</span>
+
+    // KeyListener
+
+    /**
+     * Called when a key is pressed.
+     */
+    public void keyPressed(KeyEvent e) {
+<span class="nc bnc" id="L1551" title="All 2 branches missed.">        switch (e.getKeyCode()) {</span>
+        case KeyEvent.VK_BACK_SPACE:
+        case KeyEvent.VK_ENTER:
+        case KeyEvent.VK_DELETE:
+        case KeyEvent.VK_TAB:
+<span class="nc" id="L1556">            e.consume();</span>
+            break;
+        }
+<span class="nc" id="L1559">    }</span>
+
+    /**
+     * Called when a key is typed.
+     */
+    public void keyTyped(KeyEvent e) {
+<span class="nc" id="L1565">        e.consume();</span>
+<span class="nc" id="L1566">    }</span>
+
+    /**
+     * Called when a key is released.
+     */
+    public void keyReleased(KeyEvent e) {
+<span class="nc" id="L1572">        e.consume();</span>
+<span class="nc" id="L1573">    }</span>
+}
+
+/**
+ * Dialog to list the available windows.
+ */
+class MoreWindows extends JDialog implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 5177066296457377546L;
+
+    /**
+     * Last selected value.
+     */
+    private String value;
+
+    /**
+     * The list component.
+     */
+    private JList list;
+
+    /**
+     * Our parent frame.
+     */
+    private SwingGui swingGui;
+
+    /**
+     * The &quot;Select&quot; button.
+     */
+    private JButton setButton;
+
+    /**
+     * The &quot;Cancel&quot; button.
+     */
+    private JButton cancelButton;
+
+    /**
+     * Creates a new MoreWindows.
+     */
+    MoreWindows(SwingGui frame, Map&lt;String,FileWindow&gt; fileWindows, String title,
+                String labelText) {
+<span class="nc" id="L1616">        super(frame, title, true);</span>
+<span class="nc" id="L1617">        this.swingGui = frame;</span>
+        //buttons
+<span class="nc" id="L1619">        cancelButton = new JButton(&quot;Cancel&quot;);</span>
+<span class="nc" id="L1620">        setButton = new JButton(&quot;Select&quot;);</span>
+<span class="nc" id="L1621">        cancelButton.addActionListener(this);</span>
+<span class="nc" id="L1622">        setButton.addActionListener(this);</span>
+<span class="nc" id="L1623">        getRootPane().setDefaultButton(setButton);</span>
+
+        //dim part of the dialog
+<span class="nc" id="L1626">        list = new JList(new DefaultListModel());</span>
+<span class="nc" id="L1627">        DefaultListModel model = (DefaultListModel)list.getModel();</span>
+<span class="nc" id="L1628">        model.clear();</span>
+        //model.fireIntervalRemoved(model, 0, size);
+<span class="nc bnc" id="L1630" title="All 2 branches missed.">        for (String data: fileWindows.keySet()) {</span>
+<span class="nc" id="L1631">            model.addElement(data);</span>
+<span class="nc" id="L1632">        }</span>
+<span class="nc" id="L1633">        list.setSelectedIndex(0);</span>
+        //model.fireIntervalAdded(model, 0, data.length);
+<span class="nc" id="L1635">        setButton.setEnabled(true);</span>
+<span class="nc" id="L1636">        list.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);</span>
+<span class="nc" id="L1637">        list.addMouseListener(new MouseHandler());</span>
+<span class="nc" id="L1638">        JScrollPane listScroller = new JScrollPane(list);</span>
+<span class="nc" id="L1639">        listScroller.setPreferredSize(new Dimension(320, 240));</span>
+        //XXX: Must do the following, too, or else the scroller thinks
+        //XXX: it's taller than it is:
+<span class="nc" id="L1642">        listScroller.setMinimumSize(new Dimension(250, 80));</span>
+<span class="nc" id="L1643">        listScroller.setAlignmentX(LEFT_ALIGNMENT);</span>
+
+        //Create a container so that we can add a title around
+        //the scroll pane.  Can't add a title directly to the
+        //scroll pane because its background would be white.
+        //Lay out the label and scroll pane from top to button.
+<span class="nc" id="L1649">        JPanel listPane = new JPanel();</span>
+<span class="nc" id="L1650">        listPane.setLayout(new BoxLayout(listPane, BoxLayout.Y_AXIS));</span>
+<span class="nc" id="L1651">        JLabel label = new JLabel(labelText);</span>
+<span class="nc" id="L1652">        label.setLabelFor (list);</span>
+<span class="nc" id="L1653">        listPane.add(label);</span>
+<span class="nc" id="L1654">        listPane.add(Box.createRigidArea(new Dimension(0,5)));</span>
+<span class="nc" id="L1655">        listPane.add(listScroller);</span>
+<span class="nc" id="L1656">        listPane.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));</span>
+
+        //Lay out the buttons from left to right.
+<span class="nc" id="L1659">        JPanel buttonPane = new JPanel();</span>
+<span class="nc" id="L1660">        buttonPane.setLayout(new BoxLayout(buttonPane, BoxLayout.X_AXIS));</span>
+<span class="nc" id="L1661">        buttonPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));</span>
+<span class="nc" id="L1662">        buttonPane.add(Box.createHorizontalGlue());</span>
+<span class="nc" id="L1663">        buttonPane.add(cancelButton);</span>
+<span class="nc" id="L1664">        buttonPane.add(Box.createRigidArea(new Dimension(10, 0)));</span>
+<span class="nc" id="L1665">        buttonPane.add(setButton);</span>
+
+        //Put everything together, using the content pane's BorderLayout.
+<span class="nc" id="L1668">        Container contentPane = getContentPane();</span>
+<span class="nc" id="L1669">        contentPane.add(listPane, BorderLayout.CENTER);</span>
+<span class="nc" id="L1670">        contentPane.add(buttonPane, BorderLayout.SOUTH);</span>
+<span class="nc" id="L1671">        pack();</span>
+<span class="nc" id="L1672">        addKeyListener(new KeyAdapter() {</span>
+                @Override
+                public void keyPressed(KeyEvent ke) {
+<span class="nc" id="L1675">                    int code = ke.getKeyCode();</span>
+<span class="nc bnc" id="L1676" title="All 2 branches missed.">                    if (code == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L1677">                        ke.consume();</span>
+<span class="nc" id="L1678">                        value = null;</span>
+<span class="nc" id="L1679">                        setVisible(false);</span>
+                    }
+<span class="nc" id="L1681">                }</span>
+            });
+<span class="nc" id="L1683">    }</span>
+
+    /**
+     * Shows the dialog.
+     */
+    public String showDialog(Component comp) {
+<span class="nc" id="L1689">        value = null;</span>
+<span class="nc" id="L1690">        setLocationRelativeTo(comp);</span>
+<span class="nc" id="L1691">        setVisible(true);</span>
+<span class="nc" id="L1692">        return value;</span>
+    }
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L1701">        String cmd = e.getActionCommand();</span>
+<span class="nc bnc" id="L1702" title="All 2 branches missed.">        if (cmd.equals(&quot;Cancel&quot;)) {</span>
+<span class="nc" id="L1703">            setVisible(false);</span>
+<span class="nc" id="L1704">            value = null;</span>
+<span class="nc bnc" id="L1705" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Select&quot;)) {</span>
+<span class="nc" id="L1706">            value = (String)list.getSelectedValue();</span>
+<span class="nc" id="L1707">            setVisible(false);</span>
+<span class="nc" id="L1708">            swingGui.showFileWindow(value, -1);</span>
+        }
+<span class="nc" id="L1710">    }</span>
+
+    /**
+     * MouseListener implementation for {@link #list}.
+     */
+<span class="nc" id="L1715">    private class MouseHandler extends MouseAdapter {</span>
+        @Override
+        public void mouseClicked(MouseEvent e) {
+<span class="nc bnc" id="L1718" title="All 2 branches missed.">            if (e.getClickCount() == 2) {</span>
+<span class="nc" id="L1719">                setButton.doClick();</span>
+            }
+<span class="nc" id="L1721">        }</span>
+    }
+}
+
+/**
+ * Find function dialog.
+ */
+class FindFunction extends JDialog implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 559491015232880916L;
+
+    /**
+     * Last selected function.
+     */
+    private String value;
+
+    /**
+     * List of functions.
+     */
+    private JList list;
+
+    /**
+     * The debug GUI frame.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * The &quot;Select&quot; button.
+     */
+    private JButton setButton;
+
+    /**
+     * The &quot;Cancel&quot; button.
+     */
+    private JButton cancelButton;
+
+    /**
+     * Creates a new FindFunction.
+     */
+    public FindFunction(SwingGui debugGui, String title, String labelText) {
+<span class="nc" id="L1764">        super(debugGui, title, true);</span>
+<span class="nc" id="L1765">        this.debugGui = debugGui;</span>
+
+<span class="nc" id="L1767">        cancelButton = new JButton(&quot;Cancel&quot;);</span>
+<span class="nc" id="L1768">        setButton = new JButton(&quot;Select&quot;);</span>
+<span class="nc" id="L1769">        cancelButton.addActionListener(this);</span>
+<span class="nc" id="L1770">        setButton.addActionListener(this);</span>
+<span class="nc" id="L1771">        getRootPane().setDefaultButton(setButton);</span>
+
+<span class="nc" id="L1773">        list = new JList(new DefaultListModel());</span>
+<span class="nc" id="L1774">        DefaultListModel model = (DefaultListModel)list.getModel();</span>
+<span class="nc" id="L1775">        model.clear();</span>
+
+<span class="nc" id="L1777">        String[] a = debugGui.dim.functionNames();</span>
+<span class="nc" id="L1778">        java.util.Arrays.sort(a);</span>
+<span class="nc bnc" id="L1779" title="All 2 branches missed.">        for (int i = 0; i &lt; a.length; i++) {</span>
+<span class="nc" id="L1780">            model.addElement(a[i]);</span>
+        }
+<span class="nc" id="L1782">        list.setSelectedIndex(0);</span>
+
+<span class="nc bnc" id="L1784" title="All 2 branches missed.">        setButton.setEnabled(a.length &gt; 0);</span>
+<span class="nc" id="L1785">        list.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);</span>
+<span class="nc" id="L1786">        list.addMouseListener(new MouseHandler());</span>
+<span class="nc" id="L1787">        JScrollPane listScroller = new JScrollPane(list);</span>
+<span class="nc" id="L1788">        listScroller.setPreferredSize(new Dimension(320, 240));</span>
+<span class="nc" id="L1789">        listScroller.setMinimumSize(new Dimension(250, 80));</span>
+<span class="nc" id="L1790">        listScroller.setAlignmentX(LEFT_ALIGNMENT);</span>
+
+        //Create a container so that we can add a title around
+        //the scroll pane.  Can't add a title directly to the
+        //scroll pane because its background would be white.
+        //Lay out the label and scroll pane from top to button.
+<span class="nc" id="L1796">        JPanel listPane = new JPanel();</span>
+<span class="nc" id="L1797">        listPane.setLayout(new BoxLayout(listPane, BoxLayout.Y_AXIS));</span>
+<span class="nc" id="L1798">        JLabel label = new JLabel(labelText);</span>
+<span class="nc" id="L1799">        label.setLabelFor (list);</span>
+<span class="nc" id="L1800">        listPane.add(label);</span>
+<span class="nc" id="L1801">        listPane.add(Box.createRigidArea(new Dimension(0,5)));</span>
+<span class="nc" id="L1802">        listPane.add(listScroller);</span>
+<span class="nc" id="L1803">        listPane.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));</span>
+
+        //Lay out the buttons from left to right.
+<span class="nc" id="L1806">        JPanel buttonPane = new JPanel();</span>
+<span class="nc" id="L1807">        buttonPane.setLayout(new BoxLayout(buttonPane, BoxLayout.X_AXIS));</span>
+<span class="nc" id="L1808">        buttonPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));</span>
+<span class="nc" id="L1809">        buttonPane.add(Box.createHorizontalGlue());</span>
+<span class="nc" id="L1810">        buttonPane.add(cancelButton);</span>
+<span class="nc" id="L1811">        buttonPane.add(Box.createRigidArea(new Dimension(10, 0)));</span>
+<span class="nc" id="L1812">        buttonPane.add(setButton);</span>
+
+        //Put everything together, using the content pane's BorderLayout.
+<span class="nc" id="L1815">        Container contentPane = getContentPane();</span>
+<span class="nc" id="L1816">        contentPane.add(listPane, BorderLayout.CENTER);</span>
+<span class="nc" id="L1817">        contentPane.add(buttonPane, BorderLayout.SOUTH);</span>
+<span class="nc" id="L1818">        pack();</span>
+<span class="nc" id="L1819">        addKeyListener(new KeyAdapter() {</span>
+                @Override
+                public void keyPressed(KeyEvent ke) {
+<span class="nc" id="L1822">                    int code = ke.getKeyCode();</span>
+<span class="nc bnc" id="L1823" title="All 2 branches missed.">                    if (code == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L1824">                        ke.consume();</span>
+<span class="nc" id="L1825">                        value = null;</span>
+<span class="nc" id="L1826">                        setVisible(false);</span>
+                    }
+<span class="nc" id="L1828">                }</span>
+            });
+<span class="nc" id="L1830">    }</span>
+
+    /**
+     * Shows the dialog.
+     */
+    public String showDialog(Component comp) {
+<span class="nc" id="L1836">        value = null;</span>
+<span class="nc" id="L1837">        setLocationRelativeTo(comp);</span>
+<span class="nc" id="L1838">        setVisible(true);</span>
+<span class="nc" id="L1839">        return value;</span>
+    }
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L1848">        String cmd = e.getActionCommand();</span>
+<span class="nc bnc" id="L1849" title="All 2 branches missed.">        if (cmd.equals(&quot;Cancel&quot;)) {</span>
+<span class="nc" id="L1850">            setVisible(false);</span>
+<span class="nc" id="L1851">            value = null;</span>
+<span class="nc bnc" id="L1852" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Select&quot;)) {</span>
+<span class="nc bnc" id="L1853" title="All 2 branches missed.">            if (list.getSelectedIndex() &lt; 0) {</span>
+<span class="nc" id="L1854">                return;</span>
+            }
+            try {
+<span class="nc" id="L1857">                value = (String)list.getSelectedValue();</span>
+<span class="nc" id="L1858">            } catch (ArrayIndexOutOfBoundsException exc) {</span>
+<span class="nc" id="L1859">                return;</span>
+<span class="nc" id="L1860">            }</span>
+<span class="nc" id="L1861">            setVisible(false);</span>
+<span class="nc" id="L1862">            Dim.FunctionSource item = debugGui.dim.functionSourceByName(value);</span>
+<span class="nc bnc" id="L1863" title="All 2 branches missed.">            if (item != null) {</span>
+<span class="nc" id="L1864">                Dim.SourceInfo si = item.sourceInfo();</span>
+<span class="nc" id="L1865">                String url = si.url();</span>
+<span class="nc" id="L1866">                int lineNumber = item.firstLine();</span>
+<span class="nc" id="L1867">                debugGui.showFileWindow(url, lineNumber);</span>
+            }
+        }
+<span class="nc" id="L1870">    }</span>
+
+    /**
+     * MouseListener implementation for {@link #list}.
+     */
+<span class="nc" id="L1875">    class MouseHandler extends MouseAdapter {</span>
+        @Override
+        public void mouseClicked(MouseEvent e) {
+<span class="nc bnc" id="L1878" title="All 2 branches missed.">            if (e.getClickCount() == 2) {</span>
+<span class="nc" id="L1879">                setButton.doClick();</span>
+            }
+<span class="nc" id="L1881">        }</span>
+    }
+}
+
+/**
+ * Gutter for FileWindows.
+ */
+class FileHeader extends JPanel implements MouseListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -2858905404778259127L;
+
+    /**
+     * The line that the mouse was pressed on.
+     */
+<span class="nc" id="L1898">    private int pressLine = -1;</span>
+
+    /**
+     * The owning FileWindow.
+     */
+    private FileWindow fileWindow;
+
+    /**
+     * Creates a new FileHeader.
+     */
+<span class="nc" id="L1908">    public FileHeader(FileWindow fileWindow) {</span>
+<span class="nc" id="L1909">        this.fileWindow = fileWindow;</span>
+<span class="nc" id="L1910">        addMouseListener(this);</span>
+<span class="nc" id="L1911">        update();</span>
+<span class="nc" id="L1912">    }</span>
+
+    /**
+     * Updates the gutter.
+     */
+    public void update() {
+<span class="nc" id="L1918">        FileTextArea textArea = fileWindow.textArea;</span>
+<span class="nc" id="L1919">        Font font = textArea.getFont();</span>
+<span class="nc" id="L1920">        setFont(font);</span>
+<span class="nc" id="L1921">        FontMetrics metrics = getFontMetrics(font);</span>
+<span class="nc" id="L1922">        int h = metrics.getHeight();</span>
+<span class="nc" id="L1923">        int lineCount = textArea.getLineCount() + 1;</span>
+<span class="nc" id="L1924">        String dummy = Integer.toString(lineCount);</span>
+<span class="nc bnc" id="L1925" title="All 2 branches missed.">        if (dummy.length() &lt; 2) {</span>
+<span class="nc" id="L1926">            dummy = &quot;99&quot;;</span>
+        }
+<span class="nc" id="L1928">        Dimension d = new Dimension();</span>
+<span class="nc" id="L1929">        d.width = metrics.stringWidth(dummy) + 16;</span>
+<span class="nc" id="L1930">        d.height = lineCount * h + 100;</span>
+<span class="nc" id="L1931">        setPreferredSize(d);</span>
+<span class="nc" id="L1932">        setSize(d);</span>
+<span class="nc" id="L1933">    }</span>
+
+    /**
+     * Paints the component.
+     */
+    @Override
+    public void paint(Graphics g) {
+<span class="nc" id="L1940">        super.paint(g);</span>
+<span class="nc" id="L1941">        FileTextArea textArea = fileWindow.textArea;</span>
+<span class="nc" id="L1942">        Font font = textArea.getFont();</span>
+<span class="nc" id="L1943">        g.setFont(font);</span>
+<span class="nc" id="L1944">        FontMetrics metrics = getFontMetrics(font);</span>
+<span class="nc" id="L1945">        Rectangle clip = g.getClipBounds();</span>
+<span class="nc" id="L1946">        g.setColor(getBackground());</span>
+<span class="nc" id="L1947">        g.fillRect(clip.x, clip.y, clip.width, clip.height);</span>
+<span class="nc" id="L1948">        int ascent = metrics.getMaxAscent();</span>
+<span class="nc" id="L1949">        int h = metrics.getHeight();</span>
+<span class="nc" id="L1950">        int lineCount = textArea.getLineCount() + 1;</span>
+<span class="nc" id="L1951">        String dummy = Integer.toString(lineCount);</span>
+<span class="nc bnc" id="L1952" title="All 2 branches missed.">        if (dummy.length() &lt; 2) {</span>
+<span class="nc" id="L1953">            dummy = &quot;99&quot;;</span>
+        }
+<span class="nc" id="L1955">        int startLine = clip.y / h;</span>
+<span class="nc" id="L1956">        int endLine = (clip.y + clip.height) / h + 1;</span>
+<span class="nc" id="L1957">        int width = getWidth();</span>
+<span class="nc bnc" id="L1958" title="All 2 branches missed.">        if (endLine &gt; lineCount) endLine = lineCount;</span>
+<span class="nc bnc" id="L1959" title="All 2 branches missed.">        for (int i = startLine; i &lt; endLine; i++) {</span>
+            String text;
+<span class="nc" id="L1961">            int pos = -2;</span>
+            try {
+<span class="nc" id="L1963">                pos = textArea.getLineStartOffset(i);</span>
+<span class="nc" id="L1964">            } catch (BadLocationException ignored) {</span>
+<span class="nc" id="L1965">            }</span>
+<span class="nc" id="L1966">            boolean isBreakPoint = fileWindow.isBreakPoint(i + 1);</span>
+<span class="nc" id="L1967">            text = Integer.toString(i + 1) + &quot; &quot;;</span>
+<span class="nc" id="L1968">            int y = i * h;</span>
+<span class="nc" id="L1969">            g.setColor(Color.blue);</span>
+<span class="nc" id="L1970">            g.drawString(text, 0, y + ascent);</span>
+<span class="nc" id="L1971">            int x = width - ascent;</span>
+<span class="nc bnc" id="L1972" title="All 2 branches missed.">            if (isBreakPoint) {</span>
+<span class="nc" id="L1973">                g.setColor(new Color(0x80, 0x00, 0x00));</span>
+<span class="nc" id="L1974">                int dy = y + ascent - 9;</span>
+<span class="nc" id="L1975">                g.fillOval(x, dy, 9, 9);</span>
+<span class="nc" id="L1976">                g.drawOval(x, dy, 8, 8);</span>
+<span class="nc" id="L1977">                g.drawOval(x, dy, 9, 9);</span>
+            }
+<span class="nc bnc" id="L1979" title="All 2 branches missed.">            if (pos == fileWindow.currentPos) {</span>
+<span class="nc" id="L1980">                Polygon arrow = new Polygon();</span>
+<span class="nc" id="L1981">                int dx = x;</span>
+<span class="nc" id="L1982">                y += ascent - 10;</span>
+<span class="nc" id="L1983">                int dy = y;</span>
+<span class="nc" id="L1984">                arrow.addPoint(dx, dy + 3);</span>
+<span class="nc" id="L1985">                arrow.addPoint(dx + 5, dy + 3);</span>
+<span class="nc bnc" id="L1986" title="All 2 branches missed.">                for (x = dx + 5; x &lt;= dx + 10; x++, y++) {</span>
+<span class="nc" id="L1987">                    arrow.addPoint(x, y);</span>
+                }
+<span class="nc bnc" id="L1989" title="All 2 branches missed.">                for (x = dx + 9; x &gt;= dx + 5; x--, y++) {</span>
+<span class="nc" id="L1990">                    arrow.addPoint(x, y);</span>
+                }
+<span class="nc" id="L1992">                arrow.addPoint(dx + 5, dy + 7);</span>
+<span class="nc" id="L1993">                arrow.addPoint(dx, dy + 7);</span>
+<span class="nc" id="L1994">                g.setColor(Color.yellow);</span>
+<span class="nc" id="L1995">                g.fillPolygon(arrow);</span>
+<span class="nc" id="L1996">                g.setColor(Color.black);</span>
+<span class="nc" id="L1997">                g.drawPolygon(arrow);</span>
+            }
+        }
+<span class="nc" id="L2000">    }</span>
+
+    // MouseListener
+
+    /**
+     * Called when the mouse enters the component.
+     */
+    public void mouseEntered(MouseEvent e) {
+<span class="nc" id="L2008">    }</span>
+
+    /**
+     * Called when a mouse button is pressed.
+     */
+    public void mousePressed(MouseEvent e) {
+<span class="nc" id="L2014">        Font font = fileWindow.textArea.getFont();</span>
+<span class="nc" id="L2015">        FontMetrics metrics = getFontMetrics(font);</span>
+<span class="nc" id="L2016">        int h = metrics.getHeight();</span>
+<span class="nc" id="L2017">        pressLine = e.getY() / h;</span>
+<span class="nc" id="L2018">    }</span>
+
+    /**
+     * Called when the mouse is clicked.
+     */
+    public void mouseClicked(MouseEvent e) {
+<span class="nc" id="L2024">    }</span>
+
+    /**
+     * Called when the mouse exits the component.
+     */
+    public void mouseExited(MouseEvent e) {
+<span class="nc" id="L2030">    }</span>
+
+    /**
+     * Called when a mouse button is released.
+     */
+    public void mouseReleased(MouseEvent e) {
+<span class="nc bnc" id="L2036" title="All 2 branches missed.">        if (e.getComponent() == this</span>
+<span class="nc bnc" id="L2037" title="All 2 branches missed.">                &amp;&amp; (e.getModifiers() &amp; MouseEvent.BUTTON1_MASK) != 0) {</span>
+<span class="nc" id="L2038">            int y = e.getY();</span>
+<span class="nc" id="L2039">            Font font = fileWindow.textArea.getFont();</span>
+<span class="nc" id="L2040">            FontMetrics metrics = getFontMetrics(font);</span>
+<span class="nc" id="L2041">            int h = metrics.getHeight();</span>
+<span class="nc" id="L2042">            int line = y/h;</span>
+<span class="nc bnc" id="L2043" title="All 2 branches missed.">            if (line == pressLine) {</span>
+<span class="nc" id="L2044">                fileWindow.toggleBreakPoint(line + 1);</span>
+            } else {
+<span class="nc" id="L2046">                pressLine = -1;</span>
+            }
+        }
+<span class="nc" id="L2049">    }</span>
+}
+
+/**
+ * An internal frame for script files.
+ */
+class FileWindow extends JInternalFrame implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = -6212382604952082370L;
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * The SourceInfo object that describes the file.
+     */
+    private Dim.SourceInfo sourceInfo;
+
+    /**
+     * The FileTextArea that displays the file.
+     */
+    FileTextArea textArea;
+
+    /**
+     * The FileHeader that is the gutter for {@link #textArea}.
+     */
+    private FileHeader fileHeader;
+
+    /**
+     * Scroll pane for containing {@link #textArea}.
+     */
+    private JScrollPane p;
+
+    /**
+     * The current offset position.
+     */
+    int currentPos;
+
+    /**
+     * Loads the file.
+     */
+    void load() {
+<span class="nc" id="L2096">        String url = getUrl();</span>
+<span class="nc bnc" id="L2097" title="All 2 branches missed.">        if (url != null) {</span>
+<span class="nc" id="L2098">            RunProxy proxy = new RunProxy(debugGui, RunProxy.LOAD_FILE);</span>
+<span class="nc" id="L2099">            proxy.fileName = url;</span>
+<span class="nc" id="L2100">            proxy.text = sourceInfo.source();</span>
+<span class="nc" id="L2101">            new Thread(proxy).start();</span>
+        }
+<span class="nc" id="L2103">    }</span>
+
+    /**
+     * Returns the offset position for the given line.
+     */
+    public int getPosition(int line) {
+<span class="nc" id="L2109">        int result = -1;</span>
+        try {
+<span class="nc" id="L2111">            result = textArea.getLineStartOffset(line);</span>
+<span class="nc" id="L2112">        } catch (javax.swing.text.BadLocationException exc) {</span>
+<span class="nc" id="L2113">        }</span>
+<span class="nc" id="L2114">        return result;</span>
+    }
+
+    /**
+     * Returns whether the given line has a breakpoint.
+     */
+    public boolean isBreakPoint(int line) {
+<span class="nc bnc" id="L2121" title="All 4 branches missed.">        return sourceInfo.breakableLine(line) &amp;&amp; sourceInfo.breakpoint(line);</span>
+    }
+
+    /**
+     * Toggles the breakpoint on the given line.
+     */
+    public void toggleBreakPoint(int line) {
+<span class="nc bnc" id="L2128" title="All 2 branches missed.">        if (!isBreakPoint(line)) {</span>
+<span class="nc" id="L2129">            setBreakPoint(line);</span>
+        } else {
+<span class="nc" id="L2131">            clearBreakPoint(line);</span>
+        }
+<span class="nc" id="L2133">    }</span>
+
+    /**
+     * Sets a breakpoint on the given line.
+     */
+    public void setBreakPoint(int line) {
+<span class="nc bnc" id="L2139" title="All 2 branches missed.">        if (sourceInfo.breakableLine(line)) {</span>
+<span class="nc" id="L2140">            boolean changed = sourceInfo.breakpoint(line, true);</span>
+<span class="nc bnc" id="L2141" title="All 2 branches missed.">            if (changed) {</span>
+<span class="nc" id="L2142">                fileHeader.repaint();</span>
+            }
+        }
+<span class="nc" id="L2145">    }</span>
+
+    /**
+     * Clears a breakpoint from the given line.
+     */
+    public void clearBreakPoint(int line) {
+<span class="nc bnc" id="L2151" title="All 2 branches missed.">        if (sourceInfo.breakableLine(line)) {</span>
+<span class="nc" id="L2152">            boolean changed = sourceInfo.breakpoint(line, false);</span>
+<span class="nc bnc" id="L2153" title="All 2 branches missed.">            if (changed) {</span>
+<span class="nc" id="L2154">                fileHeader.repaint();</span>
+            }
+        }
+<span class="nc" id="L2157">    }</span>
+
+    /**
+     * Creates a new FileWindow.
+     */
+    public FileWindow(SwingGui debugGui, Dim.SourceInfo sourceInfo) {
+<span class="nc" id="L2163">        super(SwingGui.getShortName(sourceInfo.url()),</span>
+              true, true, true, true);
+<span class="nc" id="L2165">        this.debugGui = debugGui;</span>
+<span class="nc" id="L2166">        this.sourceInfo = sourceInfo;</span>
+<span class="nc" id="L2167">        updateToolTip();</span>
+<span class="nc" id="L2168">        currentPos = -1;</span>
+<span class="nc" id="L2169">        textArea = new FileTextArea(this);</span>
+<span class="nc" id="L2170">        textArea.setRows(24);</span>
+<span class="nc" id="L2171">        textArea.setColumns(80);</span>
+<span class="nc" id="L2172">        p = new JScrollPane();</span>
+<span class="nc" id="L2173">        fileHeader = new FileHeader(this);</span>
+<span class="nc" id="L2174">        p.setViewportView(textArea);</span>
+<span class="nc" id="L2175">        p.setRowHeaderView(fileHeader);</span>
+<span class="nc" id="L2176">        setContentPane(p);</span>
+<span class="nc" id="L2177">        pack();</span>
+<span class="nc" id="L2178">        updateText(sourceInfo);</span>
+<span class="nc" id="L2179">        textArea.select(0);</span>
+<span class="nc" id="L2180">    }</span>
+
+    /**
+     * Updates the tool tip contents.
+     */
+    private void updateToolTip() {
+        // Try to set tool tip on frame. On Mac OS X 10.5,
+        // the number of components is different, so try to be safe.
+<span class="nc" id="L2188">        int n = getComponentCount() - 1;</span>
+<span class="nc bnc" id="L2189" title="All 2 branches missed.">        if (n &gt; 1) {</span>
+<span class="nc" id="L2190">            n = 1;</span>
+<span class="nc bnc" id="L2191" title="All 2 branches missed.">        } else if (n &lt; 0) {</span>
+<span class="nc" id="L2192">            return;</span>
+        }
+<span class="nc" id="L2194">        Component c = getComponent(n);</span>
+        // this will work at least for Metal L&amp;F
+<span class="nc bnc" id="L2196" title="All 4 branches missed.">        if (c != null &amp;&amp; c instanceof JComponent) {</span>
+<span class="nc" id="L2197">            ((JComponent)c).setToolTipText(getUrl());</span>
+        }
+<span class="nc" id="L2199">    }</span>
+
+    /**
+     * Returns the URL of the source.
+     */
+    public String getUrl() {
+<span class="nc" id="L2205">        return sourceInfo.url();</span>
+    }
+
+    /**
+     * Called when the text of the script has changed.
+     */
+    public void updateText(Dim.SourceInfo sourceInfo) {
+<span class="nc" id="L2212">        this.sourceInfo = sourceInfo;</span>
+<span class="nc" id="L2213">        String newText = sourceInfo.source();</span>
+<span class="nc bnc" id="L2214" title="All 2 branches missed.">        if (!textArea.getText().equals(newText)) {</span>
+<span class="nc" id="L2215">            textArea.setText(newText);</span>
+<span class="nc" id="L2216">            int pos = 0;</span>
+<span class="nc bnc" id="L2217" title="All 2 branches missed.">            if (currentPos != -1) {</span>
+<span class="nc" id="L2218">                pos = currentPos;</span>
+            }
+<span class="nc" id="L2220">            textArea.select(pos);</span>
+        }
+<span class="nc" id="L2222">        fileHeader.update();</span>
+<span class="nc" id="L2223">        fileHeader.repaint();</span>
+<span class="nc" id="L2224">    }</span>
+
+    /**
+     * Sets the cursor position.
+     */
+    public void setPosition(int pos) {
+<span class="nc" id="L2230">        textArea.select(pos);</span>
+<span class="nc" id="L2231">        currentPos = pos;</span>
+<span class="nc" id="L2232">        fileHeader.repaint();</span>
+<span class="nc" id="L2233">    }</span>
+
+    /**
+     * Selects a range of characters.
+     */
+    public void select(int start, int end) {
+<span class="nc" id="L2239">        int docEnd = textArea.getDocument().getLength();</span>
+<span class="nc" id="L2240">        textArea.select(docEnd, docEnd);</span>
+<span class="nc" id="L2241">        textArea.select(start, end);</span>
+<span class="nc" id="L2242">    }</span>
+
+    /**
+     * Disposes this FileWindow.
+     */
+    @Override
+    public void dispose() {
+<span class="nc" id="L2249">        debugGui.removeWindow(this);</span>
+<span class="nc" id="L2250">        super.dispose();</span>
+<span class="nc" id="L2251">    }</span>
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L2259">        String cmd = e.getActionCommand();</span>
+<span class="nc bnc" id="L2260" title="All 2 branches missed.">        if (cmd.equals(&quot;Cut&quot;)) {</span>
+            // textArea.cut();
+<span class="nc bnc" id="L2262" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Copy&quot;)) {</span>
+<span class="nc" id="L2263">            textArea.copy();</span>
+<span class="nc bnc" id="L2264" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Paste&quot;)) {</span>
+            // textArea.paste();
+        }
+<span class="nc" id="L2267">    }</span>
+}
+
+/**
+ * Table model class for watched expressions.
+ */
+class MyTableModel extends AbstractTableModel {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 2971618907207577000L;
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * List of watched expressions.
+     */
+    private List&lt;String&gt; expressions;
+
+    /**
+     * List of values from evaluated from {@link #expressions}.
+     */
+    private List&lt;String&gt; values;
+
+    /**
+     * Creates a new MyTableModel.
+     */
+<span class="nc" id="L2298">    public MyTableModel(SwingGui debugGui) {</span>
+<span class="nc" id="L2299">        this.debugGui = debugGui;</span>
+<span class="nc" id="L2300">        expressions = Collections.synchronizedList(new ArrayList&lt;String&gt;());</span>
+<span class="nc" id="L2301">        values = Collections.synchronizedList(new ArrayList&lt;String&gt;());</span>
+<span class="nc" id="L2302">        expressions.add(&quot;&quot;);</span>
+<span class="nc" id="L2303">        values.add(&quot;&quot;);</span>
+<span class="nc" id="L2304">    }</span>
+
+    /**
+     * Returns the number of columns in the table (2).
+     */
+    public int getColumnCount() {
+<span class="nc" id="L2310">        return 2;</span>
+    }
+
+    /**
+     * Returns the number of rows in the table.
+     */
+    public int getRowCount() {
+<span class="nc" id="L2317">        return expressions.size();</span>
+    }
+
+    /**
+     * Returns the name of the given column.
+     */
+    @Override
+    public String getColumnName(int column) {
+<span class="nc bnc" id="L2325" title="All 3 branches missed.">        switch (column) {</span>
+        case 0:
+<span class="nc" id="L2327">            return &quot;Expression&quot;;</span>
+        case 1:
+<span class="nc" id="L2329">            return &quot;Value&quot;;</span>
+        }
+<span class="nc" id="L2331">        return null;</span>
+    }
+
+    /**
+     * Returns whether the given cell is editable.
+     */
+    @Override
+    public boolean isCellEditable(int row, int column) {
+<span class="nc" id="L2339">        return true;</span>
+    }
+
+    /**
+     * Returns the value in the given cell.
+     */
+    public Object getValueAt(int row, int column) {
+<span class="nc bnc" id="L2346" title="All 3 branches missed.">        switch (column) {</span>
+        case 0:
+<span class="nc" id="L2348">            return expressions.get(row);</span>
+        case 1:
+<span class="nc" id="L2350">            return values.get(row);</span>
+        }
+<span class="nc" id="L2352">        return &quot;&quot;;</span>
+    }
+
+    /**
+     * Sets the value in the given cell.
+     */
+    @Override
+    public void setValueAt(Object value, int row, int column) {
+<span class="nc bnc" id="L2360" title="All 3 branches missed.">        switch (column) {</span>
+        case 0:
+<span class="nc" id="L2362">            String expr = value.toString();</span>
+<span class="nc" id="L2363">            expressions.set(row, expr);</span>
+<span class="nc" id="L2364">            String result = &quot;&quot;;</span>
+<span class="nc bnc" id="L2365" title="All 2 branches missed.">            if (expr.length() &gt; 0) {</span>
+<span class="nc" id="L2366">                result = debugGui.dim.eval(expr);</span>
+<span class="nc bnc" id="L2367" title="All 2 branches missed.">                if (result == null) result = &quot;&quot;;</span>
+            }
+<span class="nc" id="L2369">            values.set(row, result);</span>
+<span class="nc" id="L2370">            updateModel();</span>
+<span class="nc bnc" id="L2371" title="All 2 branches missed.">            if (row + 1 == expressions.size()) {</span>
+<span class="nc" id="L2372">                expressions.add(&quot;&quot;);</span>
+<span class="nc" id="L2373">                values.add(&quot;&quot;);</span>
+<span class="nc" id="L2374">                fireTableRowsInserted(row + 1, row + 1);</span>
+            }
+            break;
+        case 1:
+            // just reset column 2; ignore edits
+<span class="nc" id="L2379">            fireTableDataChanged();</span>
+        }
+<span class="nc" id="L2381">    }</span>
+
+    /**
+     * Re-evaluates the expressions in the table.
+     */
+    void updateModel() {
+<span class="nc bnc" id="L2387" title="All 2 branches missed.">        for (int i = 0; i &lt; expressions.size(); ++i) {</span>
+<span class="nc" id="L2388">            String expr = expressions.get(i);</span>
+<span class="nc" id="L2389">            String result = &quot;&quot;;</span>
+<span class="nc bnc" id="L2390" title="All 2 branches missed.">            if (expr.length() &gt; 0) {</span>
+<span class="nc" id="L2391">                result = debugGui.dim.eval(expr);</span>
+<span class="nc bnc" id="L2392" title="All 2 branches missed.">                if (result == null) result = &quot;&quot;;</span>
+            } else {
+<span class="nc" id="L2394">                result = &quot;&quot;;</span>
+            }
+<span class="nc" id="L2396">            result = result.replace('\n', ' ');</span>
+<span class="nc" id="L2397">            values.set(i, result);</span>
+        }
+<span class="nc" id="L2399">        fireTableDataChanged();</span>
+<span class="nc" id="L2400">    }</span>
+}
+
+/**
+ * A table for evaluated expressions.
+ */
+class Evaluator extends JTable {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 8133672432982594256L;
+
+    /**
+     * The {@link TableModel} for this table.
+     */
+    MyTableModel tableModel;
+
+    /**
+     * Creates a new Evaluator.
+     */
+    public Evaluator(SwingGui debugGui) {
+<span class="nc" id="L2422">        super(new MyTableModel(debugGui));</span>
+<span class="nc" id="L2423">        tableModel = (MyTableModel)getModel();</span>
+<span class="nc" id="L2424">    }</span>
+}
+
+/**
+ * Tree model for script object inspection.
+ */
+class VariableModel implements TreeTableModel {
+
+    /**
+     * Serializable magic number.
+     */
+<span class="nc" id="L2435">    private static final String[] cNames = { &quot; Name&quot;, &quot; Value&quot; };</span>
+
+    /**
+     * Tree column types.
+     */
+<span class="nc" id="L2440">    private static final Class&lt;?&gt;[] cTypes =</span>
+        { TreeTableModel.class, String.class };
+
+    /**
+     * Empty {@link VariableNode} array.
+     */
+<span class="nc" id="L2446">    private static final VariableNode[] CHILDLESS = new VariableNode[0];</span>
+
+    /**
+     * The debugger.
+     */
+    private Dim debugger;
+
+    /**
+     * The root node.
+     */
+    private VariableNode root;
+
+    /**
+     * Creates a new VariableModel.
+     */
+<span class="nc" id="L2461">    public VariableModel() {</span>
+<span class="nc" id="L2462">    }</span>
+
+    /**
+     * Creates a new VariableModel.
+     */
+<span class="nc" id="L2467">    public VariableModel(Dim debugger, Object scope) {</span>
+<span class="nc" id="L2468">        this.debugger = debugger;</span>
+<span class="nc" id="L2469">        this.root = new VariableNode(scope, &quot;this&quot;);</span>
+<span class="nc" id="L2470">    }</span>
+
+    // TreeTableModel
+
+    /**
+     * Returns the root node of the tree.
+     */
+    public Object getRoot() {
+<span class="nc bnc" id="L2478" title="All 2 branches missed.">        if (debugger == null) {</span>
+<span class="nc" id="L2479">            return null;</span>
+        }
+<span class="nc" id="L2481">        return root;</span>
+    }
+
+    /**
+     * Returns the number of children of the given node.
+     */
+    public int getChildCount(Object nodeObj) {
+<span class="nc bnc" id="L2488" title="All 2 branches missed.">        if (debugger == null) {</span>
+<span class="nc" id="L2489">            return 0;</span>
+        }
+<span class="nc" id="L2491">        VariableNode node = (VariableNode) nodeObj;</span>
+<span class="nc" id="L2492">        return children(node).length;</span>
+    }
+
+    /**
+     * Returns a child of the given node.
+     */
+    public Object getChild(Object nodeObj, int i) {
+<span class="nc bnc" id="L2499" title="All 2 branches missed.">        if (debugger == null) {</span>
+<span class="nc" id="L2500">            return null;</span>
+        }
+<span class="nc" id="L2502">        VariableNode node = (VariableNode) nodeObj;</span>
+<span class="nc" id="L2503">        return children(node)[i];</span>
+    }
+
+    /**
+     * Returns whether the given node is a leaf node.
+     */
+    public boolean isLeaf(Object nodeObj) {
+<span class="nc bnc" id="L2510" title="All 2 branches missed.">        if (debugger == null) {</span>
+<span class="nc" id="L2511">            return true;</span>
+        }
+<span class="nc" id="L2513">        VariableNode node = (VariableNode) nodeObj;</span>
+<span class="nc bnc" id="L2514" title="All 2 branches missed.">        return children(node).length == 0;</span>
+    }
+
+    /**
+     * Returns the index of a node under its parent.
+     */
+    public int getIndexOfChild(Object parentObj, Object childObj) {
+<span class="nc bnc" id="L2521" title="All 2 branches missed.">        if (debugger == null) {</span>
+<span class="nc" id="L2522">            return -1;</span>
+        }
+<span class="nc" id="L2524">        VariableNode parent = (VariableNode) parentObj;</span>
+<span class="nc" id="L2525">        VariableNode child = (VariableNode) childObj;</span>
+<span class="nc" id="L2526">        VariableNode[] children = children(parent);</span>
+<span class="nc bnc" id="L2527" title="All 2 branches missed.">        for (int i = 0; i != children.length; i++) {</span>
+<span class="nc bnc" id="L2528" title="All 2 branches missed.">            if (children[i] == child) {</span>
+<span class="nc" id="L2529">                return i;</span>
+            }
+        }
+<span class="nc" id="L2532">        return -1;</span>
+    }
+
+    /**
+     * Returns whether the given cell is editable.
+     */
+    public boolean isCellEditable(Object node, int column) {
+<span class="nc bnc" id="L2539" title="All 2 branches missed.">        return column == 0;</span>
+    }
+
+    /**
+     * Sets the value at the given cell.
+     */
+<span class="nc" id="L2545">    public void setValueAt(Object value, Object node, int column) { }</span>
+
+    /**
+     * Adds a TreeModelListener to this tree.
+     */
+<span class="nc" id="L2550">    public void addTreeModelListener(TreeModelListener l) { }</span>
+
+    /**
+     * Removes a TreeModelListener from this tree.
+     */
+<span class="nc" id="L2555">    public void removeTreeModelListener(TreeModelListener l) { }</span>
+
+<span class="nc" id="L2557">    public void valueForPathChanged(TreePath path, Object newValue) { }</span>
+
+    // TreeTableNode
+
+    /**
+     * Returns the number of columns.
+     */
+    public int getColumnCount() {
+<span class="nc" id="L2565">        return cNames.length;</span>
+    }
+
+    /**
+     * Returns the name of the given column.
+     */
+    public String getColumnName(int column) {
+<span class="nc" id="L2572">        return cNames[column];</span>
+    }
+
+    /**
+     * Returns the type of value stored in the given column.
+     */
+    public Class&lt;?&gt; getColumnClass(int column) {
+<span class="nc" id="L2579">        return cTypes[column];</span>
+    }
+
+    /**
+     * Returns the value at the given cell.
+     */
+    public Object getValueAt(Object nodeObj, int column) {
+<span class="nc bnc" id="L2586" title="All 2 branches missed.">        if (debugger == null) { return null; }</span>
+<span class="nc" id="L2587">        VariableNode node = (VariableNode)nodeObj;</span>
+<span class="nc bnc" id="L2588" title="All 3 branches missed.">        switch (column) {</span>
+        case 0: // Name
+<span class="nc" id="L2590">            return node.toString();</span>
+        case 1: // Value
+            String result;
+            try {
+<span class="nc" id="L2594">                result = debugger.objectToString(getValue(node));</span>
+<span class="nc" id="L2595">            } catch (RuntimeException exc) {</span>
+<span class="nc" id="L2596">                result = exc.getMessage();</span>
+<span class="nc" id="L2597">            }</span>
+<span class="nc" id="L2598">            StringBuilder buf = new StringBuilder();</span>
+<span class="nc" id="L2599">            int len = result.length();</span>
+<span class="nc bnc" id="L2600" title="All 2 branches missed.">            for (int i = 0; i &lt; len; i++) {</span>
+<span class="nc" id="L2601">                char ch = result.charAt(i);</span>
+<span class="nc bnc" id="L2602" title="All 2 branches missed.">                if (Character.isISOControl(ch)) {</span>
+<span class="nc" id="L2603">                    ch = ' ';</span>
+                }
+<span class="nc" id="L2605">                buf.append(ch);</span>
+            }
+<span class="nc" id="L2607">            return buf.toString();</span>
+        }
+<span class="nc" id="L2609">        return null;</span>
+    }
+
+    /**
+     * Returns an array of the children of the given node.
+     */
+    private VariableNode[] children(VariableNode node) {
+<span class="nc bnc" id="L2616" title="All 2 branches missed.">        if (node.children != null) {</span>
+<span class="nc" id="L2617">            return node.children;</span>
+        }
+
+        VariableNode[] children;
+
+<span class="nc" id="L2622">        Object value = getValue(node);</span>
+<span class="nc" id="L2623">        Object[] ids = debugger.getObjectIds(value);</span>
+<span class="nc bnc" id="L2624" title="All 4 branches missed.">        if (ids == null || ids.length == 0) {</span>
+<span class="nc" id="L2625">            children = CHILDLESS;</span>
+        } else {
+<span class="nc" id="L2627">            Arrays.sort(ids, new Comparator&lt;Object&gt;() {</span>
+                    public int compare(Object l, Object r)
+                    {
+<span class="nc bnc" id="L2630" title="All 2 branches missed.">                        if (l instanceof String) {</span>
+<span class="nc bnc" id="L2631" title="All 2 branches missed.">                            if (r instanceof Integer) {</span>
+<span class="nc" id="L2632">                                return -1;</span>
+                            }
+<span class="nc" id="L2634">                            return ((String)l).compareToIgnoreCase((String)r);</span>
+                        } else {
+<span class="nc bnc" id="L2636" title="All 2 branches missed.">                            if (r instanceof String) {</span>
+<span class="nc" id="L2637">                                return 1;</span>
+                            }
+<span class="nc" id="L2639">                            int lint = ((Integer)l).intValue();</span>
+<span class="nc" id="L2640">                            int rint = ((Integer)r).intValue();</span>
+<span class="nc" id="L2641">                            return lint - rint;</span>
+                        }
+                    }
+            });
+<span class="nc" id="L2645">            children = new VariableNode[ids.length];</span>
+<span class="nc bnc" id="L2646" title="All 2 branches missed.">            for (int i = 0; i != ids.length; ++i) {</span>
+<span class="nc" id="L2647">                children[i] = new VariableNode(value, ids[i]);</span>
+            }
+        }
+<span class="nc" id="L2650">        node.children = children;</span>
+<span class="nc" id="L2651">        return children;</span>
+    }
+
+    /**
+     * Returns the value of the given node.
+     */
+    public Object getValue(VariableNode node) {
+        try {
+<span class="nc" id="L2659">            return debugger.getObjectProperty(node.object, node.id);</span>
+<span class="nc" id="L2660">        } catch (Exception exc) {</span>
+<span class="nc" id="L2661">            return &quot;undefined&quot;;</span>
+        }
+    }
+
+    /**
+     * A variable node in the tree.
+     */
+    private static class VariableNode {
+
+        /**
+         * The script object.
+         */
+        private Object object;
+
+        /**
+         * The object name.  Either a String or an Integer.
+         */
+        private Object id;
+
+        /**
+         * Array of child nodes.  This is filled with the properties of
+         * the object.
+         */
+        private VariableNode[] children;
+
+        /**
+         * Creates a new VariableNode.
+         */
+<span class="nc" id="L2689">        public VariableNode(Object object, Object id) {</span>
+<span class="nc" id="L2690">            this.object = object;</span>
+<span class="nc" id="L2691">            this.id = id;</span>
+<span class="nc" id="L2692">        }</span>
+
+        /**
+         * Returns a string representation of this node.
+         */
+        @Override
+        public String toString() {
+<span class="nc bnc" id="L2699" title="All 2 branches missed.">            return id instanceof String</span>
+<span class="nc" id="L2700">                ? (String) id : &quot;[&quot; + ((Integer) id).intValue() + &quot;]&quot;;</span>
+        }
+    }
+}
+
+/**
+ * A tree table for browsing script objects.
+ */
+class MyTreeTable extends JTreeTable {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 3457265548184453049L;
+
+    /**
+     * Creates a new MyTreeTable.
+     */
+    public MyTreeTable(VariableModel model) {
+<span class="nc" id="L2719">        super(model);</span>
+<span class="nc" id="L2720">    }</span>
+
+    /**
+     * Initializes a tree for this tree table.
+     */
+    public JTree resetTree(TreeTableModel treeTableModel) {
+<span class="nc" id="L2726">        tree = new TreeTableCellRenderer(treeTableModel);</span>
+
+        // Install a tableModel representing the visible rows in the tree.
+<span class="nc" id="L2729">        super.setModel(new TreeTableModelAdapter(treeTableModel, tree));</span>
+
+        // Force the JTable and JTree to share their row selection models.
+<span class="nc" id="L2732">        ListToTreeSelectionModelWrapper selectionWrapper = new</span>
+            ListToTreeSelectionModelWrapper();
+<span class="nc" id="L2734">        tree.setSelectionModel(selectionWrapper);</span>
+<span class="nc" id="L2735">        setSelectionModel(selectionWrapper.getListSelectionModel());</span>
+
+        // Make the tree and table row heights the same.
+<span class="nc bnc" id="L2738" title="All 2 branches missed.">        if (tree.getRowHeight() &lt; 1) {</span>
+            // Metal looks better like this.
+<span class="nc" id="L2740">            setRowHeight(18);</span>
+        }
+
+        // Install the tree editor renderer and editor.
+<span class="nc" id="L2744">        setDefaultRenderer(TreeTableModel.class, tree);</span>
+<span class="nc" id="L2745">        setDefaultEditor(TreeTableModel.class, new TreeTableCellEditor());</span>
+<span class="nc" id="L2746">        setShowGrid(true);</span>
+<span class="nc" id="L2747">        setIntercellSpacing(new Dimension(1,1));</span>
+<span class="nc" id="L2748">        tree.setRootVisible(false);</span>
+<span class="nc" id="L2749">        tree.setShowsRootHandles(true);</span>
+<span class="nc" id="L2750">        DefaultTreeCellRenderer r = (DefaultTreeCellRenderer)tree.getCellRenderer();</span>
+<span class="nc" id="L2751">        r.setOpenIcon(null);</span>
+<span class="nc" id="L2752">        r.setClosedIcon(null);</span>
+<span class="nc" id="L2753">        r.setLeafIcon(null);</span>
+<span class="nc" id="L2754">        return tree;</span>
+    }
+
+    /**
+     * Returns whether the cell under the coordinates of the mouse
+     * in the {@link EventObject} is editable.
+     */
+    public boolean isCellEditable(EventObject e) {
+<span class="nc bnc" id="L2762" title="All 2 branches missed.">        if (e instanceof MouseEvent) {</span>
+<span class="nc" id="L2763">            MouseEvent me = (MouseEvent)e;</span>
+            // If the modifiers are not 0 (or the left mouse button),
+            // tree may try and toggle the selection, and table
+            // will then try and toggle, resulting in the
+            // selection remaining the same. To avoid this, we
+            // only dispatch when the modifiers are 0 (or the left mouse
+            // button).
+<span class="nc bnc" id="L2770" title="All 2 branches missed.">            if (me.getModifiers() == 0 ||</span>
+<span class="nc bnc" id="L2771" title="All 2 branches missed.">                ((me.getModifiers() &amp; (InputEvent.BUTTON1_MASK|1024)) != 0 &amp;&amp;</span>
+<span class="nc bnc" id="L2772" title="All 2 branches missed.">                 (me.getModifiers() &amp;</span>
+                  (InputEvent.SHIFT_MASK |
+                   InputEvent.CTRL_MASK |
+                   InputEvent.ALT_MASK |
+                   InputEvent.BUTTON2_MASK |
+                   InputEvent.BUTTON3_MASK |
+                   64   | //SHIFT_DOWN_MASK
+                   128  | //CTRL_DOWN_MASK
+                   512  | // ALT_DOWN_MASK
+                   2048 | //BUTTON2_DOWN_MASK
+                   4096   //BUTTON3_DOWN_MASK
+                   )) == 0)) {
+<span class="nc" id="L2784">                int row = rowAtPoint(me.getPoint());</span>
+<span class="nc bnc" id="L2785" title="All 2 branches missed.">                for (int counter = getColumnCount() - 1; counter &gt;= 0;</span>
+<span class="nc" id="L2786">                     counter--) {</span>
+<span class="nc bnc" id="L2787" title="All 2 branches missed.">                    if (TreeTableModel.class == getColumnClass(counter)) {</span>
+<span class="nc" id="L2788">                        MouseEvent newME = new MouseEvent</span>
+<span class="nc" id="L2789">                            (MyTreeTable.this.tree, me.getID(),</span>
+<span class="nc" id="L2790">                             me.getWhen(), me.getModifiers(),</span>
+<span class="nc" id="L2791">                             me.getX() - getCellRect(row, counter, true).x,</span>
+<span class="nc" id="L2792">                             me.getY(), me.getClickCount(),</span>
+<span class="nc" id="L2793">                             me.isPopupTrigger());</span>
+<span class="nc" id="L2794">                        MyTreeTable.this.tree.dispatchEvent(newME);</span>
+<span class="nc" id="L2795">                        break;</span>
+                    }
+                }
+            }
+<span class="nc bnc" id="L2799" title="All 2 branches missed.">            if (me.getClickCount() &gt;= 3) {</span>
+<span class="nc" id="L2800">                return true;</span>
+            }
+<span class="nc" id="L2802">            return false;</span>
+        }
+<span class="nc bnc" id="L2804" title="All 2 branches missed.">        if (e == null) {</span>
+<span class="nc" id="L2805">            return true;</span>
+        }
+<span class="nc" id="L2807">        return false;</span>
+    }
+}
+
+/**
+ * Panel that shows information about the context.
+ */
+class ContextWindow extends JPanel implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 2306040975490228051L;
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * The combo box that holds the stack frames.
+     */
+    JComboBox context;
+
+    /**
+     * Tool tips for the stack frames.
+     */
+    List&lt;String&gt; toolTips;
+
+    /**
+     * Tabbed pane for &quot;this&quot; and &quot;locals&quot;.
+     */
+    private JTabbedPane tabs;
+
+    /**
+     * Tabbed pane for &quot;watch&quot; and &quot;evaluate&quot;.
+     */
+    private JTabbedPane tabs2;
+
+    /**
+     * The table showing the &quot;this&quot; object.
+     */
+    private MyTreeTable thisTable;
+
+    /**
+     * The table showing the stack local variables.
+     */
+    private MyTreeTable localsTable;
+
+    /**
+     * The {@link #evaluator}'s table model.
+     */
+    private MyTableModel tableModel;
+
+    /**
+     * The script evaluator table.
+     */
+    private Evaluator evaluator;
+
+    /**
+     * The script evaluation text area.
+     */
+    private EvalTextArea cmdLine;
+
+    /**
+     * The split pane.
+     */
+    JSplitPane split;
+
+    /**
+     * Whether the ContextWindow is enabled.
+     */
+    private boolean enabled;
+
+    /**
+     * Creates a new ContextWindow.
+     */
+<span class="nc" id="L2884">    public ContextWindow(final SwingGui debugGui) {</span>
+<span class="nc" id="L2885">        this.debugGui = debugGui;</span>
+<span class="nc" id="L2886">        enabled = false;</span>
+<span class="nc" id="L2887">        JPanel left = new JPanel();</span>
+<span class="nc" id="L2888">        JToolBar t1 = new JToolBar();</span>
+<span class="nc" id="L2889">        t1.setName(&quot;Variables&quot;);</span>
+<span class="nc" id="L2890">        t1.setLayout(new GridLayout());</span>
+<span class="nc" id="L2891">        t1.add(left);</span>
+<span class="nc" id="L2892">        JPanel p1 = new JPanel();</span>
+<span class="nc" id="L2893">        p1.setLayout(new GridLayout());</span>
+<span class="nc" id="L2894">        JPanel p2 = new JPanel();</span>
+<span class="nc" id="L2895">        p2.setLayout(new GridLayout());</span>
+<span class="nc" id="L2896">        p1.add(t1);</span>
+<span class="nc" id="L2897">        JLabel label = new JLabel(&quot;Context:&quot;);</span>
+<span class="nc" id="L2898">        context = new JComboBox();</span>
+<span class="nc" id="L2899">        context.setLightWeightPopupEnabled(false);</span>
+<span class="nc" id="L2900">        toolTips = Collections.synchronizedList(new java.util.ArrayList&lt;String&gt;());</span>
+<span class="nc" id="L2901">        label.setBorder(context.getBorder());</span>
+<span class="nc" id="L2902">        context.addActionListener(this);</span>
+<span class="nc" id="L2903">        context.setActionCommand(&quot;ContextSwitch&quot;);</span>
+<span class="nc" id="L2904">        GridBagLayout layout = new GridBagLayout();</span>
+<span class="nc" id="L2905">        left.setLayout(layout);</span>
+<span class="nc" id="L2906">        GridBagConstraints lc = new GridBagConstraints();</span>
+<span class="nc" id="L2907">        lc.insets.left = 5;</span>
+<span class="nc" id="L2908">        lc.anchor = GridBagConstraints.WEST;</span>
+<span class="nc" id="L2909">        lc.ipadx = 5;</span>
+<span class="nc" id="L2910">        layout.setConstraints(label, lc);</span>
+<span class="nc" id="L2911">        left.add(label);</span>
+<span class="nc" id="L2912">        GridBagConstraints c = new GridBagConstraints();</span>
+<span class="nc" id="L2913">        c.gridwidth = GridBagConstraints.REMAINDER;</span>
+<span class="nc" id="L2914">        c.fill = GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L2915">        c.anchor = GridBagConstraints.WEST;</span>
+<span class="nc" id="L2916">        layout.setConstraints(context, c);</span>
+<span class="nc" id="L2917">        left.add(context);</span>
+<span class="nc" id="L2918">        tabs = new JTabbedPane(SwingConstants.BOTTOM);</span>
+<span class="nc" id="L2919">        tabs.setPreferredSize(new Dimension(500,300));</span>
+<span class="nc" id="L2920">        thisTable = new MyTreeTable(new VariableModel());</span>
+<span class="nc" id="L2921">        JScrollPane jsp = new JScrollPane(thisTable);</span>
+<span class="nc" id="L2922">        jsp.getViewport().setViewSize(new Dimension(5,2));</span>
+<span class="nc" id="L2923">        tabs.add(&quot;this&quot;, jsp);</span>
+<span class="nc" id="L2924">        localsTable = new MyTreeTable(new VariableModel());</span>
+<span class="nc" id="L2925">        localsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);</span>
+<span class="nc" id="L2926">        localsTable.setPreferredSize(null);</span>
+<span class="nc" id="L2927">        jsp = new JScrollPane(localsTable);</span>
+<span class="nc" id="L2928">        tabs.add(&quot;Locals&quot;, jsp);</span>
+<span class="nc" id="L2929">        c.weightx  = c.weighty = 1;</span>
+<span class="nc" id="L2930">        c.gridheight = GridBagConstraints.REMAINDER;</span>
+<span class="nc" id="L2931">        c.fill = GridBagConstraints.BOTH;</span>
+<span class="nc" id="L2932">        c.anchor = GridBagConstraints.WEST;</span>
+<span class="nc" id="L2933">        layout.setConstraints(tabs, c);</span>
+<span class="nc" id="L2934">        left.add(tabs);</span>
+<span class="nc" id="L2935">        evaluator = new Evaluator(debugGui);</span>
+<span class="nc" id="L2936">        cmdLine = new EvalTextArea(debugGui);</span>
+        //cmdLine.requestFocus();
+<span class="nc" id="L2938">        tableModel = evaluator.tableModel;</span>
+<span class="nc" id="L2939">        jsp = new JScrollPane(evaluator);</span>
+<span class="nc" id="L2940">        JToolBar t2 = new JToolBar();</span>
+<span class="nc" id="L2941">        t2.setName(&quot;Evaluate&quot;);</span>
+<span class="nc" id="L2942">        tabs2 = new JTabbedPane(SwingConstants.BOTTOM);</span>
+<span class="nc" id="L2943">        tabs2.add(&quot;Watch&quot;, jsp);</span>
+<span class="nc" id="L2944">        tabs2.add(&quot;Evaluate&quot;, new JScrollPane(cmdLine));</span>
+<span class="nc" id="L2945">        tabs2.setPreferredSize(new Dimension(500,300));</span>
+<span class="nc" id="L2946">        t2.setLayout(new GridLayout());</span>
+<span class="nc" id="L2947">        t2.add(tabs2);</span>
+<span class="nc" id="L2948">        p2.add(t2);</span>
+<span class="nc" id="L2949">        evaluator.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);</span>
+<span class="nc" id="L2950">        split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,</span>
+                               p1, p2);
+<span class="nc" id="L2952">        split.setOneTouchExpandable(true);</span>
+<span class="nc" id="L2953">        SwingGui.setResizeWeight(split, 0.5);</span>
+<span class="nc" id="L2954">        setLayout(new BorderLayout());</span>
+<span class="nc" id="L2955">        add(split, BorderLayout.CENTER);</span>
+
+<span class="nc" id="L2957">        final JToolBar finalT1 = t1;</span>
+<span class="nc" id="L2958">        final JToolBar finalT2 = t2;</span>
+<span class="nc" id="L2959">        final JPanel finalP1 = p1;</span>
+<span class="nc" id="L2960">        final JPanel finalP2 = p2;</span>
+<span class="nc" id="L2961">        final JSplitPane finalSplit = split;</span>
+<span class="nc" id="L2962">        final JPanel finalThis = this;</span>
+
+<span class="nc" id="L2964">        ComponentListener clistener = new ComponentListener() {</span>
+<span class="nc" id="L2965">                boolean t2Docked = true;</span>
+                void check(Component comp) {
+<span class="nc" id="L2967">                    Component thisParent = finalThis.getParent();</span>
+<span class="nc bnc" id="L2968" title="All 2 branches missed.">                    if (thisParent == null) {</span>
+<span class="nc" id="L2969">                        return;</span>
+                    }
+<span class="nc" id="L2971">                    Component parent = finalT1.getParent();</span>
+<span class="nc" id="L2972">                    boolean leftDocked = true;</span>
+<span class="nc" id="L2973">                    boolean rightDocked = true;</span>
+<span class="nc" id="L2974">                    boolean adjustVerticalSplit = false;</span>
+<span class="nc bnc" id="L2975" title="All 2 branches missed.">                    if (parent != null) {</span>
+<span class="nc bnc" id="L2976" title="All 2 branches missed.">                        if (parent != finalP1) {</span>
+<span class="nc bnc" id="L2977" title="All 2 branches missed.">                            while (!(parent instanceof JFrame)) {</span>
+<span class="nc" id="L2978">                                parent = parent.getParent();</span>
+                            }
+<span class="nc" id="L2980">                            JFrame frame = (JFrame)parent;</span>
+<span class="nc" id="L2981">                            debugGui.addTopLevel(&quot;Variables&quot;, frame);</span>
+
+                            // We need the following hacks because:
+                            // - We want an undocked toolbar to be
+                            //   resizable.
+                            // - We are using JToolbar as a container of a
+                            //   JComboBox. Without this JComboBox's popup
+                            //   can get left floating when the toolbar is
+                            //   re-docked.
+                            //
+                            // We make the frame resizable and then
+                            // remove JToolbar's window listener
+                            // and insert one of our own that first ensures
+                            // the JComboBox's popup window is closed
+                            // and then calls JToolbar's window listener.
+<span class="nc bnc" id="L2996" title="All 2 branches missed.">                            if (!frame.isResizable()) {</span>
+<span class="nc" id="L2997">                                frame.setResizable(true);</span>
+<span class="nc" id="L2998">                                frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);</span>
+<span class="nc" id="L2999">                                final WindowListener[] l =</span>
+<span class="nc" id="L3000">                                    frame.getListeners(WindowListener.class);</span>
+<span class="nc" id="L3001">                                frame.removeWindowListener(l[0]);</span>
+<span class="nc" id="L3002">                                frame.addWindowListener(new WindowAdapter() {</span>
+                                        @Override
+                                        public void windowClosing(WindowEvent e) {
+<span class="nc" id="L3005">                                            context.hidePopup();</span>
+<span class="nc" id="L3006">                                            l[0].windowClosing(e);</span>
+<span class="nc" id="L3007">                                        }</span>
+                                    });
+                                //adjustVerticalSplit = true;
+                            }
+<span class="nc" id="L3011">                            leftDocked = false;</span>
+<span class="nc" id="L3012">                        } else {</span>
+<span class="nc" id="L3013">                            leftDocked = true;</span>
+                        }
+                    }
+<span class="nc" id="L3016">                    parent = finalT2.getParent();</span>
+<span class="nc bnc" id="L3017" title="All 2 branches missed.">                    if (parent != null) {</span>
+<span class="nc bnc" id="L3018" title="All 2 branches missed.">                        if (parent != finalP2) {</span>
+<span class="nc bnc" id="L3019" title="All 2 branches missed.">                            while (!(parent instanceof JFrame)) {</span>
+<span class="nc" id="L3020">                                parent = parent.getParent();</span>
+                            }
+<span class="nc" id="L3022">                            JFrame frame = (JFrame)parent;</span>
+<span class="nc" id="L3023">                            debugGui.addTopLevel(&quot;Evaluate&quot;, frame);</span>
+<span class="nc" id="L3024">                            frame.setResizable(true);</span>
+<span class="nc" id="L3025">                            rightDocked = false;</span>
+<span class="nc" id="L3026">                        } else {</span>
+<span class="nc" id="L3027">                            rightDocked = true;</span>
+                        }
+                    }
+<span class="nc bnc" id="L3030" title="All 8 branches missed.">                    if (leftDocked &amp;&amp; t2Docked &amp;&amp; rightDocked &amp;&amp; t2Docked) {</span>
+                        // no change
+<span class="nc" id="L3032">                        return;</span>
+                    }
+<span class="nc" id="L3034">                    t2Docked = rightDocked;</span>
+<span class="nc" id="L3035">                    JSplitPane split = (JSplitPane)thisParent;</span>
+<span class="nc bnc" id="L3036" title="All 2 branches missed.">                    if (leftDocked) {</span>
+<span class="nc bnc" id="L3037" title="All 2 branches missed.">                        if (rightDocked) {</span>
+<span class="nc" id="L3038">                            finalSplit.setDividerLocation(0.5);</span>
+                        } else {
+<span class="nc" id="L3040">                            finalSplit.setDividerLocation(1.0);</span>
+                        }
+<span class="nc bnc" id="L3042" title="All 2 branches missed.">                        if (adjustVerticalSplit) {</span>
+<span class="nc" id="L3043">                            split.setDividerLocation(0.66);</span>
+                        }
+
+<span class="nc bnc" id="L3046" title="All 2 branches missed.">                    } else if (rightDocked) {</span>
+<span class="nc" id="L3047">                            finalSplit.setDividerLocation(0.0);</span>
+<span class="nc" id="L3048">                            split.setDividerLocation(0.66);</span>
+                    } else {
+                        // both undocked
+<span class="nc" id="L3051">                        split.setDividerLocation(1.0);</span>
+                    }
+<span class="nc" id="L3053">                }</span>
+                public void componentHidden(ComponentEvent e) {
+<span class="nc" id="L3055">                    check(e.getComponent());</span>
+<span class="nc" id="L3056">                }</span>
+                public void componentMoved(ComponentEvent e) {
+<span class="nc" id="L3058">                    check(e.getComponent());</span>
+<span class="nc" id="L3059">                }</span>
+                public void componentResized(ComponentEvent e) {
+<span class="nc" id="L3061">                    check(e.getComponent());</span>
+<span class="nc" id="L3062">                }</span>
+                public void componentShown(ComponentEvent e) {
+<span class="nc" id="L3064">                    check(e.getComponent());</span>
+<span class="nc" id="L3065">                }</span>
+            };
+<span class="nc" id="L3067">        p1.addContainerListener(new ContainerListener() {</span>
+            public void componentAdded(ContainerEvent e) {
+<span class="nc" id="L3069">                Component thisParent = finalThis.getParent();</span>
+<span class="nc" id="L3070">                JSplitPane split = (JSplitPane)thisParent;</span>
+<span class="nc bnc" id="L3071" title="All 2 branches missed.">                if (e.getChild() == finalT1) {</span>
+<span class="nc bnc" id="L3072" title="All 2 branches missed.">                    if (finalT2.getParent() == finalP2) {</span>
+                        // both docked
+<span class="nc" id="L3074">                        finalSplit.setDividerLocation(0.5);</span>
+                    } else {
+                        // left docked only
+<span class="nc" id="L3077">                        finalSplit.setDividerLocation(1.0);</span>
+                    }
+<span class="nc" id="L3079">                    split.setDividerLocation(0.66);</span>
+                }
+<span class="nc" id="L3081">            }</span>
+            public void componentRemoved(ContainerEvent e) {
+<span class="nc" id="L3083">                Component thisParent = finalThis.getParent();</span>
+<span class="nc" id="L3084">                JSplitPane split = (JSplitPane)thisParent;</span>
+<span class="nc bnc" id="L3085" title="All 2 branches missed.">                if (e.getChild() == finalT1) {</span>
+<span class="nc bnc" id="L3086" title="All 2 branches missed.">                    if (finalT2.getParent() == finalP2) {</span>
+                        // right docked only
+<span class="nc" id="L3088">                        finalSplit.setDividerLocation(0.0);</span>
+<span class="nc" id="L3089">                        split.setDividerLocation(0.66);</span>
+                    } else {
+                        // both undocked
+<span class="nc" id="L3092">                        split.setDividerLocation(1.0);</span>
+                    }
+                }
+<span class="nc" id="L3095">            }</span>
+            });
+<span class="nc" id="L3097">        t1.addComponentListener(clistener);</span>
+<span class="nc" id="L3098">        t2.addComponentListener(clistener);</span>
+<span class="nc" id="L3099">        setEnabled(false);</span>
+<span class="nc" id="L3100">    }</span>
+
+    /**
+     * Enables or disables the component.
+     */
+    @Override
+    public void setEnabled(boolean enabled) {
+<span class="nc" id="L3107">        context.setEnabled(enabled);</span>
+<span class="nc" id="L3108">        thisTable.setEnabled(enabled);</span>
+<span class="nc" id="L3109">        localsTable.setEnabled(enabled);</span>
+<span class="nc" id="L3110">        evaluator.setEnabled(enabled);</span>
+<span class="nc" id="L3111">        cmdLine.setEnabled(enabled);</span>
+<span class="nc" id="L3112">    }</span>
+
+    /**
+     * Disables updating of the component.
+     */
+    public void disableUpdate() {
+<span class="nc" id="L3118">        enabled = false;</span>
+<span class="nc" id="L3119">    }</span>
+
+    /**
+     * Enables updating of the component.
+     */
+    public void enableUpdate() {
+<span class="nc" id="L3125">        enabled = true;</span>
+<span class="nc" id="L3126">    }</span>
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc bnc" id="L3134" title="All 2 branches missed.">        if (!enabled) return;</span>
+<span class="nc bnc" id="L3135" title="All 2 branches missed.">        if (e.getActionCommand().equals(&quot;ContextSwitch&quot;)) {</span>
+<span class="nc" id="L3136">            Dim.ContextData contextData = debugGui.dim.currentContextData();</span>
+<span class="nc bnc" id="L3137" title="All 2 branches missed.">            if (contextData == null) { return; }</span>
+<span class="nc" id="L3138">            int frameIndex = context.getSelectedIndex();</span>
+<span class="nc" id="L3139">            context.setToolTipText(toolTips.get(frameIndex));</span>
+<span class="nc" id="L3140">            int frameCount = contextData.frameCount();</span>
+<span class="nc bnc" id="L3141" title="All 2 branches missed.">            if (frameIndex &gt;= frameCount) {</span>
+<span class="nc" id="L3142">                return;</span>
+            }
+<span class="nc" id="L3144">            Dim.StackFrame frame = contextData.getFrame(frameIndex);</span>
+<span class="nc" id="L3145">            Object scope = frame.scope();</span>
+<span class="nc" id="L3146">            Object thisObj = frame.thisObj();</span>
+<span class="nc" id="L3147">            thisTable.resetTree(new VariableModel(debugGui.dim, thisObj));</span>
+            VariableModel scopeModel;
+<span class="nc bnc" id="L3149" title="All 2 branches missed.">            if (scope != thisObj) {</span>
+<span class="nc" id="L3150">                scopeModel = new VariableModel(debugGui.dim, scope);</span>
+            } else {
+<span class="nc" id="L3152">                scopeModel = new VariableModel();</span>
+            }
+<span class="nc" id="L3154">            localsTable.resetTree(scopeModel);</span>
+<span class="nc" id="L3155">            debugGui.dim.contextSwitch(frameIndex);</span>
+<span class="nc" id="L3156">            debugGui.showStopLine(frame);</span>
+<span class="nc" id="L3157">            tableModel.updateModel();</span>
+        }
+<span class="nc" id="L3159">    }</span>
+}
+
+/**
+ * The debugger frame menu bar.
+ */
+class Menubar extends JMenuBar implements ActionListener {
+
+    /**
+     * Serializable magic number.
+     */
+    private static final long serialVersionUID = 3217170497245911461L;
+
+    /**
+     * Items that are enabled only when interrupted.
+     */
+<span class="nc" id="L3175">    private List&lt;JMenuItem&gt; interruptOnlyItems =</span>
+<span class="nc" id="L3176">        Collections.synchronizedList(new ArrayList&lt;JMenuItem&gt;());</span>
+
+    /**
+     * Items that are enabled only when running.
+     */
+<span class="nc" id="L3181">    private List&lt;JMenuItem&gt; runOnlyItems =</span>
+<span class="nc" id="L3182">        Collections.synchronizedList(new ArrayList&lt;JMenuItem&gt;());</span>
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * The menu listing the internal frames.
+     */
+    private JMenu windowMenu;
+
+    /**
+     * The &quot;Break on exceptions&quot; menu item.
+     */
+    private JCheckBoxMenuItem breakOnExceptions;
+
+    /**
+     * The &quot;Break on enter&quot; menu item.
+     */
+    private JCheckBoxMenuItem breakOnEnter;
+
+    /**
+     * The &quot;Break on return&quot; menu item.
+     */
+    private JCheckBoxMenuItem breakOnReturn;
+
+    /**
+     * Creates a new Menubar.
+     */
+    Menubar(SwingGui debugGui) {
+<span class="nc" id="L3213">        super();</span>
+<span class="nc" id="L3214">        this.debugGui = debugGui;</span>
+<span class="nc" id="L3215">        String[] fileItems  = {&quot;Open...&quot;, &quot;Run...&quot;, &quot;&quot;, &quot;Exit&quot;};</span>
+<span class="nc" id="L3216">        String[] fileCmds  = {&quot;Open&quot;, &quot;Load&quot;, &quot;&quot;, &quot;Exit&quot;};</span>
+<span class="nc" id="L3217">        char[] fileShortCuts = {'0', 'N', 0, 'X'};</span>
+<span class="nc" id="L3218">        int[] fileAccelerators = {KeyEvent.VK_O,</span>
+                                  KeyEvent.VK_N,
+                                  0,
+                                  KeyEvent.VK_Q};
+<span class="nc" id="L3222">        String[] editItems = {&quot;Cut&quot;, &quot;Copy&quot;, &quot;Paste&quot;, &quot;Go to function...&quot;};</span>
+<span class="nc" id="L3223">        char[] editShortCuts = {'T', 'C', 'P', 'F'};</span>
+<span class="nc" id="L3224">        String[] debugItems = {&quot;Break&quot;, &quot;Go&quot;, &quot;Step Into&quot;, &quot;Step Over&quot;, &quot;Step Out&quot;};</span>
+<span class="nc" id="L3225">        char[] debugShortCuts = {'B', 'G', 'I', 'O', 'T'};</span>
+<span class="nc" id="L3226">        String[] plafItems = {&quot;Metal&quot;, &quot;Windows&quot;, &quot;Motif&quot;};</span>
+<span class="nc" id="L3227">        char [] plafShortCuts = {'M', 'W', 'F'};</span>
+<span class="nc" id="L3228">        int[] debugAccelerators = {KeyEvent.VK_PAUSE,</span>
+                                   KeyEvent.VK_F5,
+                                   KeyEvent.VK_F11,
+                                   KeyEvent.VK_F7,
+                                   KeyEvent.VK_F8,
+                                   0, 0};
+
+<span class="nc" id="L3235">        JMenu fileMenu = new JMenu(&quot;File&quot;);</span>
+<span class="nc" id="L3236">        fileMenu.setMnemonic('F');</span>
+<span class="nc" id="L3237">        JMenu editMenu = new JMenu(&quot;Edit&quot;);</span>
+<span class="nc" id="L3238">        editMenu.setMnemonic('E');</span>
+<span class="nc" id="L3239">        JMenu plafMenu = new JMenu(&quot;Platform&quot;);</span>
+<span class="nc" id="L3240">        plafMenu.setMnemonic('P');</span>
+<span class="nc" id="L3241">        JMenu debugMenu = new JMenu(&quot;Debug&quot;);</span>
+<span class="nc" id="L3242">        debugMenu.setMnemonic('D');</span>
+<span class="nc" id="L3243">        windowMenu = new JMenu(&quot;Window&quot;);</span>
+<span class="nc" id="L3244">        windowMenu.setMnemonic('W');</span>
+<span class="nc bnc" id="L3245" title="All 2 branches missed.">        for (int i = 0; i &lt; fileItems.length; ++i) {</span>
+<span class="nc bnc" id="L3246" title="All 2 branches missed.">            if (fileItems[i].length() == 0) {</span>
+<span class="nc" id="L3247">                fileMenu.addSeparator();</span>
+            } else {
+<span class="nc" id="L3249">                JMenuItem item = new JMenuItem(fileItems[i],</span>
+                                               fileShortCuts[i]);
+<span class="nc" id="L3251">                item.setActionCommand(fileCmds[i]);</span>
+<span class="nc" id="L3252">                item.addActionListener(this);</span>
+<span class="nc" id="L3253">                fileMenu.add(item);</span>
+<span class="nc bnc" id="L3254" title="All 2 branches missed.">                if (fileAccelerators[i] != 0) {</span>
+<span class="nc" id="L3255">                    KeyStroke k = KeyStroke.getKeyStroke(fileAccelerators[i], Event.CTRL_MASK);</span>
+<span class="nc" id="L3256">                    item.setAccelerator(k);</span>
+                }
+            }
+        }
+<span class="nc bnc" id="L3260" title="All 2 branches missed.">        for (int i = 0; i &lt; editItems.length; ++i) {</span>
+<span class="nc" id="L3261">            JMenuItem item = new JMenuItem(editItems[i],</span>
+                                           editShortCuts[i]);
+<span class="nc" id="L3263">            item.addActionListener(this);</span>
+<span class="nc" id="L3264">            editMenu.add(item);</span>
+        }
+<span class="nc bnc" id="L3266" title="All 2 branches missed.">        for (int i = 0; i &lt; plafItems.length; ++i) {</span>
+<span class="nc" id="L3267">            JMenuItem item = new JMenuItem(plafItems[i],</span>
+                                           plafShortCuts[i]);
+<span class="nc" id="L3269">            item.addActionListener(this);</span>
+<span class="nc" id="L3270">            plafMenu.add(item);</span>
+        }
+<span class="nc bnc" id="L3272" title="All 2 branches missed.">        for (int i = 0; i &lt; debugItems.length; ++i) {</span>
+<span class="nc" id="L3273">            JMenuItem item = new JMenuItem(debugItems[i],</span>
+                                           debugShortCuts[i]);
+<span class="nc" id="L3275">            item.addActionListener(this);</span>
+<span class="nc bnc" id="L3276" title="All 2 branches missed.">            if (debugAccelerators[i] != 0) {</span>
+<span class="nc" id="L3277">                KeyStroke k = KeyStroke.getKeyStroke(debugAccelerators[i], 0);</span>
+<span class="nc" id="L3278">                item.setAccelerator(k);</span>
+            }
+<span class="nc bnc" id="L3280" title="All 2 branches missed.">            if (i != 0) {</span>
+<span class="nc" id="L3281">                interruptOnlyItems.add(item);</span>
+            } else {
+<span class="nc" id="L3283">                runOnlyItems.add(item);</span>
+            }
+<span class="nc" id="L3285">            debugMenu.add(item);</span>
+        }
+<span class="nc" id="L3287">        breakOnExceptions = new JCheckBoxMenuItem(&quot;Break on Exceptions&quot;);</span>
+<span class="nc" id="L3288">        breakOnExceptions.setMnemonic('X');</span>
+<span class="nc" id="L3289">        breakOnExceptions.addActionListener(this);</span>
+<span class="nc" id="L3290">        breakOnExceptions.setSelected(false);</span>
+<span class="nc" id="L3291">        debugMenu.add(breakOnExceptions);</span>
+
+<span class="nc" id="L3293">        breakOnEnter = new JCheckBoxMenuItem(&quot;Break on Function Enter&quot;);</span>
+<span class="nc" id="L3294">        breakOnEnter.setMnemonic('E');</span>
+<span class="nc" id="L3295">        breakOnEnter.addActionListener(this);</span>
+<span class="nc" id="L3296">        breakOnEnter.setSelected(false);</span>
+<span class="nc" id="L3297">        debugMenu.add(breakOnEnter);</span>
+
+<span class="nc" id="L3299">        breakOnReturn = new JCheckBoxMenuItem(&quot;Break on Function Return&quot;);</span>
+<span class="nc" id="L3300">        breakOnReturn.setMnemonic('R');</span>
+<span class="nc" id="L3301">        breakOnReturn.addActionListener(this);</span>
+<span class="nc" id="L3302">        breakOnReturn.setSelected(false);</span>
+<span class="nc" id="L3303">        debugMenu.add(breakOnReturn);</span>
+
+<span class="nc" id="L3305">        add(fileMenu);</span>
+<span class="nc" id="L3306">        add(editMenu);</span>
+        //add(plafMenu);
+<span class="nc" id="L3308">        add(debugMenu);</span>
+        JMenuItem item;
+<span class="nc" id="L3310">        windowMenu.add(item = new JMenuItem(&quot;Cascade&quot;, 'A'));</span>
+<span class="nc" id="L3311">        item.addActionListener(this);</span>
+<span class="nc" id="L3312">        windowMenu.add(item = new JMenuItem(&quot;Tile&quot;, 'T'));</span>
+<span class="nc" id="L3313">        item.addActionListener(this);</span>
+<span class="nc" id="L3314">        windowMenu.addSeparator();</span>
+<span class="nc" id="L3315">        windowMenu.add(item = new JMenuItem(&quot;Console&quot;, 'C'));</span>
+<span class="nc" id="L3316">        item.addActionListener(this);</span>
+<span class="nc" id="L3317">        add(windowMenu);</span>
+
+<span class="nc" id="L3319">        updateEnabled(false);</span>
+<span class="nc" id="L3320">    }</span>
+
+    /**
+     * Returns the &quot;Break on exceptions&quot; menu item.
+     */
+    public JCheckBoxMenuItem getBreakOnExceptions() {
+<span class="nc" id="L3326">        return breakOnExceptions;</span>
+    }
+
+    /**
+     * Returns the &quot;Break on enter&quot; menu item.
+     */
+    public JCheckBoxMenuItem getBreakOnEnter() {
+<span class="nc" id="L3333">        return breakOnEnter;</span>
+    }
+
+    /**
+     * Returns the &quot;Break on return&quot; menu item.
+     */
+    public JCheckBoxMenuItem getBreakOnReturn() {
+<span class="nc" id="L3340">        return breakOnReturn;</span>
+    }
+
+    /**
+     * Returns the &quot;Debug&quot; menu.
+     */
+    public JMenu getDebugMenu() {
+<span class="nc" id="L3347">        return getMenu(2);</span>
+    }
+
+    // ActionListener
+
+    /**
+     * Performs an action.
+     */
+    public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L3356">        String cmd = e.getActionCommand();</span>
+<span class="nc" id="L3357">        String plaf_name = null;</span>
+<span class="nc bnc" id="L3358" title="All 2 branches missed.">        if (cmd.equals(&quot;Metal&quot;)) {</span>
+<span class="nc" id="L3359">            plaf_name = &quot;javax.swing.plaf.metal.MetalLookAndFeel&quot;;</span>
+<span class="nc bnc" id="L3360" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Windows&quot;)) {</span>
+<span class="nc" id="L3361">            plaf_name = &quot;com.sun.java.swing.plaf.windows.WindowsLookAndFeel&quot;;</span>
+<span class="nc bnc" id="L3362" title="All 2 branches missed.">        } else if (cmd.equals(&quot;Motif&quot;)) {</span>
+<span class="nc" id="L3363">            plaf_name = &quot;com.sun.java.swing.plaf.motif.MotifLookAndFeel&quot;;</span>
+        } else {
+<span class="nc" id="L3365">            Object source = e.getSource();</span>
+<span class="nc bnc" id="L3366" title="All 2 branches missed.">            if (source == breakOnExceptions) {</span>
+<span class="nc" id="L3367">                debugGui.dim.setBreakOnExceptions(breakOnExceptions.isSelected());</span>
+<span class="nc bnc" id="L3368" title="All 2 branches missed.">            } else if (source == breakOnEnter) {</span>
+<span class="nc" id="L3369">                debugGui.dim.setBreakOnEnter(breakOnEnter.isSelected());</span>
+<span class="nc bnc" id="L3370" title="All 2 branches missed.">            } else if (source == breakOnReturn) {</span>
+<span class="nc" id="L3371">                debugGui.dim.setBreakOnReturn(breakOnReturn.isSelected());</span>
+            } else {
+<span class="nc" id="L3373">                debugGui.actionPerformed(e);</span>
+            }
+<span class="nc" id="L3375">            return;</span>
+        }
+        try {
+<span class="nc" id="L3378">            UIManager.setLookAndFeel(plaf_name);</span>
+<span class="nc" id="L3379">            SwingUtilities.updateComponentTreeUI(debugGui);</span>
+<span class="nc" id="L3380">            SwingUtilities.updateComponentTreeUI(debugGui.dlg);</span>
+<span class="nc" id="L3381">        } catch (Exception ignored) {</span>
+            //ignored.printStackTrace();
+<span class="nc" id="L3383">        }</span>
+<span class="nc" id="L3384">    }</span>
+
+    /**
+     * Adds a file to the window menu.
+     */
+    public void addFile(String url) {
+<span class="nc" id="L3390">        int count = windowMenu.getItemCount();</span>
+        JMenuItem item;
+<span class="nc bnc" id="L3392" title="All 2 branches missed.">        if (count == 4) {</span>
+<span class="nc" id="L3393">            windowMenu.addSeparator();</span>
+<span class="nc" id="L3394">            count++;</span>
+        }
+<span class="nc" id="L3396">        JMenuItem lastItem = windowMenu.getItem(count -1);</span>
+<span class="nc" id="L3397">        boolean hasMoreWin = false;</span>
+<span class="nc" id="L3398">        int maxWin = 5;</span>
+<span class="nc bnc" id="L3399" title="All 2 branches missed.">        if (lastItem != null &amp;&amp;</span>
+<span class="nc bnc" id="L3400" title="All 2 branches missed.">           lastItem.getText().equals(&quot;More Windows...&quot;)) {</span>
+<span class="nc" id="L3401">            hasMoreWin = true;</span>
+<span class="nc" id="L3402">            maxWin++;</span>
+        }
+<span class="nc bnc" id="L3404" title="All 4 branches missed.">        if (!hasMoreWin &amp;&amp; count - 4 == 5) {</span>
+<span class="nc" id="L3405">            windowMenu.add(item = new JMenuItem(&quot;More Windows...&quot;, 'M'));</span>
+<span class="nc" id="L3406">            item.setActionCommand(&quot;More Windows...&quot;);</span>
+<span class="nc" id="L3407">            item.addActionListener(this);</span>
+<span class="nc" id="L3408">            return;</span>
+<span class="nc bnc" id="L3409" title="All 2 branches missed.">        } else if (count - 4 &lt;= maxWin) {</span>
+<span class="nc bnc" id="L3410" title="All 2 branches missed.">            if (hasMoreWin) {</span>
+<span class="nc" id="L3411">                count--;</span>
+<span class="nc" id="L3412">                windowMenu.remove(lastItem);</span>
+            }
+<span class="nc" id="L3414">            String shortName = SwingGui.getShortName(url);</span>
+
+<span class="nc" id="L3416">            windowMenu.add(item = new JMenuItem((char)('0' + (count-4)) + &quot; &quot; + shortName, '0' + (count - 4)));</span>
+<span class="nc bnc" id="L3417" title="All 2 branches missed.">            if (hasMoreWin) {</span>
+<span class="nc" id="L3418">                windowMenu.add(lastItem);</span>
+            }
+<span class="nc" id="L3420">        } else {</span>
+<span class="nc" id="L3421">            return;</span>
+        }
+<span class="nc" id="L3423">        item.setActionCommand(url);</span>
+<span class="nc" id="L3424">        item.addActionListener(this);</span>
+<span class="nc" id="L3425">    }</span>
+
+    /**
+     * Updates the enabledness of menu items.
+     */
+    public void updateEnabled(boolean interrupted) {
+<span class="nc bnc" id="L3431" title="All 2 branches missed.">        for (int i = 0; i != interruptOnlyItems.size(); ++i) {</span>
+<span class="nc" id="L3432">            JMenuItem item = interruptOnlyItems.get(i);</span>
+<span class="nc" id="L3433">            item.setEnabled(interrupted);</span>
+        }
+
+<span class="nc bnc" id="L3436" title="All 2 branches missed.">        for (int i = 0; i != runOnlyItems.size(); ++i) {</span>
+<span class="nc" id="L3437">            JMenuItem item = runOnlyItems.get(i);</span>
+<span class="nc bnc" id="L3438" title="All 2 branches missed.">            item.setEnabled(!interrupted);</span>
+        }
+<span class="nc" id="L3440">    }</span>
+}
+
+/**
+ * Class to consolidate all cases that require to implement Runnable
+ * to avoid class generation bloat.
+ */
+class RunProxy implements Runnable {
+
+    // Constants for 'type'.
+    static final int OPEN_FILE = 1;
+    static final int LOAD_FILE = 2;
+    static final int UPDATE_SOURCE_TEXT = 3;
+    static final int ENTER_INTERRUPT = 4;
+
+    /**
+     * The debugger GUI.
+     */
+    private SwingGui debugGui;
+
+    /**
+     * The type of Runnable this object is.  Takes one of the constants
+     * defined in this class.
+     */
+    private int type;
+
+    /**
+     * The name of the file to open or load.
+     */
+    String fileName;
+
+    /**
+     * The source text to update.
+     */
+    String text;
+
+    /**
+     * The source for which to update the text.
+     */
+    Dim.SourceInfo sourceInfo;
+
+    /**
+     * The frame to interrupt in.
+     */
+    Dim.StackFrame lastFrame;
+
+    /**
+     * The name of the interrupted thread.
+     */
+    String threadTitle;
+
+    /**
+     * The message of the exception thrown that caused the thread
+     * interruption, if any.
+     */
+    String alertMessage;
+
+    /**
+     * Creates a new RunProxy.
+     */
+<span class="nc" id="L3500">    public RunProxy(SwingGui debugGui, int type) {</span>
+<span class="nc" id="L3501">        this.debugGui = debugGui;</span>
+<span class="nc" id="L3502">        this.type = type;</span>
+<span class="nc" id="L3503">    }</span>
+
+    /**
+     * Runs this Runnable.
+     */
+    public void run() {
+<span class="nc bnc" id="L3509" title="All 5 branches missed.">        switch (type) {</span>
+          case OPEN_FILE:
+            try {
+<span class="nc" id="L3512">                debugGui.dim.compileScript(fileName, text);</span>
+<span class="nc" id="L3513">            } catch (RuntimeException ex) {</span>
+<span class="nc" id="L3514">                MessageDialogWrapper.showMessageDialog(</span>
+<span class="nc" id="L3515">                    debugGui, ex.getMessage(), &quot;Error Compiling &quot;+fileName,</span>
+                    JOptionPane.ERROR_MESSAGE);
+<span class="nc" id="L3517">            }</span>
+<span class="nc" id="L3518">            break;</span>
+
+          case LOAD_FILE:
+            try {
+<span class="nc" id="L3522">                debugGui.dim.evalScript(fileName, text);</span>
+<span class="nc" id="L3523">            } catch (RuntimeException ex) {</span>
+<span class="nc" id="L3524">                MessageDialogWrapper.showMessageDialog(</span>
+<span class="nc" id="L3525">                    debugGui, ex.getMessage(), &quot;Run error for &quot;+fileName,</span>
+                    JOptionPane.ERROR_MESSAGE);
+<span class="nc" id="L3527">            }</span>
+<span class="nc" id="L3528">            break;</span>
+
+          case UPDATE_SOURCE_TEXT:
+            {
+<span class="nc" id="L3532">                String fileName = sourceInfo.url();</span>
+<span class="nc bnc" id="L3533" title="All 2 branches missed.">                if (!debugGui.updateFileWindow(sourceInfo) &amp;&amp;</span>
+<span class="nc bnc" id="L3534" title="All 2 branches missed.">                        !fileName.equals(&quot;&lt;stdin&gt;&quot;)) {</span>
+<span class="nc" id="L3535">                    debugGui.createFileWindow(sourceInfo, -1);</span>
+                }
+            }
+<span class="nc" id="L3538">            break;</span>
+
+          case ENTER_INTERRUPT:
+<span class="nc" id="L3541">            debugGui.enterInterruptImpl(lastFrame, threadTitle, alertMessage);</span>
+<span class="nc" id="L3542">            break;</span>
+
+          default:
+<span class="nc" id="L3545">            throw new IllegalArgumentException(String.valueOf(type));</span>
+
+        }
+<span class="nc" id="L3548">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

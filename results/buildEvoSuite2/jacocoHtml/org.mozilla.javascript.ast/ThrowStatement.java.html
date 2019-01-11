@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ThrowStatement.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ThrowStatement.java</span></div><h1>ThrowStatement.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * Throw statement.  Node type is {@link Token#THROW}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;ThrowStatement&lt;/i&gt; :
+ *      &lt;b&gt;throw&lt;/b&gt; [&lt;i&gt;no LineTerminator here&lt;/i&gt;] Expression ;&lt;/pre&gt;
+ */
+public class ThrowStatement extends AstNode {
+
+    private AstNode expression;
+
+    {
+<span class="nc" id="L22">        type = Token.THROW;</span>
+    }
+
+<span class="nc" id="L25">    public ThrowStatement() {</span>
+<span class="nc" id="L26">    }</span>
+
+    public ThrowStatement(int pos) {
+<span class="nc" id="L29">        super(pos);</span>
+<span class="nc" id="L30">    }</span>
+
+    public ThrowStatement(int pos, int len) {
+<span class="nc" id="L33">        super(pos, len);</span>
+<span class="nc" id="L34">    }</span>
+
+<span class="nc" id="L36">    public ThrowStatement(AstNode expr) {</span>
+<span class="nc" id="L37">        setExpression(expr);</span>
+<span class="nc" id="L38">    }</span>
+
+    public ThrowStatement(int pos, AstNode expr) {
+<span class="nc" id="L41">        super(pos, expr.getLength());</span>
+<span class="nc" id="L42">        setExpression(expr);</span>
+<span class="nc" id="L43">    }</span>
+
+    public ThrowStatement(int pos, int len, AstNode expr) {
+<span class="nc" id="L46">        super(pos, len);</span>
+<span class="nc" id="L47">        setExpression(expr);</span>
+<span class="nc" id="L48">    }</span>
+
+    /**
+     * Returns the expression being thrown
+     */
+    public AstNode getExpression() {
+<span class="nc" id="L54">        return expression;</span>
+    }
+
+    /**
+     * Sets the expression being thrown, and sets its parent
+     * to this node.
+     * @throws IllegalArgumentException} if expression is {@code null}
+     */
+    public void setExpression(AstNode expression) {
+<span class="nc" id="L63">        assertNotNull(expression);</span>
+<span class="nc" id="L64">        this.expression = expression;</span>
+<span class="nc" id="L65">        expression.setParent(this);</span>
+<span class="nc" id="L66">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L70">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L71">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L72">        sb.append(&quot;throw&quot;);</span>
+<span class="nc" id="L73">        sb.append(&quot; &quot;);</span>
+<span class="nc" id="L74">        sb.append(expression.toSource(0));</span>
+<span class="nc" id="L75">        sb.append(&quot;;\n&quot;);</span>
+<span class="nc" id="L76">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then the thrown expression.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L85">            expression.visit(v);</span>
+        }
+<span class="nc" id="L87">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

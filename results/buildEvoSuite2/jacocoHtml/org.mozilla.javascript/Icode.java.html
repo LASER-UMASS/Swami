@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Icode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Icode.java</span></div><h1>Icode.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * Additional interpreter-specific codes
+ */
+<span class="nc" id="L12">abstract class Icode {</span>
+
+    static final int
+
+    // delete operator used on a name
+        Icode_DELNAME                    = 0,
+
+    // Stack: ... value1 -&gt; ... value1 value1
+        Icode_DUP                       = -1,
+
+    // Stack: ... value2 value1 -&gt; ... value2 value1 value2 value1
+        Icode_DUP2                      = -2,
+
+    // Stack: ... value2 value1 -&gt; ... value1 value2
+        Icode_SWAP                      = -3,
+
+    // Stack: ... value1 -&gt; ...
+        Icode_POP                       = -4,
+
+    // Store stack top into return register and then pop it
+        Icode_POP_RESULT                = -5,
+
+    // To jump conditionally and pop additional stack value
+        Icode_IFEQ_POP                  = -6,
+
+    // various types of ++/--
+        Icode_VAR_INC_DEC               = -7,
+        Icode_NAME_INC_DEC              = -8,
+        Icode_PROP_INC_DEC              = -9,
+        Icode_ELEM_INC_DEC              = -10,
+        Icode_REF_INC_DEC               = -11,
+
+    // load/save scope from/to local
+        Icode_SCOPE_LOAD                = -12,
+        Icode_SCOPE_SAVE                = -13,
+
+        Icode_TYPEOFNAME                = -14,
+
+    // helper for function calls
+        Icode_NAME_AND_THIS             = -15,
+        Icode_PROP_AND_THIS             = -16,
+        Icode_ELEM_AND_THIS             = -17,
+        Icode_VALUE_AND_THIS            = -18,
+
+    // Create closure object for nested functions
+        Icode_CLOSURE_EXPR              = -19,
+        Icode_CLOSURE_STMT              = -20,
+
+    // Special calls
+        Icode_CALLSPECIAL               = -21,
+
+    // To return undefined value
+        Icode_RETUNDEF                  = -22,
+
+    // Exception handling implementation
+        Icode_GOSUB                     = -23,
+        Icode_STARTSUB                  = -24,
+        Icode_RETSUB                    = -25,
+
+    // To indicating a line number change in icodes.
+        Icode_LINE                      = -26,
+
+    // To store shorts and ints inline
+        Icode_SHORTNUMBER               = -27,
+        Icode_INTNUMBER                 = -28,
+
+    // To create and populate array to hold values for [] and {} literals
+        Icode_LITERAL_NEW               = -29,
+        Icode_LITERAL_SET               = -30,
+
+    // Array literal with skipped index like [1,,2]
+        Icode_SPARE_ARRAYLIT            = -31,
+
+    // Load index register to prepare for the following index operation
+        Icode_REG_IND_C0                = -32,
+        Icode_REG_IND_C1                = -33,
+        Icode_REG_IND_C2                = -34,
+        Icode_REG_IND_C3                = -35,
+        Icode_REG_IND_C4                = -36,
+        Icode_REG_IND_C5                = -37,
+        Icode_REG_IND1                  = -38,
+        Icode_REG_IND2                  = -39,
+        Icode_REG_IND4                  = -40,
+
+    // Load string register to prepare for the following string operation
+        Icode_REG_STR_C0                = -41,
+        Icode_REG_STR_C1                = -42,
+        Icode_REG_STR_C2                = -43,
+        Icode_REG_STR_C3                = -44,
+        Icode_REG_STR1                  = -45,
+        Icode_REG_STR2                  = -46,
+        Icode_REG_STR4                  = -47,
+
+    // Version of getvar/setvar that read var index directly from bytecode
+        Icode_GETVAR1                   = -48,
+        Icode_SETVAR1                   = -49,
+
+    // Load undefined
+        Icode_UNDEF                     = -50,
+        Icode_ZERO                      = -51,
+        Icode_ONE                       = -52,
+
+    // entrance and exit from .()
+       Icode_ENTERDQ                    = -53,
+       Icode_LEAVEDQ                    = -54,
+
+       Icode_TAIL_CALL                  = -55,
+
+    // Clear local to allow GC its context
+       Icode_LOCAL_CLEAR                = -56,
+
+    // Literal get/set
+       Icode_LITERAL_GETTER             = -57,
+       Icode_LITERAL_SETTER             = -58,
+
+    // const
+       Icode_SETCONST                   = -59,
+       Icode_SETCONSTVAR                = -60,
+       Icode_SETCONSTVAR1               = -61,
+
+    // Generator opcodes (along with Token.YIELD)
+       Icode_GENERATOR                  = -62,
+       Icode_GENERATOR_END              = -63,
+
+       Icode_DEBUGGER                   = -64,
+
+       // Last icode
+        MIN_ICODE                       = -64;
+
+    static String bytecodeName(int bytecode)
+    {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (!validBytecode(bytecode)) {</span>
+<span class="nc" id="L144">            throw new IllegalArgumentException(String.valueOf(bytecode));</span>
+        }
+
+        if (!Token.printICode) {
+<span class="nc" id="L148">            return String.valueOf(bytecode);</span>
+        }
+
+        if (validTokenCode(bytecode)) {
+            return Token.name(bytecode);
+        }
+
+        switch (bytecode) {
+          case Icode_DUP:              return &quot;DUP&quot;;
+          case Icode_DUP2:             return &quot;DUP2&quot;;
+          case Icode_SWAP:             return &quot;SWAP&quot;;
+          case Icode_POP:              return &quot;POP&quot;;
+          case Icode_POP_RESULT:       return &quot;POP_RESULT&quot;;
+          case Icode_IFEQ_POP:         return &quot;IFEQ_POP&quot;;
+          case Icode_VAR_INC_DEC:      return &quot;VAR_INC_DEC&quot;;
+          case Icode_NAME_INC_DEC:     return &quot;NAME_INC_DEC&quot;;
+          case Icode_PROP_INC_DEC:     return &quot;PROP_INC_DEC&quot;;
+          case Icode_ELEM_INC_DEC:     return &quot;ELEM_INC_DEC&quot;;
+          case Icode_REF_INC_DEC:      return &quot;REF_INC_DEC&quot;;
+          case Icode_SCOPE_LOAD:       return &quot;SCOPE_LOAD&quot;;
+          case Icode_SCOPE_SAVE:       return &quot;SCOPE_SAVE&quot;;
+          case Icode_TYPEOFNAME:       return &quot;TYPEOFNAME&quot;;
+          case Icode_NAME_AND_THIS:    return &quot;NAME_AND_THIS&quot;;
+          case Icode_PROP_AND_THIS:    return &quot;PROP_AND_THIS&quot;;
+          case Icode_ELEM_AND_THIS:    return &quot;ELEM_AND_THIS&quot;;
+          case Icode_VALUE_AND_THIS:   return &quot;VALUE_AND_THIS&quot;;
+          case Icode_CLOSURE_EXPR:     return &quot;CLOSURE_EXPR&quot;;
+          case Icode_CLOSURE_STMT:     return &quot;CLOSURE_STMT&quot;;
+          case Icode_CALLSPECIAL:      return &quot;CALLSPECIAL&quot;;
+          case Icode_RETUNDEF:         return &quot;RETUNDEF&quot;;
+          case Icode_GOSUB:            return &quot;GOSUB&quot;;
+          case Icode_STARTSUB:         return &quot;STARTSUB&quot;;
+          case Icode_RETSUB:           return &quot;RETSUB&quot;;
+          case Icode_LINE:             return &quot;LINE&quot;;
+          case Icode_SHORTNUMBER:      return &quot;SHORTNUMBER&quot;;
+          case Icode_INTNUMBER:        return &quot;INTNUMBER&quot;;
+          case Icode_LITERAL_NEW:      return &quot;LITERAL_NEW&quot;;
+          case Icode_LITERAL_SET:      return &quot;LITERAL_SET&quot;;
+          case Icode_SPARE_ARRAYLIT:   return &quot;SPARE_ARRAYLIT&quot;;
+          case Icode_REG_IND_C0:       return &quot;REG_IND_C0&quot;;
+          case Icode_REG_IND_C1:       return &quot;REG_IND_C1&quot;;
+          case Icode_REG_IND_C2:       return &quot;REG_IND_C2&quot;;
+          case Icode_REG_IND_C3:       return &quot;REG_IND_C3&quot;;
+          case Icode_REG_IND_C4:       return &quot;REG_IND_C4&quot;;
+          case Icode_REG_IND_C5:       return &quot;REG_IND_C5&quot;;
+          case Icode_REG_IND1:         return &quot;LOAD_IND1&quot;;
+          case Icode_REG_IND2:         return &quot;LOAD_IND2&quot;;
+          case Icode_REG_IND4:         return &quot;LOAD_IND4&quot;;
+          case Icode_REG_STR_C0:       return &quot;REG_STR_C0&quot;;
+          case Icode_REG_STR_C1:       return &quot;REG_STR_C1&quot;;
+          case Icode_REG_STR_C2:       return &quot;REG_STR_C2&quot;;
+          case Icode_REG_STR_C3:       return &quot;REG_STR_C3&quot;;
+          case Icode_REG_STR1:         return &quot;LOAD_STR1&quot;;
+          case Icode_REG_STR2:         return &quot;LOAD_STR2&quot;;
+          case Icode_REG_STR4:         return &quot;LOAD_STR4&quot;;
+          case Icode_GETVAR1:          return &quot;GETVAR1&quot;;
+          case Icode_SETVAR1:          return &quot;SETVAR1&quot;;
+          case Icode_UNDEF:            return &quot;UNDEF&quot;;
+          case Icode_ZERO:             return &quot;ZERO&quot;;
+          case Icode_ONE:              return &quot;ONE&quot;;
+          case Icode_ENTERDQ:          return &quot;ENTERDQ&quot;;
+          case Icode_LEAVEDQ:          return &quot;LEAVEDQ&quot;;
+          case Icode_TAIL_CALL:        return &quot;TAIL_CALL&quot;;
+          case Icode_LOCAL_CLEAR:      return &quot;LOCAL_CLEAR&quot;;
+          case Icode_LITERAL_GETTER:   return &quot;LITERAL_GETTER&quot;;
+          case Icode_LITERAL_SETTER:   return &quot;LITERAL_SETTER&quot;;
+          case Icode_SETCONST:         return &quot;SETCONST&quot;;
+          case Icode_SETCONSTVAR:      return &quot;SETCONSTVAR&quot;;
+          case Icode_SETCONSTVAR1:     return &quot;SETCONSTVAR1&quot;;
+          case Icode_GENERATOR:        return &quot;GENERATOR&quot;;
+          case Icode_GENERATOR_END:    return &quot;GENERATOR_END&quot;;
+          case Icode_DEBUGGER:         return &quot;DEBUGGER&quot;;
+        }
+
+        // icode without name
+        throw new IllegalStateException(String.valueOf(bytecode));
+    }
+
+    static boolean validIcode(int icode)
+    {
+<span class="nc bnc" id="L228" title="All 4 branches missed.">        return MIN_ICODE &lt;= icode &amp;&amp; icode &lt;= 0;</span>
+    }
+
+    static boolean validTokenCode(int token)
+    {
+<span class="nc bnc" id="L233" title="All 4 branches missed.">        return Token.FIRST_BYTECODE_TOKEN &lt;= token</span>
+               &amp;&amp; token &lt;= Token.LAST_BYTECODE_TOKEN;
+    }
+
+    static boolean validBytecode(int bytecode)
+    {
+<span class="nc bnc" id="L239" title="All 4 branches missed.">        return validIcode(bytecode) || validTokenCode(bytecode);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

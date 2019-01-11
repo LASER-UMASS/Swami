@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeWith.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeWith.java</span></div><h1>NativeWith.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.Serializable;
+
+/**
+ * This class implements the object lookup required for the
+ * &lt;code&gt;with&lt;/code&gt; statement.
+ * It simply delegates every action to its prototype except
+ * for operations on its parent.
+ */
+public class NativeWith implements Scriptable, IdFunctionCall, Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L23">        NativeWith obj = new NativeWith();</span>
+
+<span class="nc" id="L25">        obj.setParentScope(scope);</span>
+<span class="nc" id="L26">        obj.setPrototype(ScriptableObject.getObjectPrototype(scope));</span>
+
+<span class="nc" id="L28">        IdFunctionObject ctor = new IdFunctionObject(obj, FTAG, Id_constructor,</span>
+                                         &quot;With&quot;, 0, scope);
+<span class="nc" id="L30">        ctor.markAsConstructor(obj);</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L32">            ctor.sealObject();</span>
+        }
+<span class="nc" id="L34">        ctor.exportAsScopeProperty();</span>
+<span class="nc" id="L35">    }</span>
+
+<span class="nc" id="L37">    private NativeWith() {</span>
+<span class="nc" id="L38">    }</span>
+
+<span class="nc" id="L40">    protected NativeWith(Scriptable parent, Scriptable prototype) {</span>
+<span class="nc" id="L41">        this.parent = parent;</span>
+<span class="nc" id="L42">        this.prototype = prototype;</span>
+<span class="nc" id="L43">    }</span>
+
+    public String getClassName() {
+<span class="nc" id="L46">        return &quot;With&quot;;</span>
+    }
+
+    public boolean has(String id, Scriptable start)
+    {
+<span class="nc" id="L51">        return prototype.has(id, prototype);</span>
+    }
+
+    public boolean has(int index, Scriptable start)
+    {
+<span class="nc" id="L56">        return prototype.has(index, prototype);</span>
+    }
+
+    public Object get(String id, Scriptable start)
+    {
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (start == this)</span>
+<span class="nc" id="L62">            start = prototype;</span>
+<span class="nc" id="L63">        return prototype.get(id, start);</span>
+    }
+
+    public Object get(int index, Scriptable start)
+    {
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (start == this)</span>
+<span class="nc" id="L69">            start = prototype;</span>
+<span class="nc" id="L70">        return prototype.get(index, start);</span>
+    }
+
+    public void put(String id, Scriptable start, Object value)
+    {
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (start == this)</span>
+<span class="nc" id="L76">            start = prototype;</span>
+<span class="nc" id="L77">        prototype.put(id, start, value);</span>
+<span class="nc" id="L78">    }</span>
+
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (start == this)</span>
+<span class="nc" id="L83">            start = prototype;</span>
+<span class="nc" id="L84">        prototype.put(index, start, value);</span>
+<span class="nc" id="L85">    }</span>
+
+    public void delete(String id)
+    {
+<span class="nc" id="L89">        prototype.delete(id);</span>
+<span class="nc" id="L90">    }</span>
+
+    public void delete(int index)
+    {
+<span class="nc" id="L94">        prototype.delete(index);</span>
+<span class="nc" id="L95">    }</span>
+
+    public Scriptable getPrototype() {
+<span class="nc" id="L98">        return prototype;</span>
+    }
+
+    public void setPrototype(Scriptable prototype) {
+<span class="nc" id="L102">        this.prototype = prototype;</span>
+<span class="nc" id="L103">    }</span>
+
+    public Scriptable getParentScope() {
+<span class="nc" id="L106">        return parent;</span>
+    }
+
+    public void setParentScope(Scriptable parent) {
+<span class="nc" id="L110">        this.parent = parent;</span>
+<span class="nc" id="L111">    }</span>
+
+    public Object[] getIds() {
+<span class="nc" id="L114">        return prototype.getIds();</span>
+    }
+
+    public Object getDefaultValue(Class&lt;?&gt; typeHint) {
+<span class="nc" id="L118">        return prototype.getDefaultValue(typeHint);</span>
+    }
+
+    public boolean hasInstance(Scriptable value) {
+<span class="nc" id="L122">        return prototype.hasInstance(value);</span>
+    }
+
+    /**
+     * Must return null to continue looping or the final collection result.
+     */
+    protected Object updateDotQuery(boolean value)
+    {
+        // NativeWith itself does not support it
+<span class="nc" id="L131">        throw new IllegalStateException();</span>
+    }
+
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (f.hasTag(FTAG)) {</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (f.methodId() == Id_constructor) {</span>
+<span class="nc" id="L139">                throw Context.reportRuntimeError1(&quot;msg.cant.call.indirect&quot;, &quot;With&quot;);</span>
+            }
+        }
+<span class="nc" id="L142">        throw f.unknown();</span>
+    }
+
+    static boolean isWithFunction(Object functionObj)
+    {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (functionObj instanceof IdFunctionObject) {</span>
+<span class="nc" id="L148">            IdFunctionObject f = (IdFunctionObject)functionObj;</span>
+<span class="nc bnc" id="L149" title="All 4 branches missed.">            return f.hasTag(FTAG) &amp;&amp; f.methodId() == Id_constructor;</span>
+        }
+<span class="nc" id="L151">        return false;</span>
+    }
+
+    static Object newWithSpecial(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L156">        ScriptRuntime.checkDeprecated(cx, &quot;With&quot;);</span>
+<span class="nc" id="L157">        scope = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="nc" id="L158">        NativeWith thisObj = new NativeWith();</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        thisObj.setPrototype(args.length == 0</span>
+<span class="nc" id="L160">                             ? ScriptableObject.getObjectPrototype(scope)</span>
+<span class="nc" id="L161">                             : ScriptRuntime.toObject(cx, scope, args[0]));</span>
+<span class="nc" id="L162">        thisObj.setParentScope(scope);</span>
+<span class="nc" id="L163">        return thisObj;</span>
+    }
+
+<span class="nc" id="L166">    private static final Object FTAG = &quot;With&quot;;</span>
+
+    private static final int
+        Id_constructor = 1;
+
+    protected Scriptable prototype;
+    protected Scriptable parent;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
