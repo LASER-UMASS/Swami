@@ -1,0 +1,30 @@
+Running BLUiR:
+
+    Dependencies: You have to have Indri Library installed on your machine to run BLUiR. If you do not have Indri, please go to the Indri homepage, download the library from SourceForge Lemur Project Page, and install it. BLUiR is currently tested using Indri 5.3.
+
+    Clone the BLUiR Package from Gitlab. You will get the BLUiR Jar, an example real subject system (SWT), and 98 real bug reports of SWT in an XML file.
+
+    Open the Settings.txt file and edit the Indri root folder path accordingly.
+
+    At this point, you are ready to run BLUiR. To create query from XML Bug Repository from command line, change the directory to where BLUiR Jar is sitting, and execute the following command:
+
+    java -jar BLUiR.jar -task=createquery -bugRepoLocation=../ExampleProject/SWTBugRepository.xml -queryFilePath=../Output/query
+
+    To be able to create a document collection, you should already have the source code files of a given project. Execute the following command to construct a structured document collection:
+
+    java -jar BLUiR.jar -task=createdocs -codeLocation=../ExampleProject/swt/src/org/ -docLocation=../Output/docs
+
+    Now you need to index our document collection using the following command:
+
+    java -jar BLUiR.jar -task=index -indexLocation=../Output/index -docLocation=../Output/docs
+
+    Finally, perform the retrieval to identify the buggy files using the following command:
+
+    java -jar BLUiR.jar -task=retrieve -queryFilePath=../Output/query -indexLocation=../Output/index -resultPath=../Output/results.txt
+
+    You can optionally pass a parameter -topN to specify the number of top N files that you would like to retrieve. The value of topN is 10, by default. For getting the ranked list of all files in the source project, pass an extremely large number, such as -topN=100000.
+
+    Now you can see the detailed ranked list opening the result file.
+
+    Getting different metrics from the ranked list is coming soon.
+
