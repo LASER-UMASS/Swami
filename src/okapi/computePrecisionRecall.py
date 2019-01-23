@@ -24,7 +24,9 @@ relevantcount = float(len(relevant))
 retrievedcount = float(len(retrieved))
 correctlyretrievedcount = float(len(correctlyretrieved))
 
-print relevantcount, retrievedcount, correctlyretrievedcount
+print "relevant count: ", relevantcount
+print "retrieved count: ", retrievedcount 
+print "correctly retrieved count: ", correctlyretrievedcount
 
 precision = correctlyretrievedcount/retrievedcount*100.0
 recall = correctlyretrievedcount/relevantcount*100.0
