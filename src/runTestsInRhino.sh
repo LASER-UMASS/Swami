@@ -16,6 +16,7 @@ fi
 
 echo "RHINO: EXECUTING DEVELOPER-WRITTEN TEST SUITE ................................................................................."
 cd ~/rhino-Rhino1_7_9_Release/
+cp build.gradle_orig build.gradle
 cp ~/rhino-Rhino1_7_9_Release/testsrc/opt0.tests.orig ~/rhino-Rhino1_7_9_Release/testsrc/opt0.tests
 cp ~/rhino-Rhino1_7_9_Release/testsrc/opt9.tests.orig ~/rhino-Rhino1_7_9_Release/testsrc/opt9.tests
 cp ~/rhino-Rhino1_7_9_Release/testsrc/opt-1.tests.orig ~/rhino-Rhino1_7_9_Release/testsrc/opt-1.tests
