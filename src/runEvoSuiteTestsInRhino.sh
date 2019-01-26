@@ -58,7 +58,7 @@ cp build.gradle_es4 build.gradle
 ./gradlew test
 mv buildGradle buildEvoSuite4
 
-echo "RHINO: EXECUTING EVOSUITE TEST SUITE#1 ................................................................................."
+echo "RHINO: EXECUTING EVOSUITE TEST SUITE#5 ................................................................................."
 cd ~/rhino-Rhino1_7_9_Release/
 cp build.gradle_es5 build.gradle
 ./gradlew clean
