@@ -33,8 +33,9 @@ echo "#Good tests= 31381 + 998 =  $good"
 echo "#Bad tests: 1533 - 998 = $bad"
 echo "#Non-innocuous tests: 31381 + 1533 = $noninnocuous"
 echo "#Innocuous tests: 83000 - 31381 - 1533 = $innocuous"
-echo "Percent of Good tests (out of non-innocous): $(bc <<< "scale=2; 3237900/32914")%"
-echo "Percent of Bad tests (out of non-innocous): $(bc <<< "scale=2; 53500/32914")%"
+echo
+echo "Percent of Good tests (out of non-innocuous): $(bc <<< "scale=2; 3237900/32914")%"
+echo "Percent of Bad tests (out of non-innocuous): $(bc <<< "scale=2; 53500/32914")%"
 echo "Percent of Good tests (out of total): $(bc <<< "scale=2; 3237900/83000")%"
 echo "Fraction of Bad tests (out of total): $(bc <<< "scale=2; 53500/83000")%"
 echo
