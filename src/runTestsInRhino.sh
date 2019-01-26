@@ -54,5 +54,5 @@ cd ~/rhino-Rhino1_7_9_Release/
 ./gradlew test
 echo "RHINO: MEASURING CODE COVERAGE OF COMBINED TEST SUITE ........................................................................"
 ./gradlew jacocoTestReport
-mv buildGradle buildCombine
+mv buildGradle buildDeveloperPlusSwami
 
