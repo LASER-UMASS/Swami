@@ -16,6 +16,7 @@ echo "STEP3: Instantiate generated Templates for Node.js"
 echo
 rm -rf ../results/Node_ECMA262_Tests/
 python3 swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests node 1000
+echo "Total #tests generated: 83000"
 
 echo
 echo "STEP4: Run and analyse generated Tests on Node.js"
