@@ -23,8 +23,8 @@ for line in devplusswamifile:
 		lineflag = True
 		
 	if float(line[2].replace("%", "").strip()) > methodbranchcov[line[0].strip()]:
-		branchFlag = True
+		branchflag = True
 
-	if lineflag or branchflag:
+	if lineflag is True or branchflag is True:
 		print line[0].strip(), "::", float(line[1].replace("%", "").strip()) - methodlinecov[line[0].strip()], "::", float(line[2].replace("%", "").strip()) - methodbranchcov[line[0].strip()]
 
