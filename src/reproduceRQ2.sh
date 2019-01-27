@@ -21,3 +21,7 @@ echo
 echo "STEP4: compare code coverage of Developer-written, with Developer-written augmented with Swami tests in Rhino"
 echo
 ./compareCoverageDeveloper.sh
+
+echo
+echo "Identifying the difference in the method-level coverage for the 8 Rhino classes for which change in coverage is observed"
+./coverageAnalysisDeveloper.sh
