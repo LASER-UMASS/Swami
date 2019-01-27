@@ -49,11 +49,4 @@ Test files generated for Node.js are available in: `<path-to-output-directory>/N
 * **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests node 1000`
 
 ## How to compare Swami’s outputs to outputs described in the paper.
-<TODO>
-Explicitly enumerate your claims in both your paper and in your artifact’s documentation.
-Provide a VM if possible, and when appropriate.  VMs aid reproducibility because they help control for nuisance factors that are not central to an author’s claims, significantly facilitating the review process.  Nonetheless, reviewers may need to accept performance tradeoffs for VMs (e.g., because of the absence of special hardware).  These tradeoffs are acceptable as long as authors explain to reviewers how and why they should adjust their expectations.
-Provide step-by-step instructions, but make it easy for reviewers to supply their own inputs to your artifact.  When reviewers can “play” with your artifact, it gives them confidence that your ideas were implemented robustly.
-
-Rhino's build facilitates measuring code coverage using [Jacoco](https://www.eclemma.org/jacoco/).
-We use [Jacoco-Comparison-Tool](https://github.com/mariamr/Jacoco-Comparison-Tool) to compare 
-the code coverage ratio of Swami-generated tests with the Developer-written tests and EvoSuite-generated tests. 
+Please read the document REPLICATE.pdf to reproduce the results reported in the paper "paper264_icse2019.pdf"
