@@ -14,4 +14,3 @@ cd ./compareCoverage/Jacoco-Comparison-Tool-master
 echo
 echo "The coverage comparsion report is available at: /home/swami/rhino-Rhino1_7_9_Release/compareCoverage/reports/index.html"
 echo
-~         
