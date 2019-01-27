@@ -15,7 +15,7 @@ import org.mozilla.javascript.InterpretedFunction;
 import org.mozilla.javascript.InterpreterData;
 import org.mozilla.javascript.NativeCall;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class InterpretedFunction_ESTest extends InterpretedFunction_ESTest_scaffolding {
 
   @Test(timeout = 4000)

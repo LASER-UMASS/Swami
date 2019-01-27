@@ -22,7 +22,7 @@ import org.mozilla.javascript.WrappedException;
 import org.mozilla.javascript.ast.ErrorCollector;
 import org.mozilla.javascript.tools.ToolErrorReporter;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ToolErrorReporter_ESTest extends ToolErrorReporter_ESTest_scaffolding {
 
   @Test(timeout = 4000)

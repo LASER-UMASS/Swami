@@ -16,7 +16,7 @@ import org.mozilla.javascript.IdFunctionObject;
 import org.mozilla.javascript.ImporterTopLevel;
 import org.mozilla.javascript.TopLevel;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class TopLevel_ESTest extends TopLevel_ESTest_scaffolding {
 
   @Test(timeout = 4000)

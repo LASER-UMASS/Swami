@@ -21,7 +21,7 @@ import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.TopLevel;
 import org.mozilla.javascript.typedarrays.NativeInt16Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NativeCallSite_ESTest extends NativeCallSite_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -26,7 +26,7 @@ import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.optimizer.Codegen;
 import org.mozilla.javascript.optimizer.OptFunctionNode;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Codegen_ESTest extends Codegen_ESTest_scaffolding {
 
   @Test(timeout = 4000)

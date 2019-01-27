@@ -19,7 +19,7 @@ import org.mozilla.javascript.NativeJavaPackage;
 import org.mozilla.javascript.NativeJavaTopPackage;
 import org.mozilla.javascript.Scriptable;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NativeJavaPackage_ESTest extends NativeJavaPackage_ESTest_scaffolding {
 
   @Test(timeout = 4000)

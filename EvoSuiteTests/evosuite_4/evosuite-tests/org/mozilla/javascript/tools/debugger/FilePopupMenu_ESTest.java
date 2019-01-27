@@ -15,7 +15,7 @@ import org.mozilla.javascript.tools.debugger.FilePopupMenu;
 import org.mozilla.javascript.tools.debugger.FileTextArea;
 import org.mozilla.javascript.tools.debugger.FileWindow;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class FilePopupMenu_ESTest extends FilePopupMenu_ESTest_scaffolding {
 
   @Test(timeout = 4000)

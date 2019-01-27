@@ -26,7 +26,7 @@ import org.mozilla.javascript.tools.debugger.GuiCallback;
 import org.mozilla.javascript.tools.debugger.ScopeProvider;
 import org.mozilla.javascript.tools.debugger.SourceProvider;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Dim_ESTest extends Dim_ESTest_scaffolding {
 
   @Test(timeout = 4000)

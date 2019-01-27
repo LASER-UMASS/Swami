@@ -16,7 +16,7 @@ import org.mozilla.javascript.ImporterTopLevel;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.xmlimpl.XMLLibImpl;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class XMLLibImpl_ESTest extends XMLLibImpl_ESTest_scaffolding {
 
   @Test(timeout = 4000)

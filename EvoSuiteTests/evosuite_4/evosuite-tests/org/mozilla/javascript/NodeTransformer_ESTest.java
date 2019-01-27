@@ -27,7 +27,7 @@ import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.ast.StringLiteral;
 import org.mozilla.javascript.ast.Yield;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NodeTransformer_ESTest extends NodeTransformer_ESTest_scaffolding {
 
   @Test(timeout = 4000)

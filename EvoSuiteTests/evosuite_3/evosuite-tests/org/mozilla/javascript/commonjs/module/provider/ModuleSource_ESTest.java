@@ -15,7 +15,7 @@ import org.evosuite.runtime.mock.java.net.MockURI;
 import org.junit.runner.RunWith;
 import org.mozilla.javascript.commonjs.module.provider.ModuleSource;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ModuleSource_ESTest extends ModuleSource_ESTest_scaffolding {
 
   @Test(timeout = 4000)

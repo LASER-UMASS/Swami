@@ -27,7 +27,7 @@ import org.mozilla.javascript.RhinoException;
 import org.mozilla.javascript.ScriptStackElement;
 import org.mozilla.javascript.StackStyle;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class RhinoException_ESTest extends RhinoException_ESTest_scaffolding {
 
   @Test(timeout = 4000)

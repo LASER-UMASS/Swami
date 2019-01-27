@@ -16,7 +16,7 @@ import org.mozilla.javascript.tools.idswitch.CodePrinter;
 import org.mozilla.javascript.tools.idswitch.IdValuePair;
 import org.mozilla.javascript.tools.idswitch.SwitchGenerator;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class SwitchGenerator_ESTest extends SwitchGenerator_ESTest_scaffolding {
 
   @Test(timeout = 4000)

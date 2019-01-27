@@ -13,7 +13,7 @@ import org.evosuite.runtime.EvoRunnerParameters;
 import org.junit.runner.RunWith;
 import org.mozilla.javascript.v8dtoa.DiyFp;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class DiyFp_ESTest extends DiyFp_ESTest_scaffolding {
 
   @Test(timeout = 4000)

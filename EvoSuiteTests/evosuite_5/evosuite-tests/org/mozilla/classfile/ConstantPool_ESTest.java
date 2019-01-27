@@ -16,7 +16,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.classfile.ClassFileWriter;
 import org.mozilla.classfile.ConstantPool;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ConstantPool_ESTest extends ConstantPool_ESTest_scaffolding {
 
   @Test(timeout = 4000)

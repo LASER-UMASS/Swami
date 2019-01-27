@@ -32,7 +32,7 @@ import org.mozilla.javascript.Symbol;
 import org.mozilla.javascript.SymbolKey;
 import org.mozilla.javascript.typedarrays.NativeFloat64Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class IdScriptableObject_ESTest extends IdScriptableObject_ESTest_scaffolding {
 
   @Test(timeout = 4000)

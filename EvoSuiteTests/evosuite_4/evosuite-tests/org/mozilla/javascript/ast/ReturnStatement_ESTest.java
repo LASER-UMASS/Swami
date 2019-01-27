@@ -16,7 +16,7 @@ import org.mozilla.javascript.ast.ElementGet;
 import org.mozilla.javascript.ast.ReturnStatement;
 import org.mozilla.javascript.ast.TryStatement;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ReturnStatement_ESTest extends ReturnStatement_ESTest_scaffolding {
 
   @Test(timeout = 4000)

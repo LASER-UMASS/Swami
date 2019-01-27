@@ -16,7 +16,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.GeneratorExpressionLoop;
 import org.mozilla.javascript.ast.XmlLiteral;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class GeneratorExpressionLoop_ESTest extends GeneratorExpressionLoop_ESTest_scaffolding {
 
   @Test(timeout = 4000)

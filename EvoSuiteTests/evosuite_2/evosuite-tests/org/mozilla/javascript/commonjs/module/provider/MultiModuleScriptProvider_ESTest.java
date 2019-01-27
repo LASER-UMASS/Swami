@@ -18,7 +18,7 @@ import org.mozilla.javascript.commonjs.module.ModuleScript;
 import org.mozilla.javascript.commonjs.module.provider.MultiModuleScriptProvider;
 import org.mozilla.javascript.typedarrays.NativeFloat64Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class MultiModuleScriptProvider_ESTest extends MultiModuleScriptProvider_ESTest_scaffolding {
 
   @Test(timeout = 4000)

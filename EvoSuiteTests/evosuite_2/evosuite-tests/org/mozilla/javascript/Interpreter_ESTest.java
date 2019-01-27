@@ -18,7 +18,7 @@ import org.mozilla.javascript.InterpreterData;
 import org.mozilla.javascript.NativeCall;
 import org.mozilla.javascript.NativeContinuation;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Interpreter_ESTest extends Interpreter_ESTest_scaffolding {
 
   @Test(timeout = 4000)

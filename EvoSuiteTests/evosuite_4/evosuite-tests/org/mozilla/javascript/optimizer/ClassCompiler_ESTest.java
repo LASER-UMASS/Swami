@@ -15,7 +15,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.CompilerEnvirons;
 import org.mozilla.javascript.optimizer.ClassCompiler;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ClassCompiler_ESTest extends ClassCompiler_ESTest_scaffolding {
 
   @Test(timeout = 4000)

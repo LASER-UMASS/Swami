@@ -26,7 +26,7 @@ import org.mozilla.javascript.ast.TryStatement;
 import org.mozilla.javascript.ast.VariableInitializer;
 import org.mozilla.javascript.ast.XmlExpression;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NodeTransformer_ESTest extends NodeTransformer_ESTest_scaffolding {
 
   @Test(timeout = 4000)

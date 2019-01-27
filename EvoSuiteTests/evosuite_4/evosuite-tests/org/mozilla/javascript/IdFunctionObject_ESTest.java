@@ -27,7 +27,7 @@ import org.mozilla.javascript.typedarrays.NativeInt32Array;
 import org.mozilla.javascript.typedarrays.NativeInt8Array;
 import org.mozilla.javascript.typedarrays.NativeUint8Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class IdFunctionObject_ESTest extends IdFunctionObject_ESTest_scaffolding {
 
   @Test(timeout = 4000)

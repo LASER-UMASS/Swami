@@ -28,7 +28,7 @@ import org.mozilla.javascript.typedarrays.NativeInt8Array;
 import org.mozilla.javascript.typedarrays.NativeTypedArrayView;
 import org.mozilla.javascript.typedarrays.NativeUint16Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NativeDataView_ESTest extends NativeDataView_ESTest_scaffolding {
 
   @Test(timeout = 4000)

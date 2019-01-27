@@ -19,7 +19,7 @@ import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.ast.ThrowStatement;
 import org.mozilla.javascript.optimizer.OptFunctionNode;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class OptFunctionNode_ESTest extends OptFunctionNode_ESTest_scaffolding {
 
   @Test(timeout = 4000)

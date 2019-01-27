@@ -19,7 +19,7 @@ import org.mozilla.javascript.ContextFactory;
 import org.mozilla.javascript.tools.debugger.Dim;
 import org.mozilla.javascript.tools.debugger.VariableModel;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class VariableModel_ESTest extends VariableModel_ESTest_scaffolding {
 
   @Test(timeout = 4000)

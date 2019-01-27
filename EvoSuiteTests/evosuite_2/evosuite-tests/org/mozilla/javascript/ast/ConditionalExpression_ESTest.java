@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.BreakStatement;
 import org.mozilla.javascript.ast.ConditionalExpression;
 import org.mozilla.javascript.ast.XmlMemberGet;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ConditionalExpression_ESTest extends ConditionalExpression_ESTest_scaffolding {
 
   @Test(timeout = 4000)

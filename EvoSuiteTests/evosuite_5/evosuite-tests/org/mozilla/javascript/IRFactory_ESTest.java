@@ -52,7 +52,7 @@ import org.mozilla.javascript.ast.XmlElemRef;
 import org.mozilla.javascript.ast.XmlLiteral;
 import org.mozilla.javascript.ast.XmlPropRef;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class IRFactory_ESTest extends IRFactory_ESTest_scaffolding {
 
   @Test(timeout = 4000)

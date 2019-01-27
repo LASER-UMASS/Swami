@@ -41,7 +41,7 @@ import org.mozilla.javascript.xmlimpl.XMLName;
 import org.mozilla.javascript.xmlimpl.XmlNode;
 import org.mozilla.javascript.xmlimpl.XmlProcessor;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class XMLObjectImpl_ESTest extends XMLObjectImpl_ESTest_scaffolding {
 
   @Test(timeout = 4000)

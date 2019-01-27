@@ -19,7 +19,7 @@ import org.mozilla.javascript.Script;
 import org.mozilla.javascript.tools.shell.Runner;
 import org.mozilla.javascript.typedarrays.NativeUint8Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Runner_ESTest extends Runner_ESTest_scaffolding {
 
   @Test(timeout = 4000)

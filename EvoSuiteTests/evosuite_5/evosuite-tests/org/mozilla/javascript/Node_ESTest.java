@@ -44,7 +44,7 @@ import org.mozilla.javascript.ast.UnaryExpression;
 import org.mozilla.javascript.ast.XmlPropRef;
 import org.mozilla.javascript.ast.Yield;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Node_ESTest extends Node_ESTest_scaffolding {
 
   @Test(timeout = 4000)

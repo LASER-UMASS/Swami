@@ -19,7 +19,7 @@ import org.mozilla.javascript.ast.Scope;
 import org.mozilla.javascript.ast.UnaryExpression;
 import org.mozilla.javascript.ast.XmlLiteral;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class UnaryExpression_ESTest extends UnaryExpression_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.StringLiteral;
 import org.mozilla.javascript.ast.WhileLoop;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class WhileLoop_ESTest extends WhileLoop_ESTest_scaffolding {
 
   @Test(timeout = 4000)

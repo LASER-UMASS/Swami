@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.v8dtoa.DiyFp;
 import org.mozilla.javascript.v8dtoa.DoubleHelper;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class DoubleHelper_ESTest extends DoubleHelper_ESTest_scaffolding {
 
   @Test(timeout = 4000)

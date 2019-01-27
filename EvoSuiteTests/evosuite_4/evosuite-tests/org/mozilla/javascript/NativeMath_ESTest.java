@@ -14,7 +14,7 @@ import org.mozilla.javascript.NativeContinuation;
 import org.mozilla.javascript.NativeMath;
 import org.mozilla.javascript.ScriptableObject;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class NativeMath_ESTest extends NativeMath_ESTest_scaffolding {
 
   @Test(timeout = 4000)

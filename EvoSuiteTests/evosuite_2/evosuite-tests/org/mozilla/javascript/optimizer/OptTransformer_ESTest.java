@@ -21,7 +21,7 @@ import org.mozilla.javascript.ast.XmlString;
 import org.mozilla.javascript.optimizer.OptFunctionNode;
 import org.mozilla.javascript.optimizer.OptTransformer;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class OptTransformer_ESTest extends OptTransformer_ESTest_scaffolding {
 
   @Test(timeout = 4000)

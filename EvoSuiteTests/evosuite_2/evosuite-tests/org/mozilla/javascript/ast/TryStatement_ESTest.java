@@ -20,7 +20,7 @@ import org.mozilla.javascript.ast.ErrorNode;
 import org.mozilla.javascript.ast.Name;
 import org.mozilla.javascript.ast.TryStatement;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class TryStatement_ESTest extends TryStatement_ESTest_scaffolding {
 
   @Test(timeout = 4000)

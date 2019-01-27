@@ -39,7 +39,7 @@ import org.mozilla.javascript.ast.XmlMemberGet;
 import org.mozilla.javascript.ast.XmlPropRef;
 import org.mozilla.javascript.ast.XmlString;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class AstNode_ESTest extends AstNode_ESTest_scaffolding {
 
   @Test(timeout = 4000)

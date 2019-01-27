@@ -17,7 +17,7 @@ import org.mozilla.javascript.commonjs.module.provider.CachingModuleScriptProvid
 import org.mozilla.javascript.commonjs.module.provider.ModuleSourceProvider;
 import org.mozilla.javascript.commonjs.module.provider.SoftCachingModuleScriptProvider;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class SoftCachingModuleScriptProvider_ESTest extends SoftCachingModuleScriptProvider_ESTest_scaffolding {
 
   @Test(timeout = 4000)

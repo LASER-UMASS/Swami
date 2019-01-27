@@ -18,7 +18,7 @@ import org.mozilla.javascript.ImporterTopLevel;
 import org.mozilla.javascript.TopLevel;
 import org.mozilla.javascript.typedarrays.NativeArrayBuffer;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ImporterTopLevel_ESTest extends ImporterTopLevel_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -29,7 +29,7 @@ import org.mozilla.javascript.commonjs.module.provider.UrlConnectionExpiryCalcul
 import org.mozilla.javascript.commonjs.module.provider.UrlConnectionSecurityDomainProvider;
 import org.mozilla.javascript.commonjs.module.provider.UrlModuleSourceProvider;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class UrlModuleSourceProvider_ESTest extends UrlModuleSourceProvider_ESTest_scaffolding {
 
   @Test(timeout = 4000)

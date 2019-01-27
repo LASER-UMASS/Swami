@@ -31,7 +31,7 @@ import org.mozilla.javascript.xmlimpl.XMLLibImpl;
 import org.mozilla.javascript.xmlimpl.XmlNode;
 import org.mozilla.javascript.xmlimpl.XmlProcessor;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Namespace_ESTest extends Namespace_ESTest_scaffolding {
 
   @Test(timeout = 4000)

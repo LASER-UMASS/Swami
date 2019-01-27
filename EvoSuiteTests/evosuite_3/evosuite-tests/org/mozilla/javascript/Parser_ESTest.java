@@ -27,7 +27,7 @@ import org.mozilla.javascript.ast.GeneratorExpression;
 import org.mozilla.javascript.ast.ObjectLiteral;
 import org.mozilla.javascript.ast.SwitchStatement;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Parser_ESTest extends Parser_ESTest_scaffolding {
 
   @Test(timeout = 4000)

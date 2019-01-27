@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.ErrorNode;
 import org.mozilla.javascript.ast.VariableInitializer;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class VariableInitializer_ESTest extends VariableInitializer_ESTest_scaffolding {
 
   @Test(timeout = 4000)

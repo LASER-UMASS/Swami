@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.tools.shell.ConsoleTextArea;
 import org.mozilla.javascript.tools.shell.ConsoleWriter;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ConsoleWriter_ESTest extends ConsoleWriter_ESTest_scaffolding {
 
   @Test(timeout = 4000)

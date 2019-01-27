@@ -17,7 +17,7 @@ import org.mozilla.javascript.ast.ArrayComprehensionLoop;
 import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.XmlLiteral;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ArrayComprehension_ESTest extends ArrayComprehension_ESTest_scaffolding {
 
   @Test(timeout = 4000)

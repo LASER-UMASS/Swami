@@ -14,7 +14,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.BreakStatement;
 import org.mozilla.javascript.ast.IfStatement;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class IfStatement_ESTest extends IfStatement_ESTest_scaffolding {
 
   @Test(timeout = 4000)

@@ -13,7 +13,7 @@ import org.evosuite.runtime.EvoRunnerParameters;
 import org.junit.runner.RunWith;
 import org.mozilla.javascript.regexp.SubString;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class SubString_ESTest extends SubString_ESTest_scaffolding {
 
   @Test(timeout = 4000)

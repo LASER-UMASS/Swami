@@ -15,7 +15,7 @@ import org.mozilla.classfile.ClassFileWriter;
 import org.mozilla.classfile.ConstantPool;
 import org.mozilla.classfile.SuperBlock;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class SuperBlock_ESTest extends SuperBlock_ESTest_scaffolding {
 
   @Test(timeout = 4000)

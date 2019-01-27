@@ -29,7 +29,7 @@ import org.mozilla.javascript.ast.WhileLoop;
 import org.mozilla.javascript.ast.WithStatement;
 import org.mozilla.javascript.ast.XmlPropRef;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Jump_ESTest extends Jump_ESTest_scaffolding {
 
   @Test(timeout = 4000)

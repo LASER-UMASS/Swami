@@ -15,7 +15,7 @@ import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.ErrorNode;
 import org.mozilla.javascript.ast.NodeVisitor;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class ErrorNode_ESTest extends ErrorNode_ESTest_scaffolding {
 
   @Test(timeout = 4000)

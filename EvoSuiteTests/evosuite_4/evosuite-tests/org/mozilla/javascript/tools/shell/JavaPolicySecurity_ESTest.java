@@ -21,7 +21,7 @@ import org.mozilla.javascript.typedarrays.NativeFloat32Array;
 import org.mozilla.javascript.typedarrays.NativeInt32Array;
 import org.mozilla.javascript.typedarrays.NativeUint32Array;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class JavaPolicySecurity_ESTest extends JavaPolicySecurity_ESTest_scaffolding {
 
   @Test(timeout = 4000)

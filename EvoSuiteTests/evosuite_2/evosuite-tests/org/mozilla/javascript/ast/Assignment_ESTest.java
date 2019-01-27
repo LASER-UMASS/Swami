@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.mozilla.javascript.Node;
 import org.mozilla.javascript.ast.Assignment;
 
-@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = false, useJEE = true) 
+@RunWith(EvoRunner.class) @EvoRunnerParameters(mockJVMNonDeterminism = true, useVFS = true, useVNET = true, resetStaticState = true, separateClassLoader = true, useJEE = true) 
 public class Assignment_ESTest extends Assignment_ESTest_scaffolding {
 
   @Test(timeout = 4000)
