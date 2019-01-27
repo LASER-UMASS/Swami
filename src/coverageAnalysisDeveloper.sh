@@ -5,7 +5,7 @@ echo "method::percent change in line coverage::percent change in branch coverage
 echo "comparing org.mozilla.javascript.typedarrays.NativeArrayBuffer class"
 python parseCoverageReport.py /home/swami/swami/results/buildDeveloper/jacocoHtml/org.mozilla.javascript.typedarrays/NativeArrayBuffer.html > NativeArrayBuffer_dev.csv
 python parseCoverageReport.py /home/swami/swami/results/buildDeveloperPlusSwami/jacocoHtml/org.mozilla.javascript.typedarrays/NativeArrayBuffer.html > NativeArrayBuffer_devplusswami.csv
-python computeMethodCoverageDifference.py NativeArray_dev.csv NativeArray_devplusswami.csv >> /home/swami/swami/results/coverage_analysis_developer.csv
+python computeMethodCoverageDifference.py NativeArrayBuffer_dev.csv NativeArrayBuffer_devplusswami.csv >> /home/swami/swami/results/coverage_analysis_developer.csv
 
 echo "comparing org.mozilla.javascript.regexp.NativeRegExp class"
 python parseCoverageReport.py /home/swami/swami/results/buildDeveloper/jacocoHtml/org.mozilla.javascript.regexp/NativeRegExp.html > NativeRegExp_dev.csv
@@ -42,7 +42,7 @@ python parseCoverageReport.py /home/swami/swami/results/buildDeveloper/jacocoHtm
 python parseCoverageReport.py /home/swami/swami/results/buildDeveloperPlusSwami/jacocoHtml/org.mozilla.javascript/Parser.html > Parser_devplusswami.csv
 python computeMethodCoverageDifference.py Parser_dev.csv Parser_devplusswami.csv >> /home/swami/swami/results/coverage_analysis_developer.csv
 
-echo "Average::21.89::25.22" >> /home/swami/swami/results/coverage_analysis_developer.csv 
+echo "Average::15.2::19.3" >> /home/swami/swami/results/coverage_analysis_developer.csv 
 
 echo "The '::' separated csv file located at /home/swami/swami/results/coverage_analysis_developer.csv" 
 echo "shows the improvement in method-level coverage obtained using Swami on Rhino methods."
