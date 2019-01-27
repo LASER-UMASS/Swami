@@ -18,7 +18,13 @@ echo
 ./runEvoSuiteTestsInRhino.sh
 
 echo
-echo "STEP4: compare code coverage of EvoSuite-generated, with EvoSuite-generated augmented with Swami tests in Rhino"
+echo "STEP4: Compute statement-coverage achieved by EvoSuite-generated tests"
+echo
+python coverageAnalysisEvoSuite.py ../EvoSuiteTests/evosuite_1/evosuite-report/statistics.csv ../EvoSuiteTests/evosuite_2/evosuite-report/statistics.csv ../EvoSuiteTests/evosuite_3/evosuite-report/statistics.csv ../EvoSuiteTests/evosuite_4/evosuite-report/statistics.csv ../EvoSuiteTests/evosuite_5/evosuite-report/statistics.csv
+
+
+echo
+echo "STEP5: compare code coverage of EvoSuite-generated test suite, with EvoSuite-generated test suite augmented with Swami tests in Rhino"
 echo
 ./compareCoverageEvoSuite.sh
 
