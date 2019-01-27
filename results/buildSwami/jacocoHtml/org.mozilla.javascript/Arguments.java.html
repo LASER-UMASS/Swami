@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Arguments.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Arguments.java</span></div><h1>Arguments.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the &quot;arguments&quot; object.
+ *
+ * See ECMA 10.1.8
+ *
+ * @see org.mozilla.javascript.NativeCall
+ * @author Norris Boyd
+ */
+final class Arguments extends IdScriptableObject
+{
+    static final long serialVersionUID = 4275508002492040609L;
+
+    private static final String FTAG = &quot;Arguments&quot;;
+
+    public Arguments(NativeCall activation)
+<span class="fc" id="L24">    {</span>
+<span class="fc" id="L25">        this.activation = activation;</span>
+
+<span class="fc" id="L27">        Scriptable parent = activation.getParentScope();</span>
+<span class="fc" id="L28">        setParentScope(parent);</span>
+<span class="fc" id="L29">        setPrototype(ScriptableObject.getObjectPrototype(parent));</span>
+
+<span class="fc" id="L31">        args = activation.originalArgs;</span>
+<span class="fc" id="L32">        lengthObj = Integer.valueOf(args.length);</span>
+
+<span class="fc" id="L34">        NativeFunction f = activation.function;</span>
+<span class="fc" id="L35">        calleeObj = f;</span>
+
+<span class="fc" id="L37">        int version = f.getLanguageVersion();</span>
+<span class="pc bpc" id="L38" title="3 of 4 branches missed.">        if (version &lt;= Context.VERSION_1_3</span>
+            &amp;&amp; version != Context.VERSION_DEFAULT)
+        {
+<span class="nc" id="L41">            callerObj = null;</span>
+        } else {
+<span class="fc" id="L43">            callerObj = NOT_FOUND;</span>
+        }
+
+<span class="fc" id="L46">        defineProperty(SymbolKey.ITERATOR, iteratorMethod, ScriptableObject.DONTENUM);</span>
+<span class="fc" id="L47">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="nc" id="L52">        return FTAG;</span>
+    }
+
+    private Object arg(int index) {
+<span class="nc bnc" id="L56" title="All 4 branches missed.">      if (index &lt; 0 || args.length &lt;= index) return NOT_FOUND;</span>
+<span class="nc" id="L57">      return args[index];</span>
+    }
+
+    // the following helper methods assume that 0 &lt; index &lt; args.length
+
+    private void putIntoActivation(int index, Object value) {
+<span class="nc" id="L63">        String argName = activation.function.getParamOrVarName(index);</span>
+<span class="nc" id="L64">        activation.put(argName, activation, value);</span>
+<span class="nc" id="L65">    }</span>
+
+    private Object getFromActivation(int index) {
+<span class="nc" id="L68">        String argName = activation.function.getParamOrVarName(index);</span>
+<span class="nc" id="L69">        return activation.get(argName, activation);</span>
+    }
+
+    private void replaceArg(int index, Object value) {
+<span class="nc bnc" id="L73" title="All 2 branches missed.">      if (sharedWithActivation(index)) {</span>
+<span class="nc" id="L74">        putIntoActivation(index, value);</span>
+      }
+<span class="nc" id="L76">      synchronized (this) {</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (args == activation.originalArgs) {</span>
+<span class="nc" id="L78">          args = args.clone();</span>
+        }
+<span class="nc" id="L80">        args[index] = value;</span>
+<span class="nc" id="L81">      }</span>
+<span class="nc" id="L82">    }</span>
+
+    private void removeArg(int index) {
+<span class="nc" id="L85">      synchronized (this) {</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (args[index] != NOT_FOUND) {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">          if (args == activation.originalArgs) {</span>
+<span class="nc" id="L88">            args = args.clone();</span>
+          }
+<span class="nc" id="L90">          args[index] = NOT_FOUND;</span>
+        }
+<span class="nc" id="L92">      }</span>
+<span class="nc" id="L93">    }</span>
+
+    // end helpers
+
+    @Override
+    public boolean has(int index, Scriptable start)
+    {
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (arg(index) != NOT_FOUND) {</span>
+<span class="nc" id="L101">          return true;</span>
+        }
+<span class="nc" id="L103">        return super.has(index, start);</span>
+    }
+
+    @Override
+    public Object get(int index, Scriptable start)
+    {
+<span class="nc" id="L109">      final Object value = arg(index);</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">      if (value == NOT_FOUND) {</span>
+<span class="nc" id="L111">        return super.get(index, start);</span>
+      } else {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (sharedWithActivation(index)) {</span>
+<span class="nc" id="L114">          return getFromActivation(index);</span>
+        } else {
+<span class="nc" id="L116">          return value;</span>
+        }
+      }
+    }
+
+    private boolean sharedWithActivation(int index)
+    {
+<span class="nc" id="L123">        Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (cx.isStrictMode()) {</span>
+<span class="nc" id="L125">            return false;</span>
+        }
+<span class="nc" id="L127">        NativeFunction f = activation.function;</span>
+<span class="nc" id="L128">        int definedCount = f.getParamCount();</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (index &lt; definedCount) {</span>
+            // Check if argument is not hidden by later argument with the same
+            // name as hidden arguments are not shared with activation
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            if (index &lt; definedCount - 1) {</span>
+<span class="nc" id="L133">                String argName = f.getParamOrVarName(index);</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                for (int i = index + 1; i &lt; definedCount; i++) {</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                    if (argName.equals(f.getParamOrVarName(i))) {</span>
+<span class="nc" id="L136">                        return false;</span>
+                    }
+                }
+            }
+<span class="nc" id="L140">            return true;</span>
+        }
+<span class="nc" id="L142">        return false;</span>
+    }
+
+    @Override
+    public void put(int index, Scriptable start, Object value)
+    {
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (arg(index) == NOT_FOUND) {</span>
+<span class="nc" id="L149">          super.put(index, start, value);</span>
+        } else {
+<span class="nc" id="L151">          replaceArg(index, value);</span>
+        }
+<span class="nc" id="L153">    }</span>
+
+    @Override
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class="nc" id="L158">        super.put(name, start, value);</span>
+<span class="nc" id="L159">    }</span>
+
+    @Override
+    public void delete(int index)
+    {
+<span class="nc bnc" id="L164" title="All 4 branches missed.">        if (0 &lt;= index &amp;&amp; index &lt; args.length) {</span>
+<span class="nc" id="L165">          removeArg(index);</span>
+        }
+<span class="nc" id="L167">        super.delete(index);</span>
+<span class="nc" id="L168">    }</span>
+
+// #string_id_map#
+
+    private static final int
+        Id_callee           = 1,
+        Id_length           = 2,
+        Id_caller           = 3,
+
+        MAX_INSTANCE_ID     = Id_caller;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L182">        return MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s)
+    {
+        int id;
+// #generated# Last update: 2010-01-06 05:48:21 ARST
+<span class="nc" id="L190">        L0: { id = 0; String X = null; int c;</span>
+<span class="nc" id="L191">            int s_length = s.length();</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">            if (s_length==6) {</span>
+<span class="nc" id="L193">                c=s.charAt(5);</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                if (c=='e') { X=&quot;callee&quot;;id=Id_callee; }</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">                else if (c=='h') { X=&quot;length&quot;;id=Id_length; }</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                else if (c=='r') { X=&quot;caller&quot;;id=Id_caller; }</span>
+            }
+<span class="nc bnc" id="L198" title="All 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="nc" id="L202">        Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        if (cx.isStrictMode()) {</span>
+<span class="nc bnc" id="L204" title="All 4 branches missed.">            if (id == Id_callee || id == Id_caller) {</span>
+<span class="nc" id="L205">                return super.findInstanceIdInfo(s);</span>
+            }
+        }
+
+
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="nc bnc" id="L213" title="All 4 branches missed.">        switch (id) {</span>
+          case Id_callee:
+<span class="nc" id="L215">            attr = calleeAttr;</span>
+<span class="nc" id="L216">            break;</span>
+          case Id_caller:
+<span class="nc" id="L218">            attr = callerAttr;</span>
+<span class="nc" id="L219">            break;</span>
+          case Id_length:
+<span class="nc" id="L221">            attr = lengthAttr;</span>
+<span class="nc" id="L222">            break;</span>
+<span class="nc" id="L223">          default: throw new IllegalStateException();</span>
+        }
+<span class="nc" id="L225">        return instanceIdInfo(attr, id);</span>
+    }
+
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc bnc" id="L233" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L234">            case Id_callee: return &quot;callee&quot;;</span>
+<span class="nc" id="L235">            case Id_length: return &quot;length&quot;;</span>
+<span class="nc" id="L236">            case Id_caller: return &quot;caller&quot;;</span>
+        }
+<span class="nc" id="L238">        return null;</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="nc bnc" id="L244" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L245">            case Id_callee: return calleeObj;</span>
+<span class="nc" id="L246">            case Id_length: return lengthObj;</span>
+            case Id_caller: {
+<span class="nc" id="L248">                Object value = callerObj;</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                if (value == UniqueTag.NULL_VALUE) { value = null; }</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">                else if (value == null) {</span>
+<span class="nc" id="L251">                    NativeCall caller = activation.parentActivationCall;</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                    if (caller != null) {</span>
+<span class="nc" id="L253">                        value = caller.get(&quot;arguments&quot;, caller);</span>
+                    }
+                }
+<span class="nc" id="L256">                return value;</span>
+            }
+        }
+<span class="nc" id="L259">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="nc bnc" id="L265" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L266">            case Id_callee: calleeObj = value; return;</span>
+<span class="nc" id="L267">            case Id_length: lengthObj = value; return;</span>
+            case Id_caller:
+<span class="nc bnc" id="L269" title="All 2 branches missed.">                callerObj = (value != null) ? value : UniqueTag.NULL_VALUE;</span>
+<span class="nc" id="L270">                return;</span>
+        }
+<span class="nc" id="L272">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L273">    }</span>
+
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr)
+    {
+<span class="nc bnc" id="L278" title="All 4 branches missed.">        switch (id) {</span>
+<span class="nc" id="L279">            case Id_callee: calleeAttr = attr; return;</span>
+<span class="nc" id="L280">            case Id_length: lengthAttr = attr; return;</span>
+<span class="nc" id="L281">            case Id_caller: callerAttr = attr; return;</span>
+        }
+<span class="nc" id="L283">        super.setInstanceIdAttributes(id, attr);</span>
+<span class="nc" id="L284">    }</span>
+
+    @Override
+    Object[] getIds(boolean getNonEnumerable, boolean getSymbols)
+    {
+<span class="nc" id="L289">        Object[] ids = super.getIds(getNonEnumerable, getSymbols);</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">        if (args.length != 0) {</span>
+<span class="nc" id="L291">            boolean[] present = new boolean[args.length];</span>
+<span class="nc" id="L292">            int extraCount = args.length;</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">            for (int i = 0; i != ids.length; ++i) {</span>
+<span class="nc" id="L294">                Object id = ids[i];</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                if (id instanceof Integer) {</span>
+<span class="nc" id="L296">                    int index = ((Integer)id).intValue();</span>
+<span class="nc bnc" id="L297" title="All 4 branches missed.">                    if (0 &lt;= index &amp;&amp; index &lt; args.length) {</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                        if (!present[index]) {</span>
+<span class="nc" id="L299">                            present[index] = true;</span>
+<span class="nc" id="L300">                            extraCount--;</span>
+                        }
+                    }
+                }
+            }
+<span class="nc bnc" id="L305" title="All 2 branches missed.">            if (!getNonEnumerable) { // avoid adding args which were redefined to non-enumerable</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">              for (int i = 0; i &lt; present.length; i++) {</span>
+<span class="nc bnc" id="L307" title="All 4 branches missed.">                if (!present[i] &amp;&amp; super.has(i, this)) {</span>
+<span class="nc" id="L308">                  present[i] = true;</span>
+<span class="nc" id="L309">                  extraCount--;</span>
+                }
+              }
+            }
+<span class="nc bnc" id="L313" title="All 2 branches missed.">            if (extraCount != 0) {</span>
+<span class="nc" id="L314">                Object[] tmp = new Object[extraCount + ids.length];</span>
+<span class="nc" id="L315">                System.arraycopy(ids, 0, tmp, extraCount, ids.length);</span>
+<span class="nc" id="L316">                ids = tmp;</span>
+<span class="nc" id="L317">                int offset = 0;</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                for (int i = 0; i != args.length; ++i) {</span>
+<span class="nc bnc" id="L319" title="All 4 branches missed.">                    if (present == null || !present[i]) {</span>
+<span class="nc" id="L320">                        ids[offset] = Integer.valueOf(i);</span>
+<span class="nc" id="L321">                        ++offset;</span>
+                    }
+                }
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                if (offset != extraCount) Kit.codeBug();</span>
+            }
+        }
+<span class="nc" id="L327">        return ids;</span>
+    }
+
+    @Override
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        if (id instanceof Scriptable) {</span>
+<span class="nc" id="L333">           return super.getOwnPropertyDescriptor(cx, id);</span>
+        }
+<span class="nc" id="L335">      double d = ScriptRuntime.toNumber(id);</span>
+<span class="nc" id="L336">      int index = (int) d;</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">      if (d != index) {</span>
+<span class="nc" id="L338">        return super.getOwnPropertyDescriptor(cx, id);</span>
+      }
+<span class="nc" id="L340">      Object value = arg(index);</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">      if (value == NOT_FOUND) {</span>
+<span class="nc" id="L342">        return super.getOwnPropertyDescriptor(cx, id);</span>
+      }
+<span class="nc bnc" id="L344" title="All 2 branches missed.">      if (sharedWithActivation(index)) {</span>
+<span class="nc" id="L345">        value = getFromActivation(index);</span>
+      }
+<span class="nc bnc" id="L347" title="All 2 branches missed.">      if (super.has(index, this)) { // the descriptor has been redefined</span>
+<span class="nc" id="L348">        ScriptableObject desc = super.getOwnPropertyDescriptor(cx, id);</span>
+<span class="nc" id="L349">        desc.put(&quot;value&quot;, desc, value);</span>
+<span class="nc" id="L350">        return desc;</span>
+      } else {
+<span class="nc" id="L352">        Scriptable scope = getParentScope();</span>
+<span class="nc bnc" id="L353" title="All 2 branches missed.">        if (scope == null) scope = this;</span>
+<span class="nc" id="L354">        return buildDataDescriptor(scope, value, EMPTY);</span>
+      }
+    }
+
+    @Override
+    protected void defineOwnProperty(Context cx, Object id,
+                                     ScriptableObject desc,
+                                     boolean checkValid) {
+<span class="nc" id="L362">      super.defineOwnProperty(cx, id, desc, checkValid);</span>
+
+<span class="nc" id="L364">      double d = ScriptRuntime.toNumber(id);</span>
+<span class="nc" id="L365">      int index = (int) d;</span>
+<span class="nc bnc" id="L366" title="All 2 branches missed.">      if (d != index) return;</span>
+
+<span class="nc" id="L368">      Object value = arg(index);</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">      if (value == NOT_FOUND) return;</span>
+
+<span class="nc bnc" id="L371" title="All 2 branches missed.">      if (isAccessorDescriptor(desc)) {</span>
+<span class="nc" id="L372">        removeArg(index);</span>
+<span class="nc" id="L373">        return;</span>
+      }
+
+<span class="nc" id="L376">      Object newValue = getProperty(desc, &quot;value&quot;);</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">      if (newValue == NOT_FOUND) return;</span>
+
+<span class="nc" id="L379">      replaceArg(index, newValue);</span>
+
+<span class="nc bnc" id="L381" title="All 2 branches missed.">      if (isFalse(getProperty(desc, &quot;writable&quot;))) {</span>
+<span class="nc" id="L382">        removeArg(index);</span>
+      }
+<span class="nc" id="L384">    }</span>
+
+    // ECMAScript2015
+    // 9.4.4.6 CreateUnmappedArgumentsObject(argumentsList)
+    //   8. Perform DefinePropertyOrThrow(obj, &quot;caller&quot;, PropertyDescriptor {[[Get]]: %ThrowTypeError%,
+    //      [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
+    //   9. Perform DefinePropertyOrThrow(obj, &quot;callee&quot;, PropertyDescriptor {[[Get]]: %ThrowTypeError%,
+    //      [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false}).
+    void defineAttributesForStrictMode() {
+<span class="fc" id="L393">        Context cx = Context.getContext();</span>
+<span class="pc bpc" id="L394" title="1 of 2 branches missed.">        if (!cx.isStrictMode()) {</span>
+<span class="fc" id="L395">            return;</span>
+        }
+<span class="nc" id="L397">        setGetterOrSetter(&quot;caller&quot;, 0, new ThrowTypeError(&quot;caller&quot;), true);</span>
+<span class="nc" id="L398">        setGetterOrSetter(&quot;caller&quot;, 0, new ThrowTypeError(&quot;caller&quot;), false);</span>
+<span class="nc" id="L399">        setGetterOrSetter(&quot;callee&quot;, 0, new ThrowTypeError(&quot;callee&quot;), true);</span>
+<span class="nc" id="L400">        setGetterOrSetter(&quot;callee&quot;, 0, new ThrowTypeError(&quot;callee&quot;), false);</span>
+<span class="nc" id="L401">        setAttributes(&quot;caller&quot;, DONTENUM | PERMANENT);</span>
+<span class="nc" id="L402">        setAttributes(&quot;callee&quot;, DONTENUM | PERMANENT);</span>
+<span class="nc" id="L403">        callerObj = null;</span>
+<span class="nc" id="L404">        calleeObj = null;</span>
+<span class="nc" id="L405">    }</span>
+
+<span class="fc" id="L407">    private static BaseFunction iteratorMethod = new BaseFunction() {</span>
+        @Override
+        public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                           Object[] args) {
+            // TODO : call %ArrayProto_values%
+            // 9.4.4.6 CreateUnmappedArgumentsObject(argumentsList)
+            //  1. Perform DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor {[[Value]]:%ArrayProto_values%,
+            //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true}).
+<span class="nc" id="L415">            return new NativeArrayIterator(scope, thisObj);</span>
+        }
+    };
+
+    private static class ThrowTypeError extends BaseFunction {
+        private String propertyName;
+
+<span class="nc" id="L422">        ThrowTypeError(String propertyName) {</span>
+<span class="nc" id="L423">            this.propertyName = propertyName;</span>
+<span class="nc" id="L424">        }</span>
+
+        @Override
+        public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+<span class="nc" id="L428">            throw ScriptRuntime.typeError1(&quot;msg.arguments.not.access.strict&quot;, propertyName);</span>
+        }
+    }
+
+// Fields to hold caller, callee and length properties,
+// where NOT_FOUND value tags deleted properties.
+// In addition if callerObj == NULL_VALUE, it tags null for scripts, as
+// initial callerObj == null means access to caller arguments available
+// only in JS &lt;= 1.3 scripts
+    private Object callerObj;
+    private Object calleeObj;
+    private Object lengthObj;
+
+<span class="fc" id="L441">    private int callerAttr = DONTENUM;</span>
+<span class="fc" id="L442">    private int calleeAttr = DONTENUM;</span>
+<span class="fc" id="L443">    private int lengthAttr = DONTENUM;</span>
+
+    private NativeCall activation;
+
+// Initially args holds activation.getOriginalArgs(), but any modification
+// of its elements triggers creation of a copy. If its element holds NOT_FOUND,
+// it indicates deleted index, in which case super class is queried.
+    private Object[] args;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

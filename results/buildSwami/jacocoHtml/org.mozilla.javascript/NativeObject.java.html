@@ -1,0 +1,775 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeObject.java</span></div><h1>NativeObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.*;
+
+/**
+ * This class implements the Object native object.
+ * See ECMA 15.2.
+ * @author Norris Boyd
+ */
+<span class="fc" id="L16">public class NativeObject extends IdScriptableObject implements Map</span>
+{
+    static final long serialVersionUID = -6345305608474346996L;
+
+<span class="fc" id="L20">    private static final Object OBJECT_TAG = &quot;Object&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L24">        NativeObject obj = new NativeObject();</span>
+<span class="fc" id="L25">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L26">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L31">        return &quot;Object&quot;;</span>
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="nc" id="L37">        return ScriptRuntime.defaultObjectToString(this);</span>
+    }
+
+    @Override
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L43">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_getPrototypeOf,</span>
+                &quot;getPrototypeOf&quot;, 1);
+<span class="fc" id="L45">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_keys,</span>
+                &quot;keys&quot;, 1);
+<span class="fc" id="L47">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_getOwnPropertyNames,</span>
+                &quot;getOwnPropertyNames&quot;, 1);
+<span class="fc" id="L49">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_getOwnPropertySymbols,</span>
+                &quot;getOwnPropertySymbols&quot;, 1);
+<span class="fc" id="L51">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_getOwnPropertyDescriptor,</span>
+                &quot;getOwnPropertyDescriptor&quot;, 2);
+<span class="fc" id="L53">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_defineProperty,</span>
+                &quot;defineProperty&quot;, 3);
+<span class="fc" id="L55">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_isExtensible,</span>
+                &quot;isExtensible&quot;, 1);
+<span class="fc" id="L57">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_preventExtensions,</span>
+                &quot;preventExtensions&quot;, 1);
+<span class="fc" id="L59">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_defineProperties,</span>
+                &quot;defineProperties&quot;, 2);
+<span class="fc" id="L61">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_create,</span>
+                &quot;create&quot;, 2);
+<span class="fc" id="L63">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_isSealed,</span>
+                &quot;isSealed&quot;, 1);
+<span class="fc" id="L65">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_isFrozen,</span>
+                &quot;isFrozen&quot;, 1);
+<span class="fc" id="L67">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_seal,</span>
+                &quot;seal&quot;, 1);
+<span class="fc" id="L69">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_freeze,</span>
+                &quot;freeze&quot;, 1);
+<span class="fc" id="L71">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_assign,</span>
+                &quot;assign&quot;, 2);
+<span class="fc" id="L73">        addIdFunctionProperty(ctor, OBJECT_TAG, ConstructorId_is,</span>
+                &quot;is&quot;, 2);
+<span class="fc" id="L75">        super.fillConstructorProperties(ctor);</span>
+<span class="fc" id="L76">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L83" title="10 of 13 branches missed.">        switch (id) {</span>
+<span class="fc" id="L84">          case Id_constructor:    arity=1; s=&quot;constructor&quot;;    break;</span>
+<span class="fc" id="L85">          case Id_toString:       arity=0; s=&quot;toString&quot;;       break;</span>
+<span class="nc" id="L86">          case Id_toLocaleString: arity=0; s=&quot;toLocaleString&quot;; break;</span>
+<span class="fc" id="L87">          case Id_valueOf:        arity=0; s=&quot;valueOf&quot;;        break;</span>
+<span class="nc" id="L88">          case Id_hasOwnProperty: arity=1; s=&quot;hasOwnProperty&quot;; break;</span>
+          case Id_propertyIsEnumerable:
+<span class="nc" id="L90">            arity=1; s=&quot;propertyIsEnumerable&quot;; break;</span>
+<span class="nc" id="L91">          case Id_isPrototypeOf:  arity=1; s=&quot;isPrototypeOf&quot;;  break;</span>
+<span class="nc" id="L92">          case Id_toSource:       arity=0; s=&quot;toSource&quot;;       break;</span>
+          case Id___defineGetter__:
+<span class="nc" id="L94">            arity=2; s=&quot;__defineGetter__&quot;;     break;</span>
+          case Id___defineSetter__:
+<span class="nc" id="L96">            arity=2; s=&quot;__defineSetter__&quot;;     break;</span>
+          case Id___lookupGetter__:
+<span class="nc" id="L98">            arity=1; s=&quot;__lookupGetter__&quot;;     break;</span>
+          case Id___lookupSetter__:
+<span class="nc" id="L100">            arity=1; s=&quot;__lookupSetter__&quot;;     break;</span>
+<span class="nc" id="L101">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L103">        initPrototypeMethod(OBJECT_TAG, id, s, arity);</span>
+<span class="fc" id="L104">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        if (!f.hasTag(OBJECT_TAG)) {</span>
+<span class="nc" id="L111">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="fc" id="L113">        int id = f.methodId();</span>
+<span class="pc bpc" id="L114" title="24 of 27 branches missed.">        switch (id) {</span>
+          case Id_constructor: {
+<span class="nc bnc" id="L116" title="All 2 branches missed.">            if (thisObj != null) {</span>
+                // BaseFunction.construct will set up parent, proto
+<span class="nc" id="L118">                return f.construct(cx, scope, args);</span>
+            }
+<span class="nc bnc" id="L120" title="All 6 branches missed.">            if (args.length == 0 || args[0] == null</span>
+                || args[0] == Undefined.instance)
+            {
+<span class="nc" id="L123">                return new NativeObject();</span>
+            }
+<span class="nc" id="L125">            return ScriptRuntime.toObject(cx, scope, args[0]);</span>
+          }
+
+          case Id_toLocaleString: {
+<span class="nc" id="L129">            Object toString = ScriptableObject.getProperty(thisObj, &quot;toString&quot;);</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if(!(toString instanceof Callable)) {</span>
+<span class="nc" id="L131">                throw ScriptRuntime.notFunctionError(toString);</span>
+            }
+<span class="nc" id="L133">            Callable fun = (Callable)toString;</span>
+<span class="nc" id="L134">            return fun.call(cx, scope, thisObj, ScriptRuntime.emptyArgs);</span>
+          }
+
+          case Id_toString: {
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">            if (cx.hasFeature(Context.FEATURE_TO_STRING_AS_SOURCE)) {</span>
+<span class="nc" id="L139">                String s = ScriptRuntime.defaultObjectToSource(cx, scope,</span>
+                                                               thisObj, args);
+<span class="nc" id="L141">                int L = s.length();</span>
+<span class="nc bnc" id="L142" title="All 6 branches missed.">                if (L != 0 &amp;&amp; s.charAt(0) == '(' &amp;&amp; s.charAt(L - 1) == ')') {</span>
+                    // Strip () that surrounds toSource
+<span class="nc" id="L144">                    s = s.substring(1, L - 1);</span>
+                }
+<span class="nc" id="L146">                return s;</span>
+            }
+<span class="fc" id="L148">            return ScriptRuntime.defaultObjectToString(thisObj);</span>
+          }
+
+          case Id_valueOf:
+<span class="fc" id="L152">            return thisObj;</span>
+
+          case Id_hasOwnProperty: {
+              boolean result;
+<span class="nc bnc" id="L156" title="All 2 branches missed.">              Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">              if (arg instanceof Symbol) {</span>
+<span class="nc" id="L158">                  result = ensureSymbolScriptable(thisObj).has((Symbol) arg, thisObj);</span>
+              } else {
+<span class="nc" id="L160">                  String s = ScriptRuntime.toStringIdOrIndex(cx, arg);</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                  if (s == null) {</span>
+<span class="nc" id="L162">                      int index = ScriptRuntime.lastIndexResult(cx);</span>
+<span class="nc" id="L163">                      result = thisObj.has(index, thisObj);</span>
+<span class="nc" id="L164">                  } else {</span>
+<span class="nc" id="L165">                      result = thisObj.has(s, thisObj);</span>
+                  }
+              }
+<span class="nc" id="L168">              return ScriptRuntime.wrapBoolean(result);</span>
+          }
+
+          case Id_propertyIsEnumerable: {
+            boolean result;
+<span class="nc bnc" id="L173" title="All 2 branches missed.">            Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (arg instanceof Symbol) {</span>
+<span class="nc" id="L176">                result = ((SymbolScriptable)thisObj).has((Symbol)arg, thisObj);</span>
+<span class="nc bnc" id="L177" title="All 4 branches missed.">                if (result &amp;&amp; thisObj instanceof ScriptableObject) {</span>
+<span class="nc" id="L178">                    ScriptableObject so = (ScriptableObject)thisObj;</span>
+<span class="nc" id="L179">                    int attrs = so.getAttributes((Symbol)arg);</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">                    result = ((attrs &amp; ScriptableObject.DONTENUM) == 0);</span>
+<span class="nc" id="L181">                }</span>
+            } else {
+<span class="nc" id="L183">                String s = ScriptRuntime.toStringIdOrIndex(cx, arg);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                if (s == null) {</span>
+<span class="nc" id="L185">                    int index = ScriptRuntime.lastIndexResult(cx);</span>
+<span class="nc" id="L186">                    result = thisObj.has(index, thisObj);</span>
+<span class="nc bnc" id="L187" title="All 4 branches missed.">                    if (result &amp;&amp; thisObj instanceof ScriptableObject) {</span>
+<span class="nc" id="L188">                        ScriptableObject so = (ScriptableObject) thisObj;</span>
+<span class="nc" id="L189">                        int attrs = so.getAttributes(index);</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">                        result = ((attrs &amp; ScriptableObject.DONTENUM) == 0);</span>
+                    }
+<span class="nc" id="L192">                } else {</span>
+<span class="nc" id="L193">                    result = thisObj.has(s, thisObj);</span>
+<span class="nc bnc" id="L194" title="All 4 branches missed.">                    if (result &amp;&amp; thisObj instanceof ScriptableObject) {</span>
+<span class="nc" id="L195">                        ScriptableObject so = (ScriptableObject) thisObj;</span>
+<span class="nc" id="L196">                        int attrs = so.getAttributes(s);</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">                        result = ((attrs &amp; ScriptableObject.DONTENUM) == 0);</span>
+                    }
+                }
+            }
+<span class="nc" id="L201">            return ScriptRuntime.wrapBoolean(result);</span>
+          }
+
+          case Id_isPrototypeOf: {
+<span class="nc" id="L205">            boolean result = false;</span>
+<span class="nc bnc" id="L206" title="All 4 branches missed.">            if (args.length != 0 &amp;&amp; args[0] instanceof Scriptable) {</span>
+<span class="nc" id="L207">                Scriptable v = (Scriptable) args[0];</span>
+                do {
+<span class="nc" id="L209">                    v = v.getPrototype();</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">                    if (v == thisObj) {</span>
+<span class="nc" id="L211">                        result = true;</span>
+<span class="nc" id="L212">                        break;</span>
+                    }
+<span class="nc bnc" id="L214" title="All 2 branches missed.">                } while (v != null);</span>
+            }
+<span class="nc" id="L216">            return ScriptRuntime.wrapBoolean(result);</span>
+          }
+
+          case Id_toSource:
+<span class="nc" id="L220">            return ScriptRuntime.defaultObjectToSource(cx, scope, thisObj,</span>
+                                                       args);
+          case Id___defineGetter__:
+          case Id___defineSetter__:
+            {
+<span class="nc bnc" id="L225" title="All 4 branches missed.">                if (args.length &lt; 2 || !(args[1] instanceof Callable)) {</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                    Object badArg = (args.length &gt;= 2 ? args[1]</span>
+                                     : Undefined.instance);
+<span class="nc" id="L228">                    throw ScriptRuntime.notFunctionError(badArg);</span>
+                }
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                if (!(thisObj instanceof ScriptableObject)) {</span>
+<span class="nc" id="L231">                    throw Context.reportRuntimeError2(</span>
+                        &quot;msg.extend.scriptable&quot;,
+<span class="nc" id="L233">                        thisObj.getClass().getName(),</span>
+<span class="nc" id="L234">                        String.valueOf(args[0]));</span>
+                }
+<span class="nc" id="L236">                ScriptableObject so = (ScriptableObject)thisObj;</span>
+<span class="nc" id="L237">                String name = ScriptRuntime.toStringIdOrIndex(cx, args[0]);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                int index = (name != null ? 0</span>
+<span class="nc" id="L239">                             : ScriptRuntime.lastIndexResult(cx));</span>
+<span class="nc" id="L240">                Callable getterOrSetter = (Callable)args[1];</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                boolean isSetter = (id == Id___defineSetter__);</span>
+<span class="nc" id="L242">                so.setGetterOrSetter(name, index, getterOrSetter, isSetter);</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">                if (so instanceof NativeArray)</span>
+<span class="nc" id="L244">                    ((NativeArray)so).setDenseOnly(false);</span>
+            }
+<span class="nc" id="L246">            return Undefined.instance;</span>
+
+            case Id___lookupGetter__:
+            case Id___lookupSetter__:
+              {
+<span class="nc bnc" id="L251" title="All 4 branches missed.">                  if (args.length &lt; 1 ||</span>
+                      !(thisObj instanceof ScriptableObject))
+<span class="nc" id="L253">                      return Undefined.instance;</span>
+
+<span class="nc" id="L255">                  ScriptableObject so = (ScriptableObject)thisObj;</span>
+<span class="nc" id="L256">                  String name = ScriptRuntime.toStringIdOrIndex(cx, args[0]);</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                  int index = (name != null ? 0</span>
+<span class="nc" id="L258">                               : ScriptRuntime.lastIndexResult(cx));</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                  boolean isSetter = (id == Id___lookupSetter__);</span>
+                  Object gs;
+                  for (;;) {
+<span class="nc" id="L262">                      gs = so.getGetterOrSetter(name, index, isSetter);</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">                      if (gs != null)</span>
+<span class="nc" id="L264">                          break;</span>
+                      // If there is no getter or setter for the object itself,
+                      // how about the prototype?
+<span class="nc" id="L267">                      Scriptable v = so.getPrototype();</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                      if (v == null)</span>
+<span class="nc" id="L269">                          break;</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                      if (v instanceof ScriptableObject)</span>
+<span class="nc" id="L271">                          so = (ScriptableObject)v;</span>
+                      else
+                          break;
+<span class="nc" id="L274">                  }</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">                  if (gs != null)</span>
+<span class="nc" id="L276">                      return gs;</span>
+              }
+<span class="nc" id="L278">              return Undefined.instance;</span>
+
+          case ConstructorId_getPrototypeOf:
+              {
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L283">                Scriptable obj = getCompatibleObject(cx, scope, arg);</span>
+<span class="nc" id="L284">                return obj.getPrototype();</span>
+              }
+          case ConstructorId_keys:
+              {
+<span class="nc bnc" id="L288" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L289">                Scriptable obj = getCompatibleObject(cx, scope, arg);</span>
+<span class="nc" id="L290">                Object[] ids = obj.getIds();</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                for (int i = 0; i &lt; ids.length; i++) {</span>
+<span class="nc" id="L292">                  ids[i] = ScriptRuntime.toString(ids[i]);</span>
+                }
+<span class="nc" id="L294">                return cx.newArray(scope, ids);</span>
+              }
+          case ConstructorId_getOwnPropertyNames:
+              {
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L299">                Scriptable s = getCompatibleObject(cx, scope, arg);</span>
+<span class="nc" id="L300">                ScriptableObject obj = ensureScriptableObject(s);</span>
+<span class="nc" id="L301">                Object[] ids = obj.getIds(true, false);</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                for (int i = 0; i &lt; ids.length; i++) {</span>
+<span class="nc" id="L303">                  ids[i] = ScriptRuntime.toString(ids[i]);</span>
+                }
+<span class="nc" id="L305">                return cx.newArray(scope, ids);</span>
+              }
+            case ConstructorId_getOwnPropertySymbols:
+            {
+<span class="nc bnc" id="L309" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L310">                Scriptable s = getCompatibleObject(cx, scope, arg);</span>
+<span class="nc" id="L311">                ScriptableObject obj = ensureScriptableObject(s);</span>
+<span class="nc" id="L312">                Object[] ids = obj.getIds(true, true);</span>
+<span class="nc" id="L313">                ArrayList&lt;Object&gt; syms = new ArrayList&lt;Object&gt;();</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">                for (int i = 0; i &lt; ids.length; i++) {</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    if (ids[i] instanceof Symbol) {</span>
+<span class="nc" id="L316">                        syms.add(ids[i]);</span>
+                    }
+                }
+<span class="nc" id="L319">                return cx.newArray(scope, syms.toArray());</span>
+            }
+          case ConstructorId_getOwnPropertyDescriptor:
+              {
+<span class="nc bnc" id="L323" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+                // TODO(norris): There's a deeper issue here if
+                // arg instanceof Scriptable. Should we create a new
+                // interface to admit the new ECMAScript 5 operations?
+<span class="nc" id="L327">                Scriptable s = getCompatibleObject(cx, scope, arg);</span>
+<span class="nc" id="L328">                ScriptableObject obj = ensureScriptableObject(s);</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                Object nameArg = args.length &lt; 2 ? Undefined.instance : args[1];</span>
+<span class="nc" id="L330">                Scriptable desc = obj.getOwnPropertyDescriptor(cx, nameArg);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                return desc == null ? Undefined.instance : desc;</span>
+              }
+          case ConstructorId_defineProperty:
+              {
+<span class="nc bnc" id="L335" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L336">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                Object name = args.length &lt; 2 ? Undefined.instance : args[1];</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">                Object descArg = args.length &lt; 3 ? Undefined.instance : args[2];</span>
+<span class="nc" id="L339">                ScriptableObject desc = ensureScriptableObject(descArg);</span>
+<span class="nc" id="L340">                obj.defineOwnProperty(cx, name, desc);</span>
+<span class="nc" id="L341">                return obj;</span>
+              }
+          case ConstructorId_isExtensible:
+              {
+<span class="nc bnc" id="L345" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L346">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+<span class="nc" id="L347">                return Boolean.valueOf(obj.isExtensible());</span>
+              }
+          case ConstructorId_preventExtensions:
+              {
+<span class="nc bnc" id="L351" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L352">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+<span class="nc" id="L353">                obj.preventExtensions();</span>
+<span class="nc" id="L354">                return obj;</span>
+              }
+          case ConstructorId_defineProperties:
+              {
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L359">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                Object propsObj = args.length &lt; 2 ? Undefined.instance : args[1];</span>
+<span class="nc" id="L361">                Scriptable props = Context.toObject(propsObj, getParentScope());</span>
+<span class="nc" id="L362">                obj.defineOwnProperties(cx, ensureScriptableObject(props));</span>
+<span class="nc" id="L363">                return obj;</span>
+              }
+          case ConstructorId_create:
+              {
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">                Scriptable obj = (arg == null) ? null : ensureScriptable(arg);</span>
+
+<span class="nc" id="L370">                ScriptableObject newObject = new NativeObject();</span>
+<span class="nc" id="L371">                newObject.setParentScope(getParentScope());</span>
+<span class="nc" id="L372">                newObject.setPrototype(obj);</span>
+
+<span class="nc bnc" id="L374" title="All 4 branches missed.">                if (args.length &gt; 1 &amp;&amp; args[1] != Undefined.instance) {</span>
+<span class="nc" id="L375">                  Scriptable props = Context.toObject(args[1], getParentScope());</span>
+<span class="nc" id="L376">                  newObject.defineOwnProperties(cx, ensureScriptableObject(props));</span>
+                }
+
+<span class="nc" id="L379">                return newObject;</span>
+              }
+          case ConstructorId_isSealed:
+              {
+<span class="nc bnc" id="L383" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L384">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                if (obj.isExtensible()) return Boolean.FALSE;</span>
+
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                for (Object name: obj.getAllIds()) {</span>
+<span class="nc" id="L389">                  Object configurable = obj.getOwnPropertyDescriptor(cx, name).get(&quot;configurable&quot;);</span>
+<span class="nc bnc" id="L390" title="All 2 branches missed.">                  if (Boolean.TRUE.equals(configurable))</span>
+<span class="nc" id="L391">                    return Boolean.FALSE;</span>
+                }
+
+<span class="nc" id="L394">                return Boolean.TRUE;</span>
+              }
+          case ConstructorId_isFrozen:
+              {
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L399">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+
+<span class="nc bnc" id="L401" title="All 2 branches missed.">                if (obj.isExtensible()) return Boolean.FALSE;</span>
+
+<span class="nc bnc" id="L403" title="All 2 branches missed.">                for (Object name: obj.getAllIds()) {</span>
+<span class="nc" id="L404">                  ScriptableObject desc = obj.getOwnPropertyDescriptor(cx, name);</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                  if (Boolean.TRUE.equals(desc.get(&quot;configurable&quot;)))</span>
+<span class="nc" id="L406">                    return Boolean.FALSE;</span>
+<span class="nc bnc" id="L407" title="All 4 branches missed.">                  if (isDataDescriptor(desc) &amp;&amp; Boolean.TRUE.equals(desc.get(&quot;writable&quot;)))</span>
+<span class="nc" id="L408">                    return Boolean.FALSE;</span>
+                }
+
+<span class="nc" id="L411">                return Boolean.TRUE;</span>
+              }
+          case ConstructorId_seal:
+              {
+<span class="nc bnc" id="L415" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L416">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+
+<span class="nc bnc" id="L418" title="All 2 branches missed.">                for (Object name: obj.getAllIds()) {</span>
+<span class="nc" id="L419">                  ScriptableObject desc = obj.getOwnPropertyDescriptor(cx, name);</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                  if (Boolean.TRUE.equals(desc.get(&quot;configurable&quot;))) {</span>
+<span class="nc" id="L421">                    desc.put(&quot;configurable&quot;, desc, Boolean.FALSE);</span>
+<span class="nc" id="L422">                    obj.defineOwnProperty(cx, name, desc, false);</span>
+                  }
+                }
+<span class="nc" id="L425">                obj.preventExtensions();</span>
+
+<span class="nc" id="L427">                return obj;</span>
+              }
+          case ConstructorId_freeze:
+              {
+<span class="nc bnc" id="L431" title="All 2 branches missed.">                Object arg = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L432">                ScriptableObject obj = ensureScriptableObject(arg);</span>
+
+<span class="nc bnc" id="L434" title="All 2 branches missed.">                for (Object name: obj.getAllIds()) {</span>
+<span class="nc" id="L435">                  ScriptableObject desc = obj.getOwnPropertyDescriptor(cx, name);</span>
+<span class="nc bnc" id="L436" title="All 4 branches missed.">                  if (isDataDescriptor(desc) &amp;&amp; Boolean.TRUE.equals(desc.get(&quot;writable&quot;)))</span>
+<span class="nc" id="L437">                    desc.put(&quot;writable&quot;, desc, Boolean.FALSE);</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                  if (Boolean.TRUE.equals(desc.get(&quot;configurable&quot;)))</span>
+<span class="nc" id="L439">                    desc.put(&quot;configurable&quot;, desc, Boolean.FALSE);</span>
+<span class="nc" id="L440">                  obj.defineOwnProperty(cx, name, desc, false);</span>
+                }
+<span class="nc" id="L442">                obj.preventExtensions();</span>
+
+<span class="nc" id="L444">                return obj;</span>
+              }
+
+          case ConstructorId_assign:
+          {
+<span class="nc bnc" id="L449" title="All 2 branches missed.">            if (args.length &lt; 1) {</span>
+<span class="nc" id="L450">              throw ScriptRuntime.typeError1(&quot;msg.incompat.call&quot;, &quot;assign&quot;);</span>
+            }
+<span class="nc" id="L452">            Scriptable t = ScriptRuntime.toObject(cx, thisObj, args[0]);</span>
+<span class="nc bnc" id="L453" title="All 2 branches missed.">            for (int i = 1; i &lt; args.length; i++) {</span>
+<span class="nc bnc" id="L454" title="All 4 branches missed.">              if ((args[i] == null) || Undefined.instance.equals(args[i])) {</span>
+<span class="nc" id="L455">                continue;</span>
+              }
+<span class="nc" id="L457">              Scriptable s = ScriptRuntime.toObject(cx, thisObj, args[i]);</span>
+<span class="nc" id="L458">              Object[] ids = s.getIds();</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">              for (Object key : ids) {</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                if (key instanceof String) {</span>
+<span class="nc" id="L461">                  Object val = s.get((String) key, t);</span>
+<span class="nc bnc" id="L462" title="All 4 branches missed.">                  if ((val != Scriptable.NOT_FOUND) &amp;&amp; (val != Undefined.instance)) {</span>
+<span class="nc" id="L463">                    t.put((String) key, t, val);</span>
+                  }
+<span class="nc bnc" id="L465" title="All 2 branches missed.">                } else if (key instanceof Number) {</span>
+<span class="nc" id="L466">                  int ii = ScriptRuntime.toInt32(key);</span>
+<span class="nc" id="L467">                  Object val = s.get(ii, t);</span>
+<span class="nc bnc" id="L468" title="All 4 branches missed.">                  if ((val != Scriptable.NOT_FOUND) &amp;&amp; (val != Undefined.instance)) {</span>
+<span class="nc" id="L469">                    t.put(ii, t, val);</span>
+                  }
+                }
+              }
+            }
+<span class="nc" id="L474">            return t;</span>
+          }
+
+          case ConstructorId_is:
+          {
+<span class="pc bpc" id="L479" title="1 of 2 branches missed.">            Object a1 = args.length &lt; 1 ? Undefined.instance : args[0];</span>
+<span class="pc bpc" id="L480" title="1 of 2 branches missed.">            Object a2 = args.length &lt; 2 ? Undefined.instance : args[1];</span>
+<span class="fc" id="L481">            return ScriptRuntime.wrapBoolean(ScriptRuntime.same(a1, a2));</span>
+          }
+
+
+          default:
+<span class="nc" id="L486">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    private Scriptable getCompatibleObject(Context cx, Scriptable scope, Object arg)
+    {
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        if (cx.getLanguageVersion() &gt;= Context.VERSION_ES6) {</span>
+<span class="nc" id="L493">            Scriptable s = ScriptRuntime.toObject(cx, scope, arg);</span>
+<span class="nc" id="L494">            return ensureScriptable(s);</span>
+        }
+<span class="nc" id="L496">        return ensureScriptable(arg);</span>
+    }
+
+    // methods implementing java.util.Map
+
+    public boolean containsKey(Object key) {
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        if (key instanceof String) {</span>
+<span class="nc" id="L503">            return has((String) key, this);</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">        } else if (key instanceof Number) {</span>
+<span class="nc" id="L505">            return has(((Number) key).intValue(), this);</span>
+        }
+<span class="nc" id="L507">        return false;</span>
+    }
+
+    public boolean containsValue(Object value) {
+<span class="nc bnc" id="L511" title="All 2 branches missed.">        for (Object obj : values()) {</span>
+<span class="nc bnc" id="L512" title="All 4 branches missed.">            if (value == obj ||</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">                    value != null &amp;&amp; value.equals(obj)) {</span>
+<span class="nc" id="L514">                return true;</span>
+            }
+<span class="nc" id="L516">        }</span>
+<span class="nc" id="L517">        return false;</span>
+    }
+
+    public Object remove(Object key) {
+<span class="nc" id="L521">        Object value = get(key);</span>
+<span class="nc bnc" id="L522" title="All 2 branches missed.">        if (key instanceof String) {</span>
+<span class="nc" id="L523">            delete((String) key);</span>
+<span class="nc bnc" id="L524" title="All 2 branches missed.">        } else if (key instanceof Number) {</span>
+<span class="nc" id="L525">            delete(((Number) key).intValue());</span>
+        }
+<span class="nc" id="L527">        return value;</span>
+    }
+
+
+    public Set&lt;Object&gt; keySet() {
+<span class="nc" id="L532">        return new KeySet();</span>
+    }
+
+    public Collection&lt;Object&gt; values() {
+<span class="nc" id="L536">        return new ValueCollection();</span>
+    }
+
+    public Set&lt;Map.Entry&lt;Object, Object&gt;&gt; entrySet() {
+<span class="nc" id="L540">        return new EntrySet();</span>
+    }
+
+    public Object put(Object key, Object value) {
+<span class="nc" id="L544">        throw new UnsupportedOperationException();</span>
+    }
+
+    public void putAll(Map m) {
+<span class="nc" id="L548">        throw new UnsupportedOperationException();</span>
+    }
+
+    public void clear() {
+<span class="nc" id="L552">        throw new UnsupportedOperationException();</span>
+    }
+
+
+<span class="nc" id="L556">    class EntrySet extends AbstractSet&lt;Entry&lt;Object, Object&gt;&gt; {</span>
+        @Override
+        public Iterator&lt;Entry&lt;Object, Object&gt;&gt; iterator() {
+<span class="nc" id="L559">            return new Iterator&lt;Map.Entry&lt;Object, Object&gt;&gt;() {</span>
+<span class="nc" id="L560">                Object[] ids = getIds();</span>
+<span class="nc" id="L561">                Object key = null;</span>
+<span class="nc" id="L562">                int index = 0;</span>
+
+                public boolean hasNext() {
+<span class="nc bnc" id="L565" title="All 2 branches missed.">                    return index &lt; ids.length;</span>
+                }
+
+                public Map.Entry&lt;Object, Object&gt; next() {
+<span class="nc" id="L569">                    final Object ekey = key = ids[index++];</span>
+<span class="nc" id="L570">                    final Object value = get(key);</span>
+<span class="nc" id="L571">                    return new Map.Entry&lt;Object, Object&gt;() {</span>
+                        public Object getKey() {
+<span class="nc" id="L573">                            return ekey;</span>
+                        }
+
+                        public Object getValue() {
+<span class="nc" id="L577">                            return value;</span>
+                        }
+
+                        public Object setValue(Object value) {
+<span class="nc" id="L581">                            throw new UnsupportedOperationException();</span>
+                        }
+
+                        @Override
+                        public boolean equals(Object other) {
+<span class="nc bnc" id="L586" title="All 2 branches missed.">                            if (!(other instanceof Map.Entry)) {</span>
+<span class="nc" id="L587">                                return false;</span>
+                            }
+<span class="nc" id="L589">                            Map.Entry&lt;?, ?&gt; e = (Map.Entry&lt;?, ?&gt;) other;</span>
+<span class="nc bnc" id="L590" title="All 8 branches missed.">                            return (ekey == null ? e.getKey() == null : ekey.equals(e.getKey()))</span>
+<span class="nc bnc" id="L591" title="All 4 branches missed.">                                &amp;&amp; (value == null ? e.getValue() == null : value.equals(e.getValue()));</span>
+                        }
+
+                        @Override
+                        public int hashCode() {
+<span class="nc bnc" id="L596" title="All 4 branches missed.">                            return (ekey == null ? 0 : ekey.hashCode()) ^</span>
+<span class="nc" id="L597">                                   (value == null ? 0 : value.hashCode());</span>
+                        }
+
+                        @Override
+                        public String toString() {
+<span class="nc" id="L602">                            return ekey + &quot;=&quot; + value;</span>
+                        }
+                    };
+                }
+
+                public void remove() {
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                    if (key == null) {</span>
+<span class="nc" id="L609">                        throw new IllegalStateException();</span>
+                    }
+<span class="nc" id="L611">                    NativeObject.this.remove(key);</span>
+<span class="nc" id="L612">                    key = null;</span>
+<span class="nc" id="L613">                }</span>
+            };
+        }
+
+        @Override
+        public int size() {
+<span class="nc" id="L619">            return NativeObject.this.size();</span>
+        }
+    }
+
+<span class="nc" id="L623">    class KeySet extends AbstractSet&lt;Object&gt; {</span>
+
+        @Override
+        public boolean contains(Object key) {
+<span class="nc" id="L627">            return containsKey(key);</span>
+        }
+
+        @Override
+        public Iterator&lt;Object&gt; iterator() {
+<span class="nc" id="L632">            return new Iterator&lt;Object&gt;() {</span>
+<span class="nc" id="L633">                Object[] ids = getIds();</span>
+                Object key;
+<span class="nc" id="L635">                int index = 0;</span>
+
+                public boolean hasNext() {
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                    return index &lt; ids.length;</span>
+                }
+
+                public Object next() {
+                    try {
+<span class="nc" id="L643">                        return (key = ids[index++]);</span>
+<span class="nc" id="L644">                    } catch(ArrayIndexOutOfBoundsException e) {</span>
+<span class="nc" id="L645">                        key = null;</span>
+<span class="nc" id="L646">                        throw new NoSuchElementException();</span>
+                    }
+                }
+
+                public void remove() {
+<span class="nc bnc" id="L651" title="All 2 branches missed.">                    if (key == null) {</span>
+<span class="nc" id="L652">                        throw new IllegalStateException();</span>
+                    }
+<span class="nc" id="L654">                    NativeObject.this.remove(key);</span>
+<span class="nc" id="L655">                    key = null;</span>
+<span class="nc" id="L656">                }</span>
+           };
+        }
+
+        @Override
+        public int size() {
+<span class="nc" id="L662">            return NativeObject.this.size();</span>
+        }
+    }
+
+<span class="nc" id="L666">    class ValueCollection extends AbstractCollection&lt;Object&gt; {</span>
+
+        @Override
+        public Iterator&lt;Object&gt; iterator() {
+<span class="nc" id="L670">            return new Iterator&lt;Object&gt;() {</span>
+<span class="nc" id="L671">                Object[] ids = getIds();</span>
+                Object key;
+<span class="nc" id="L673">                int index = 0;</span>
+
+                public boolean hasNext() {
+<span class="nc bnc" id="L676" title="All 2 branches missed.">                    return index &lt; ids.length;</span>
+                }
+
+                public Object next() {
+<span class="nc" id="L680">                    return get((key = ids[index++]));</span>
+                }
+
+                public void remove() {
+<span class="nc bnc" id="L684" title="All 2 branches missed.">                    if (key == null) {</span>
+<span class="nc" id="L685">                        throw new IllegalStateException();</span>
+                    }
+<span class="nc" id="L687">                    NativeObject.this.remove(key);</span>
+<span class="nc" id="L688">                    key = null;</span>
+<span class="nc" id="L689">                }</span>
+            };
+        }
+
+        @Override
+        public int size() {
+<span class="nc" id="L695">            return NativeObject.this.size();</span>
+        }
+    }
+
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:55 EDT
+<span class="fc" id="L707">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc bfc" id="L708" title="All 8 branches covered.">            L: switch (s.length()) {</span>
+<span class="fc" id="L709">            case 7: X=&quot;valueOf&quot;;id=Id_valueOf; break L;</span>
+<span class="fc" id="L710">            case 8: c=s.charAt(3);</span>
+<span class="pc bpc" id="L711" title="1 of 2 branches missed.">                if (c=='o') { X=&quot;toSource&quot;;id=Id_toSource; }</span>
+<span class="fc bfc" id="L712" title="All 2 branches covered.">                else if (c=='t') { X=&quot;toString&quot;;id=Id_toString; }</span>
+                break L;
+<span class="fc" id="L714">            case 11: X=&quot;constructor&quot;;id=Id_constructor; break L;</span>
+<span class="fc" id="L715">            case 13: X=&quot;isPrototypeOf&quot;;id=Id_isPrototypeOf; break L;</span>
+<span class="fc" id="L716">            case 14: c=s.charAt(0);</span>
+<span class="pc bpc" id="L717" title="1 of 2 branches missed.">                if (c=='h') { X=&quot;hasOwnProperty&quot;;id=Id_hasOwnProperty; }</span>
+<span class="fc bfc" id="L718" title="All 2 branches covered.">                else if (c=='t') { X=&quot;toLocaleString&quot;;id=Id_toLocaleString; }</span>
+                break L;
+<span class="fc" id="L720">            case 16: c=s.charAt(2);</span>
+<span class="pc bpc" id="L721" title="1 of 2 branches missed.">                if (c=='d') {</span>
+<span class="nc" id="L722">                    c=s.charAt(8);</span>
+<span class="nc bnc" id="L723" title="All 2 branches missed.">                    if (c=='G') { X=&quot;__defineGetter__&quot;;id=Id___defineGetter__; }</span>
+<span class="nc bnc" id="L724" title="All 2 branches missed.">                    else if (c=='S') { X=&quot;__defineSetter__&quot;;id=Id___defineSetter__; }</span>
+                }
+<span class="pc bpc" id="L726" title="1 of 2 branches missed.">                else if (c=='l') {</span>
+<span class="nc" id="L727">                    c=s.charAt(8);</span>
+<span class="nc bnc" id="L728" title="All 2 branches missed.">                    if (c=='G') { X=&quot;__lookupGetter__&quot;;id=Id___lookupGetter__; }</span>
+<span class="nc bnc" id="L729" title="All 2 branches missed.">                    else if (c=='S') { X=&quot;__lookupSetter__&quot;;id=Id___lookupSetter__; }</span>
+                }
+                break L;
+<span class="fc" id="L732">            case 20: X=&quot;propertyIsEnumerable&quot;;id=Id_propertyIsEnumerable; break L;</span>
+            }
+<span class="pc bpc" id="L734" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L738">        return id;</span>
+    }
+
+    private static final int
+        ConstructorId_getPrototypeOf = -1,
+        ConstructorId_keys = -2,
+        ConstructorId_getOwnPropertyNames = -3,
+        ConstructorId_getOwnPropertyDescriptor = -4,
+        ConstructorId_defineProperty = -5,
+        ConstructorId_isExtensible = -6,
+        ConstructorId_preventExtensions = -7,
+        ConstructorId_defineProperties= -8,
+        ConstructorId_create = -9,
+        ConstructorId_isSealed = -10,
+        ConstructorId_isFrozen = -11,
+        ConstructorId_seal = -12,
+        ConstructorId_freeze = -13,
+        ConstructorId_getOwnPropertySymbols = -14,
+        ConstructorId_assign = -15,
+        ConstructorId_is = -16,
+
+        Id_constructor           = 1,
+        Id_toString              = 2,
+        Id_toLocaleString        = 3,
+        Id_valueOf               = 4,
+        Id_hasOwnProperty        = 5,
+        Id_propertyIsEnumerable  = 6,
+        Id_isPrototypeOf         = 7,
+        Id_toSource              = 8,
+        Id___defineGetter__      = 9,
+        Id___defineSetter__      = 10,
+        Id___lookupGetter__      = 11,
+        Id___lookupSetter__      = 12,
+        MAX_PROTOTYPE_ID         = 12;
+
+// #/string_id_map#
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

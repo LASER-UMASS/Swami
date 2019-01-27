@@ -1,0 +1,751 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Main.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools.shell</a> &gt; <span class="el_source">Main.java</span></div><h1>Main.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools.shell;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ContextAction;
+import org.mozilla.javascript.Function;
+import org.mozilla.javascript.GeneratedClassLoader;
+import org.mozilla.javascript.Kit;
+import org.mozilla.javascript.NativeArray;
+import org.mozilla.javascript.RhinoException;
+import org.mozilla.javascript.Script;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.SecurityController;
+import org.mozilla.javascript.commonjs.module.ModuleScope;
+import org.mozilla.javascript.commonjs.module.Require;
+import org.mozilla.javascript.tools.SourceReader;
+import org.mozilla.javascript.tools.ToolErrorReporter;
+
+/**
+ * The shell program.
+ *
+ * Can execute scripts interactively or in batch mode at the command line.
+ * An example of controlling the JavaScript engine.
+ *
+ * @author Norris Boyd
+ */
+<span class="nc" id="L52">public class Main</span>
+{
+    public static ShellContextFactory
+<span class="fc" id="L55">        shellContextFactory = new ShellContextFactory();</span>
+
+<span class="fc" id="L57">    public static Global global = new Global();</span>
+    static protected ToolErrorReporter errorReporter;
+<span class="fc" id="L59">    static protected int exitCode = 0;</span>
+    static private final int EXITCODE_RUNTIME_ERROR = 3;
+    static private final int EXITCODE_FILE_NOT_FOUND = 4;
+<span class="fc" id="L62">    static boolean processStdin = true;</span>
+<span class="fc" id="L63">    static List&lt;String&gt; fileList = new ArrayList&lt;String&gt;();</span>
+    static List&lt;String&gt; modulePath;
+    static String mainModule;
+<span class="fc" id="L66">    static boolean sandboxed = false;</span>
+<span class="fc" id="L67">    static boolean useRequire = false;</span>
+    static Require require;
+    private static SecurityProxy securityImpl;
+<span class="fc" id="L70">    private final static ScriptCache scriptCache = new ScriptCache(32);</span>
+
+    static {
+<span class="fc" id="L73">        global.initQuitAction(new IProxy(IProxy.SYSTEM_EXIT));</span>
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * Proxy class to avoid proliferation of anonymous classes.
+     */
+    private static class IProxy implements ContextAction, QuitAction
+    {
+        private static final int PROCESS_FILES = 1;
+        private static final int EVAL_INLINE_SCRIPT = 2;
+        private static final int SYSTEM_EXIT = 3;
+
+        private int type;
+        String[] args;
+        String scriptText;
+
+        IProxy(int type)
+<span class="fc" id="L90">        {</span>
+<span class="fc" id="L91">            this.type = type;</span>
+<span class="fc" id="L92">        }</span>
+
+        public Object run(Context cx)
+        {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            if (useRequire) {</span>
+<span class="nc" id="L97">                require = global.installRequire(cx, modulePath, sandboxed);</span>
+            }
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if (type == PROCESS_FILES) {</span>
+<span class="nc" id="L100">                processFiles(cx, args);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            } else if (type == EVAL_INLINE_SCRIPT) {</span>
+<span class="nc" id="L102">                evalInlineScript(cx, scriptText);</span>
+            } else {
+<span class="nc" id="L104">                throw Kit.codeBug();</span>
+            }
+<span class="nc" id="L106">            return null;</span>
+        }
+
+        public void quit(Context cx, int exitCode)
+        {
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (type == SYSTEM_EXIT) {</span>
+<span class="nc" id="L112">                System.exit(exitCode);</span>
+<span class="nc" id="L113">                return;</span>
+            }
+<span class="nc" id="L115">            throw Kit.codeBug();</span>
+        }
+    }
+
+    /**
+     * Main entry point.
+     *
+     * Process arguments as would a normal Java program. Also
+     * create a new Context and associate it with the current thread.
+     * Then set up the execution environment and begin to
+     * execute scripts.
+     */
+    public static void main(String args[]) {
+        try {
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (Boolean.getBoolean(&quot;rhino.use_java_policy_security&quot;)) {</span>
+<span class="nc" id="L130">                initJavaPolicySecuritySupport();</span>
+            }
+<span class="nc" id="L132">        } catch (SecurityException ex) {</span>
+<span class="nc" id="L133">            ex.printStackTrace(System.err);</span>
+<span class="nc" id="L134">        }</span>
+
+<span class="nc" id="L136">        int result = exec(args);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (result != 0) {</span>
+<span class="nc" id="L138">            System.exit(result);</span>
+        }
+<span class="nc" id="L140">    }</span>
+
+    /**
+     *  Execute the given arguments, but don't System.exit at the end.
+     */
+    public static int exec(String origArgs[])
+    {
+<span class="nc" id="L147">        errorReporter = new ToolErrorReporter(false, global.getErr());</span>
+<span class="nc" id="L148">        shellContextFactory.setErrorReporter(errorReporter);</span>
+<span class="nc" id="L149">        String[] args = processOptions(origArgs);</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (exitCode &gt; 0) {</span>
+<span class="nc" id="L151">            return exitCode;</span>
+        }
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (processStdin) {</span>
+<span class="nc" id="L154">            fileList.add(null);</span>
+        }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (!global.initialized) {</span>
+<span class="nc" id="L157">            global.init(shellContextFactory);</span>
+        }
+<span class="nc" id="L159">        IProxy iproxy = new IProxy(IProxy.PROCESS_FILES);</span>
+<span class="nc" id="L160">        iproxy.args = args;</span>
+<span class="nc" id="L161">        shellContextFactory.call(iproxy);</span>
+
+<span class="nc" id="L163">        return exitCode;</span>
+    }
+
+    static void processFiles(Context cx, String[] args)
+    {
+        // define &quot;arguments&quot; array in the top-level object:
+        // need to allocate new array since newArray requires instances
+        // of exactly Object[], not ObjectSubclass[]
+<span class="nc" id="L171">        Object[] array = new Object[args.length];</span>
+<span class="nc" id="L172">        System.arraycopy(args, 0, array, 0, args.length);</span>
+<span class="nc" id="L173">        Scriptable argsObj = cx.newArray(global, array);</span>
+<span class="nc" id="L174">        global.defineProperty(&quot;arguments&quot;, argsObj,</span>
+                              ScriptableObject.DONTENUM);
+
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        for (String file: fileList) {</span>
+            try {
+<span class="nc" id="L179">                processSource(cx, file);</span>
+<span class="nc" id="L180">            } catch (IOException ioex) {</span>
+<span class="nc" id="L181">                Context.reportError(ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L182">                        &quot;msg.couldnt.read.source&quot;, file, ioex.getMessage()));</span>
+<span class="nc" id="L183">                exitCode = EXITCODE_FILE_NOT_FOUND;</span>
+<span class="nc" id="L184">            } catch (RhinoException rex) {</span>
+<span class="nc" id="L185">                ToolErrorReporter.reportException(</span>
+<span class="nc" id="L186">                    cx.getErrorReporter(), rex);</span>
+<span class="nc" id="L187">                exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L188">            } catch (VirtualMachineError ex) {</span>
+                // Treat StackOverflow and OutOfMemory as runtime errors
+<span class="nc" id="L190">                ex.printStackTrace();</span>
+<span class="nc" id="L191">                String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L192">                    &quot;msg.uncaughtJSException&quot;, ex.toString());</span>
+<span class="nc" id="L193">                Context.reportError(msg);</span>
+<span class="nc" id="L194">                exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L195">            }</span>
+<span class="nc" id="L196">        }</span>
+<span class="nc" id="L197">    }</span>
+
+    static void evalInlineScript(Context cx, String scriptText) {
+        try {
+<span class="nc" id="L201">            Script script = cx.compileString(scriptText, &quot;&lt;command&gt;&quot;, 1, null);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">            if (script != null) {</span>
+<span class="nc" id="L203">                script.exec(cx, getShellScope());</span>
+            }
+<span class="nc" id="L205">        } catch (RhinoException rex) {</span>
+<span class="nc" id="L206">            ToolErrorReporter.reportException(</span>
+<span class="nc" id="L207">                    cx.getErrorReporter(), rex);</span>
+<span class="nc" id="L208">            exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L209">        } catch (VirtualMachineError ex) {</span>
+            // Treat StackOverflow and OutOfMemory as runtime errors
+<span class="nc" id="L211">            ex.printStackTrace();</span>
+<span class="nc" id="L212">            String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L213">                    &quot;msg.uncaughtJSException&quot;, ex.toString());</span>
+<span class="nc" id="L214">            Context.reportError(msg);</span>
+<span class="nc" id="L215">            exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L216">        }</span>
+<span class="nc" id="L217">    }</span>
+
+    public static Global getGlobal()
+    {
+<span class="nc" id="L221">        return global;</span>
+    }
+
+    static Scriptable getShellScope() {
+<span class="nc" id="L225">        return getScope(null);</span>
+    }
+
+    static Scriptable getScope(String path) {
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (useRequire) {</span>
+            // If CommonJS modules are enabled use a module scope that resolves
+            // relative ids relative to the current URL, file or working directory.
+            URI uri;
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if (path == null) {</span>
+                // use current directory for shell and -e switch
+<span class="nc" id="L235">                uri = new File(System.getProperty(&quot;user.dir&quot;)).toURI();</span>
+            } else {
+                // find out whether this is a file path or a URL
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                if (SourceReader.toUrl(path) != null) {</span>
+                    try {
+<span class="nc" id="L240">                        uri = new URI(path);</span>
+<span class="nc" id="L241">                    } catch (URISyntaxException x) {</span>
+                        // fall back to file uri
+<span class="nc" id="L243">                        uri = new File(path).toURI();</span>
+<span class="nc" id="L244">                    }</span>
+                } else {
+<span class="nc" id="L246">                    uri = new File(path).toURI();</span>
+                }
+            }
+<span class="nc" id="L249">            return new ModuleScope(global, uri, null);</span>
+        } else {
+<span class="nc" id="L251">            return global;</span>
+        }
+    }
+
+    /**
+     * Parse arguments.
+     */
+    public static String[] processOptions(String args[])
+    {
+        String usageError;
+<span class="nc" id="L261">        goodUsage: for (int i = 0; ; ++i) {</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (i == args.length) {</span>
+<span class="nc" id="L263">                return new String[0];</span>
+            }
+<span class="nc" id="L265">            String arg = args[i];</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (!arg.startsWith(&quot;-&quot;)) {</span>
+<span class="nc" id="L267">                processStdin = false;</span>
+<span class="nc" id="L268">                fileList.add(arg);</span>
+<span class="nc" id="L269">                mainModule = arg;</span>
+<span class="nc" id="L270">                String[] result = new String[args.length - i - 1];</span>
+<span class="nc" id="L271">                System.arraycopy(args, i+1, result, 0, args.length - i - 1);</span>
+<span class="nc" id="L272">                return result;</span>
+            }
+<span class="nc bnc" id="L274" title="All 2 branches missed.">            if (arg.equals(&quot;-version&quot;)) {</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L276">                    usageError = arg;</span>
+<span class="nc" id="L277">                    break goodUsage;</span>
+                }
+                int version;
+                try {
+<span class="nc" id="L281">                    version = Integer.parseInt(args[i]);</span>
+<span class="nc" id="L282">                } catch (NumberFormatException ex) {</span>
+<span class="nc" id="L283">                    usageError = args[i];</span>
+<span class="nc" id="L284">                    break goodUsage;</span>
+<span class="nc" id="L285">                }</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                if (!Context.isValidLanguageVersion(version)) {</span>
+<span class="nc" id="L287">                    usageError = args[i];</span>
+<span class="nc" id="L288">                    break goodUsage;</span>
+                }
+<span class="nc" id="L290">                shellContextFactory.setLanguageVersion(version);</span>
+<span class="nc" id="L291">                continue;</span>
+            }
+<span class="nc bnc" id="L293" title="All 4 branches missed.">            if (arg.equals(&quot;-opt&quot;) || arg.equals(&quot;-O&quot;)) {</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L295">                    usageError = arg;</span>
+<span class="nc" id="L296">                    break goodUsage;</span>
+                }
+                int opt;
+                try {
+<span class="nc" id="L300">                    opt = Integer.parseInt(args[i]);</span>
+<span class="nc" id="L301">                } catch (NumberFormatException ex) {</span>
+<span class="nc" id="L302">                    usageError = args[i];</span>
+<span class="nc" id="L303">                    break goodUsage;</span>
+<span class="nc" id="L304">                }</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                if (opt == -2) {</span>
+                    // Compatibility with Cocoon Rhino fork
+<span class="nc" id="L307">                    opt = -1;</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                } else if (!Context.isValidOptimizationLevel(opt)) {</span>
+<span class="nc" id="L309">                    usageError = args[i];</span>
+<span class="nc" id="L310">                    break goodUsage;</span>
+                }
+<span class="nc" id="L312">                shellContextFactory.setOptimizationLevel(opt);</span>
+<span class="nc" id="L313">                continue;</span>
+            }
+<span class="nc bnc" id="L315" title="All 2 branches missed.">            if (arg.equals(&quot;-encoding&quot;)) {</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L317">                    usageError = arg;</span>
+<span class="nc" id="L318">                    break goodUsage;</span>
+                }
+<span class="nc" id="L320">                String enc = args[i];</span>
+<span class="nc" id="L321">                shellContextFactory.setCharacterEncoding(enc);</span>
+<span class="nc" id="L322">                continue;</span>
+            }
+<span class="nc bnc" id="L324" title="All 2 branches missed.">            if (arg.equals(&quot;-strict&quot;)) {</span>
+<span class="nc" id="L325">                shellContextFactory.setStrictMode(true);</span>
+<span class="nc" id="L326">                shellContextFactory.setAllowReservedKeywords(false);</span>
+<span class="nc" id="L327">                errorReporter.setIsReportingWarnings(true);</span>
+<span class="nc" id="L328">                continue;</span>
+            }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if (arg.equals(&quot;-fatal-warnings&quot;)) {</span>
+<span class="nc" id="L331">                shellContextFactory.setWarningAsError(true);</span>
+<span class="nc" id="L332">                continue;</span>
+            }
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            if (arg.equals(&quot;-e&quot;)) {</span>
+<span class="nc" id="L335">                processStdin = false;</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L337">                    usageError = arg;</span>
+<span class="nc" id="L338">                    break goodUsage;</span>
+                }
+<span class="nc bnc" id="L340" title="All 2 branches missed.">                if (!global.initialized) {</span>
+<span class="nc" id="L341">                    global.init(shellContextFactory);</span>
+                }
+<span class="nc" id="L343">                IProxy iproxy = new IProxy(IProxy.EVAL_INLINE_SCRIPT);</span>
+<span class="nc" id="L344">                iproxy.scriptText = args[i];</span>
+<span class="nc" id="L345">                shellContextFactory.call(iproxy);</span>
+<span class="nc" id="L346">                continue;</span>
+            }
+<span class="nc bnc" id="L348" title="All 2 branches missed.">            if (arg.equals(&quot;-require&quot;)) {</span>
+<span class="nc" id="L349">                useRequire = true;</span>
+<span class="nc" id="L350">                continue;</span>
+            }
+<span class="nc bnc" id="L352" title="All 2 branches missed.">            if (arg.equals(&quot;-sandbox&quot;)) {</span>
+<span class="nc" id="L353">                sandboxed = true;</span>
+<span class="nc" id="L354">                useRequire = true;</span>
+<span class="nc" id="L355">                continue;</span>
+            }
+<span class="nc bnc" id="L357" title="All 2 branches missed.">            if (arg.equals(&quot;-modules&quot;)) {</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L359">                    usageError = arg;</span>
+<span class="nc" id="L360">                    break goodUsage;</span>
+                }
+<span class="nc bnc" id="L362" title="All 2 branches missed.">                if (modulePath == null) {</span>
+<span class="nc" id="L363">                    modulePath = new ArrayList&lt;String&gt;();</span>
+                }
+<span class="nc" id="L365">                modulePath.add(args[i]);</span>
+<span class="nc" id="L366">                useRequire = true;</span>
+<span class="nc" id="L367">                continue;</span>
+            }
+<span class="nc bnc" id="L369" title="All 2 branches missed.">            if (arg.equals(&quot;-w&quot;)) {</span>
+<span class="nc" id="L370">                errorReporter.setIsReportingWarnings(true);</span>
+<span class="nc" id="L371">                continue;</span>
+            }
+<span class="nc bnc" id="L373" title="All 2 branches missed.">            if (arg.equals(&quot;-f&quot;)) {</span>
+<span class="nc" id="L374">                processStdin = false;</span>
+<span class="nc bnc" id="L375" title="All 2 branches missed.">                if (++i == args.length) {</span>
+<span class="nc" id="L376">                    usageError = arg;</span>
+<span class="nc" id="L377">                    break goodUsage;</span>
+                }
+<span class="nc bnc" id="L379" title="All 2 branches missed.">                if (args[i].equals(&quot;-&quot;)) {</span>
+<span class="nc" id="L380">                    fileList.add(null);</span>
+                } else {
+<span class="nc" id="L382">                    fileList.add(args[i]);</span>
+<span class="nc" id="L383">                    mainModule = args[i];</span>
+                }
+<span class="nc" id="L385">                continue;</span>
+            }
+<span class="nc bnc" id="L387" title="All 2 branches missed.">            if (arg.equals(&quot;-sealedlib&quot;)) {</span>
+<span class="nc" id="L388">                global.setSealedStdLib(true);</span>
+<span class="nc" id="L389">                continue;</span>
+            }
+<span class="nc bnc" id="L391" title="All 2 branches missed.">            if (arg.equals(&quot;-debug&quot;)) {</span>
+<span class="nc" id="L392">                shellContextFactory.setGeneratingDebug(true);</span>
+<span class="nc" id="L393">                continue;</span>
+            }
+<span class="nc bnc" id="L395" title="All 2 branches missed.">            if (arg.equals(&quot;-?&quot;) ||</span>
+<span class="nc bnc" id="L396" title="All 2 branches missed.">                arg.equals(&quot;-help&quot;)) {</span>
+                // print usage message
+<span class="nc" id="L398">                global.getOut().println(</span>
+<span class="nc" id="L399">                    ToolErrorReporter.getMessage(&quot;msg.shell.usage&quot;, Main.class.getName()));</span>
+<span class="nc" id="L400">                exitCode = 1;</span>
+<span class="nc" id="L401">                return null;</span>
+            }
+<span class="nc" id="L403">            usageError = arg;</span>
+<span class="nc" id="L404">            break goodUsage;</span>
+        }
+        // print error and usage message
+<span class="nc" id="L407">        global.getOut().println(</span>
+<span class="nc" id="L408">            ToolErrorReporter.getMessage(&quot;msg.shell.invalid&quot;, usageError));</span>
+<span class="nc" id="L409">        global.getOut().println(</span>
+<span class="nc" id="L410">            ToolErrorReporter.getMessage(&quot;msg.shell.usage&quot;, Main.class.getName()));</span>
+<span class="nc" id="L411">        exitCode = 1;</span>
+<span class="nc" id="L412">        return null;</span>
+    }
+
+    private static void initJavaPolicySecuritySupport()
+    {
+        Throwable exObj;
+        try {
+<span class="nc" id="L419">            Class&lt;?&gt; cl = Class.forName</span>
+<span class="nc" id="L420">                (&quot;org.mozilla.javascript.tools.shell.JavaPolicySecurity&quot;);</span>
+<span class="nc" id="L421">            securityImpl = (SecurityProxy)cl.newInstance();</span>
+<span class="nc" id="L422">            SecurityController.initGlobal(securityImpl);</span>
+<span class="nc" id="L423">            return;</span>
+<span class="nc" id="L424">        } catch (ClassNotFoundException ex) {</span>
+<span class="nc" id="L425">            exObj = ex;</span>
+<span class="nc" id="L426">        } catch (IllegalAccessException ex) {</span>
+<span class="nc" id="L427">            exObj = ex;</span>
+<span class="nc" id="L428">        } catch (InstantiationException ex) {</span>
+<span class="nc" id="L429">            exObj = ex;</span>
+<span class="nc" id="L430">        } catch (LinkageError ex) {</span>
+<span class="nc" id="L431">            exObj = ex;</span>
+<span class="nc" id="L432">        }</span>
+<span class="nc" id="L433">        throw Kit.initCause(new IllegalStateException(</span>
+            &quot;Can not load security support: &quot;+exObj), exObj);
+    }
+
+    /**
+     * Evaluate JavaScript source.
+     *
+     * @param cx the current context
+     * @param filename the name of the file to compile, or null
+     *                 for interactive mode.
+     * @throws IOException if the source could not be read
+     * @throws RhinoException thrown during evaluation of source
+     */
+    public static void processSource(Context cx, String filename)
+            throws IOException
+    {
+<span class="nc bnc" id="L449" title="All 4 branches missed.">        if (filename == null || filename.equals(&quot;-&quot;)) {</span>
+<span class="nc" id="L450">            Scriptable scope = getShellScope();</span>
+            Charset cs;
+<span class="nc" id="L452">            String charEnc = shellContextFactory.getCharacterEncoding();</span>
+<span class="nc bnc" id="L453" title="All 2 branches missed.">            if (charEnc != null) {</span>
+<span class="nc" id="L454">                cs = Charset.forName(charEnc);</span>
+            } else {
+<span class="nc" id="L456">                cs = Charset.defaultCharset();</span>
+            }
+<span class="nc" id="L458">            ShellConsole console = global.getConsole(cs);</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (filename == null) {</span>
+                // print implementation version
+<span class="nc" id="L461">                console.println(cx.getImplementationVersion());</span>
+            }
+
+<span class="nc" id="L464">            int lineno = 1;</span>
+<span class="nc" id="L465">            boolean hitEOF = false;</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">            while (!hitEOF) {</span>
+<span class="nc" id="L467">                String[] prompts = global.getPrompts(cx);</span>
+<span class="nc" id="L468">                String prompt = null;</span>
+<span class="nc bnc" id="L469" title="All 2 branches missed.">                if (filename == null)</span>
+<span class="nc" id="L470">                    prompt = prompts[0];</span>
+<span class="nc" id="L471">                console.flush();</span>
+<span class="nc" id="L472">                String source = &quot;&quot;;</span>
+
+                // Collect lines of source to compile.
+                while (true) {
+                    String newline;
+                    try {
+<span class="nc" id="L478">                        newline = console.readLine(prompt);</span>
+                    }
+<span class="nc" id="L480">                    catch (IOException ioe) {</span>
+<span class="nc" id="L481">                        console.println(ioe.toString());</span>
+<span class="nc" id="L482">                        break;</span>
+<span class="nc" id="L483">                    }</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">                    if (newline == null) {</span>
+<span class="nc" id="L485">                        hitEOF = true;</span>
+<span class="nc" id="L486">                        break;</span>
+                    }
+<span class="nc" id="L488">                    source = source + newline + &quot;\n&quot;;</span>
+<span class="nc" id="L489">                    lineno++;</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                    if (cx.stringIsCompilableUnit(source))</span>
+<span class="nc" id="L491">                        break;</span>
+<span class="nc" id="L492">                    prompt = prompts[1];</span>
+<span class="nc" id="L493">                }</span>
+                try {
+<span class="nc" id="L495">                    Script script = cx.compileString(source, &quot;&lt;stdin&gt;&quot;, lineno, null);</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">                    if (script != null) {</span>
+<span class="nc" id="L497">                        Object result = script.exec(cx, scope);</span>
+                        // Avoid printing out undefined or function definitions.
+<span class="nc bnc" id="L499" title="All 4 branches missed.">                        if (result != Context.getUndefinedValue() &amp;&amp;</span>
+                                !(result instanceof Function &amp;&amp;
+<span class="nc bnc" id="L501" title="All 2 branches missed.">                                        source.trim().startsWith(&quot;function&quot;)))</span>
+                        {
+                            try {
+<span class="nc" id="L504">                                console.println(Context.toString(result));</span>
+<span class="nc" id="L505">                            } catch (RhinoException rex) {</span>
+<span class="nc" id="L506">                                ToolErrorReporter.reportException(</span>
+<span class="nc" id="L507">                                        cx.getErrorReporter(), rex);</span>
+<span class="nc" id="L508">                            }</span>
+                        }
+<span class="nc" id="L510">                        NativeArray h = global.history;</span>
+<span class="nc" id="L511">                        h.put((int)h.getLength(), h, source);</span>
+                    }
+<span class="nc" id="L513">                } catch (RhinoException rex) {</span>
+<span class="nc" id="L514">                    ToolErrorReporter.reportException(</span>
+<span class="nc" id="L515">                        cx.getErrorReporter(), rex);</span>
+<span class="nc" id="L516">                    exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L517">                } catch (VirtualMachineError ex) {</span>
+                    // Treat StackOverflow and OutOfMemory as runtime errors
+<span class="nc" id="L519">                    ex.printStackTrace();</span>
+<span class="nc" id="L520">                    String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L521">                        &quot;msg.uncaughtJSException&quot;, ex.toString());</span>
+<span class="nc" id="L522">                    Context.reportError(msg);</span>
+<span class="nc" id="L523">                    exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L524">                }</span>
+<span class="nc" id="L525">            }</span>
+<span class="nc" id="L526">            console.println();</span>
+<span class="nc" id="L527">            console.flush();</span>
+<span class="nc bnc" id="L528" title="All 4 branches missed.">        } else if (useRequire &amp;&amp; filename.equals(mainModule)) {</span>
+<span class="nc" id="L529">            require.requireMain(cx, filename);</span>
+        } else {
+<span class="nc" id="L531">            processFile(cx, getScope(filename), filename);</span>
+        }
+<span class="nc" id="L533">    }</span>
+
+    public static void processFileNoThrow(Context cx, Scriptable scope, String filename) {
+        try {
+<span class="fc" id="L537">            processFile(cx, scope, filename);</span>
+<span class="nc" id="L538">        } catch (IOException ioex) {</span>
+<span class="nc" id="L539">            Context.reportError(ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L540">                    &quot;msg.couldnt.read.source&quot;, filename, ioex.getMessage()));</span>
+<span class="nc" id="L541">            exitCode = EXITCODE_FILE_NOT_FOUND;</span>
+<span class="fc" id="L542">        } catch (RhinoException rex) {</span>
+<span class="fc" id="L543">            ToolErrorReporter.reportException(</span>
+<span class="fc" id="L544">                    cx.getErrorReporter(), rex);</span>
+<span class="fc" id="L545">            exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="nc" id="L546">        } catch (VirtualMachineError ex) {</span>
+            // Treat StackOverflow and OutOfMemory as runtime errors
+<span class="nc" id="L548">            ex.printStackTrace();</span>
+<span class="nc" id="L549">            String msg = ToolErrorReporter.getMessage(</span>
+<span class="nc" id="L550">                    &quot;msg.uncaughtJSException&quot;, ex.toString());</span>
+<span class="nc" id="L551">            Context.reportError(msg);</span>
+<span class="nc" id="L552">            exitCode = EXITCODE_RUNTIME_ERROR;</span>
+<span class="pc" id="L553">        }</span>
+<span class="fc" id="L554">    }</span>
+
+    public static void processFile(Context cx, Scriptable scope, String filename)
+            throws IOException
+    {
+<span class="pc bpc" id="L559" title="1 of 2 branches missed.">        if (securityImpl == null) {</span>
+<span class="fc" id="L560">            processFileSecure(cx, scope, filename, null);</span>
+        } else {
+<span class="nc" id="L562">            securityImpl.callProcessFileSecure(cx, scope, filename);</span>
+        }
+<span class="fc" id="L564">    }</span>
+
+    static void processFileSecure(Context cx, Scriptable scope,
+                                  String path, Object securityDomain)
+            throws IOException {
+
+<span class="fc" id="L570">        boolean isClass = path.endsWith(&quot;.class&quot;);</span>
+<span class="pc bpc" id="L571" title="1 of 2 branches missed.">        Object source = readFileOrUrl(path, !isClass);</span>
+
+<span class="fc" id="L573">        byte[] digest = getDigest(source);</span>
+<span class="fc" id="L574">        String key = path + &quot;_&quot; + cx.getOptimizationLevel();</span>
+<span class="fc" id="L575">        ScriptReference ref = scriptCache.get(key, digest);</span>
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        Script script = ref != null ? ref.get() : null;</span>
+
+<span class="fc bfc" id="L578" title="All 2 branches covered.">        if (script == null) {</span>
+<span class="pc bpc" id="L579" title="1 of 2 branches missed.">            if (isClass) {</span>
+<span class="nc" id="L580">                script = loadCompiledScript(cx, path, (byte[])source, securityDomain);</span>
+            } else {
+<span class="fc" id="L582">                String strSrc = (String) source;</span>
+                // Support the executable script #! syntax:  If
+                // the first line begins with a '#', treat the whole
+                // line as a comment.
+<span class="pc bpc" id="L586" title="2 of 4 branches missed.">                if (strSrc.length() &gt; 0 &amp;&amp; strSrc.charAt(0) == '#') {</span>
+<span class="nc bnc" id="L587" title="All 2 branches missed.">                    for (int i = 1; i != strSrc.length(); ++i) {</span>
+<span class="nc" id="L588">                        int c = strSrc.charAt(i);</span>
+<span class="nc bnc" id="L589" title="All 4 branches missed.">                        if (c == '\n' || c == '\r') {</span>
+<span class="nc" id="L590">                            strSrc = strSrc.substring(i);</span>
+<span class="nc" id="L591">                            break;</span>
+                        }
+                    }
+                }
+<span class="fc" id="L595">                script = cx.compileString(strSrc, path, 1, securityDomain);</span>
+            }
+<span class="fc" id="L597">            scriptCache.put(key, digest, script);</span>
+        }
+
+<span class="pc bpc" id="L600" title="1 of 2 branches missed.">        if (script != null) {</span>
+<span class="fc" id="L601">            script.exec(cx, scope);</span>
+        }
+<span class="fc" id="L603">    }</span>
+
+    private static byte[] getDigest(Object source) {
+<span class="fc" id="L606">        byte[] bytes, digest = null;</span>
+
+<span class="pc bpc" id="L608" title="1 of 2 branches missed.">        if (source != null) {</span>
+<span class="pc bpc" id="L609" title="1 of 2 branches missed.">            if (source instanceof String) {</span>
+                try {
+<span class="fc" id="L611">                    bytes = ((String)source).getBytes(&quot;UTF-8&quot;);</span>
+<span class="nc" id="L612">                } catch (UnsupportedEncodingException ue) {</span>
+<span class="nc" id="L613">                    bytes = ((String)source).getBytes();</span>
+<span class="pc" id="L614">                }</span>
+            } else {
+<span class="nc" id="L616">                bytes = (byte[])source;</span>
+            }
+            try {
+<span class="fc" id="L619">                MessageDigest md = MessageDigest.getInstance(&quot;MD5&quot;);</span>
+<span class="fc" id="L620">                digest = md.digest(bytes);</span>
+<span class="nc" id="L621">            } catch (NoSuchAlgorithmException nsa) {</span>
+                // Should not happen
+<span class="nc" id="L623">                throw new RuntimeException(nsa);</span>
+<span class="fc" id="L624">            }</span>
+        }
+
+<span class="fc" id="L627">        return digest;</span>
+    }
+
+    private static Script loadCompiledScript(Context cx, String path,
+                                             byte[] data, Object securityDomain)
+            throws FileNotFoundException
+    {
+<span class="nc bnc" id="L634" title="All 2 branches missed.">        if (data == null) {</span>
+<span class="nc" id="L635">            throw new FileNotFoundException(path);</span>
+        }
+        // XXX: For now extract class name of compiled Script from path
+        // instead of parsing class bytes
+<span class="nc" id="L639">        int nameStart = path.lastIndexOf('/');</span>
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (nameStart &lt; 0) {</span>
+<span class="nc" id="L641">            nameStart = 0;</span>
+        } else {
+<span class="nc" id="L643">            ++nameStart;</span>
+        }
+<span class="nc" id="L645">        int nameEnd = path.lastIndexOf('.');</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">        if (nameEnd &lt; nameStart) {</span>
+            // '.' does not exist in path (nameEnd &lt; 0)
+            // or it comes before nameStart
+<span class="nc" id="L649">            nameEnd = path.length();</span>
+        }
+<span class="nc" id="L651">        String name = path.substring(nameStart, nameEnd);</span>
+        try {
+<span class="nc" id="L653">            GeneratedClassLoader loader = SecurityController.createLoader(cx.getApplicationClassLoader(), securityDomain);</span>
+<span class="nc" id="L654">            Class&lt;?&gt; clazz = loader.defineClass(name, data);</span>
+<span class="nc" id="L655">            loader.linkClass(clazz);</span>
+<span class="nc bnc" id="L656" title="All 2 branches missed.">            if (!Script.class.isAssignableFrom(clazz)) {</span>
+<span class="nc" id="L657">                throw Context.reportRuntimeError(&quot;msg.must.implement.Script&quot;);</span>
+            }
+<span class="nc" id="L659">            return (Script) clazz.newInstance();</span>
+<span class="nc" id="L660">        } catch (IllegalAccessException iaex) {</span>
+<span class="nc" id="L661">            Context.reportError(iaex.toString());</span>
+<span class="nc" id="L662">            throw new RuntimeException(iaex);</span>
+<span class="nc" id="L663">        } catch (InstantiationException inex) {</span>
+<span class="nc" id="L664">            Context.reportError(inex.toString());</span>
+<span class="nc" id="L665">            throw new RuntimeException(inex);</span>
+        }
+    }
+
+    public static InputStream getIn() {
+<span class="nc" id="L670">        return getGlobal().getIn();</span>
+    }
+
+    public static void setIn(InputStream in) {
+<span class="nc" id="L674">        getGlobal().setIn(in);</span>
+<span class="nc" id="L675">    }</span>
+
+    public static PrintStream getOut() {
+<span class="nc" id="L678">        return getGlobal().getOut();</span>
+    }
+
+    public static void setOut(PrintStream out) {
+<span class="nc" id="L682">        getGlobal().setOut(out);</span>
+<span class="nc" id="L683">    }</span>
+
+    public static PrintStream getErr() {
+<span class="nc" id="L686">        return getGlobal().getErr();</span>
+    }
+
+    public static void setErr(PrintStream err) {
+<span class="nc" id="L690">        getGlobal().setErr(err);</span>
+<span class="nc" id="L691">    }</span>
+
+    /**
+     * Read file or url specified by &lt;tt&gt;path&lt;/tt&gt;.
+     * @return file or url content as &lt;tt&gt;byte[]&lt;/tt&gt; or as &lt;tt&gt;String&lt;/tt&gt; if
+     * &lt;tt&gt;convertToString&lt;/tt&gt; is true.
+     */
+    private static Object readFileOrUrl(String path, boolean convertToString)
+            throws IOException
+    {
+<span class="fc" id="L701">        return SourceReader.readFileOrUrl(path, convertToString,</span>
+<span class="fc" id="L702">                shellContextFactory.getCharacterEncoding());</span>
+    }
+
+    static class ScriptReference extends SoftReference&lt;Script&gt; {
+        String path;
+        byte[] digest;
+
+        ScriptReference(String path, byte[] digest,
+                        Script script, ReferenceQueue&lt;Script&gt; queue) {
+<span class="fc" id="L711">            super(script, queue);</span>
+<span class="fc" id="L712">            this.path = path;</span>
+<span class="fc" id="L713">            this.digest = digest;</span>
+<span class="fc" id="L714">        }</span>
+    }
+
+    static class ScriptCache extends LinkedHashMap&lt;String, ScriptReference&gt; {
+        ReferenceQueue&lt;Script&gt; queue;
+        int capacity;
+
+        ScriptCache(int capacity) {
+<span class="fc" id="L722">            super(capacity + 1, 2f, true);</span>
+<span class="fc" id="L723">            this.capacity = capacity;</span>
+<span class="fc" id="L724">            queue = new ReferenceQueue&lt;Script&gt;();</span>
+<span class="fc" id="L725">        }</span>
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry&lt;String, ScriptReference&gt; eldest) {
+<span class="fc bfc" id="L729" title="All 2 branches covered.">            return size() &gt; capacity;</span>
+        }
+
+        ScriptReference get(String path, byte[] digest) {
+            ScriptReference ref;
+<span class="pc bpc" id="L734" title="1 of 2 branches missed.">            while((ref = (ScriptReference) queue.poll()) != null) {</span>
+<span class="nc" id="L735">                remove(ref.path);</span>
+            }
+<span class="fc" id="L737">            ref = get(path);</span>
+<span class="pc bpc" id="L738" title="1 of 4 branches missed.">            if (ref != null &amp;&amp; !Arrays.equals(digest, ref.digest)) {</span>
+<span class="nc" id="L739">                remove(ref.path);</span>
+<span class="nc" id="L740">                ref = null;</span>
+            }
+<span class="fc" id="L742">            return ref;</span>
+        }
+
+        void put(String path, byte[] digest, Script script) {
+<span class="fc" id="L746">            put(path, new ScriptReference(path, digest, script, queue));</span>
+<span class="fc" id="L747">        }</span>
+
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

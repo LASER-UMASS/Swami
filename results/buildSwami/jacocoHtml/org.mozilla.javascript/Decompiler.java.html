@@ -1,0 +1,901 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Decompiler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Decompiler.java</span></div><h1>Decompiler.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.FunctionNode;
+
+/**
+ * The following class save decompilation information about the source.
+ * Source information is returned from the parser as a String
+ * associated with function nodes and with the toplevel script.  When
+ * saved in the constant pool of a class, this string will be UTF-8
+ * encoded, and token values will occupy a single byte.
+
+ * Source is saved (mostly) as token numbers.  The tokens saved pretty
+ * much correspond to the token stream of a 'canonical' representation
+ * of the input program, as directed by the parser.  (There were a few
+ * cases where tokens could have been left out where decompiler could
+ * easily reconstruct them, but I left them in for clarity).  (I also
+ * looked adding source collection to TokenStream instead, where I
+ * could have limited the changes to a few lines in getToken... but
+ * this wouldn't have saved any space in the resulting source
+ * representation, and would have meant that I'd have to duplicate
+ * parser logic in the decompiler to disambiguate situations where
+ * newlines are important.)  The function decompile expands the
+ * tokens back into their string representations, using simple
+ * lookahead to correct spacing and indentation.
+ *
+ * Assignments are saved as two-token pairs (Token.ASSIGN, op). Number tokens
+ * are stored inline, as a NUMBER token, a character representing the type, and
+ * either 1 or 4 characters representing the bit-encoding of the number.  String
+ * types NAME, STRING and OBJECT are currently stored as a token type,
+ * followed by a character giving the length of the string (assumed to
+ * be less than 2^16), followed by the characters of the string
+ * inlined into the source string.  Changing this to some reference to
+ * to the string in the compiled class' constant pool would probably
+ * save a lot of space... but would require some method of deriving
+ * the final constant pool entry from information available at parse
+ * time.
+ */
+<span class="fc" id="L44">public class Decompiler</span>
+{
+    /**
+     * Flag to indicate that the decompilation should omit the
+     * function header and trailing brace.
+     */
+    public static final int ONLY_BODY_FLAG = 1 &lt;&lt; 0;
+
+    /**
+     * Flag to indicate that the decompilation generates toSource result.
+     */
+    public static final int TO_SOURCE_FLAG = 1 &lt;&lt; 1;
+
+    /**
+     * Decompilation property to specify initial ident value.
+     */
+    public static final int INITIAL_INDENT_PROP = 1;
+
+    /**
+     * Decompilation property to specify default identation offset.
+     */
+    public static final int INDENT_GAP_PROP = 2;
+
+    /**
+     * Decompilation property to specify identation offset for case labels.
+     */
+    public static final int CASE_GAP_PROP = 3;
+
+    // Marker to denote the last RC of function so it can be distinguished from
+    // the last RC of object literals in case of function expressions
+    private static final int FUNCTION_END = Token.LAST_TOKEN + 1;
+
+    String getEncodedSource()
+    {
+<span class="fc" id="L78">        return sourceToString(0);</span>
+    }
+
+    int getCurrentOffset()
+    {
+<span class="fc" id="L83">        return sourceTop;</span>
+    }
+
+    int markFunctionStart(int functionType)
+    {
+<span class="fc" id="L88">        int savedOffset = getCurrentOffset();</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if (functionType != FunctionNode.ARROW_FUNCTION) {</span>
+<span class="fc" id="L90">            addToken(Token.FUNCTION);</span>
+<span class="fc" id="L91">            append((char)functionType);</span>
+        }
+<span class="fc" id="L93">        return savedOffset;</span>
+    }
+
+    int markFunctionEnd(int functionStart)
+    {
+<span class="fc" id="L98">        int offset = getCurrentOffset();</span>
+<span class="fc" id="L99">        append((char)FUNCTION_END);</span>
+<span class="fc" id="L100">        return offset;</span>
+    }
+
+    void addToken(int token)
+    {
+<span class="pc bpc" id="L105" title="2 of 4 branches missed.">        if (!(0 &lt;= token &amp;&amp; token &lt;= Token.LAST_TOKEN))</span>
+<span class="nc" id="L106">            throw new IllegalArgumentException();</span>
+
+<span class="fc" id="L108">        append((char)token);</span>
+<span class="fc" id="L109">    }</span>
+
+    void addEOL(int token)
+    {
+<span class="pc bpc" id="L113" title="2 of 4 branches missed.">        if (!(0 &lt;= token &amp;&amp; token &lt;= Token.LAST_TOKEN))</span>
+<span class="nc" id="L114">            throw new IllegalArgumentException();</span>
+
+<span class="fc" id="L116">        append((char)token);</span>
+<span class="fc" id="L117">        append((char)Token.EOL);</span>
+<span class="fc" id="L118">    }</span>
+
+    void addName(String str)
+    {
+<span class="fc" id="L122">        addToken(Token.NAME);</span>
+<span class="fc" id="L123">        appendString(str);</span>
+<span class="fc" id="L124">    }</span>
+
+    void addString(String str)
+    {
+<span class="fc" id="L128">        addToken(Token.STRING);</span>
+<span class="fc" id="L129">        appendString(str);</span>
+<span class="fc" id="L130">    }</span>
+
+    void addRegexp(String regexp, String flags)
+    {
+<span class="fc" id="L134">        addToken(Token.REGEXP);</span>
+<span class="fc" id="L135">        appendString('/' + regexp + '/' + flags);</span>
+<span class="fc" id="L136">    }</span>
+
+    void addNumber(double n)
+    {
+<span class="fc" id="L140">        addToken(Token.NUMBER);</span>
+
+        /* encode the number in the source stream.
+         * Save as NUMBER type (char | char char char char)
+         * where type is
+         * 'D' - double, 'S' - short, 'J' - long.
+
+         * We need to retain float vs. integer type info to keep the
+         * behavior of liveconnect type-guessing the same after
+         * decompilation.  (Liveconnect tries to present 1.0 to Java
+         * as a float/double)
+         * OPT: This is no longer true. We could compress the format.
+
+         * This may not be the most space-efficient encoding;
+         * the chars created below may take up to 3 bytes in
+         * constant pool UTF-8 encoding, so a Double could take
+         * up to 12 bytes.
+         */
+
+<span class="fc" id="L159">        long lbits = (long)n;</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (lbits != n) {</span>
+            // if it's floating point, save as a Double bit pattern.
+            // (12/15/97 our scanner only returns Double for f.p.)
+<span class="fc" id="L163">            lbits = Double.doubleToLongBits(n);</span>
+<span class="fc" id="L164">            append('D');</span>
+<span class="fc" id="L165">            append((char)(lbits &gt;&gt; 48));</span>
+<span class="fc" id="L166">            append((char)(lbits &gt;&gt; 32));</span>
+<span class="fc" id="L167">            append((char)(lbits &gt;&gt; 16));</span>
+<span class="fc" id="L168">            append((char)lbits);</span>
+        }
+        else {
+            // we can ignore negative values, bc they're already prefixed
+            // by NEG
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">               if (lbits &lt; 0) Kit.codeBug();</span>
+
+            // will it fit in a char?
+            // this gives a short encoding for integer values up to 2^16.
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            if (lbits &lt;= Character.MAX_VALUE) {</span>
+<span class="fc" id="L178">                append('S');</span>
+<span class="fc" id="L179">                append((char)lbits);</span>
+            }
+            else { // Integral, but won't fit in a char. Store as a long.
+<span class="fc" id="L182">                append('J');</span>
+<span class="fc" id="L183">                append((char)(lbits &gt;&gt; 48));</span>
+<span class="fc" id="L184">                append((char)(lbits &gt;&gt; 32));</span>
+<span class="fc" id="L185">                append((char)(lbits &gt;&gt; 16));</span>
+<span class="fc" id="L186">                append((char)lbits);</span>
+            }
+        }
+<span class="fc" id="L189">    }</span>
+
+    private void appendString(String str)
+    {
+<span class="fc" id="L193">        int L = str.length();</span>
+<span class="fc" id="L194">        int lengthEncodingSize = 1;</span>
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        if (L &gt;= 0x8000) {</span>
+<span class="nc" id="L196">            lengthEncodingSize = 2;</span>
+        }
+<span class="fc" id="L198">        int nextTop = sourceTop + lengthEncodingSize + L;</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (nextTop &gt; sourceBuffer.length) {</span>
+<span class="fc" id="L200">            increaseSourceCapacity(nextTop);</span>
+        }
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        if (L &gt;= 0x8000) {</span>
+            // Use 2 chars to encode strings exceeding 32K, were the highest
+            // bit in the first char indicates presence of the next byte
+<span class="nc" id="L205">            sourceBuffer[sourceTop] = (char)(0x8000 | (L &gt;&gt;&gt; 16));</span>
+<span class="nc" id="L206">            ++sourceTop;</span>
+        }
+<span class="fc" id="L208">        sourceBuffer[sourceTop] = (char)L;</span>
+<span class="fc" id="L209">        ++sourceTop;</span>
+<span class="fc" id="L210">        str.getChars(0, L, sourceBuffer, sourceTop);</span>
+<span class="fc" id="L211">        sourceTop = nextTop;</span>
+<span class="fc" id="L212">    }</span>
+
+    private void append(char c)
+    {
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        if (sourceTop == sourceBuffer.length) {</span>
+<span class="fc" id="L217">            increaseSourceCapacity(sourceTop + 1);</span>
+        }
+<span class="fc" id="L219">        sourceBuffer[sourceTop] = c;</span>
+<span class="fc" id="L220">        ++sourceTop;</span>
+<span class="fc" id="L221">    }</span>
+
+    private void increaseSourceCapacity(int minimalCapacity)
+    {
+        // Call this only when capacity increase is must
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">        if (minimalCapacity &lt;= sourceBuffer.length) Kit.codeBug();</span>
+<span class="fc" id="L227">        int newCapacity = sourceBuffer.length * 2;</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        if (newCapacity &lt; minimalCapacity) {</span>
+<span class="nc" id="L229">            newCapacity = minimalCapacity;</span>
+        }
+<span class="fc" id="L231">        char[] tmp = new char[newCapacity];</span>
+<span class="fc" id="L232">        System.arraycopy(sourceBuffer, 0, tmp, 0, sourceTop);</span>
+<span class="fc" id="L233">        sourceBuffer = tmp;</span>
+<span class="fc" id="L234">    }</span>
+
+    private String sourceToString(int offset)
+    {
+<span class="pc bpc" id="L238" title="2 of 4 branches missed.">        if (offset &lt; 0 || sourceTop &lt; offset) Kit.codeBug();</span>
+<span class="fc" id="L239">        return new String(sourceBuffer, offset, sourceTop - offset);</span>
+    }
+
+    /**
+     * Decompile the source information associated with this js
+     * function/script back into a string.  For the most part, this
+     * just means translating tokens back to their string
+     * representations; there's a little bit of lookahead logic to
+     * decide the proper spacing/indentation.  Most of the work in
+     * mapping the original source to the prettyprinted decompiled
+     * version is done by the parser.
+     *
+     * @param source encoded source tree presentation
+     *
+     * @param flags flags to select output format
+     *
+     * @param properties indentation properties
+     *
+     */
+    public static String decompile(String source, int flags,
+                                   UintMap properties)
+    {
+<span class="nc" id="L261">        int length = source.length();</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (length == 0) { return &quot;&quot;; }</span>
+
+<span class="nc" id="L264">        int indent = properties.getInt(INITIAL_INDENT_PROP, 0);</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        if (indent &lt; 0) throw new IllegalArgumentException();</span>
+<span class="nc" id="L266">        int indentGap = properties.getInt(INDENT_GAP_PROP, 4);</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">        if (indentGap &lt; 0) throw new IllegalArgumentException();</span>
+<span class="nc" id="L268">        int caseGap = properties.getInt(CASE_GAP_PROP, 2);</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        if (caseGap &lt; 0) throw new IllegalArgumentException();</span>
+
+<span class="nc" id="L271">        StringBuilder result = new StringBuilder();</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        boolean justFunctionBody = (0 != (flags &amp; Decompiler.ONLY_BODY_FLAG));</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        boolean toSource = (0 != (flags &amp; Decompiler.TO_SOURCE_FLAG));</span>
+
+        // Spew tokens in source, for debugging.
+        // as TYPE number char
+        if (printSource) {
+            System.err.println(&quot;length:&quot; + length);
+            for (int i = 0; i &lt; length; ++i) {
+                // Note that tokenToName will fail unless Context.printTrees
+                // is true.
+                String tokenname = null;
+                if (Token.printNames) {
+                    tokenname = Token.name(source.charAt(i));
+                }
+                if (tokenname == null) {
+                    tokenname = &quot;---&quot;;
+                }
+                String pad = tokenname.length() &gt; 7
+                    ? &quot;\t&quot;
+                    : &quot;\t\t&quot;;
+                System.err.println
+                    (tokenname
+                     + pad + (int)source.charAt(i)
+                     + &quot;\t'&quot; + ScriptRuntime.escapeString
+                     (source.substring(i, i+1))
+                     + &quot;'&quot;);
+            }
+            System.err.println();
+        }
+
+<span class="nc" id="L302">        int braceNesting = 0;</span>
+<span class="nc" id="L303">        boolean afterFirstEOL = false;</span>
+<span class="nc" id="L304">        int i = 0;</span>
+        int topFunctionType;
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        if (source.charAt(i) == Token.SCRIPT) {</span>
+<span class="nc" id="L307">            ++i;</span>
+<span class="nc" id="L308">            topFunctionType = -1;</span>
+        } else {
+<span class="nc" id="L310">            topFunctionType = source.charAt(i + 1);</span>
+        }
+
+<span class="nc bnc" id="L313" title="All 2 branches missed.">        if (!toSource) {</span>
+            // add an initial newline to exactly match js.
+<span class="nc" id="L315">            result.append('\n');</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            for (int j = 0; j &lt; indent; j++)</span>
+<span class="nc" id="L317">                result.append(' ');</span>
+        } else {
+<span class="nc bnc" id="L319" title="All 2 branches missed.">            if (topFunctionType == FunctionNode.FUNCTION_EXPRESSION) {</span>
+<span class="nc" id="L320">                result.append('(');</span>
+            }
+        }
+
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        while (i &lt; length) {</span>
+<span class="nc bnc" id="L325" title="All 95 branches missed.">            switch(source.charAt(i)) {</span>
+            case Token.GET:
+            case Token.SET:
+            case Token.METHOD:
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                if (source.charAt(i) == Token.GET) {</span>
+<span class="nc" id="L330">                    result.append(&quot;get &quot;);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                } else if (source.charAt(i) == Token.SET) {</span>
+<span class="nc" id="L332">                    result.append(&quot;set &quot;);</span>
+                }
+<span class="nc" id="L334">                ++i;</span>
+<span class="nc" id="L335">                i = printSourceString(source, i + 1, false, result);</span>
+                // Now increment one more to get past the FUNCTION token
+<span class="nc" id="L337">                ++i;</span>
+<span class="nc" id="L338">                break;</span>
+
+            case Token.NAME:
+            case Token.REGEXP:  // re-wrapped in '/'s in parser...
+<span class="nc" id="L342">                i = printSourceString(source, i + 1, false, result);</span>
+<span class="nc" id="L343">                continue;</span>
+
+            case Token.STRING:
+<span class="nc" id="L346">                i = printSourceString(source, i + 1, true, result);</span>
+<span class="nc" id="L347">                continue;</span>
+
+            case Token.NUMBER:
+<span class="nc" id="L350">                i = printSourceNumber(source, i + 1, result);</span>
+<span class="nc" id="L351">                continue;</span>
+
+            case Token.TRUE:
+<span class="nc" id="L354">                result.append(&quot;true&quot;);</span>
+<span class="nc" id="L355">                break;</span>
+
+            case Token.FALSE:
+<span class="nc" id="L358">                result.append(&quot;false&quot;);</span>
+<span class="nc" id="L359">                break;</span>
+
+            case Token.NULL:
+<span class="nc" id="L362">                result.append(&quot;null&quot;);</span>
+<span class="nc" id="L363">                break;</span>
+
+            case Token.THIS:
+<span class="nc" id="L366">                result.append(&quot;this&quot;);</span>
+<span class="nc" id="L367">                break;</span>
+
+            case Token.FUNCTION:
+<span class="nc" id="L370">                ++i; // skip function type</span>
+<span class="nc" id="L371">                result.append(&quot;function &quot;);</span>
+<span class="nc" id="L372">                break;</span>
+
+            case FUNCTION_END:
+                // Do nothing
+<span class="nc" id="L376">                break;</span>
+
+            case Token.COMMA:
+<span class="nc" id="L379">                result.append(&quot;, &quot;);</span>
+<span class="nc" id="L380">                break;</span>
+
+            case Token.LC:
+<span class="nc" id="L383">                ++braceNesting;</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">                if (Token.EOL == getNext(source, length, i))</span>
+<span class="nc" id="L385">                    indent += indentGap;</span>
+<span class="nc" id="L386">                result.append('{');</span>
+<span class="nc" id="L387">                break;</span>
+
+            case Token.RC: {
+<span class="nc" id="L390">                --braceNesting;</span>
+                /* don't print the closing RC if it closes the
+                 * toplevel function and we're called from
+                 * decompileFunctionBody.
+                 */
+<span class="nc bnc" id="L395" title="All 4 branches missed.">                if (justFunctionBody &amp;&amp; braceNesting == 0)</span>
+<span class="nc" id="L396">                    break;</span>
+
+<span class="nc" id="L398">                result.append('}');</span>
+<span class="nc bnc" id="L399" title="All 3 branches missed.">                switch (getNext(source, length, i)) {</span>
+                    case Token.EOL:
+                    case FUNCTION_END:
+<span class="nc" id="L402">                        indent -= indentGap;</span>
+<span class="nc" id="L403">                        break;</span>
+                    case Token.WHILE:
+                    case Token.ELSE:
+<span class="nc" id="L406">                        indent -= indentGap;</span>
+<span class="nc" id="L407">                        result.append(' ');</span>
+                        break;
+                }
+<span class="nc" id="L410">                break;</span>
+            }
+            case Token.LP:
+<span class="nc" id="L413">                result.append('(');</span>
+<span class="nc" id="L414">                break;</span>
+
+            case Token.RP:
+<span class="nc" id="L417">                result.append(')');</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">                if (Token.LC == getNext(source, length, i))</span>
+<span class="nc" id="L419">                    result.append(' ');</span>
+                break;
+
+            case Token.LB:
+<span class="nc" id="L423">                result.append('[');</span>
+<span class="nc" id="L424">                break;</span>
+
+            case Token.RB:
+<span class="nc" id="L427">                result.append(']');</span>
+<span class="nc" id="L428">                break;</span>
+
+            case Token.EOL: {
+<span class="nc bnc" id="L431" title="All 2 branches missed.">                if (toSource) break;</span>
+<span class="nc" id="L432">                boolean newLine = true;</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">                if (!afterFirstEOL) {</span>
+<span class="nc" id="L434">                    afterFirstEOL = true;</span>
+<span class="nc bnc" id="L435" title="All 2 branches missed.">                    if (justFunctionBody) {</span>
+                        /* throw away just added 'function name(...) {'
+                         * and restore the original indent
+                         */
+<span class="nc" id="L439">                        result.setLength(0);</span>
+<span class="nc" id="L440">                        indent -= indentGap;</span>
+<span class="nc" id="L441">                        newLine = false;</span>
+                    }
+                }
+<span class="nc bnc" id="L444" title="All 2 branches missed.">                if (newLine) {</span>
+<span class="nc" id="L445">                    result.append('\n');</span>
+                }
+
+                /* add indent if any tokens remain,
+                 * less setback if next token is
+                 * a label, case or default.
+                 */
+<span class="nc bnc" id="L452" title="All 2 branches missed.">                if (i + 1 &lt; length) {</span>
+<span class="nc" id="L453">                    int less = 0;</span>
+<span class="nc" id="L454">                    int nextToken = source.charAt(i + 1);</span>
+<span class="nc bnc" id="L455" title="All 4 branches missed.">                    if (nextToken == Token.CASE</span>
+                        || nextToken == Token.DEFAULT)
+                    {
+<span class="nc" id="L458">                        less = indentGap - caseGap;</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                    } else if (nextToken == Token.RC) {</span>
+<span class="nc" id="L460">                        less = indentGap;</span>
+                    }
+
+                    /* elaborate check against label... skip past a
+                     * following inlined NAME and look for a COLON.
+                     */
+<span class="nc bnc" id="L466" title="All 2 branches missed.">                    else if (nextToken == Token.NAME) {</span>
+<span class="nc" id="L467">                        int afterName = getSourceStringEnd(source, i + 2);</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">                        if (source.charAt(afterName) == Token.COLON)</span>
+<span class="nc" id="L469">                            less = indentGap;</span>
+                    }
+
+<span class="nc bnc" id="L472" title="All 2 branches missed.">                    for (; less &lt; indent; less++)</span>
+<span class="nc" id="L473">                        result.append(' ');</span>
+<span class="nc" id="L474">                }</span>
+                break;
+            }
+            case Token.DOT:
+<span class="nc" id="L478">                result.append('.');</span>
+<span class="nc" id="L479">                break;</span>
+
+            case Token.NEW:
+<span class="nc" id="L482">                result.append(&quot;new &quot;);</span>
+<span class="nc" id="L483">                break;</span>
+
+            case Token.DELPROP:
+<span class="nc" id="L486">                result.append(&quot;delete &quot;);</span>
+<span class="nc" id="L487">                break;</span>
+
+            case Token.IF:
+<span class="nc" id="L490">                result.append(&quot;if &quot;);</span>
+<span class="nc" id="L491">                break;</span>
+
+            case Token.ELSE:
+<span class="nc" id="L494">                result.append(&quot;else &quot;);</span>
+<span class="nc" id="L495">                break;</span>
+
+            case Token.FOR:
+<span class="nc" id="L498">                result.append(&quot;for &quot;);</span>
+<span class="nc" id="L499">                break;</span>
+
+            case Token.IN:
+<span class="nc" id="L502">                result.append(&quot; in &quot;);</span>
+<span class="nc" id="L503">                break;</span>
+
+            case Token.WITH:
+<span class="nc" id="L506">                result.append(&quot;with &quot;);</span>
+<span class="nc" id="L507">                break;</span>
+
+            case Token.WHILE:
+<span class="nc" id="L510">                result.append(&quot;while &quot;);</span>
+<span class="nc" id="L511">                break;</span>
+
+            case Token.DO:
+<span class="nc" id="L514">                result.append(&quot;do &quot;);</span>
+<span class="nc" id="L515">                break;</span>
+
+            case Token.TRY:
+<span class="nc" id="L518">                result.append(&quot;try &quot;);</span>
+<span class="nc" id="L519">                break;</span>
+
+            case Token.CATCH:
+<span class="nc" id="L522">                result.append(&quot;catch &quot;);</span>
+<span class="nc" id="L523">                break;</span>
+
+            case Token.FINALLY:
+<span class="nc" id="L526">                result.append(&quot;finally &quot;);</span>
+<span class="nc" id="L527">                break;</span>
+
+            case Token.THROW:
+<span class="nc" id="L530">                result.append(&quot;throw &quot;);</span>
+<span class="nc" id="L531">                break;</span>
+
+            case Token.SWITCH:
+<span class="nc" id="L534">                result.append(&quot;switch &quot;);</span>
+<span class="nc" id="L535">                break;</span>
+
+            case Token.BREAK:
+<span class="nc" id="L538">                result.append(&quot;break&quot;);</span>
+<span class="nc bnc" id="L539" title="All 2 branches missed.">                if (Token.NAME == getNext(source, length, i))</span>
+<span class="nc" id="L540">                    result.append(' ');</span>
+                break;
+
+            case Token.CONTINUE:
+<span class="nc" id="L544">                result.append(&quot;continue&quot;);</span>
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                if (Token.NAME == getNext(source, length, i))</span>
+<span class="nc" id="L546">                    result.append(' ');</span>
+                break;
+
+            case Token.CASE:
+<span class="nc" id="L550">                result.append(&quot;case &quot;);</span>
+<span class="nc" id="L551">                break;</span>
+
+            case Token.DEFAULT:
+<span class="nc" id="L554">                result.append(&quot;default&quot;);</span>
+<span class="nc" id="L555">                break;</span>
+
+            case Token.RETURN:
+<span class="nc" id="L558">                result.append(&quot;return&quot;);</span>
+<span class="nc bnc" id="L559" title="All 2 branches missed.">                if (Token.SEMI != getNext(source, length, i))</span>
+<span class="nc" id="L560">                    result.append(' ');</span>
+                break;
+
+            case Token.VAR:
+<span class="nc" id="L564">                result.append(&quot;var &quot;);</span>
+<span class="nc" id="L565">                break;</span>
+
+            case Token.LET:
+<span class="nc" id="L568">              result.append(&quot;let &quot;);</span>
+<span class="nc" id="L569">              break;</span>
+
+            case Token.SEMI:
+<span class="nc" id="L572">                result.append(';');</span>
+<span class="nc bnc" id="L573" title="All 2 branches missed.">                if (Token.EOL != getNext(source, length, i)) {</span>
+                    // separators in FOR
+<span class="nc" id="L575">                    result.append(' ');</span>
+                }
+                break;
+
+            case Token.ASSIGN:
+<span class="nc" id="L580">                result.append(&quot; = &quot;);</span>
+<span class="nc" id="L581">                break;</span>
+
+            case Token.ASSIGN_ADD:
+<span class="nc" id="L584">                result.append(&quot; += &quot;);</span>
+<span class="nc" id="L585">                break;</span>
+
+            case Token.ASSIGN_SUB:
+<span class="nc" id="L588">                result.append(&quot; -= &quot;);</span>
+<span class="nc" id="L589">                break;</span>
+
+            case Token.ASSIGN_MUL:
+<span class="nc" id="L592">                result.append(&quot; *= &quot;);</span>
+<span class="nc" id="L593">                break;</span>
+
+            case Token.ASSIGN_DIV:
+<span class="nc" id="L596">                result.append(&quot; /= &quot;);</span>
+<span class="nc" id="L597">                break;</span>
+
+            case Token.ASSIGN_MOD:
+<span class="nc" id="L600">                result.append(&quot; %= &quot;);</span>
+<span class="nc" id="L601">                break;</span>
+
+            case Token.ASSIGN_BITOR:
+<span class="nc" id="L604">                result.append(&quot; |= &quot;);</span>
+<span class="nc" id="L605">                break;</span>
+
+            case Token.ASSIGN_BITXOR:
+<span class="nc" id="L608">                result.append(&quot; ^= &quot;);</span>
+<span class="nc" id="L609">                break;</span>
+
+            case Token.ASSIGN_BITAND:
+<span class="nc" id="L612">                result.append(&quot; &amp;= &quot;);</span>
+<span class="nc" id="L613">                break;</span>
+
+            case Token.ASSIGN_LSH:
+<span class="nc" id="L616">                result.append(&quot; &lt;&lt;= &quot;);</span>
+<span class="nc" id="L617">                break;</span>
+
+            case Token.ASSIGN_RSH:
+<span class="nc" id="L620">                result.append(&quot; &gt;&gt;= &quot;);</span>
+<span class="nc" id="L621">                break;</span>
+
+            case Token.ASSIGN_URSH:
+<span class="nc" id="L624">                result.append(&quot; &gt;&gt;&gt;= &quot;);</span>
+<span class="nc" id="L625">                break;</span>
+
+            case Token.HOOK:
+<span class="nc" id="L628">                result.append(&quot; ? &quot;);</span>
+<span class="nc" id="L629">                break;</span>
+
+            case Token.OBJECTLIT:
+                // pun OBJECTLIT to mean colon in objlit property
+                // initialization.
+                // This needs to be distinct from COLON in the general case
+                // to distinguish from the colon in a ternary... which needs
+                // different spacing.
+<span class="nc" id="L637">                result.append(&quot;: &quot;);</span>
+<span class="nc" id="L638">                break;</span>
+
+            case Token.COLON:
+<span class="nc bnc" id="L641" title="All 2 branches missed.">                if (Token.EOL == getNext(source, length, i))</span>
+                    // it's the end of a label
+<span class="nc" id="L643">                    result.append(':');</span>
+                else
+                    // it's the middle part of a ternary
+<span class="nc" id="L646">                    result.append(&quot; : &quot;);</span>
+<span class="nc" id="L647">                break;</span>
+
+            case Token.OR:
+<span class="nc" id="L650">                result.append(&quot; || &quot;);</span>
+<span class="nc" id="L651">                break;</span>
+
+            case Token.AND:
+<span class="nc" id="L654">                result.append(&quot; &amp;&amp; &quot;);</span>
+<span class="nc" id="L655">                break;</span>
+
+            case Token.BITOR:
+<span class="nc" id="L658">                result.append(&quot; | &quot;);</span>
+<span class="nc" id="L659">                break;</span>
+
+            case Token.BITXOR:
+<span class="nc" id="L662">                result.append(&quot; ^ &quot;);</span>
+<span class="nc" id="L663">                break;</span>
+
+            case Token.BITAND:
+<span class="nc" id="L666">                result.append(&quot; &amp; &quot;);</span>
+<span class="nc" id="L667">                break;</span>
+
+            case Token.SHEQ:
+<span class="nc" id="L670">                result.append(&quot; === &quot;);</span>
+<span class="nc" id="L671">                break;</span>
+
+            case Token.SHNE:
+<span class="nc" id="L674">                result.append(&quot; !== &quot;);</span>
+<span class="nc" id="L675">                break;</span>
+
+            case Token.EQ:
+<span class="nc" id="L678">                result.append(&quot; == &quot;);</span>
+<span class="nc" id="L679">                break;</span>
+
+            case Token.NE:
+<span class="nc" id="L682">                result.append(&quot; != &quot;);</span>
+<span class="nc" id="L683">                break;</span>
+
+            case Token.LE:
+<span class="nc" id="L686">                result.append(&quot; &lt;= &quot;);</span>
+<span class="nc" id="L687">                break;</span>
+
+            case Token.LT:
+<span class="nc" id="L690">                result.append(&quot; &lt; &quot;);</span>
+<span class="nc" id="L691">                break;</span>
+
+            case Token.GE:
+<span class="nc" id="L694">                result.append(&quot; &gt;= &quot;);</span>
+<span class="nc" id="L695">                break;</span>
+
+            case Token.GT:
+<span class="nc" id="L698">                result.append(&quot; &gt; &quot;);</span>
+<span class="nc" id="L699">                break;</span>
+
+            case Token.INSTANCEOF:
+<span class="nc" id="L702">                result.append(&quot; instanceof &quot;);</span>
+<span class="nc" id="L703">                break;</span>
+
+            case Token.LSH:
+<span class="nc" id="L706">                result.append(&quot; &lt;&lt; &quot;);</span>
+<span class="nc" id="L707">                break;</span>
+
+            case Token.RSH:
+<span class="nc" id="L710">                result.append(&quot; &gt;&gt; &quot;);</span>
+<span class="nc" id="L711">                break;</span>
+
+            case Token.URSH:
+<span class="nc" id="L714">                result.append(&quot; &gt;&gt;&gt; &quot;);</span>
+<span class="nc" id="L715">                break;</span>
+
+            case Token.TYPEOF:
+<span class="nc" id="L718">                result.append(&quot;typeof &quot;);</span>
+<span class="nc" id="L719">                break;</span>
+
+            case Token.VOID:
+<span class="nc" id="L722">                result.append(&quot;void &quot;);</span>
+<span class="nc" id="L723">                break;</span>
+
+            case Token.CONST:
+<span class="nc" id="L726">                result.append(&quot;const &quot;);</span>
+<span class="nc" id="L727">                break;</span>
+
+            case Token.YIELD:
+<span class="nc" id="L730">                result.append(&quot;yield &quot;);</span>
+<span class="nc" id="L731">                break;</span>
+
+            case Token.NOT:
+<span class="nc" id="L734">                result.append('!');</span>
+<span class="nc" id="L735">                break;</span>
+
+            case Token.BITNOT:
+<span class="nc" id="L738">                result.append('~');</span>
+<span class="nc" id="L739">                break;</span>
+
+            case Token.POS:
+<span class="nc" id="L742">                result.append('+');</span>
+<span class="nc" id="L743">                break;</span>
+
+            case Token.NEG:
+<span class="nc" id="L746">                result.append('-');</span>
+<span class="nc" id="L747">                break;</span>
+
+            case Token.INC:
+<span class="nc" id="L750">                result.append(&quot;++&quot;);</span>
+<span class="nc" id="L751">                break;</span>
+
+            case Token.DEC:
+<span class="nc" id="L754">                result.append(&quot;--&quot;);</span>
+<span class="nc" id="L755">                break;</span>
+
+            case Token.ADD:
+<span class="nc" id="L758">                result.append(&quot; + &quot;);</span>
+<span class="nc" id="L759">                break;</span>
+
+            case Token.SUB:
+<span class="nc" id="L762">                result.append(&quot; - &quot;);</span>
+<span class="nc" id="L763">                break;</span>
+
+            case Token.MUL:
+<span class="nc" id="L766">                result.append(&quot; * &quot;);</span>
+<span class="nc" id="L767">                break;</span>
+
+            case Token.DIV:
+<span class="nc" id="L770">                result.append(&quot; / &quot;);</span>
+<span class="nc" id="L771">                break;</span>
+
+            case Token.MOD:
+<span class="nc" id="L774">                result.append(&quot; % &quot;);</span>
+<span class="nc" id="L775">                break;</span>
+
+            case Token.COLONCOLON:
+<span class="nc" id="L778">                result.append(&quot;::&quot;);</span>
+<span class="nc" id="L779">                break;</span>
+
+            case Token.DOTDOT:
+<span class="nc" id="L782">                result.append(&quot;..&quot;);</span>
+<span class="nc" id="L783">                break;</span>
+
+            case Token.DOTQUERY:
+<span class="nc" id="L786">                result.append(&quot;.(&quot;);</span>
+<span class="nc" id="L787">                break;</span>
+
+            case Token.XMLATTR:
+<span class="nc" id="L790">                result.append('@');</span>
+<span class="nc" id="L791">                break;</span>
+
+            case Token.DEBUGGER:
+<span class="nc" id="L794">                result.append(&quot;debugger;\n&quot;);</span>
+<span class="nc" id="L795">                break;</span>
+
+            case Token.ARROW:
+<span class="nc" id="L798">                result.append(&quot; =&gt; &quot;);</span>
+<span class="nc" id="L799">                break;</span>
+
+            default:
+                // If we don't know how to decompile it, raise an exception.
+<span class="nc" id="L803">                throw new RuntimeException(&quot;Token: &quot; +</span>
+<span class="nc" id="L804">                                               Token.name(source.charAt(i)));</span>
+            }
+<span class="nc" id="L806">            ++i;</span>
+        }
+
+<span class="nc bnc" id="L809" title="All 2 branches missed.">        if (!toSource) {</span>
+            // add that trailing newline if it's an outermost function.
+<span class="nc bnc" id="L811" title="All 2 branches missed.">            if (!justFunctionBody)</span>
+<span class="nc" id="L812">                result.append('\n');</span>
+        } else {
+<span class="nc bnc" id="L814" title="All 2 branches missed.">            if (topFunctionType == FunctionNode.FUNCTION_EXPRESSION) {</span>
+<span class="nc" id="L815">                result.append(')');</span>
+            }
+        }
+
+<span class="nc" id="L819">        return result.toString();</span>
+    }
+
+    private static int getNext(String source, int length, int i)
+    {
+<span class="nc bnc" id="L824" title="All 2 branches missed.">        return (i + 1 &lt; length) ? source.charAt(i + 1) : Token.EOF;</span>
+    }
+
+    private static int getSourceStringEnd(String source, int offset)
+    {
+<span class="nc" id="L829">        return printSourceString(source, offset, false, null);</span>
+    }
+
+    private static int printSourceString(String source, int offset,
+                                         boolean asQuotedString,
+                                         StringBuilder sb)
+    {
+<span class="nc" id="L836">        int length = source.charAt(offset);</span>
+<span class="nc" id="L837">        ++offset;</span>
+<span class="nc bnc" id="L838" title="All 2 branches missed.">        if ((0x8000 &amp; length) != 0) {</span>
+<span class="nc" id="L839">            length = ((0x7FFF &amp; length) &lt;&lt; 16) | source.charAt(offset);</span>
+<span class="nc" id="L840">            ++offset;</span>
+        }
+<span class="nc bnc" id="L842" title="All 2 branches missed.">        if (sb != null) {</span>
+<span class="nc" id="L843">            String str = source.substring(offset, offset + length);</span>
+<span class="nc bnc" id="L844" title="All 2 branches missed.">            if (!asQuotedString) {</span>
+<span class="nc" id="L845">                sb.append(str);</span>
+            } else {
+<span class="nc" id="L847">                sb.append('&quot;');</span>
+<span class="nc" id="L848">                sb.append(ScriptRuntime.escapeString(str));</span>
+<span class="nc" id="L849">                sb.append('&quot;');</span>
+            }
+        }
+<span class="nc" id="L852">        return offset + length;</span>
+    }
+
+    private static int printSourceNumber(String source, int offset,
+                                         StringBuilder sb)
+    {
+<span class="nc" id="L858">        double number = 0.0;</span>
+<span class="nc" id="L859">        char type = source.charAt(offset);</span>
+<span class="nc" id="L860">        ++offset;</span>
+<span class="nc bnc" id="L861" title="All 2 branches missed.">        if (type == 'S') {</span>
+<span class="nc bnc" id="L862" title="All 2 branches missed.">            if (sb != null) {</span>
+<span class="nc" id="L863">                int ival = source.charAt(offset);</span>
+<span class="nc" id="L864">                number = ival;</span>
+            }
+<span class="nc" id="L866">            ++offset;</span>
+<span class="nc bnc" id="L867" title="All 4 branches missed.">        } else if (type == 'J' || type == 'D') {</span>
+<span class="nc bnc" id="L868" title="All 2 branches missed.">            if (sb != null) {</span>
+                long lbits;
+<span class="nc" id="L870">                lbits = (long)source.charAt(offset) &lt;&lt; 48;</span>
+<span class="nc" id="L871">                lbits |= (long)source.charAt(offset + 1) &lt;&lt; 32;</span>
+<span class="nc" id="L872">                lbits |= (long)source.charAt(offset + 2) &lt;&lt; 16;</span>
+<span class="nc" id="L873">                lbits |= source.charAt(offset + 3);</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">                if (type == 'J') {</span>
+<span class="nc" id="L875">                    number = lbits;</span>
+                } else {
+<span class="nc" id="L877">                    number = Double.longBitsToDouble(lbits);</span>
+                }
+            }
+<span class="nc" id="L880">            offset += 4;</span>
+        } else {
+            // Bad source
+<span class="nc" id="L883">            throw new RuntimeException();</span>
+        }
+<span class="nc bnc" id="L885" title="All 2 branches missed.">        if (sb != null) {</span>
+<span class="nc" id="L886">            sb.append(ScriptRuntime.numberToString(number, 10));</span>
+        }
+<span class="nc" id="L888">        return offset;</span>
+    }
+
+<span class="fc" id="L891">    private char[] sourceBuffer = new char[128];</span>
+
+// Per script/function source buffer top: parent source does not include a
+// nested functions source and uses function index as a reference instead.
+    private int sourceTop;
+
+// whether to do a debug print of the source information, when decompiling.
+    private static final boolean printSource = false;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

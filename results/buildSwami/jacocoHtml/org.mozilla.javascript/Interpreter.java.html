@@ -1,0 +1,3195 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Interpreter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Interpreter.java</span></div><h1>Interpreter.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.PrintStream;
+import java.io.Serializable;
+import java.util.List;
+import java.util.ArrayList;
+
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ScriptRuntime.NoSuchMethodShim;
+import org.mozilla.javascript.debug.DebugFrame;
+
+import static org.mozilla.javascript.UniqueTag.DOUBLE_MARK;
+
+<span class="fc" id="L21">public final class Interpreter extends Icode implements Evaluator</span>
+{
+    // data for parsing
+    InterpreterData itsData;
+
+    static final int EXCEPTION_TRY_START_SLOT  = 0;
+    static final int EXCEPTION_TRY_END_SLOT    = 1;
+    static final int EXCEPTION_HANDLER_SLOT    = 2;
+    static final int EXCEPTION_TYPE_SLOT       = 3;
+    static final int EXCEPTION_LOCAL_SLOT      = 4;
+    static final int EXCEPTION_SCOPE_SLOT      = 5;
+    // SLOT_SIZE: space for try start/end, handler, start, handler type,
+    //            exception local and scope local
+    static final int EXCEPTION_SLOT_SIZE       = 6;
+
+    /**
+     * Class to hold data corresponding to one interpreted call stack frame.
+     */
+<span class="nc" id="L39">    private static class CallFrame implements Cloneable, Serializable</span>
+    {
+        static final long serialVersionUID = -2843792508994958978L;
+
+        CallFrame parentFrame;
+        // amount of stack frames before this one on the interpretation stack
+        int frameIndex;
+        // If true indicates read-only frame that is a part of continuation
+        boolean frozen;
+
+        InterpretedFunction fnOrScript;
+        InterpreterData idata;
+
+// Stack structure
+// stack[0 &lt;= i &lt; localShift]: arguments and local variables
+// stack[localShift &lt;= i &lt;= emptyStackTop]: used for local temporaries
+// stack[emptyStackTop &lt; i &lt; stack.length]: stack data
+// sDbl[i]: if stack[i] is UniqueTag.DOUBLE_MARK, sDbl[i] holds the number value
+
+        Object[] stack;
+        int[] stackAttributes;
+        double[] sDbl;
+        CallFrame varSource; // defaults to this unless continuation frame
+        int localShift;
+        int emptyStackTop;
+
+        DebugFrame debuggerFrame;
+        boolean useActivation;
+        boolean isContinuationsTopFrame;
+
+        Scriptable thisObj;
+
+// The values that change during interpretation
+
+        Object result;
+        double resultDbl;
+        int pc;
+        int pcPrevBranch;
+        int pcSourceLineStart;
+        Scriptable scope;
+
+        int savedStackTop;
+        int savedCallOp;
+        Object throwable;
+
+        CallFrame cloneFrozen()
+        {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            if (!frozen) Kit.codeBug();</span>
+
+            CallFrame copy;
+            try {
+<span class="nc" id="L90">                copy = (CallFrame)clone();</span>
+<span class="nc" id="L91">            } catch (CloneNotSupportedException ex) {</span>
+<span class="nc" id="L92">                throw new IllegalStateException();</span>
+<span class="nc" id="L93">            }</span>
+
+            // clone stack but keep varSource to point to values
+            // from this frame to share variables.
+
+<span class="nc" id="L98">            copy.stack = stack.clone();</span>
+<span class="nc" id="L99">            copy.stackAttributes = stackAttributes.clone();</span>
+<span class="nc" id="L100">            copy.sDbl = sDbl.clone();</span>
+
+<span class="nc" id="L102">            copy.frozen = false;</span>
+<span class="nc" id="L103">            return copy;</span>
+        }
+    }
+
+    private static final class ContinuationJump implements Serializable
+    {
+        static final long serialVersionUID = 7687739156004308247L;
+
+        CallFrame capturedFrame;
+        CallFrame branchFrame;
+        Object result;
+        double resultDbl;
+
+        ContinuationJump(NativeContinuation c, CallFrame current)
+<span class="nc" id="L117">        {</span>
+<span class="nc" id="L118">            this.capturedFrame = (CallFrame)c.getImplementation();</span>
+<span class="nc bnc" id="L119" title="All 4 branches missed.">            if (this.capturedFrame == null || current == null) {</span>
+                // Continuation and current execution does not share
+                // any frames if there is nothing to capture or
+                // if there is no currently executed frames
+<span class="nc" id="L123">                this.branchFrame = null;</span>
+            } else {
+                // Search for branch frame where parent frame chains starting
+                // from captured and current meet.
+<span class="nc" id="L127">                CallFrame chain1 = this.capturedFrame;</span>
+<span class="nc" id="L128">                CallFrame chain2 = current;</span>
+
+                // First work parents of chain1 or chain2 until the same
+                // frame depth.
+<span class="nc" id="L132">                int diff = chain1.frameIndex - chain2.frameIndex;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                if (diff != 0) {</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                    if (diff &lt; 0) {</span>
+                        // swap to make sure that
+                        // chain1.frameIndex &gt; chain2.frameIndex and diff &gt; 0
+<span class="nc" id="L137">                        chain1 = current;</span>
+<span class="nc" id="L138">                        chain2 = this.capturedFrame;</span>
+<span class="nc" id="L139">                        diff = -diff;</span>
+                    }
+                    do {
+<span class="nc" id="L142">                        chain1 = chain1.parentFrame;</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                    } while (--diff != 0);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">                    if (chain1.frameIndex != chain2.frameIndex) Kit.codeBug();</span>
+                }
+
+                // Now walk parents in parallel until a shared frame is found
+                // or until the root is reached.
+<span class="nc bnc" id="L149" title="All 4 branches missed.">                while (chain1 != chain2 &amp;&amp; chain1 != null) {</span>
+<span class="nc" id="L150">                    chain1 = chain1.parentFrame;</span>
+<span class="nc" id="L151">                    chain2 = chain2.parentFrame;</span>
+                }
+
+<span class="nc" id="L154">                this.branchFrame = chain1;</span>
+<span class="nc bnc" id="L155" title="All 4 branches missed.">                if (this.branchFrame != null &amp;&amp; !this.branchFrame.frozen)</span>
+<span class="nc" id="L156">                    Kit.codeBug();</span>
+            }
+<span class="nc" id="L158">        }</span>
+    }
+
+    private static CallFrame captureFrameForGenerator(CallFrame frame) {
+<span class="nc" id="L162">      frame.frozen = true;</span>
+<span class="nc" id="L163">      CallFrame result = frame.cloneFrozen();</span>
+<span class="nc" id="L164">      frame.frozen = false;</span>
+
+      // now isolate this frame from its previous context
+<span class="nc" id="L167">      result.parentFrame = null;</span>
+<span class="nc" id="L168">      result.frameIndex = 0;</span>
+
+<span class="nc" id="L170">      return result;</span>
+    }
+
+    static {
+        // Checks for byte code consistencies, good compiler can eliminate them
+
+        if (Token.LAST_BYTECODE_TOKEN &gt; 127) {
+            String str = &quot;Violation of Token.LAST_BYTECODE_TOKEN &lt;= 127&quot;;
+            System.err.println(str);
+            throw new IllegalStateException(str);
+        }
+        if (MIN_ICODE &lt; -128) {
+            String str = &quot;Violation of Interpreter.MIN_ICODE &gt;= -128&quot;;
+            System.err.println(str);
+            throw new IllegalStateException(str);
+        }
+<span class="fc" id="L186">    }</span>
+
+    public Object compile(CompilerEnvirons compilerEnv,
+                          ScriptNode tree,
+                          String encodedSource,
+                          boolean returnFunction)
+    {
+<span class="nc" id="L193">        CodeGenerator cgen = new CodeGenerator();</span>
+<span class="nc" id="L194">        itsData = cgen.compile(compilerEnv, tree, encodedSource, returnFunction);</span>
+<span class="nc" id="L195">        return itsData;</span>
+    }
+
+    public Script createScriptObject(Object bytecode, Object staticSecurityDomain)
+    {
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if(bytecode != itsData)</span>
+        {
+<span class="nc" id="L202">            Kit.codeBug();</span>
+        }
+<span class="nc" id="L204">        return InterpretedFunction.createScript(itsData,</span>
+                                                staticSecurityDomain);
+    }
+
+    public void setEvalScriptFlag(Script script) {
+<span class="nc" id="L209">        ((InterpretedFunction)script).idata.evalScriptFlag = true;</span>
+<span class="nc" id="L210">    }</span>
+
+
+    public Function createFunctionObject(Context cx, Scriptable scope,
+            Object bytecode, Object staticSecurityDomain)
+    {
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        if(bytecode != itsData)</span>
+        {
+<span class="nc" id="L218">            Kit.codeBug();</span>
+        }
+<span class="nc" id="L220">        return InterpretedFunction.createFunction(cx, scope, itsData,</span>
+                                                  staticSecurityDomain);
+    }
+
+    private static int getShort(byte[] iCode, int pc) {
+<span class="nc" id="L225">        return (iCode[pc] &lt;&lt; 8) | (iCode[pc + 1] &amp; 0xFF);</span>
+    }
+
+    private static int getIndex(byte[] iCode, int pc) {
+<span class="nc" id="L229">        return ((iCode[pc] &amp; 0xFF) &lt;&lt; 8) | (iCode[pc + 1] &amp; 0xFF);</span>
+    }
+
+    private static int getInt(byte[] iCode, int pc) {
+<span class="nc" id="L233">        return (iCode[pc] &lt;&lt; 24) | ((iCode[pc + 1] &amp; 0xFF) &lt;&lt; 16)</span>
+               | ((iCode[pc + 2] &amp; 0xFF) &lt;&lt; 8) | (iCode[pc + 3] &amp; 0xFF);
+    }
+
+    private static int getExceptionHandler(CallFrame frame,
+                                           boolean onlyFinally)
+    {
+<span class="nc" id="L240">        int[] exceptionTable = frame.idata.itsExceptionTable;</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">        if (exceptionTable == null) {</span>
+            // No exception handlers
+<span class="nc" id="L243">            return -1;</span>
+        }
+
+        // Icode switch in the interpreter increments PC immediately
+        // and it is necessary to subtract 1 from the saved PC
+        // to point it before the start of the next instruction.
+<span class="nc" id="L249">        int pc = frame.pc - 1;</span>
+
+        // OPT: use binary search
+<span class="nc" id="L252">        int best = -1, bestStart = 0, bestEnd = 0;</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        for (int i = 0; i != exceptionTable.length; i += EXCEPTION_SLOT_SIZE) {</span>
+<span class="nc" id="L254">            int start = exceptionTable[i + EXCEPTION_TRY_START_SLOT];</span>
+<span class="nc" id="L255">            int end = exceptionTable[i + EXCEPTION_TRY_END_SLOT];</span>
+<span class="nc bnc" id="L256" title="All 4 branches missed.">            if (!(start &lt;= pc &amp;&amp; pc &lt; end)) {</span>
+<span class="nc" id="L257">                continue;</span>
+            }
+<span class="nc bnc" id="L259" title="All 4 branches missed.">            if (onlyFinally &amp;&amp; exceptionTable[i + EXCEPTION_TYPE_SLOT] != 1) {</span>
+<span class="nc" id="L260">                continue;</span>
+            }
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (best &gt;= 0) {</span>
+                // Since handlers always nest and they never have shared end
+                // although they can share start  it is sufficient to compare
+                // handlers ends
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                if (bestEnd &lt; end) {</span>
+<span class="nc" id="L267">                    continue;</span>
+                }
+                // Check the above assumption
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                if (bestStart &gt; start) Kit.codeBug(); // should be nested</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">                if (bestEnd == end) Kit.codeBug();  // no ens sharing</span>
+            }
+<span class="nc" id="L273">            best = i;</span>
+<span class="nc" id="L274">            bestStart = start;</span>
+<span class="nc" id="L275">            bestEnd = end;</span>
+        }
+<span class="nc" id="L277">        return best;</span>
+    }
+
+    static void dumpICode(InterpreterData idata)
+    {
+        if (!Token.printICode) {
+<span class="nc" id="L283">            return;</span>
+        }
+
+        byte iCode[] = idata.itsICode;
+        int iCodeLength = iCode.length;
+        String[] strings = idata.itsStringTable;
+        PrintStream out = System.out;
+        out.println(&quot;ICode dump, for &quot; + idata.itsName
+                    + &quot;, length = &quot; + iCodeLength);
+        out.println(&quot;MaxStack = &quot; + idata.itsMaxStack);
+
+        int indexReg = 0;
+        for (int pc = 0; pc &lt; iCodeLength; ) {
+            out.flush();
+            out.print(&quot; [&quot; + pc + &quot;] &quot;);
+            int token = iCode[pc];
+            int icodeLength = bytecodeSpan(token);
+            String tname = Icode.bytecodeName(token);
+            int old_pc = pc;
+            ++pc;
+            switch (token) {
+              default:
+                if (icodeLength != 1) Kit.codeBug();
+                out.println(tname);
+                break;
+
+              case Icode_GOSUB :
+              case Token.GOTO :
+              case Token.IFEQ :
+              case Token.IFNE :
+              case Icode_IFEQ_POP :
+              case Icode_LEAVEDQ : {
+                int newPC = pc + getShort(iCode, pc) - 1;
+                out.println(tname + &quot; &quot; + newPC);
+                pc += 2;
+                break;
+              }
+              case Icode_VAR_INC_DEC :
+              case Icode_NAME_INC_DEC :
+              case Icode_PROP_INC_DEC :
+              case Icode_ELEM_INC_DEC :
+              case Icode_REF_INC_DEC: {
+                int incrDecrType = iCode[pc];
+                out.println(tname + &quot; &quot; + incrDecrType);
+                ++pc;
+                break;
+              }
+
+              case Icode_CALLSPECIAL : {
+                int callType = iCode[pc] &amp; 0xFF;
+                boolean isNew =  (iCode[pc + 1] != 0);
+                int line = getIndex(iCode, pc+2);
+                out.println(tname+&quot; &quot;+callType+&quot; &quot;+isNew+&quot; &quot;+indexReg+&quot; &quot;+line);
+                pc += 4;
+                break;
+              }
+
+              case Token.CATCH_SCOPE:
+                {
+                    boolean afterFisrtFlag =  (iCode[pc] != 0);
+                    out.println(tname+&quot; &quot;+afterFisrtFlag);
+                    ++pc;
+                }
+                break;
+              case Token.REGEXP :
+                out.println(tname+&quot; &quot;+idata.itsRegExpLiterals[indexReg]);
+                break;
+              case Token.OBJECTLIT :
+              case Icode_SPARE_ARRAYLIT :
+                out.println(tname+&quot; &quot;+idata.literalIds[indexReg]);
+                break;
+              case Icode_CLOSURE_EXPR :
+              case Icode_CLOSURE_STMT :
+                out.println(tname+&quot; &quot;+idata.itsNestedFunctions[indexReg]);
+                break;
+              case Token.CALL :
+              case Icode_TAIL_CALL :
+              case Token.REF_CALL :
+              case Token.NEW :
+                out.println(tname+' '+indexReg);
+                break;
+              case Token.THROW :
+              case Token.YIELD :
+              case Icode_GENERATOR :
+              case Icode_GENERATOR_END :
+              {
+                int line = getIndex(iCode, pc);
+                out.println(tname + &quot; : &quot; + line);
+                pc += 2;
+                break;
+              }
+              case Icode_SHORTNUMBER : {
+                int value = getShort(iCode, pc);
+                out.println(tname + &quot; &quot; + value);
+                pc += 2;
+                break;
+              }
+              case Icode_INTNUMBER : {
+                int value = getInt(iCode, pc);
+                out.println(tname + &quot; &quot; + value);
+                pc += 4;
+                break;
+              }
+              case Token.NUMBER : {
+                double value = idata.itsDoubleTable[indexReg];
+                out.println(tname + &quot; &quot; + value);
+                break;
+              }
+              case Icode_LINE : {
+                int line = getIndex(iCode, pc);
+                out.println(tname + &quot; : &quot; + line);
+                pc += 2;
+                break;
+              }
+              case Icode_REG_STR1: {
+                String str = strings[0xFF &amp; iCode[pc]];
+                out.println(tname + &quot; \&quot;&quot; + str + '&quot;');
+                ++pc;
+                break;
+              }
+              case Icode_REG_STR2: {
+                String str = strings[getIndex(iCode, pc)];
+                out.println(tname + &quot; \&quot;&quot; + str + '&quot;');
+                pc += 2;
+                break;
+              }
+              case Icode_REG_STR4: {
+                String str = strings[getInt(iCode, pc)];
+                out.println(tname + &quot; \&quot;&quot; + str + '&quot;');
+                pc += 4;
+                break;
+              }
+              case Icode_REG_IND_C0:
+                  indexReg = 0;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND_C1:
+                  indexReg = 1;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND_C2:
+                  indexReg = 2;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND_C3:
+                  indexReg = 3;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND_C4:
+                  indexReg = 4;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND_C5:
+                  indexReg = 5;
+                  out.println(tname);
+                  break;
+              case Icode_REG_IND1: {
+                indexReg = 0xFF &amp; iCode[pc];
+                out.println(tname+&quot; &quot;+indexReg);
+                ++pc;
+                break;
+              }
+              case Icode_REG_IND2: {
+                indexReg = getIndex(iCode, pc);
+                out.println(tname+&quot; &quot;+indexReg);
+                pc += 2;
+                break;
+              }
+              case Icode_REG_IND4: {
+                indexReg = getInt(iCode, pc);
+                out.println(tname+&quot; &quot;+indexReg);
+                pc += 4;
+                break;
+              }
+              case Icode_GETVAR1:
+              case Icode_SETVAR1:
+              case Icode_SETCONSTVAR1:
+                indexReg = iCode[pc];
+                out.println(tname+&quot; &quot;+indexReg);
+                ++pc;
+                break;
+            }
+            if (old_pc + icodeLength != pc) Kit.codeBug();
+        }
+
+        int[] table = idata.itsExceptionTable;
+        if (table != null) {
+            out.println(&quot;Exception handlers: &quot;
+                         +table.length / EXCEPTION_SLOT_SIZE);
+            for (int i = 0; i != table.length;
+                 i += EXCEPTION_SLOT_SIZE)
+            {
+                int tryStart       = table[i + EXCEPTION_TRY_START_SLOT];
+                int tryEnd         = table[i + EXCEPTION_TRY_END_SLOT];
+                int handlerStart   = table[i + EXCEPTION_HANDLER_SLOT];
+                int type           = table[i + EXCEPTION_TYPE_SLOT];
+                int exceptionLocal = table[i + EXCEPTION_LOCAL_SLOT];
+                int scopeLocal     = table[i + EXCEPTION_SCOPE_SLOT];
+
+                out.println(&quot; tryStart=&quot;+tryStart+&quot; tryEnd=&quot;+tryEnd
+                            +&quot; handlerStart=&quot;+handlerStart
+                            +&quot; type=&quot;+(type == 0 ? &quot;catch&quot; : &quot;finally&quot;)
+                            +&quot; exceptionLocal=&quot;+exceptionLocal);
+            }
+        }
+        out.flush();
+    }
+
+    private static int bytecodeSpan(int bytecode)
+    {
+<span class="nc bnc" id="L493" title="All 16 branches missed.">        switch (bytecode) {</span>
+            case Token.THROW :
+            case Token.YIELD:
+            case Icode_GENERATOR:
+            case Icode_GENERATOR_END:
+                // source line
+<span class="nc" id="L499">                return 1 + 2;</span>
+
+            case Icode_GOSUB :
+            case Token.GOTO :
+            case Token.IFEQ :
+            case Token.IFNE :
+            case Icode_IFEQ_POP :
+            case Icode_LEAVEDQ :
+                // target pc offset
+<span class="nc" id="L508">                return 1 + 2;</span>
+
+            case Icode_CALLSPECIAL :
+                // call type
+                // is new
+                // line number
+<span class="nc" id="L514">                return 1 + 1 + 1 + 2;</span>
+
+            case Token.CATCH_SCOPE:
+                // scope flag
+<span class="nc" id="L518">                return 1 + 1;</span>
+
+            case Icode_VAR_INC_DEC:
+            case Icode_NAME_INC_DEC:
+            case Icode_PROP_INC_DEC:
+            case Icode_ELEM_INC_DEC:
+            case Icode_REF_INC_DEC:
+                // type of ++/--
+<span class="nc" id="L526">                return 1 + 1;</span>
+
+            case Icode_SHORTNUMBER :
+                // short number
+<span class="nc" id="L530">                return 1 + 2;</span>
+
+            case Icode_INTNUMBER :
+                // int number
+<span class="nc" id="L534">                return 1 + 4;</span>
+
+            case Icode_REG_IND1:
+                // ubyte index
+<span class="nc" id="L538">                return 1 + 1;</span>
+
+            case Icode_REG_IND2:
+                // ushort index
+<span class="nc" id="L542">                return 1 + 2;</span>
+
+            case Icode_REG_IND4:
+                // int index
+<span class="nc" id="L546">                return 1 + 4;</span>
+
+            case Icode_REG_STR1:
+                // ubyte string index
+<span class="nc" id="L550">                return 1 + 1;</span>
+
+            case Icode_REG_STR2:
+                // ushort string index
+<span class="nc" id="L554">                return 1 + 2;</span>
+
+            case Icode_REG_STR4:
+                // int string index
+<span class="nc" id="L558">                return 1 + 4;</span>
+
+            case Icode_GETVAR1:
+            case Icode_SETVAR1:
+            case Icode_SETCONSTVAR1:
+                // byte var index
+<span class="nc" id="L564">                return 1 + 1;</span>
+
+            case Icode_LINE :
+                // line number
+<span class="nc" id="L568">                return 1 + 2;</span>
+        }
+<span class="nc bnc" id="L570" title="All 2 branches missed.">        if (!validBytecode(bytecode)) throw Kit.codeBug();</span>
+<span class="nc" id="L571">        return 1;</span>
+    }
+
+    static int[] getLineNumbers(InterpreterData data)
+    {
+<span class="nc" id="L576">        UintMap presentLines = new UintMap();</span>
+
+<span class="nc" id="L578">        byte[] iCode = data.itsICode;</span>
+<span class="nc" id="L579">        int iCodeLength = iCode.length;</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        for (int pc = 0; pc != iCodeLength;) {</span>
+<span class="nc" id="L581">            int bytecode = iCode[pc];</span>
+<span class="nc" id="L582">            int span = bytecodeSpan(bytecode);</span>
+<span class="nc bnc" id="L583" title="All 2 branches missed.">            if (bytecode == Icode_LINE) {</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">                if (span != 3) Kit.codeBug();</span>
+<span class="nc" id="L585">                int line = getIndex(iCode, pc + 1);</span>
+<span class="nc" id="L586">                presentLines.put(line, 0);</span>
+            }
+<span class="nc" id="L588">            pc += span;</span>
+<span class="nc" id="L589">        }</span>
+
+<span class="nc" id="L591">        return presentLines.getKeys();</span>
+    }
+
+    public void captureStackInfo(RhinoException ex)
+    {
+<span class="fc" id="L596">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L597" title="2 of 4 branches missed.">        if (cx == null || cx.lastInterpreterFrame == null) {</span>
+            // No interpreter invocations
+<span class="fc" id="L599">            ex.interpreterStackInfo = null;</span>
+<span class="fc" id="L600">            ex.interpreterLineData = null;</span>
+<span class="fc" id="L601">            return;</span>
+        }
+        // has interpreter frame on the stack
+        CallFrame[] array;
+<span class="nc bnc" id="L605" title="All 2 branches missed.">        if (cx.previousInterpreterInvocations == null</span>
+<span class="nc bnc" id="L606" title="All 2 branches missed.">            || cx.previousInterpreterInvocations.size() == 0)</span>
+        {
+<span class="nc" id="L608">            array = new CallFrame[1];</span>
+        } else {
+<span class="nc" id="L610">            int previousCount = cx.previousInterpreterInvocations.size();</span>
+<span class="nc bnc" id="L611" title="All 2 branches missed.">            if (cx.previousInterpreterInvocations.peek()</span>
+                == cx.lastInterpreterFrame)
+            {
+                // It can happen if exception was generated after
+                // frame was pushed to cx.previousInterpreterInvocations
+                // but before assignment to cx.lastInterpreterFrame.
+                // In this case frames has to be ignored.
+<span class="nc" id="L618">                --previousCount;</span>
+            }
+<span class="nc" id="L620">            array = new CallFrame[previousCount + 1];</span>
+<span class="nc" id="L621">            cx.previousInterpreterInvocations.toArray(array);</span>
+        }
+<span class="nc" id="L623">        array[array.length - 1]  = (CallFrame)cx.lastInterpreterFrame;</span>
+
+<span class="nc" id="L625">        int interpreterFrameCount = 0;</span>
+<span class="nc bnc" id="L626" title="All 2 branches missed.">        for (int i = 0; i != array.length; ++i) {</span>
+<span class="nc" id="L627">            interpreterFrameCount += 1 + array[i].frameIndex;</span>
+        }
+
+<span class="nc" id="L630">        int[] linePC = new int[interpreterFrameCount];</span>
+        // Fill linePC with pc positions from all interpreter frames.
+        // Start from the most nested frame
+<span class="nc" id="L633">        int linePCIndex = interpreterFrameCount;</span>
+<span class="nc bnc" id="L634" title="All 2 branches missed.">        for (int i = array.length; i != 0;) {</span>
+<span class="nc" id="L635">            --i;</span>
+<span class="nc" id="L636">            CallFrame frame = array[i];</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">            while (frame != null) {</span>
+<span class="nc" id="L638">                --linePCIndex;</span>
+<span class="nc" id="L639">                linePC[linePCIndex] = frame.pcSourceLineStart;</span>
+<span class="nc" id="L640">                frame = frame.parentFrame;</span>
+            }
+<span class="nc" id="L642">        }</span>
+<span class="nc bnc" id="L643" title="All 2 branches missed.">        if (linePCIndex != 0) Kit.codeBug();</span>
+
+<span class="nc" id="L645">        ex.interpreterStackInfo = array;</span>
+<span class="nc" id="L646">        ex.interpreterLineData = linePC;</span>
+<span class="nc" id="L647">    }</span>
+
+    public String getSourcePositionFromStack(Context cx, int[] linep)
+    {
+<span class="nc" id="L651">        CallFrame frame = (CallFrame)cx.lastInterpreterFrame;</span>
+<span class="nc" id="L652">        InterpreterData idata = frame.idata;</span>
+<span class="nc bnc" id="L653" title="All 2 branches missed.">        if (frame.pcSourceLineStart &gt;= 0) {</span>
+<span class="nc" id="L654">            linep[0] = getIndex(idata.itsICode, frame.pcSourceLineStart);</span>
+        } else {
+<span class="nc" id="L656">            linep[0] = 0;</span>
+        }
+<span class="nc" id="L658">        return idata.itsSourceFile;</span>
+    }
+
+    public String getPatchedStack(RhinoException ex,
+                                  String nativeStackTrace)
+    {
+<span class="nc" id="L664">        String tag = &quot;org.mozilla.javascript.Interpreter.interpretLoop&quot;;</span>
+<span class="nc" id="L665">        StringBuilder sb = new StringBuilder(nativeStackTrace.length() + 1000);</span>
+<span class="nc" id="L666">        String lineSeparator = SecurityUtilities.getSystemProperty(&quot;line.separator&quot;);</span>
+
+<span class="nc" id="L668">        CallFrame[] array = (CallFrame[])ex.interpreterStackInfo;</span>
+<span class="nc" id="L669">        int[] linePC = ex.interpreterLineData;</span>
+<span class="nc" id="L670">        int arrayIndex = array.length;</span>
+<span class="nc" id="L671">        int linePCIndex = linePC.length;</span>
+<span class="nc" id="L672">        int offset = 0;</span>
+<span class="nc bnc" id="L673" title="All 2 branches missed.">        while (arrayIndex != 0) {</span>
+<span class="nc" id="L674">            --arrayIndex;</span>
+<span class="nc" id="L675">            int pos = nativeStackTrace.indexOf(tag, offset);</span>
+<span class="nc bnc" id="L676" title="All 2 branches missed.">            if (pos &lt; 0) {</span>
+<span class="nc" id="L677">                break;</span>
+            }
+
+            // Skip tag length
+<span class="nc" id="L681">            pos += tag.length();</span>
+            // Skip until the end of line
+<span class="nc bnc" id="L683" title="All 2 branches missed.">            for (; pos != nativeStackTrace.length(); ++pos) {</span>
+<span class="nc" id="L684">                char c = nativeStackTrace.charAt(pos);</span>
+<span class="nc bnc" id="L685" title="All 4 branches missed.">                if (c == '\n' || c == '\r') {</span>
+<span class="nc" id="L686">                    break;</span>
+                }
+            }
+<span class="nc" id="L689">            sb.append(nativeStackTrace.substring(offset, pos));</span>
+<span class="nc" id="L690">            offset = pos;</span>
+
+<span class="nc" id="L692">            CallFrame frame = array[arrayIndex];</span>
+<span class="nc bnc" id="L693" title="All 2 branches missed.">            while (frame != null) {</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">                if (linePCIndex == 0) Kit.codeBug();</span>
+<span class="nc" id="L695">                --linePCIndex;</span>
+<span class="nc" id="L696">                InterpreterData idata = frame.idata;</span>
+<span class="nc" id="L697">                sb.append(lineSeparator);</span>
+<span class="nc" id="L698">                sb.append(&quot;\tat script&quot;);</span>
+<span class="nc bnc" id="L699" title="All 4 branches missed.">                if (idata.itsName != null &amp;&amp; idata.itsName.length() != 0) {</span>
+<span class="nc" id="L700">                    sb.append('.');</span>
+<span class="nc" id="L701">                    sb.append(idata.itsName);</span>
+                }
+<span class="nc" id="L703">                sb.append('(');</span>
+<span class="nc" id="L704">                sb.append(idata.itsSourceFile);</span>
+<span class="nc" id="L705">                int pc = linePC[linePCIndex];</span>
+<span class="nc bnc" id="L706" title="All 2 branches missed.">                if (pc &gt;= 0) {</span>
+                    // Include line info only if available
+<span class="nc" id="L708">                    sb.append(':');</span>
+<span class="nc" id="L709">                    sb.append(getIndex(idata.itsICode, pc));</span>
+                }
+<span class="nc" id="L711">                sb.append(')');</span>
+<span class="nc" id="L712">                frame = frame.parentFrame;</span>
+<span class="nc" id="L713">            }</span>
+<span class="nc" id="L714">        }</span>
+<span class="nc" id="L715">        sb.append(nativeStackTrace.substring(offset));</span>
+
+<span class="nc" id="L717">        return sb.toString();</span>
+    }
+
+    public List&lt;String&gt; getScriptStack(RhinoException ex) {
+<span class="nc" id="L721">        ScriptStackElement[][] stack = getScriptStackElements(ex);</span>
+<span class="nc" id="L722">        List&lt;String&gt; list = new ArrayList&lt;String&gt;(stack.length);</span>
+<span class="nc" id="L723">        String lineSeparator =</span>
+<span class="nc" id="L724">                SecurityUtilities.getSystemProperty(&quot;line.separator&quot;);</span>
+<span class="nc bnc" id="L725" title="All 2 branches missed.">        for (ScriptStackElement[] group : stack) {</span>
+<span class="nc" id="L726">            StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L727" title="All 2 branches missed.">            for (ScriptStackElement elem : group) {</span>
+<span class="nc" id="L728">                elem.renderJavaStyle(sb);</span>
+<span class="nc" id="L729">                sb.append(lineSeparator);</span>
+            }
+<span class="nc" id="L731">            list.add(sb.toString());</span>
+        }
+<span class="nc" id="L733">        return list;</span>
+    }
+
+    public ScriptStackElement[][] getScriptStackElements(RhinoException ex)
+    {
+<span class="nc bnc" id="L738" title="All 2 branches missed.">        if (ex.interpreterStackInfo == null) {</span>
+<span class="nc" id="L739">            return null;</span>
+        }
+
+<span class="nc" id="L742">        List&lt;ScriptStackElement[]&gt; list = new ArrayList&lt;ScriptStackElement[]&gt;();</span>
+
+<span class="nc" id="L744">        CallFrame[] array = (CallFrame[])ex.interpreterStackInfo;</span>
+<span class="nc" id="L745">        int[] linePC = ex.interpreterLineData;</span>
+<span class="nc" id="L746">        int arrayIndex = array.length;</span>
+<span class="nc" id="L747">        int linePCIndex = linePC.length;</span>
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        while (arrayIndex != 0) {</span>
+<span class="nc" id="L749">            --arrayIndex;</span>
+<span class="nc" id="L750">            CallFrame frame = array[arrayIndex];</span>
+<span class="nc" id="L751">            List&lt;ScriptStackElement&gt; group = new ArrayList&lt;ScriptStackElement&gt;();</span>
+<span class="nc bnc" id="L752" title="All 2 branches missed.">            while (frame != null) {</span>
+<span class="nc bnc" id="L753" title="All 2 branches missed.">                if (linePCIndex == 0) Kit.codeBug();</span>
+<span class="nc" id="L754">                --linePCIndex;</span>
+<span class="nc" id="L755">                InterpreterData idata = frame.idata;</span>
+<span class="nc" id="L756">                String fileName = idata.itsSourceFile;</span>
+<span class="nc" id="L757">                String functionName = null;</span>
+<span class="nc" id="L758">                int lineNumber = -1;</span>
+<span class="nc" id="L759">                int pc = linePC[linePCIndex];</span>
+<span class="nc bnc" id="L760" title="All 2 branches missed.">                if (pc &gt;= 0) {</span>
+<span class="nc" id="L761">                    lineNumber = getIndex(idata.itsICode, pc);</span>
+                }
+<span class="nc bnc" id="L763" title="All 4 branches missed.">                if (idata.itsName != null &amp;&amp; idata.itsName.length() != 0) {</span>
+<span class="nc" id="L764">                    functionName = idata.itsName;</span>
+                }
+<span class="nc" id="L766">                frame = frame.parentFrame;</span>
+<span class="nc" id="L767">                group.add(new ScriptStackElement(fileName, functionName, lineNumber));</span>
+<span class="nc" id="L768">            }</span>
+<span class="nc" id="L769">            list.add(group.toArray(new ScriptStackElement[group.size()]));</span>
+<span class="nc" id="L770">        }</span>
+<span class="nc" id="L771">        return list.toArray(new ScriptStackElement[list.size()][]);</span>
+    }
+
+    static String getEncodedSource(InterpreterData idata)
+    {
+<span class="nc bnc" id="L776" title="All 2 branches missed.">        if (idata.encodedSource == null) {</span>
+<span class="nc" id="L777">            return null;</span>
+        }
+<span class="nc" id="L779">        return idata.encodedSource.substring(idata.encodedSourceStart,</span>
+                                             idata.encodedSourceEnd);
+    }
+
+    private static void initFunction(Context cx, Scriptable scope,
+                                     InterpretedFunction parent, int index)
+    {
+        InterpretedFunction fn;
+<span class="nc" id="L787">        fn = InterpretedFunction.createFunction(cx, scope, parent, index);</span>
+<span class="nc" id="L788">        ScriptRuntime.initFunction(cx, scope, fn, fn.idata.itsFunctionType,</span>
+                                   parent.idata.evalScriptFlag);
+<span class="nc" id="L790">    }</span>
+
+    static Object interpret(InterpretedFunction ifun,
+                            Context cx, Scriptable scope,
+                            Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L796" title="All 2 branches missed.">        if (!ScriptRuntime.hasTopCall(cx)) Kit.codeBug();</span>
+
+<span class="nc bnc" id="L798" title="All 2 branches missed.">        if (cx.interpreterSecurityDomain != ifun.securityDomain) {</span>
+<span class="nc" id="L799">            Object savedDomain = cx.interpreterSecurityDomain;</span>
+<span class="nc" id="L800">            cx.interpreterSecurityDomain = ifun.securityDomain;</span>
+            try {
+<span class="nc" id="L802">                return ifun.securityController.callWithDomain(</span>
+                    ifun.securityDomain, cx, ifun, scope, thisObj, args);
+            } finally {
+<span class="nc" id="L805">                cx.interpreterSecurityDomain = savedDomain;</span>
+<span class="nc" id="L806">            }</span>
+        }
+
+<span class="nc" id="L809">        CallFrame frame = new CallFrame();</span>
+<span class="nc" id="L810">        initFrame(cx, scope, thisObj, args, null, 0, args.length,</span>
+                  ifun, null, frame);
+<span class="nc" id="L812">        frame.isContinuationsTopFrame = cx.isContinuationsTopCall;</span>
+<span class="nc" id="L813">        cx.isContinuationsTopCall = false;</span>
+
+<span class="nc" id="L815">        return interpretLoop(cx, frame, null);</span>
+    }
+
+    static class GeneratorState {
+<span class="nc" id="L819">        GeneratorState(int operation, Object value) {</span>
+<span class="nc" id="L820">            this.operation = operation;</span>
+<span class="nc" id="L821">            this.value = value;</span>
+<span class="nc" id="L822">        }</span>
+        int operation;
+        Object value;
+        RuntimeException returnedException;
+    }
+
+    public static Object resumeGenerator(Context cx,
+                                         Scriptable scope,
+                                         int operation,
+                                         Object savedState,
+                                         Object value)
+    {
+<span class="nc" id="L834">      CallFrame frame = (CallFrame) savedState;</span>
+<span class="nc" id="L835">      GeneratorState generatorState = new GeneratorState(operation, value);</span>
+<span class="nc bnc" id="L836" title="All 2 branches missed.">      if (operation == NativeGenerator.GENERATOR_CLOSE) {</span>
+          try {
+<span class="nc" id="L838">              return interpretLoop(cx, frame, generatorState);</span>
+<span class="nc" id="L839">          } catch (RuntimeException e) {</span>
+              // Only propagate exceptions other than closingException
+<span class="nc bnc" id="L841" title="All 2 branches missed.">              if (e != value)</span>
+<span class="nc" id="L842">                  throw e;</span>
+          }
+<span class="nc" id="L844">          return Undefined.instance;</span>
+      }
+<span class="nc" id="L846">      Object result = interpretLoop(cx, frame, generatorState);</span>
+<span class="nc bnc" id="L847" title="All 2 branches missed.">      if (generatorState.returnedException != null)</span>
+<span class="nc" id="L848">          throw generatorState.returnedException;</span>
+<span class="nc" id="L849">      return result;</span>
+    }
+
+    public static Object restartContinuation(NativeContinuation c, Context cx,
+                                             Scriptable scope, Object[] args)
+    {
+<span class="nc bnc" id="L855" title="All 2 branches missed.">        if (!ScriptRuntime.hasTopCall(cx)) {</span>
+<span class="nc" id="L856">            return ScriptRuntime.doTopCall(c, cx, scope, null, args, cx.isTopLevelStrict);</span>
+        }
+
+        Object arg;
+<span class="nc bnc" id="L860" title="All 2 branches missed.">        if (args.length == 0) {</span>
+<span class="nc" id="L861">            arg = Undefined.instance;</span>
+        } else {
+<span class="nc" id="L863">            arg = args[0];</span>
+        }
+
+<span class="nc" id="L866">        CallFrame capturedFrame = (CallFrame)c.getImplementation();</span>
+<span class="nc bnc" id="L867" title="All 2 branches missed.">        if (capturedFrame == null) {</span>
+            // No frames to restart
+<span class="nc" id="L869">            return arg;</span>
+        }
+
+<span class="nc" id="L872">        ContinuationJump cjump = new ContinuationJump(c, null);</span>
+
+<span class="nc" id="L874">        cjump.result = arg;</span>
+<span class="nc" id="L875">        return interpretLoop(cx, null, cjump);</span>
+    }
+
+    private static Object interpretLoop(Context cx, CallFrame frame,
+                                        Object throwable)
+    {
+        // throwable holds exception object to rethrow or catch
+        // It is also used for continuation restart in which case
+        // it holds ContinuationJump
+
+<span class="nc" id="L885">        final Object DBL_MRK = DOUBLE_MARK;</span>
+<span class="nc" id="L886">        final Object undefined = Undefined.instance;</span>
+
+<span class="nc bnc" id="L888" title="All 2 branches missed.">        final boolean instructionCounting = (cx.instructionThreshold != 0);</span>
+        // arbitrary number to add to instructionCount when calling
+        // other functions
+<span class="nc" id="L891">        final int INVOCATION_COST = 100;</span>
+        // arbitrary exception cost for instruction counting
+<span class="nc" id="L893">        final int EXCEPTION_COST = 100;</span>
+
+<span class="nc" id="L895">        String stringReg = null;</span>
+<span class="nc" id="L896">        int indexReg = -1;</span>
+
+<span class="nc bnc" id="L898" title="All 2 branches missed.">        if (cx.lastInterpreterFrame != null) {</span>
+            // save the top frame from the previous interpretLoop
+            // invocation on the stack
+<span class="nc bnc" id="L901" title="All 2 branches missed.">            if (cx.previousInterpreterInvocations == null) {</span>
+<span class="nc" id="L902">                cx.previousInterpreterInvocations = new ObjArray();</span>
+            }
+<span class="nc" id="L904">            cx.previousInterpreterInvocations.push(cx.lastInterpreterFrame);</span>
+        }
+
+        // When restarting continuation throwable is not null and to jump
+        // to the code that rewind continuation state indexReg should be set
+        // to -1.
+        // With the normal call throwable == null and indexReg == -1 allows to
+        // catch bugs with using indeReg to access array elements before
+        // initializing indexReg.
+
+<span class="nc" id="L914">        GeneratorState generatorState = null;</span>
+<span class="nc bnc" id="L915" title="All 2 branches missed.">        if (throwable != null) {</span>
+<span class="nc bnc" id="L916" title="All 2 branches missed.">            if (throwable instanceof GeneratorState) {</span>
+<span class="nc" id="L917">              generatorState = (GeneratorState) throwable;</span>
+
+              // reestablish this call frame
+<span class="nc" id="L920">              enterFrame(cx, frame, ScriptRuntime.emptyArgs, true);</span>
+<span class="nc" id="L921">              throwable = null;</span>
+<span class="nc bnc" id="L922" title="All 2 branches missed.">            } else if (!(throwable instanceof ContinuationJump)) {</span>
+                // It should be continuation
+<span class="nc" id="L924">                Kit.codeBug();</span>
+            }
+        }
+
+<span class="nc" id="L928">        Object interpreterResult = null;</span>
+<span class="nc" id="L929">        double interpreterResultDbl = 0.0;</span>
+
+        StateLoop: for (;;) {
+            withoutExceptions: try {
+
+<span class="nc bnc" id="L934" title="All 2 branches missed.">                if (throwable != null) {</span>
+                    // Need to return both 'frame' and 'throwable' from
+                    // 'processThrowable', so just added a 'throwable'
+                    // member in 'frame'.
+<span class="nc" id="L938">                    frame = processThrowable(cx, throwable, frame, indexReg,</span>
+                                             instructionCounting);
+<span class="nc" id="L940">                    throwable = frame.throwable;</span>
+<span class="nc" id="L941">                    frame.throwable = null;</span>
+                } else {
+<span class="nc bnc" id="L943" title="All 4 branches missed.">                    if (generatorState == null &amp;&amp; frame.frozen) Kit.codeBug();</span>
+                }
+
+                // Use local variables for constant values in frame
+                // for faster access
+<span class="nc" id="L948">                Object[] stack = frame.stack;</span>
+<span class="nc" id="L949">                double[] sDbl = frame.sDbl;</span>
+<span class="nc" id="L950">                Object[] vars = frame.varSource.stack;</span>
+<span class="nc" id="L951">                double[] varDbls = frame.varSource.sDbl;</span>
+<span class="nc" id="L952">                int[] varAttributes = frame.varSource.stackAttributes;</span>
+<span class="nc" id="L953">                byte[] iCode = frame.idata.itsICode;</span>
+<span class="nc" id="L954">                String[] strings = frame.idata.itsStringTable;</span>
+
+                // Use local for stackTop as well. Since execption handlers
+                // can only exist at statement level where stack is empty,
+                // it is necessary to save/restore stackTop only across
+                // function calls and normal returns.
+<span class="nc" id="L960">                int stackTop = frame.savedStackTop;</span>
+
+                // Store new frame in cx which is used for error reporting etc.
+<span class="nc" id="L963">                cx.lastInterpreterFrame = frame;</span>
+
+                Loop: for (;;) {
+
+                    // Exception handler assumes that PC is already incremented
+                    // pass the instruction start when it searches the
+                    // exception handler
+<span class="nc" id="L970">                    int op = iCode[frame.pc++];</span>
+                    jumplessRun: {
+
+    // Back indent to ease implementation reading
+<span class="nc bnc" id="L974" title="All 122 branches missed.">switch (op) {</span>
+    case Icode_GENERATOR: {
+<span class="nc bnc" id="L976" title="All 2 branches missed.">        if (!frame.frozen) {</span>
+          // First time encountering this opcode: create new generator
+          // object and return
+<span class="nc" id="L979">          frame.pc--; // we want to come back here when we resume</span>
+<span class="nc" id="L980">          CallFrame generatorFrame = captureFrameForGenerator(frame);</span>
+<span class="nc" id="L981">          generatorFrame.frozen = true;</span>
+<span class="nc" id="L982">          NativeGenerator generator = new NativeGenerator(frame.scope,</span>
+              generatorFrame.fnOrScript, generatorFrame);
+<span class="nc" id="L984">          frame.result = generator;</span>
+<span class="nc" id="L985">          break Loop;</span>
+        } else {
+          // We are now resuming execution. Fall through to YIELD case.
+        }
+    }
+    // fall through...
+    case Token.YIELD: {
+<span class="nc bnc" id="L992" title="All 2 branches missed.">        if (!frame.frozen) {</span>
+<span class="nc" id="L993">            return freezeGenerator(cx, frame, stackTop, generatorState);</span>
+        } else {
+<span class="nc" id="L995">            Object obj = thawGenerator(frame, stackTop, generatorState, op);</span>
+<span class="nc bnc" id="L996" title="All 2 branches missed.">            if (obj != Scriptable.NOT_FOUND) {</span>
+<span class="nc" id="L997">                throwable = obj;</span>
+<span class="nc" id="L998">                break withoutExceptions;</span>
+            }
+            continue Loop;
+        }
+    }
+    case Icode_GENERATOR_END: {
+      // throw StopIteration
+<span class="nc" id="L1005">      frame.frozen = true;</span>
+<span class="nc" id="L1006">      int sourceLine = getIndex(iCode, frame.pc);</span>
+<span class="nc" id="L1007">      generatorState.returnedException = new JavaScriptException(</span>
+<span class="nc" id="L1008">          NativeIterator.getStopIterationObject(frame.scope),</span>
+          frame.idata.itsSourceFile, sourceLine);
+<span class="nc" id="L1010">      break Loop;</span>
+    }
+    case Token.THROW: {
+<span class="nc" id="L1013">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1014" title="All 2 branches missed.">        if (value == DBL_MRK) value = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1015">        --stackTop;</span>
+
+<span class="nc" id="L1017">        int sourceLine = getIndex(iCode, frame.pc);</span>
+<span class="nc" id="L1018">        throwable = new JavaScriptException(value,</span>
+                                            frame.idata.itsSourceFile,
+                                            sourceLine);
+<span class="nc" id="L1021">        break withoutExceptions;</span>
+    }
+    case Token.RETHROW: {
+<span class="nc" id="L1024">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1025">        throwable = stack[indexReg];</span>
+<span class="nc" id="L1026">        break withoutExceptions;</span>
+    }
+    case Token.GE :
+    case Token.LE :
+    case Token.GT :
+    case Token.LT : {
+<span class="nc" id="L1032">        stackTop = doCompare(frame, op, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1033">        continue Loop;</span>
+    }
+    case Token.IN :
+    case Token.INSTANCEOF : {
+<span class="nc" id="L1037">        stackTop = doInOrInstanceof(cx, op, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1038">        continue Loop;</span>
+    }
+    case Token.EQ :
+    case Token.NE : {
+<span class="nc" id="L1042">        --stackTop;</span>
+<span class="nc" id="L1043">        boolean valBln = doEquals(stack, sDbl, stackTop);</span>
+<span class="nc bnc" id="L1044" title="All 2 branches missed.">        valBln ^= (op == Token.NE);</span>
+<span class="nc" id="L1045">        stack[stackTop] = ScriptRuntime.wrapBoolean(valBln);</span>
+<span class="nc" id="L1046">        continue Loop;</span>
+    }
+    case Token.SHEQ :
+    case Token.SHNE : {
+<span class="nc" id="L1050">        --stackTop;</span>
+<span class="nc" id="L1051">        boolean valBln = doShallowEquals(stack, sDbl, stackTop);</span>
+<span class="nc bnc" id="L1052" title="All 2 branches missed.">        valBln ^= (op == Token.SHNE);</span>
+<span class="nc" id="L1053">        stack[stackTop] = ScriptRuntime.wrapBoolean(valBln);</span>
+<span class="nc" id="L1054">        continue Loop;</span>
+    }
+    case Token.IFNE :
+<span class="nc bnc" id="L1057" title="All 2 branches missed.">        if (stack_boolean(frame, stackTop--)) {</span>
+<span class="nc" id="L1058">            frame.pc += 2;</span>
+<span class="nc" id="L1059">            continue Loop;</span>
+        }
+        break jumplessRun;
+    case Token.IFEQ :
+<span class="nc bnc" id="L1063" title="All 2 branches missed.">        if (!stack_boolean(frame, stackTop--)) {</span>
+<span class="nc" id="L1064">            frame.pc += 2;</span>
+<span class="nc" id="L1065">            continue Loop;</span>
+        }
+        break jumplessRun;
+    case Icode_IFEQ_POP :
+<span class="nc bnc" id="L1069" title="All 2 branches missed.">        if (!stack_boolean(frame, stackTop--)) {</span>
+<span class="nc" id="L1070">            frame.pc += 2;</span>
+<span class="nc" id="L1071">            continue Loop;</span>
+        }
+<span class="nc" id="L1073">        stack[stackTop--] = null;</span>
+<span class="nc" id="L1074">        break jumplessRun;</span>
+    case Token.GOTO :
+<span class="nc" id="L1076">        break jumplessRun;</span>
+    case Icode_GOSUB :
+<span class="nc" id="L1078">        ++stackTop;</span>
+<span class="nc" id="L1079">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1080">        sDbl[stackTop] = frame.pc + 2;</span>
+<span class="nc" id="L1081">        break jumplessRun;</span>
+    case Icode_STARTSUB :
+<span class="nc bnc" id="L1083" title="All 2 branches missed.">        if (stackTop == frame.emptyStackTop + 1) {</span>
+            // Call from Icode_GOSUB: store return PC address in the local
+<span class="nc" id="L1085">            indexReg += frame.localShift;</span>
+<span class="nc" id="L1086">            stack[indexReg] = stack[stackTop];</span>
+<span class="nc" id="L1087">            sDbl[indexReg] = sDbl[stackTop];</span>
+<span class="nc" id="L1088">            --stackTop;</span>
+        } else {
+            // Call from exception handler: exception object is already stored
+            // in the local
+<span class="nc bnc" id="L1092" title="All 2 branches missed.">            if (stackTop != frame.emptyStackTop) Kit.codeBug();</span>
+        }
+        continue Loop;
+    case Icode_RETSUB : {
+        // indexReg: local to store return address
+<span class="nc bnc" id="L1097" title="All 2 branches missed.">        if (instructionCounting) {</span>
+<span class="nc" id="L1098">            addInstructionCount(cx, frame, 0);</span>
+        }
+<span class="nc" id="L1100">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1101">        Object value = stack[indexReg];</span>
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">        if (value != DBL_MRK) {</span>
+            // Invocation from exception handler, restore object to rethrow
+<span class="nc" id="L1104">            throwable = value;</span>
+<span class="nc" id="L1105">            break withoutExceptions;</span>
+        }
+        // Normal return from GOSUB
+<span class="nc" id="L1108">        frame.pc = (int)sDbl[indexReg];</span>
+<span class="nc bnc" id="L1109" title="All 2 branches missed.">        if (instructionCounting) {</span>
+<span class="nc" id="L1110">            frame.pcPrevBranch = frame.pc;</span>
+        }
+        continue Loop;
+    }
+    case Icode_POP :
+<span class="nc" id="L1115">        stack[stackTop] = null;</span>
+<span class="nc" id="L1116">        stackTop--;</span>
+<span class="nc" id="L1117">        continue Loop;</span>
+    case Icode_POP_RESULT :
+<span class="nc" id="L1119">        frame.result = stack[stackTop];</span>
+<span class="nc" id="L1120">        frame.resultDbl = sDbl[stackTop];</span>
+<span class="nc" id="L1121">        stack[stackTop] = null;</span>
+<span class="nc" id="L1122">        --stackTop;</span>
+<span class="nc" id="L1123">        continue Loop;</span>
+    case Icode_DUP :
+<span class="nc" id="L1125">        stack[stackTop + 1] = stack[stackTop];</span>
+<span class="nc" id="L1126">        sDbl[stackTop + 1] = sDbl[stackTop];</span>
+<span class="nc" id="L1127">        stackTop++;</span>
+<span class="nc" id="L1128">        continue Loop;</span>
+    case Icode_DUP2 :
+<span class="nc" id="L1130">        stack[stackTop + 1] = stack[stackTop - 1];</span>
+<span class="nc" id="L1131">        sDbl[stackTop + 1] = sDbl[stackTop - 1];</span>
+<span class="nc" id="L1132">        stack[stackTop + 2] = stack[stackTop];</span>
+<span class="nc" id="L1133">        sDbl[stackTop + 2] = sDbl[stackTop];</span>
+<span class="nc" id="L1134">        stackTop += 2;</span>
+<span class="nc" id="L1135">        continue Loop;</span>
+    case Icode_SWAP : {
+<span class="nc" id="L1137">        Object o = stack[stackTop];</span>
+<span class="nc" id="L1138">        stack[stackTop] = stack[stackTop - 1];</span>
+<span class="nc" id="L1139">        stack[stackTop - 1] = o;</span>
+<span class="nc" id="L1140">        double d = sDbl[stackTop];</span>
+<span class="nc" id="L1141">        sDbl[stackTop] = sDbl[stackTop - 1];</span>
+<span class="nc" id="L1142">        sDbl[stackTop - 1] = d;</span>
+<span class="nc" id="L1143">        continue Loop;</span>
+    }
+    case Token.RETURN :
+<span class="nc" id="L1146">        frame.result = stack[stackTop];</span>
+<span class="nc" id="L1147">        frame.resultDbl = sDbl[stackTop];</span>
+<span class="nc" id="L1148">        --stackTop;</span>
+<span class="nc" id="L1149">        break Loop;</span>
+    case Token.RETURN_RESULT :
+<span class="nc" id="L1151">        break Loop;</span>
+    case Icode_RETUNDEF :
+<span class="nc" id="L1153">        frame.result = undefined;</span>
+<span class="nc" id="L1154">        break Loop;</span>
+    case Token.BITNOT : {
+<span class="nc" id="L1156">        int rIntValue = stack_int32(frame, stackTop);</span>
+<span class="nc" id="L1157">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1158">        sDbl[stackTop] = ~rIntValue;</span>
+<span class="nc" id="L1159">        continue Loop;</span>
+    }
+    case Token.BITAND :
+    case Token.BITOR :
+    case Token.BITXOR :
+    case Token.LSH :
+    case Token.RSH : {
+<span class="nc" id="L1166">        stackTop = doBitOp(frame, op, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1167">        continue Loop;</span>
+    }
+    case Token.URSH : {
+<span class="nc" id="L1170">        double lDbl = stack_double(frame, stackTop - 1);</span>
+<span class="nc" id="L1171">        int rIntValue = stack_int32(frame, stackTop) &amp; 0x1F;</span>
+<span class="nc" id="L1172">        stack[--stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1173">        sDbl[stackTop] = ScriptRuntime.toUint32(lDbl) &gt;&gt;&gt; rIntValue;</span>
+<span class="nc" id="L1174">        continue Loop;</span>
+    }
+    case Token.NEG :
+    case Token.POS : {
+<span class="nc" id="L1178">        double rDbl = stack_double(frame, stackTop);</span>
+<span class="nc" id="L1179">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc bnc" id="L1180" title="All 2 branches missed.">        if (op == Token.NEG) {</span>
+<span class="nc" id="L1181">            rDbl = -rDbl;</span>
+        }
+<span class="nc" id="L1183">        sDbl[stackTop] = rDbl;</span>
+<span class="nc" id="L1184">        continue Loop;</span>
+    }
+    case Token.ADD :
+<span class="nc" id="L1187">        --stackTop;</span>
+<span class="nc" id="L1188">        doAdd(stack, sDbl, stackTop, cx);</span>
+<span class="nc" id="L1189">        continue Loop;</span>
+    case Token.SUB :
+    case Token.MUL :
+    case Token.DIV :
+    case Token.MOD : {
+<span class="nc" id="L1194">        stackTop = doArithmetic(frame, op, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1195">        continue Loop;</span>
+    }
+    case Token.NOT :
+<span class="nc" id="L1198">        stack[stackTop] = ScriptRuntime.wrapBoolean(</span>
+<span class="nc bnc" id="L1199" title="All 2 branches missed.">                              !stack_boolean(frame, stackTop));</span>
+<span class="nc" id="L1200">        continue Loop;</span>
+    case Token.BINDNAME :
+<span class="nc" id="L1202">        stack[++stackTop] = ScriptRuntime.bind(cx, frame.scope, stringReg);</span>
+<span class="nc" id="L1203">        continue Loop;</span>
+    case Token.STRICT_SETNAME:
+    case Token.SETNAME : {
+<span class="nc" id="L1206">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1207" title="All 2 branches missed.">        if (rhs == DBL_MRK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1208">        --stackTop;</span>
+<span class="nc" id="L1209">        Scriptable lhs = (Scriptable)stack[stackTop];</span>
+<span class="nc bnc" id="L1210" title="All 2 branches missed.">        stack[stackTop] = op == Token.SETNAME ?</span>
+<span class="nc" id="L1211">                ScriptRuntime.setName(lhs, rhs, cx,</span>
+                                      frame.scope, stringReg) :
+<span class="nc" id="L1213">                ScriptRuntime.strictSetName(lhs, rhs, cx,</span>
+                                      frame.scope, stringReg);
+<span class="nc" id="L1215">        continue Loop;</span>
+    }
+    case Icode_SETCONST: {
+<span class="nc" id="L1218">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1219" title="All 2 branches missed.">        if (rhs == DBL_MRK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1220">        --stackTop;</span>
+<span class="nc" id="L1221">        Scriptable lhs = (Scriptable)stack[stackTop];</span>
+<span class="nc" id="L1222">        stack[stackTop] = ScriptRuntime.setConst(lhs, rhs, cx, stringReg);</span>
+<span class="nc" id="L1223">        continue Loop;</span>
+    }
+    case Token.DELPROP :
+    case Icode_DELNAME : {
+<span class="nc" id="L1227">        stackTop = doDelName(cx, frame, op, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1228">        continue Loop;</span>
+    }
+    case Token.GETPROPNOWARN : {
+<span class="nc" id="L1231">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1232" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1233">        stack[stackTop] = ScriptRuntime.getObjectPropNoWarn(lhs, stringReg,</span>
+                                                            cx, frame.scope);
+<span class="nc" id="L1235">        continue Loop;</span>
+    }
+    case Token.GETPROP : {
+<span class="nc" id="L1238">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1239" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1240">        stack[stackTop] = ScriptRuntime.getObjectProp(lhs, stringReg,</span>
+                                                      cx, frame.scope);
+<span class="nc" id="L1242">        continue Loop;</span>
+    }
+    case Token.SETPROP : {
+<span class="nc" id="L1245">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1246" title="All 2 branches missed.">        if (rhs == DBL_MRK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1247">        --stackTop;</span>
+<span class="nc" id="L1248">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1249" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1250">        stack[stackTop] = ScriptRuntime.setObjectProp(lhs, stringReg, rhs,</span>
+                                                      cx, frame.scope);
+<span class="nc" id="L1252">        continue Loop;</span>
+    }
+    case Icode_PROP_INC_DEC : {
+<span class="nc" id="L1255">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1256" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1257">        stack[stackTop] = ScriptRuntime.propIncrDecr(lhs, stringReg,</span>
+                                                     cx, frame.scope,
+                                                     iCode[frame.pc]);
+<span class="nc" id="L1260">        ++frame.pc;</span>
+<span class="nc" id="L1261">        continue Loop;</span>
+    }
+    case Token.GETELEM : {
+<span class="nc" id="L1264">        stackTop = doGetElem(cx, frame, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1265">        continue Loop;</span>
+    }
+    case Token.SETELEM : {
+<span class="nc" id="L1268">        stackTop = doSetElem(cx, frame, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1269">        continue Loop;</span>
+    }
+    case Icode_ELEM_INC_DEC: {
+<span class="nc" id="L1272">        stackTop = doElemIncDec(cx, frame, iCode, stack, sDbl, stackTop);</span>
+<span class="nc" id="L1273">        continue Loop;</span>
+    }
+    case Token.GET_REF : {
+<span class="nc" id="L1276">        Ref ref = (Ref)stack[stackTop];</span>
+<span class="nc" id="L1277">        stack[stackTop] = ScriptRuntime.refGet(ref, cx);</span>
+<span class="nc" id="L1278">        continue Loop;</span>
+    }
+    case Token.SET_REF : {
+<span class="nc" id="L1281">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1282" title="All 2 branches missed.">        if (value == DBL_MRK) value = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1283">        --stackTop;</span>
+<span class="nc" id="L1284">        Ref ref = (Ref)stack[stackTop];</span>
+<span class="nc" id="L1285">        stack[stackTop] = ScriptRuntime.refSet(ref, value, cx, frame.scope);</span>
+<span class="nc" id="L1286">        continue Loop;</span>
+    }
+    case Token.DEL_REF : {
+<span class="nc" id="L1289">        Ref ref = (Ref)stack[stackTop];</span>
+<span class="nc" id="L1290">        stack[stackTop] = ScriptRuntime.refDel(ref, cx);</span>
+<span class="nc" id="L1291">        continue Loop;</span>
+    }
+    case Icode_REF_INC_DEC : {
+<span class="nc" id="L1294">        Ref ref = (Ref)stack[stackTop];</span>
+<span class="nc" id="L1295">        stack[stackTop] = ScriptRuntime.refIncrDecr(ref, cx, frame.scope,</span>
+                                                    iCode[frame.pc]);
+<span class="nc" id="L1297">        ++frame.pc;</span>
+<span class="nc" id="L1298">        continue Loop;</span>
+    }
+    case Token.LOCAL_LOAD :
+<span class="nc" id="L1301">        ++stackTop;</span>
+<span class="nc" id="L1302">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1303">        stack[stackTop] = stack[indexReg];</span>
+<span class="nc" id="L1304">        sDbl[stackTop] = sDbl[indexReg];</span>
+<span class="nc" id="L1305">        continue Loop;</span>
+    case Icode_LOCAL_CLEAR :
+<span class="nc" id="L1307">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1308">        stack[indexReg] = null;</span>
+<span class="nc" id="L1309">        continue Loop;</span>
+    case Icode_NAME_AND_THIS :
+        // stringReg: name
+<span class="nc" id="L1312">        ++stackTop;</span>
+<span class="nc" id="L1313">        stack[stackTop] = ScriptRuntime.getNameFunctionAndThis(stringReg,</span>
+                                                               cx, frame.scope);
+<span class="nc" id="L1315">        ++stackTop;</span>
+<span class="nc" id="L1316">        stack[stackTop] = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L1317">        continue Loop;</span>
+    case Icode_PROP_AND_THIS: {
+<span class="nc" id="L1319">        Object obj = stack[stackTop];</span>
+<span class="nc bnc" id="L1320" title="All 2 branches missed.">        if (obj == DBL_MRK) obj = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+        // stringReg: property
+<span class="nc" id="L1322">        stack[stackTop] = ScriptRuntime.getPropFunctionAndThis(obj, stringReg,</span>
+                                                               cx, frame.scope);
+<span class="nc" id="L1324">        ++stackTop;</span>
+<span class="nc" id="L1325">        stack[stackTop] = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L1326">        continue Loop;</span>
+    }
+    case Icode_ELEM_AND_THIS: {
+<span class="nc" id="L1329">        Object obj = stack[stackTop - 1];</span>
+<span class="nc bnc" id="L1330" title="All 2 branches missed.">        if (obj == DBL_MRK) obj = ScriptRuntime.wrapNumber(sDbl[stackTop - 1]);</span>
+<span class="nc" id="L1331">        Object id = stack[stackTop];</span>
+<span class="nc bnc" id="L1332" title="All 2 branches missed.">        if (id == DBL_MRK) id = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1333">        stack[stackTop - 1] = ScriptRuntime.getElemFunctionAndThis(obj, id, cx,</span>
+                                                                   frame.scope);
+<span class="nc" id="L1335">        stack[stackTop] = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L1336">        continue Loop;</span>
+    }
+    case Icode_VALUE_AND_THIS : {
+<span class="nc" id="L1339">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1340" title="All 2 branches missed.">        if (value == DBL_MRK) value = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1341">        stack[stackTop] = ScriptRuntime.getValueFunctionAndThis(value, cx);</span>
+<span class="nc" id="L1342">        ++stackTop;</span>
+<span class="nc" id="L1343">        stack[stackTop] = ScriptRuntime.lastStoredScriptable(cx);</span>
+<span class="nc" id="L1344">        continue Loop;</span>
+    }
+    case Icode_CALLSPECIAL : {
+<span class="nc bnc" id="L1347" title="All 2 branches missed.">        if (instructionCounting) {</span>
+<span class="nc" id="L1348">            cx.instructionCount += INVOCATION_COST;</span>
+        }
+<span class="nc" id="L1350">        stackTop = doCallSpecial(cx, frame, stack, sDbl, stackTop, iCode, indexReg);</span>
+<span class="nc" id="L1351">        continue Loop;</span>
+    }
+    case Token.CALL :
+    case Icode_TAIL_CALL :
+    case Token.REF_CALL : {
+<span class="nc bnc" id="L1356" title="All 2 branches missed.">        if (instructionCounting) {</span>
+<span class="nc" id="L1357">            cx.instructionCount += INVOCATION_COST;</span>
+        }
+        // stack change: function thisObj arg0 .. argN -&gt; result
+        // indexReg: number of arguments
+<span class="nc" id="L1361">        stackTop -= 1 + indexReg;</span>
+
+        // CALL generation ensures that fun and funThisObj
+        // are already Scriptable and Callable objects respectively
+<span class="nc" id="L1365">        Callable fun = (Callable)stack[stackTop];</span>
+<span class="nc" id="L1366">        Scriptable funThisObj = (Scriptable)stack[stackTop + 1];</span>
+<span class="nc bnc" id="L1367" title="All 2 branches missed.">        if (op == Token.REF_CALL) {</span>
+<span class="nc" id="L1368">            Object[] outArgs = getArgsArray(stack, sDbl, stackTop + 2,</span>
+                                            indexReg);
+<span class="nc" id="L1370">            stack[stackTop] = ScriptRuntime.callRef(fun, funThisObj,</span>
+                                                    outArgs, cx);
+<span class="nc" id="L1372">            continue Loop;</span>
+        }
+<span class="nc" id="L1374">        Scriptable calleeScope = frame.scope;</span>
+<span class="nc bnc" id="L1375" title="All 2 branches missed.">        if (frame.useActivation) {</span>
+<span class="nc" id="L1376">            calleeScope = ScriptableObject.getTopLevelScope(frame.scope);</span>
+        }
+<span class="nc bnc" id="L1378" title="All 2 branches missed.">        if (fun instanceof InterpretedFunction) {</span>
+<span class="nc" id="L1379">            InterpretedFunction ifun = (InterpretedFunction)fun;</span>
+<span class="nc bnc" id="L1380" title="All 2 branches missed.">            if (frame.fnOrScript.securityDomain == ifun.securityDomain) {</span>
+<span class="nc" id="L1381">                CallFrame callParentFrame = frame;</span>
+<span class="nc" id="L1382">                CallFrame calleeFrame = new CallFrame();</span>
+<span class="nc bnc" id="L1383" title="All 2 branches missed.">                if (op == Icode_TAIL_CALL) {</span>
+                    // In principle tail call can re-use the current
+                    // frame and its stack arrays but it is hard to
+                    // do properly. Any exceptions that can legally
+                    // happen during frame re-initialization including
+                    // StackOverflowException during innocent looking
+                    // System.arraycopy may leave the current frame
+                    // data corrupted leading to undefined behaviour
+                    // in the catch code bellow that unwinds JS stack
+                    // on exceptions. Then there is issue about frame release
+                    // end exceptions there.
+                    // To avoid frame allocation a released frame
+                    // can be cached for re-use which would also benefit
+                    // non-tail calls but it is not clear that this caching
+                    // would gain in performance due to potentially
+                    // bad interaction with GC.
+<span class="nc" id="L1399">                    callParentFrame = frame.parentFrame;</span>
+                    // Release the current frame. See Bug #344501 to see why
+                    // it is being done here.
+<span class="nc" id="L1402">                    exitFrame(cx, frame, null);</span>
+                }
+<span class="nc" id="L1404">                initFrame(cx, calleeScope, funThisObj, stack, sDbl,</span>
+                          stackTop + 2, indexReg, ifun, callParentFrame,
+                          calleeFrame);
+<span class="nc bnc" id="L1407" title="All 2 branches missed.">                if (op != Icode_TAIL_CALL) {</span>
+<span class="nc" id="L1408">                    frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L1409">                    frame.savedCallOp = op;</span>
+                }
+<span class="nc" id="L1411">                frame = calleeFrame;</span>
+<span class="nc" id="L1412">                continue StateLoop;</span>
+            }
+        }
+
+<span class="nc bnc" id="L1416" title="All 2 branches missed.">        if (fun instanceof NativeContinuation) {</span>
+            // Jump to the captured continuation
+            ContinuationJump cjump;
+<span class="nc" id="L1419">            cjump = new ContinuationJump((NativeContinuation)fun, frame);</span>
+
+            // continuation result is the first argument if any
+            // of continuation call
+<span class="nc bnc" id="L1423" title="All 2 branches missed.">            if (indexReg == 0) {</span>
+<span class="nc" id="L1424">                cjump.result = undefined;</span>
+            } else {
+<span class="nc" id="L1426">                cjump.result = stack[stackTop + 2];</span>
+<span class="nc" id="L1427">                cjump.resultDbl = sDbl[stackTop + 2];</span>
+            }
+
+            // Start the real unwind job
+<span class="nc" id="L1431">            throwable = cjump;</span>
+<span class="nc" id="L1432">            break withoutExceptions;</span>
+        }
+
+<span class="nc bnc" id="L1435" title="All 2 branches missed.">        if (fun instanceof IdFunctionObject) {</span>
+<span class="nc" id="L1436">            IdFunctionObject ifun = (IdFunctionObject)fun;</span>
+<span class="nc bnc" id="L1437" title="All 2 branches missed.">            if (NativeContinuation.isContinuationConstructor(ifun)) {</span>
+<span class="nc" id="L1438">                frame.stack[stackTop] = captureContinuation(cx,</span>
+                        frame.parentFrame, false);
+<span class="nc" id="L1440">                continue Loop;</span>
+            }
+            // Bug 405654 -- make best effort to keep Function.apply and
+            // Function.call within this interpreter loop invocation
+<span class="nc bnc" id="L1444" title="All 2 branches missed.">            if (BaseFunction.isApplyOrCall(ifun)) {</span>
+<span class="nc" id="L1445">                Callable applyCallable = ScriptRuntime.getCallable(funThisObj);</span>
+<span class="nc bnc" id="L1446" title="All 2 branches missed.">                if (applyCallable instanceof InterpretedFunction) {</span>
+<span class="nc" id="L1447">                    InterpretedFunction iApplyCallable = (InterpretedFunction)applyCallable;</span>
+<span class="nc bnc" id="L1448" title="All 2 branches missed.">                    if (frame.fnOrScript.securityDomain == iApplyCallable.securityDomain) {</span>
+<span class="nc" id="L1449">                        frame = initFrameForApplyOrCall(cx, frame, indexReg,</span>
+                                stack, sDbl, stackTop, op, calleeScope, ifun,
+                                iApplyCallable);
+<span class="nc" id="L1452">                        continue StateLoop;</span>
+                    }
+                }
+            }
+        }
+
+        // Bug 447697 -- make best effort to keep __noSuchMethod__ within this
+        // interpreter loop invocation
+<span class="nc bnc" id="L1460" title="All 2 branches missed.">        if (fun instanceof NoSuchMethodShim) {</span>
+            // get the shim and the actual method
+<span class="nc" id="L1462">            NoSuchMethodShim noSuchMethodShim = (NoSuchMethodShim) fun;</span>
+<span class="nc" id="L1463">            Callable noSuchMethodMethod = noSuchMethodShim.noSuchMethodMethod;</span>
+            // if the method is in fact an InterpretedFunction
+<span class="nc bnc" id="L1465" title="All 2 branches missed.">            if (noSuchMethodMethod instanceof InterpretedFunction) {</span>
+<span class="nc" id="L1466">                InterpretedFunction ifun = (InterpretedFunction) noSuchMethodMethod;</span>
+<span class="nc bnc" id="L1467" title="All 2 branches missed.">                if (frame.fnOrScript.securityDomain == ifun.securityDomain) {</span>
+<span class="nc" id="L1468">                    frame = initFrameForNoSuchMethod(cx, frame, indexReg, stack, sDbl,</span>
+                                             stackTop, op, funThisObj, calleeScope,
+                                             noSuchMethodShim, ifun);
+<span class="nc" id="L1471">                    continue StateLoop;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L1476">        cx.lastInterpreterFrame = frame;</span>
+<span class="nc" id="L1477">        frame.savedCallOp = op;</span>
+<span class="nc" id="L1478">        frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L1479">        stack[stackTop] = fun.call(cx, calleeScope, funThisObj,</span>
+<span class="nc" id="L1480">                getArgsArray(stack, sDbl, stackTop + 2, indexReg));</span>
+
+<span class="nc" id="L1482">        continue Loop;</span>
+    }
+    case Token.NEW : {
+<span class="nc bnc" id="L1485" title="All 2 branches missed.">        if (instructionCounting) {</span>
+<span class="nc" id="L1486">            cx.instructionCount += INVOCATION_COST;</span>
+        }
+        // stack change: function arg0 .. argN -&gt; newResult
+        // indexReg: number of arguments
+<span class="nc" id="L1490">        stackTop -= indexReg;</span>
+
+<span class="nc" id="L1492">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1493" title="All 2 branches missed.">        if (lhs instanceof InterpretedFunction) {</span>
+<span class="nc" id="L1494">            InterpretedFunction f = (InterpretedFunction)lhs;</span>
+<span class="nc bnc" id="L1495" title="All 2 branches missed.">            if (frame.fnOrScript.securityDomain == f.securityDomain) {</span>
+<span class="nc" id="L1496">                Scriptable newInstance = f.createObject(cx, frame.scope);</span>
+<span class="nc" id="L1497">                CallFrame calleeFrame = new CallFrame();</span>
+<span class="nc" id="L1498">                initFrame(cx, frame.scope, newInstance, stack, sDbl,</span>
+                          stackTop + 1, indexReg, f, frame,
+                          calleeFrame);
+
+<span class="nc" id="L1502">                stack[stackTop] = newInstance;</span>
+<span class="nc" id="L1503">                frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L1504">                frame.savedCallOp = op;</span>
+<span class="nc" id="L1505">                frame = calleeFrame;</span>
+<span class="nc" id="L1506">                continue StateLoop;</span>
+            }
+        }
+<span class="nc bnc" id="L1509" title="All 2 branches missed.">        if (!(lhs instanceof Function)) {</span>
+<span class="nc bnc" id="L1510" title="All 2 branches missed.">            if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1511">            throw ScriptRuntime.notFunctionError(lhs);</span>
+        }
+<span class="nc" id="L1513">        Function fun = (Function)lhs;</span>
+
+<span class="nc bnc" id="L1515" title="All 2 branches missed.">        if (fun instanceof IdFunctionObject) {</span>
+<span class="nc" id="L1516">            IdFunctionObject ifun = (IdFunctionObject)fun;</span>
+<span class="nc bnc" id="L1517" title="All 2 branches missed.">            if (NativeContinuation.isContinuationConstructor(ifun)) {</span>
+<span class="nc" id="L1518">                frame.stack[stackTop] =</span>
+<span class="nc" id="L1519">                    captureContinuation(cx, frame.parentFrame, false);</span>
+<span class="nc" id="L1520">                continue Loop;</span>
+            }
+        }
+
+<span class="nc" id="L1524">        Object[] outArgs = getArgsArray(stack, sDbl, stackTop + 1, indexReg);</span>
+<span class="nc" id="L1525">        stack[stackTop] = fun.construct(cx, frame.scope, outArgs);</span>
+<span class="nc" id="L1526">        continue Loop;</span>
+    }
+    case Token.TYPEOF : {
+<span class="nc" id="L1529">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1530" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1531">        stack[stackTop] = ScriptRuntime.typeof(lhs);</span>
+<span class="nc" id="L1532">        continue Loop;</span>
+    }
+    case Icode_TYPEOFNAME :
+<span class="nc" id="L1535">        stack[++stackTop] = ScriptRuntime.typeofName(frame.scope, stringReg);</span>
+<span class="nc" id="L1536">        continue Loop;</span>
+    case Token.STRING :
+<span class="nc" id="L1538">        stack[++stackTop] = stringReg;</span>
+<span class="nc" id="L1539">        continue Loop;</span>
+    case Icode_SHORTNUMBER :
+<span class="nc" id="L1541">        ++stackTop;</span>
+<span class="nc" id="L1542">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1543">        sDbl[stackTop] = getShort(iCode, frame.pc);</span>
+<span class="nc" id="L1544">        frame.pc += 2;</span>
+<span class="nc" id="L1545">        continue Loop;</span>
+    case Icode_INTNUMBER :
+<span class="nc" id="L1547">        ++stackTop;</span>
+<span class="nc" id="L1548">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1549">        sDbl[stackTop] = getInt(iCode, frame.pc);</span>
+<span class="nc" id="L1550">        frame.pc += 4;</span>
+<span class="nc" id="L1551">        continue Loop;</span>
+    case Token.NUMBER :
+<span class="nc" id="L1553">        ++stackTop;</span>
+<span class="nc" id="L1554">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1555">        sDbl[stackTop] = frame.idata.itsDoubleTable[indexReg];</span>
+<span class="nc" id="L1556">        continue Loop;</span>
+    case Token.NAME :
+<span class="nc" id="L1558">        stack[++stackTop] = ScriptRuntime.name(cx, frame.scope, stringReg);</span>
+<span class="nc" id="L1559">        continue Loop;</span>
+    case Icode_NAME_INC_DEC :
+<span class="nc" id="L1561">        stack[++stackTop] = ScriptRuntime.nameIncrDecr(frame.scope, stringReg,</span>
+                                                       cx, iCode[frame.pc]);
+<span class="nc" id="L1563">        ++frame.pc;</span>
+<span class="nc" id="L1564">        continue Loop;</span>
+    case Icode_SETCONSTVAR1:
+<span class="nc" id="L1566">        indexReg = iCode[frame.pc++];</span>
+        // fallthrough
+    case Token.SETCONSTVAR :
+<span class="nc" id="L1569">        stackTop = doSetConstVar(frame, stack, sDbl, stackTop, vars, varDbls,</span>
+                                 varAttributes, indexReg);
+<span class="nc" id="L1571">        continue Loop;</span>
+    case Icode_SETVAR1:
+<span class="nc" id="L1573">        indexReg = iCode[frame.pc++];</span>
+        // fallthrough
+    case Token.SETVAR :
+<span class="nc" id="L1576">        stackTop = doSetVar(frame, stack, sDbl, stackTop, vars, varDbls,</span>
+                            varAttributes, indexReg);
+<span class="nc" id="L1578">        continue Loop;</span>
+    case Icode_GETVAR1:
+<span class="nc" id="L1580">        indexReg = iCode[frame.pc++];</span>
+        // fallthrough
+    case Token.GETVAR :
+<span class="nc" id="L1583">        stackTop = doGetVar(frame, stack, sDbl, stackTop, vars, varDbls, indexReg);</span>
+<span class="nc" id="L1584">        continue Loop;</span>
+    case Icode_VAR_INC_DEC : {
+<span class="nc" id="L1586">        stackTop = doVarIncDec(cx, frame, stack, sDbl, stackTop,</span>
+                               vars, varDbls, varAttributes, indexReg);
+<span class="nc" id="L1588">        continue Loop;</span>
+    }
+    case Icode_ZERO :
+<span class="nc" id="L1591">        ++stackTop;</span>
+<span class="nc" id="L1592">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1593">        sDbl[stackTop] = 0;</span>
+<span class="nc" id="L1594">        continue Loop;</span>
+    case Icode_ONE :
+<span class="nc" id="L1596">        ++stackTop;</span>
+<span class="nc" id="L1597">        stack[stackTop] = DBL_MRK;</span>
+<span class="nc" id="L1598">        sDbl[stackTop] = 1;</span>
+<span class="nc" id="L1599">        continue Loop;</span>
+    case Token.NULL :
+<span class="nc" id="L1601">        stack[++stackTop] = null;</span>
+<span class="nc" id="L1602">        continue Loop;</span>
+    case Token.THIS :
+<span class="nc" id="L1604">        stack[++stackTop] = frame.thisObj;</span>
+<span class="nc" id="L1605">        continue Loop;</span>
+    case Token.THISFN :
+<span class="nc" id="L1607">        stack[++stackTop] = frame.fnOrScript;</span>
+<span class="nc" id="L1608">        continue Loop;</span>
+    case Token.FALSE :
+<span class="nc" id="L1610">        stack[++stackTop] = Boolean.FALSE;</span>
+<span class="nc" id="L1611">        continue Loop;</span>
+    case Token.TRUE :
+<span class="nc" id="L1613">        stack[++stackTop] = Boolean.TRUE;</span>
+<span class="nc" id="L1614">        continue Loop;</span>
+    case Icode_UNDEF :
+<span class="nc" id="L1616">        stack[++stackTop] = undefined;</span>
+<span class="nc" id="L1617">        continue Loop;</span>
+    case Token.ENTERWITH : {
+<span class="nc" id="L1619">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1620" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1621">        --stackTop;</span>
+<span class="nc" id="L1622">        frame.scope = ScriptRuntime.enterWith(lhs, cx, frame.scope);</span>
+<span class="nc" id="L1623">        continue Loop;</span>
+    }
+    case Token.LEAVEWITH :
+<span class="nc" id="L1626">        frame.scope = ScriptRuntime.leaveWith(frame.scope);</span>
+<span class="nc" id="L1627">        continue Loop;</span>
+    case Token.CATCH_SCOPE : {
+        // stack top: exception object
+        // stringReg: name of exception variable
+        // indexReg: local for exception scope
+<span class="nc" id="L1632">        --stackTop;</span>
+<span class="nc" id="L1633">        indexReg += frame.localShift;</span>
+
+<span class="nc bnc" id="L1635" title="All 2 branches missed.">        boolean afterFirstScope =  (frame.idata.itsICode[frame.pc] != 0);</span>
+<span class="nc" id="L1636">        Throwable caughtException = (Throwable)stack[stackTop + 1];</span>
+        Scriptable lastCatchScope;
+<span class="nc bnc" id="L1638" title="All 2 branches missed.">        if (!afterFirstScope) {</span>
+<span class="nc" id="L1639">            lastCatchScope = null;</span>
+        } else {
+<span class="nc" id="L1641">            lastCatchScope = (Scriptable)stack[indexReg];</span>
+        }
+<span class="nc" id="L1643">        stack[indexReg] = ScriptRuntime.newCatchScope(caughtException,</span>
+                                                      lastCatchScope, stringReg,
+                                                      cx, frame.scope);
+<span class="nc" id="L1646">        ++frame.pc;</span>
+<span class="nc" id="L1647">        continue Loop;</span>
+    }
+    case Token.ENUM_INIT_KEYS :
+    case Token.ENUM_INIT_VALUES :
+    case Token.ENUM_INIT_ARRAY :
+    case Token.ENUM_INIT_VALUES_IN_ORDER : {
+<span class="nc" id="L1653">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1654" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1655">        --stackTop;</span>
+<span class="nc" id="L1656">        indexReg += frame.localShift;</span>
+<span class="nc bnc" id="L1657" title="All 6 branches missed.">        int enumType = op == Token.ENUM_INIT_KEYS</span>
+                         ? ScriptRuntime.ENUMERATE_KEYS :
+                       op == Token.ENUM_INIT_VALUES
+                         ? ScriptRuntime.ENUMERATE_VALUES :
+                       op == Token.ENUM_INIT_VALUES_IN_ORDER
+                         ? ScriptRuntime.ENUMERATE_VALUES_IN_ORDER :
+                       ScriptRuntime.ENUMERATE_ARRAY;
+<span class="nc" id="L1664">        stack[indexReg] = ScriptRuntime.enumInit(lhs, cx, frame.scope, enumType);</span>
+<span class="nc" id="L1665">        continue Loop;</span>
+    }
+    case Token.ENUM_NEXT :
+    case Token.ENUM_ID : {
+<span class="nc" id="L1669">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1670">        Object val = stack[indexReg];</span>
+<span class="nc" id="L1671">        ++stackTop;</span>
+<span class="nc bnc" id="L1672" title="All 2 branches missed.">        stack[stackTop] = (op == Token.ENUM_NEXT)</span>
+<span class="nc" id="L1673">                          ? (Object)ScriptRuntime.enumNext(val)</span>
+<span class="nc" id="L1674">                          : (Object)ScriptRuntime.enumId(val, cx);</span>
+<span class="nc" id="L1675">        continue Loop;</span>
+    }
+    case Token.REF_SPECIAL : {
+        //stringReg: name of special property
+<span class="nc" id="L1679">        Object obj = stack[stackTop];</span>
+<span class="nc bnc" id="L1680" title="All 2 branches missed.">        if (obj == DBL_MRK) obj = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1681">        stack[stackTop] = ScriptRuntime.specialRef(obj, stringReg,</span>
+                                                   cx, frame.scope);
+<span class="nc" id="L1683">        continue Loop;</span>
+    }
+    case Token.REF_MEMBER: {
+        //indexReg: flags
+<span class="nc" id="L1687">        stackTop = doRefMember(cx, stack, sDbl, stackTop, indexReg);</span>
+<span class="nc" id="L1688">        continue Loop;</span>
+    }
+    case Token.REF_NS_MEMBER: {
+        //indexReg: flags
+<span class="nc" id="L1692">        stackTop = doRefNsMember(cx, stack, sDbl, stackTop, indexReg);</span>
+<span class="nc" id="L1693">        continue Loop;</span>
+    }
+    case Token.REF_NAME: {
+        //indexReg: flags
+<span class="nc" id="L1697">        Object name = stack[stackTop];</span>
+<span class="nc bnc" id="L1698" title="All 2 branches missed.">        if (name == DBL_MRK) name = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1699">        stack[stackTop] = ScriptRuntime.nameRef(name, cx, frame.scope,</span>
+                                                indexReg);
+<span class="nc" id="L1701">        continue Loop;</span>
+    }
+    case Token.REF_NS_NAME: {
+        //indexReg: flags
+<span class="nc" id="L1705">        stackTop = doRefNsName(cx, frame, stack, sDbl, stackTop, indexReg);</span>
+<span class="nc" id="L1706">        continue Loop;</span>
+    }
+    case Icode_SCOPE_LOAD :
+<span class="nc" id="L1709">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1710">        frame.scope = (Scriptable)stack[indexReg];</span>
+<span class="nc" id="L1711">        continue Loop;</span>
+    case Icode_SCOPE_SAVE :
+<span class="nc" id="L1713">        indexReg += frame.localShift;</span>
+<span class="nc" id="L1714">        stack[indexReg] = frame.scope;</span>
+<span class="nc" id="L1715">        continue Loop;</span>
+    case Icode_CLOSURE_EXPR :
+<span class="nc" id="L1717">        InterpretedFunction fn = InterpretedFunction.createFunction(cx, frame.scope,</span>
+                                                                    frame.fnOrScript,
+                                                                    indexReg);
+<span class="nc bnc" id="L1720" title="All 2 branches missed.">        if (fn.idata.itsFunctionType == FunctionNode.ARROW_FUNCTION) {</span>
+<span class="nc" id="L1721">            stack[++stackTop] = new ArrowFunction(cx, frame.scope, fn, frame.thisObj);</span>
+        } else {
+<span class="nc" id="L1723">            stack[++stackTop] = fn;</span>
+        }
+<span class="nc" id="L1725">        continue Loop;</span>
+    case Icode_CLOSURE_STMT :
+<span class="nc" id="L1727">        initFunction(cx, frame.scope, frame.fnOrScript, indexReg);</span>
+<span class="nc" id="L1728">        continue Loop;</span>
+    case Token.REGEXP :
+<span class="nc" id="L1730">        Object re = frame.idata.itsRegExpLiterals[indexReg];</span>
+<span class="nc" id="L1731">        stack[++stackTop] = ScriptRuntime.wrapRegExp(cx, frame.scope, re);</span>
+<span class="nc" id="L1732">        continue Loop;</span>
+    case Icode_LITERAL_NEW :
+        // indexReg: number of values in the literal
+<span class="nc" id="L1735">        ++stackTop;</span>
+<span class="nc" id="L1736">        stack[stackTop] = new int[indexReg];</span>
+<span class="nc" id="L1737">        ++stackTop;</span>
+<span class="nc" id="L1738">        stack[stackTop] = new Object[indexReg];</span>
+<span class="nc" id="L1739">        sDbl[stackTop] = 0;</span>
+<span class="nc" id="L1740">        continue Loop;</span>
+    case Icode_LITERAL_SET : {
+<span class="nc" id="L1742">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1743" title="All 2 branches missed.">        if (value == DBL_MRK) value = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1744">        --stackTop;</span>
+<span class="nc" id="L1745">        int i = (int)sDbl[stackTop];</span>
+<span class="nc" id="L1746">        ((Object[])stack[stackTop])[i] = value;</span>
+<span class="nc" id="L1747">        sDbl[stackTop] = i + 1;</span>
+<span class="nc" id="L1748">        continue Loop;</span>
+    }
+    case Icode_LITERAL_GETTER : {
+<span class="nc" id="L1751">        Object value = stack[stackTop];</span>
+<span class="nc" id="L1752">        --stackTop;</span>
+<span class="nc" id="L1753">        int i = (int)sDbl[stackTop];</span>
+<span class="nc" id="L1754">        ((Object[])stack[stackTop])[i] = value;</span>
+<span class="nc" id="L1755">        ((int[])stack[stackTop - 1])[i] = -1;</span>
+<span class="nc" id="L1756">        sDbl[stackTop] = i + 1;</span>
+<span class="nc" id="L1757">        continue Loop;</span>
+    }
+    case Icode_LITERAL_SETTER : {
+<span class="nc" id="L1760">        Object value = stack[stackTop];</span>
+<span class="nc" id="L1761">        --stackTop;</span>
+<span class="nc" id="L1762">        int i = (int)sDbl[stackTop];</span>
+<span class="nc" id="L1763">        ((Object[])stack[stackTop])[i] = value;</span>
+<span class="nc" id="L1764">        ((int[])stack[stackTop - 1])[i] = +1;</span>
+<span class="nc" id="L1765">        sDbl[stackTop] = i + 1;</span>
+<span class="nc" id="L1766">        continue Loop;</span>
+    }
+    case Token.ARRAYLIT :
+    case Icode_SPARE_ARRAYLIT :
+    case Token.OBJECTLIT : {
+<span class="nc" id="L1771">        Object[] data = (Object[])stack[stackTop];</span>
+<span class="nc" id="L1772">        --stackTop;</span>
+<span class="nc" id="L1773">        int[] getterSetters = (int[])stack[stackTop];</span>
+        Object val;
+<span class="nc bnc" id="L1775" title="All 2 branches missed.">        if (op == Token.OBJECTLIT) {</span>
+<span class="nc" id="L1776">            Object[] ids = (Object[])frame.idata.literalIds[indexReg];</span>
+<span class="nc" id="L1777">            val = ScriptRuntime.newObjectLiteral(ids, data, getterSetters, cx,</span>
+                    frame.scope);
+<span class="nc" id="L1779">        } else {</span>
+<span class="nc" id="L1780">            int[] skipIndexces = null;</span>
+<span class="nc bnc" id="L1781" title="All 2 branches missed.">            if (op == Icode_SPARE_ARRAYLIT) {</span>
+<span class="nc" id="L1782">                skipIndexces = (int[])frame.idata.literalIds[indexReg];</span>
+            }
+<span class="nc" id="L1784">            val = ScriptRuntime.newArrayLiteral(data, skipIndexces, cx,</span>
+                                                frame.scope);
+        }
+<span class="nc" id="L1787">        stack[stackTop] = val;</span>
+<span class="nc" id="L1788">        continue Loop;</span>
+    }
+    case Icode_ENTERDQ : {
+<span class="nc" id="L1791">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L1792" title="All 2 branches missed.">        if (lhs == DBL_MRK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1793">        --stackTop;</span>
+<span class="nc" id="L1794">        frame.scope = ScriptRuntime.enterDotQuery(lhs, frame.scope);</span>
+<span class="nc" id="L1795">        continue Loop;</span>
+    }
+    case Icode_LEAVEDQ : {
+<span class="nc" id="L1798">        boolean valBln = stack_boolean(frame, stackTop);</span>
+<span class="nc" id="L1799">        Object x = ScriptRuntime.updateDotQuery(valBln, frame.scope);</span>
+<span class="nc bnc" id="L1800" title="All 2 branches missed.">        if (x != null) {</span>
+<span class="nc" id="L1801">            stack[stackTop] = x;</span>
+<span class="nc" id="L1802">            frame.scope = ScriptRuntime.leaveDotQuery(frame.scope);</span>
+<span class="nc" id="L1803">            frame.pc += 2;</span>
+<span class="nc" id="L1804">            continue Loop;</span>
+        }
+        // reset stack and PC to code after ENTERDQ
+<span class="nc" id="L1807">        --stackTop;</span>
+<span class="nc" id="L1808">        break jumplessRun;</span>
+    }
+    case Token.DEFAULTNAMESPACE : {
+<span class="nc" id="L1811">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1812" title="All 2 branches missed.">        if (value == DBL_MRK) value = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L1813">        stack[stackTop] = ScriptRuntime.setDefaultNamespace(value, cx);</span>
+<span class="nc" id="L1814">        continue Loop;</span>
+    }
+    case Token.ESCXMLATTR : {
+<span class="nc" id="L1817">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1818" title="All 2 branches missed.">        if (value != DBL_MRK) {</span>
+<span class="nc" id="L1819">            stack[stackTop] = ScriptRuntime.escapeAttributeValue(value, cx);</span>
+        }
+        continue Loop;
+    }
+    case Token.ESCXMLTEXT : {
+<span class="nc" id="L1824">        Object value = stack[stackTop];</span>
+<span class="nc bnc" id="L1825" title="All 2 branches missed.">        if (value != DBL_MRK) {</span>
+<span class="nc" id="L1826">            stack[stackTop] = ScriptRuntime.escapeTextValue(value, cx);</span>
+        }
+        continue Loop;
+    }
+    case Icode_DEBUGGER:
+<span class="nc bnc" id="L1831" title="All 2 branches missed.">        if (frame.debuggerFrame != null) {</span>
+<span class="nc" id="L1832">            frame.debuggerFrame.onDebuggerStatement(cx);</span>
+        }
+        continue Loop;
+    case Icode_LINE :
+<span class="nc" id="L1836">        frame.pcSourceLineStart = frame.pc;</span>
+<span class="nc bnc" id="L1837" title="All 2 branches missed.">        if (frame.debuggerFrame != null) {</span>
+<span class="nc" id="L1838">            int line = getIndex(iCode, frame.pc);</span>
+<span class="nc" id="L1839">            frame.debuggerFrame.onLineChange(cx, line);</span>
+        }
+<span class="nc" id="L1841">        frame.pc += 2;</span>
+<span class="nc" id="L1842">        continue Loop;</span>
+    case Icode_REG_IND_C0:
+<span class="nc" id="L1844">        indexReg = 0;</span>
+<span class="nc" id="L1845">        continue Loop;</span>
+    case Icode_REG_IND_C1:
+<span class="nc" id="L1847">        indexReg = 1;</span>
+<span class="nc" id="L1848">        continue Loop;</span>
+    case Icode_REG_IND_C2:
+<span class="nc" id="L1850">        indexReg = 2;</span>
+<span class="nc" id="L1851">        continue Loop;</span>
+    case Icode_REG_IND_C3:
+<span class="nc" id="L1853">        indexReg = 3;</span>
+<span class="nc" id="L1854">        continue Loop;</span>
+    case Icode_REG_IND_C4:
+<span class="nc" id="L1856">        indexReg = 4;</span>
+<span class="nc" id="L1857">        continue Loop;</span>
+    case Icode_REG_IND_C5:
+<span class="nc" id="L1859">        indexReg = 5;</span>
+<span class="nc" id="L1860">        continue Loop;</span>
+    case Icode_REG_IND1:
+<span class="nc" id="L1862">        indexReg = 0xFF &amp; iCode[frame.pc];</span>
+<span class="nc" id="L1863">        ++frame.pc;</span>
+<span class="nc" id="L1864">        continue Loop;</span>
+    case Icode_REG_IND2:
+<span class="nc" id="L1866">        indexReg = getIndex(iCode, frame.pc);</span>
+<span class="nc" id="L1867">        frame.pc += 2;</span>
+<span class="nc" id="L1868">        continue Loop;</span>
+    case Icode_REG_IND4:
+<span class="nc" id="L1870">        indexReg = getInt(iCode, frame.pc);</span>
+<span class="nc" id="L1871">        frame.pc += 4;</span>
+<span class="nc" id="L1872">        continue Loop;</span>
+    case Icode_REG_STR_C0:
+<span class="nc" id="L1874">        stringReg = strings[0];</span>
+<span class="nc" id="L1875">        continue Loop;</span>
+    case Icode_REG_STR_C1:
+<span class="nc" id="L1877">        stringReg = strings[1];</span>
+<span class="nc" id="L1878">        continue Loop;</span>
+    case Icode_REG_STR_C2:
+<span class="nc" id="L1880">        stringReg = strings[2];</span>
+<span class="nc" id="L1881">        continue Loop;</span>
+    case Icode_REG_STR_C3:
+<span class="nc" id="L1883">        stringReg = strings[3];</span>
+<span class="nc" id="L1884">        continue Loop;</span>
+    case Icode_REG_STR1:
+<span class="nc" id="L1886">        stringReg = strings[0xFF &amp; iCode[frame.pc]];</span>
+<span class="nc" id="L1887">        ++frame.pc;</span>
+<span class="nc" id="L1888">        continue Loop;</span>
+    case Icode_REG_STR2:
+<span class="nc" id="L1890">        stringReg = strings[getIndex(iCode, frame.pc)];</span>
+<span class="nc" id="L1891">        frame.pc += 2;</span>
+<span class="nc" id="L1892">        continue Loop;</span>
+    case Icode_REG_STR4:
+<span class="nc" id="L1894">        stringReg = strings[getInt(iCode, frame.pc)];</span>
+<span class="nc" id="L1895">        frame.pc += 4;</span>
+<span class="nc" id="L1896">        continue Loop;</span>
+    default :
+<span class="nc" id="L1898">        dumpICode(frame.idata);</span>
+<span class="nc" id="L1899">        throw new RuntimeException(&quot;Unknown icode : &quot; + op</span>
+                                 + &quot; @ pc : &quot; + (frame.pc-1));
+}  // end of interpreter switch
+
+                    } // end of jumplessRun label block
+
+                    // This should be reachable only for jump implementation
+                    // when pc points to encoded target offset
+<span class="nc bnc" id="L1907" title="All 2 branches missed.">                    if (instructionCounting) {</span>
+<span class="nc" id="L1908">                        addInstructionCount(cx, frame, 2);</span>
+                    }
+<span class="nc" id="L1910">                    int offset = getShort(iCode, frame.pc);</span>
+<span class="nc bnc" id="L1911" title="All 2 branches missed.">                    if (offset != 0) {</span>
+                        // -1 accounts for pc pointing to jump opcode + 1
+<span class="nc" id="L1913">                        frame.pc += offset - 1;</span>
+                    } else {
+<span class="nc" id="L1915">                        frame.pc = frame.idata.longJumps.</span>
+<span class="nc" id="L1916">                                       getExistingInt(frame.pc);</span>
+                    }
+<span class="nc bnc" id="L1918" title="All 2 branches missed.">                    if (instructionCounting) {</span>
+<span class="nc" id="L1919">                        frame.pcPrevBranch = frame.pc;</span>
+                    }
+                    continue Loop;
+
+                } // end of Loop: for
+
+<span class="nc" id="L1925">                exitFrame(cx, frame, null);</span>
+<span class="nc" id="L1926">                interpreterResult = frame.result;</span>
+<span class="nc" id="L1927">                interpreterResultDbl = frame.resultDbl;</span>
+<span class="nc bnc" id="L1928" title="All 2 branches missed.">                if (frame.parentFrame != null) {</span>
+<span class="nc" id="L1929">                    frame = frame.parentFrame;</span>
+<span class="nc bnc" id="L1930" title="All 2 branches missed.">                    if (frame.frozen) {</span>
+<span class="nc" id="L1931">                        frame = frame.cloneFrozen();</span>
+                    }
+<span class="nc" id="L1933">                    setCallResult(</span>
+                        frame, interpreterResult, interpreterResultDbl);
+<span class="nc" id="L1935">                    interpreterResult = null; // Help GC</span>
+<span class="nc" id="L1936">                    continue StateLoop;</span>
+                }
+<span class="nc" id="L1938">                break StateLoop;</span>
+
+            }  // end of interpreter withoutExceptions: try
+<span class="nc" id="L1941">            catch (Throwable ex) {</span>
+<span class="nc bnc" id="L1942" title="All 2 branches missed.">                if (throwable != null) {</span>
+                    // This is serious bug and it is better to track it ASAP
+<span class="nc" id="L1944">                    ex.printStackTrace(System.err);</span>
+<span class="nc" id="L1945">                    throw new IllegalStateException();</span>
+                }
+<span class="nc" id="L1947">                throwable = ex;</span>
+            }
+
+            // This should be reachable only after above catch or from
+            // finally when it needs to propagate exception or from
+            // explicit throw
+<span class="nc bnc" id="L1953" title="All 2 branches missed.">            if (throwable == null) Kit.codeBug();</span>
+
+            // Exception type
+<span class="nc" id="L1956">            final int EX_CATCH_STATE = 2; // Can execute JS catch</span>
+<span class="nc" id="L1957">            final int EX_FINALLY_STATE = 1; // Can execute JS finally</span>
+<span class="nc" id="L1958">            final int EX_NO_JS_STATE = 0; // Terminate JS execution</span>
+
+            int exState;
+<span class="nc" id="L1961">            ContinuationJump cjump = null;</span>
+
+<span class="nc bnc" id="L1963" title="All 6 branches missed.">            if (generatorState != null &amp;&amp;</span>
+                generatorState.operation == NativeGenerator.GENERATOR_CLOSE &amp;&amp;
+                throwable == generatorState.value)
+            {
+<span class="nc" id="L1967">                exState = EX_FINALLY_STATE;</span>
+<span class="nc bnc" id="L1968" title="All 2 branches missed.">            } else if (throwable instanceof JavaScriptException) {</span>
+<span class="nc" id="L1969">                exState = EX_CATCH_STATE;</span>
+<span class="nc bnc" id="L1970" title="All 2 branches missed.">            } else if (throwable instanceof EcmaError) {</span>
+                // an offical ECMA error object,
+<span class="nc" id="L1972">                exState = EX_CATCH_STATE;</span>
+<span class="nc bnc" id="L1973" title="All 2 branches missed.">            } else if (throwable instanceof EvaluatorException) {</span>
+<span class="nc" id="L1974">                exState = EX_CATCH_STATE;</span>
+<span class="nc bnc" id="L1975" title="All 2 branches missed.">            } else if (throwable instanceof ContinuationPending) {</span>
+<span class="nc" id="L1976">                exState = EX_NO_JS_STATE;</span>
+<span class="nc bnc" id="L1977" title="All 2 branches missed.">            } else if (throwable instanceof RuntimeException) {</span>
+<span class="nc bnc" id="L1978" title="All 2 branches missed.">                exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS)</span>
+                          ? EX_CATCH_STATE
+                          : EX_FINALLY_STATE;
+<span class="nc bnc" id="L1981" title="All 2 branches missed.">            } else if (throwable instanceof Error) {</span>
+<span class="nc bnc" id="L1982" title="All 2 branches missed.">                exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS)</span>
+                          ? EX_CATCH_STATE
+                          : EX_NO_JS_STATE;
+<span class="nc bnc" id="L1985" title="All 2 branches missed.">            } else if (throwable instanceof ContinuationJump) {</span>
+                // It must be ContinuationJump
+<span class="nc" id="L1987">                exState = EX_FINALLY_STATE;</span>
+<span class="nc" id="L1988">                cjump = (ContinuationJump)throwable;</span>
+            } else {
+<span class="nc bnc" id="L1990" title="All 2 branches missed.">                exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS)</span>
+                          ? EX_CATCH_STATE
+                          : EX_FINALLY_STATE;
+            }
+
+<span class="nc bnc" id="L1995" title="All 2 branches missed.">            if (instructionCounting) {</span>
+                try {
+<span class="nc" id="L1997">                    addInstructionCount(cx, frame, EXCEPTION_COST);</span>
+<span class="nc" id="L1998">                } catch (RuntimeException ex) {</span>
+<span class="nc" id="L1999">                    throwable = ex;</span>
+<span class="nc" id="L2000">                    exState = EX_FINALLY_STATE;</span>
+<span class="nc" id="L2001">                } catch (Error ex) {</span>
+                    // Error from instruction counting
+                    //     =&gt; unconditionally terminate JS
+<span class="nc" id="L2004">                    throwable = ex;</span>
+<span class="nc" id="L2005">                    cjump = null;</span>
+<span class="nc" id="L2006">                    exState = EX_NO_JS_STATE;</span>
+<span class="nc" id="L2007">                }</span>
+            }
+<span class="nc bnc" id="L2009" title="All 4 branches missed.">            if (frame.debuggerFrame != null</span>
+                &amp;&amp; throwable instanceof RuntimeException)
+            {
+                // Call debugger only for RuntimeException
+<span class="nc" id="L2013">                RuntimeException rex = (RuntimeException)throwable;</span>
+                try {
+<span class="nc" id="L2015">                    frame.debuggerFrame.onExceptionThrown(cx, rex);</span>
+<span class="nc" id="L2016">                } catch (Throwable ex) {</span>
+                    // Any exception from debugger
+                    //     =&gt; unconditionally terminate JS
+<span class="nc" id="L2019">                    throwable = ex;</span>
+<span class="nc" id="L2020">                    cjump = null;</span>
+<span class="nc" id="L2021">                    exState = EX_NO_JS_STATE;</span>
+<span class="nc" id="L2022">                }</span>
+            }
+
+            for (;;) {
+<span class="nc bnc" id="L2026" title="All 2 branches missed.">                if (exState != EX_NO_JS_STATE) {</span>
+<span class="nc bnc" id="L2027" title="All 2 branches missed.">                    boolean onlyFinally = (exState != EX_CATCH_STATE);</span>
+<span class="nc" id="L2028">                    indexReg = getExceptionHandler(frame, onlyFinally);</span>
+<span class="nc bnc" id="L2029" title="All 2 branches missed.">                    if (indexReg &gt;= 0) {</span>
+                        // We caught an exception, restart the loop
+                        // with exception pending the processing at the loop
+                        // start
+<span class="nc" id="L2033">                        continue StateLoop;</span>
+                    }
+                }
+                // No allowed exception handlers in this frame, unwind
+                // to parent and try to look there
+
+<span class="nc" id="L2039">                exitFrame(cx, frame, throwable);</span>
+
+<span class="nc" id="L2041">                frame = frame.parentFrame;</span>
+<span class="nc bnc" id="L2042" title="All 2 branches missed.">                if (frame == null) { break; }</span>
+<span class="nc bnc" id="L2043" title="All 4 branches missed.">                if (cjump != null &amp;&amp; cjump.branchFrame == frame) {</span>
+                    // Continuation branch point was hit,
+                    // restart the state loop to reenter continuation
+<span class="nc" id="L2046">                    indexReg = -1;</span>
+<span class="nc" id="L2047">                    continue StateLoop;</span>
+                }
+            }
+
+            // No more frames, rethrow the exception or deal with continuation
+<span class="nc bnc" id="L2052" title="All 2 branches missed.">            if (cjump != null) {</span>
+<span class="nc bnc" id="L2053" title="All 2 branches missed.">                if (cjump.branchFrame != null) {</span>
+                    // The above loop should locate the top frame
+<span class="nc" id="L2055">                    Kit.codeBug();</span>
+                }
+<span class="nc bnc" id="L2057" title="All 2 branches missed.">                if (cjump.capturedFrame != null) {</span>
+                    // Restarting detached continuation
+<span class="nc" id="L2059">                    indexReg = -1;</span>
+<span class="nc" id="L2060">                    continue StateLoop;</span>
+                }
+                // Return continuation result to the caller
+<span class="nc" id="L2063">                interpreterResult = cjump.result;</span>
+<span class="nc" id="L2064">                interpreterResultDbl = cjump.resultDbl;</span>
+<span class="nc" id="L2065">                throwable = null;</span>
+            }
+            break StateLoop;
+
+        } // end of StateLoop: for(;;)
+
+        // Do cleanups/restorations before the final return or throw
+
+<span class="nc bnc" id="L2073" title="All 2 branches missed.">        if (cx.previousInterpreterInvocations != null</span>
+<span class="nc bnc" id="L2074" title="All 2 branches missed.">            &amp;&amp; cx.previousInterpreterInvocations.size() != 0)</span>
+        {
+<span class="nc" id="L2076">            cx.lastInterpreterFrame</span>
+<span class="nc" id="L2077">                = cx.previousInterpreterInvocations.pop();</span>
+        } else {
+            // It was the last interpreter frame on the stack
+<span class="nc" id="L2080">            cx.lastInterpreterFrame = null;</span>
+            // Force GC of the value cx.previousInterpreterInvocations
+<span class="nc" id="L2082">            cx.previousInterpreterInvocations = null;</span>
+        }
+
+<span class="nc bnc" id="L2085" title="All 2 branches missed.">        if (throwable != null) {</span>
+<span class="nc bnc" id="L2086" title="All 2 branches missed.">            if (throwable instanceof RuntimeException) {</span>
+<span class="nc" id="L2087">                throw (RuntimeException)throwable;</span>
+            } else {
+                // Must be instance of Error or code bug
+<span class="nc" id="L2090">                throw (Error)throwable;</span>
+            }
+        }
+
+<span class="nc bnc" id="L2094" title="All 2 branches missed.">        return (interpreterResult != DBL_MRK)</span>
+               ? interpreterResult
+<span class="nc" id="L2096">               : ScriptRuntime.wrapNumber(interpreterResultDbl);</span>
+    }
+
+    private static int doInOrInstanceof(Context cx, int op, Object[] stack,
+                                        double[] sDbl, int stackTop) {
+<span class="nc" id="L2101">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2102" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2103">        --stackTop;</span>
+<span class="nc" id="L2104">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2105" title="All 2 branches missed.">        if (lhs == DOUBLE_MARK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+        boolean valBln;
+<span class="nc bnc" id="L2107" title="All 2 branches missed.">        if (op == Token.IN) {</span>
+<span class="nc" id="L2108">            valBln = ScriptRuntime.in(lhs, rhs, cx);</span>
+        } else {
+<span class="nc" id="L2110">            valBln = ScriptRuntime.instanceOf(lhs, rhs, cx);</span>
+        }
+<span class="nc" id="L2112">        stack[stackTop] = ScriptRuntime.wrapBoolean(valBln);</span>
+<span class="nc" id="L2113">        return stackTop;</span>
+    }
+
+    private static int doCompare(CallFrame frame, int op, Object[] stack,
+                                 double[] sDbl, int stackTop) {
+<span class="nc" id="L2118">        --stackTop;</span>
+<span class="nc" id="L2119">        Object rhs = stack[stackTop + 1];</span>
+<span class="nc" id="L2120">        Object lhs = stack[stackTop];</span>
+        boolean valBln;
+        object_compare:
+        {
+            number_compare:
+            {
+                double rDbl, lDbl;
+<span class="nc bnc" id="L2127" title="All 2 branches missed.">                if (rhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2128">                    rDbl = sDbl[stackTop + 1];</span>
+<span class="nc" id="L2129">                    lDbl = stack_double(frame, stackTop);</span>
+<span class="nc bnc" id="L2130" title="All 2 branches missed.">                } else if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2131">                    rDbl = ScriptRuntime.toNumber(rhs);</span>
+<span class="nc" id="L2132">                    lDbl = sDbl[stackTop];</span>
+                } else {
+                    break number_compare;
+                }
+<span class="nc bnc" id="L2136" title="All 5 branches missed.">                switch (op) {</span>
+                    case Token.GE:
+<span class="nc bnc" id="L2138" title="All 2 branches missed.">                        valBln = (lDbl &gt;= rDbl);</span>
+<span class="nc" id="L2139">                        break object_compare;</span>
+                    case Token.LE:
+<span class="nc bnc" id="L2141" title="All 2 branches missed.">                        valBln = (lDbl &lt;= rDbl);</span>
+<span class="nc" id="L2142">                        break object_compare;</span>
+                    case Token.GT:
+<span class="nc bnc" id="L2144" title="All 2 branches missed.">                        valBln = (lDbl &gt; rDbl);</span>
+<span class="nc" id="L2145">                        break object_compare;</span>
+                    case Token.LT:
+<span class="nc bnc" id="L2147" title="All 2 branches missed.">                        valBln = (lDbl &lt; rDbl);</span>
+<span class="nc" id="L2148">                        break object_compare;</span>
+                    default:
+<span class="nc" id="L2150">                        throw Kit.codeBug();</span>
+                }
+            }
+<span class="nc bnc" id="L2153" title="All 5 branches missed.">            switch (op) {</span>
+                case Token.GE:
+<span class="nc" id="L2155">                    valBln = ScriptRuntime.cmp_LE(rhs, lhs);</span>
+<span class="nc" id="L2156">                    break;</span>
+                case Token.LE:
+<span class="nc" id="L2158">                    valBln = ScriptRuntime.cmp_LE(lhs, rhs);</span>
+<span class="nc" id="L2159">                    break;</span>
+                case Token.GT:
+<span class="nc" id="L2161">                    valBln = ScriptRuntime.cmp_LT(rhs, lhs);</span>
+<span class="nc" id="L2162">                    break;</span>
+                case Token.LT:
+<span class="nc" id="L2164">                    valBln = ScriptRuntime.cmp_LT(lhs, rhs);</span>
+<span class="nc" id="L2165">                    break;</span>
+                default:
+<span class="nc" id="L2167">                    throw Kit.codeBug();</span>
+            }
+        }
+<span class="nc" id="L2170">        stack[stackTop] = ScriptRuntime.wrapBoolean(valBln);</span>
+<span class="nc" id="L2171">        return stackTop;</span>
+    }
+
+    private static int doBitOp(CallFrame frame, int op, Object[] stack,
+                               double[] sDbl, int stackTop) {
+<span class="nc" id="L2176">        int lIntValue = stack_int32(frame, stackTop - 1);</span>
+<span class="nc" id="L2177">        int rIntValue = stack_int32(frame, stackTop);</span>
+<span class="nc" id="L2178">        stack[--stackTop] = DOUBLE_MARK;</span>
+<span class="nc bnc" id="L2179" title="All 6 branches missed.">        switch (op) {</span>
+          case Token.BITAND:
+<span class="nc" id="L2181">            lIntValue &amp;= rIntValue;</span>
+<span class="nc" id="L2182">            break;</span>
+          case Token.BITOR:
+<span class="nc" id="L2184">            lIntValue |= rIntValue;</span>
+<span class="nc" id="L2185">            break;</span>
+          case Token.BITXOR:
+<span class="nc" id="L2187">            lIntValue ^= rIntValue;</span>
+<span class="nc" id="L2188">            break;</span>
+          case Token.LSH:
+<span class="nc" id="L2190">            lIntValue &lt;&lt;= rIntValue;</span>
+<span class="nc" id="L2191">            break;</span>
+          case Token.RSH:
+<span class="nc" id="L2193">            lIntValue &gt;&gt;= rIntValue;</span>
+            break;
+        }
+<span class="nc" id="L2196">        sDbl[stackTop] = lIntValue;</span>
+<span class="nc" id="L2197">        return stackTop;</span>
+    }
+
+    private static int doDelName(Context cx, CallFrame frame, int op,
+                                 Object[] stack, double[] sDbl, int stackTop) {
+<span class="nc" id="L2202">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2203" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2204">        --stackTop;</span>
+<span class="nc" id="L2205">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2206" title="All 2 branches missed.">        if (lhs == DOUBLE_MARK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc bnc" id="L2207" title="All 2 branches missed.">        stack[stackTop] = ScriptRuntime.delete(lhs, rhs, cx, frame.scope,</span>
+                                               op == Icode_DELNAME);
+<span class="nc" id="L2209">        return stackTop;</span>
+    }
+
+    private static int doGetElem(Context cx, CallFrame frame, Object[] stack,
+                                 double[] sDbl, int stackTop) {
+<span class="nc" id="L2214">        --stackTop;</span>
+<span class="nc" id="L2215">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2216" title="All 2 branches missed.">        if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2217">            lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+        }
+        Object value;
+<span class="nc" id="L2220">        Object id = stack[stackTop + 1];</span>
+<span class="nc bnc" id="L2221" title="All 2 branches missed.">        if (id != DOUBLE_MARK) {</span>
+<span class="nc" id="L2222">            value = ScriptRuntime.getObjectElem(lhs, id, cx, frame.scope);</span>
+        } else {
+<span class="nc" id="L2224">            double d = sDbl[stackTop + 1];</span>
+<span class="nc" id="L2225">            value = ScriptRuntime.getObjectIndex(lhs, d, cx, frame.scope);</span>
+        }
+<span class="nc" id="L2227">        stack[stackTop] = value;</span>
+<span class="nc" id="L2228">        return stackTop;</span>
+    }
+
+    private static int doSetElem(Context cx, CallFrame frame, Object[] stack,
+                                 double[] sDbl, int stackTop) {
+<span class="nc" id="L2233">        stackTop -= 2;</span>
+<span class="nc" id="L2234">        Object rhs = stack[stackTop + 2];</span>
+<span class="nc bnc" id="L2235" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2236">            rhs = ScriptRuntime.wrapNumber(sDbl[stackTop + 2]);</span>
+        }
+<span class="nc" id="L2238">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2239" title="All 2 branches missed.">        if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2240">            lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+        }
+        Object value;
+<span class="nc" id="L2243">        Object id = stack[stackTop + 1];</span>
+<span class="nc bnc" id="L2244" title="All 2 branches missed.">        if (id != DOUBLE_MARK) {</span>
+<span class="nc" id="L2245">            value = ScriptRuntime.setObjectElem(lhs, id, rhs, cx, frame.scope);</span>
+        } else {
+<span class="nc" id="L2247">            double d = sDbl[stackTop + 1];</span>
+<span class="nc" id="L2248">            value = ScriptRuntime.setObjectIndex(lhs, d, rhs, cx, frame.scope);</span>
+        }
+<span class="nc" id="L2250">        stack[stackTop] = value;</span>
+<span class="nc" id="L2251">        return stackTop;</span>
+    }
+
+    private static int doElemIncDec(Context cx, CallFrame frame, byte[] iCode,
+                                    Object[] stack, double[] sDbl, int stackTop) {
+<span class="nc" id="L2256">        Object rhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2257" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2258">        --stackTop;</span>
+<span class="nc" id="L2259">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2260" title="All 2 branches missed.">        if (lhs == DOUBLE_MARK) lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2261">        stack[stackTop] = ScriptRuntime.elemIncrDecr(lhs, rhs, cx, frame.scope,</span>
+                                                     iCode[frame.pc]);
+<span class="nc" id="L2263">        ++frame.pc;</span>
+<span class="nc" id="L2264">        return stackTop;</span>
+    }
+
+    private static int doCallSpecial(Context cx, CallFrame frame,
+                                     Object[] stack, double[] sDbl,
+                                     int stackTop, byte[] iCode,
+                                     int indexReg) {
+<span class="nc" id="L2271">        int callType = iCode[frame.pc] &amp; 0xFF;</span>
+<span class="nc bnc" id="L2272" title="All 2 branches missed.">        boolean isNew =  (iCode[frame.pc + 1] != 0);</span>
+<span class="nc" id="L2273">        int sourceLine = getIndex(iCode, frame.pc + 2);</span>
+
+        // indexReg: number of arguments
+<span class="nc bnc" id="L2276" title="All 2 branches missed.">        if (isNew) {</span>
+            // stack change: function arg0 .. argN -&gt; newResult
+<span class="nc" id="L2278">            stackTop -= indexReg;</span>
+
+<span class="nc" id="L2280">            Object function = stack[stackTop];</span>
+<span class="nc bnc" id="L2281" title="All 2 branches missed.">            if (function == DOUBLE_MARK)</span>
+<span class="nc" id="L2282">                function = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2283">            Object[] outArgs = getArgsArray(</span>
+                                   stack, sDbl, stackTop + 1, indexReg);
+<span class="nc" id="L2285">            stack[stackTop] = ScriptRuntime.newSpecial(</span>
+                                  cx, function, outArgs, frame.scope, callType);
+<span class="nc" id="L2287">        } else {</span>
+            // stack change: function thisObj arg0 .. argN -&gt; result
+<span class="nc" id="L2289">            stackTop -= 1 + indexReg;</span>
+
+            // Call code generation ensure that stack here
+            // is ... Callable Scriptable
+<span class="nc" id="L2293">            Scriptable functionThis = (Scriptable)stack[stackTop + 1];</span>
+<span class="nc" id="L2294">            Callable function = (Callable)stack[stackTop];</span>
+<span class="nc" id="L2295">            Object[] outArgs = getArgsArray(</span>
+                                   stack, sDbl, stackTop + 2, indexReg);
+<span class="nc" id="L2297">            stack[stackTop] = ScriptRuntime.callSpecial(</span>
+                                  cx, function, functionThis, outArgs,
+                                  frame.scope, frame.thisObj, callType,
+                                  frame.idata.itsSourceFile, sourceLine);
+        }
+<span class="nc" id="L2302">        frame.pc += 4;</span>
+<span class="nc" id="L2303">        return stackTop;</span>
+    }
+
+    private static int doSetConstVar(CallFrame frame, Object[] stack,
+                                     double[] sDbl, int stackTop,
+                                     Object[] vars, double[] varDbls,
+                                     int[] varAttributes, int indexReg) {
+<span class="nc bnc" id="L2310" title="All 2 branches missed.">        if (!frame.useActivation) {</span>
+<span class="nc bnc" id="L2311" title="All 2 branches missed.">            if ((varAttributes[indexReg] &amp; ScriptableObject.READONLY) == 0) {</span>
+<span class="nc" id="L2312">                throw Context.reportRuntimeError1(&quot;msg.var.redecl&quot;,</span>
+                                                  frame.idata.argNames[indexReg]);
+            }
+<span class="nc bnc" id="L2315" title="All 2 branches missed.">            if ((varAttributes[indexReg] &amp; ScriptableObject.UNINITIALIZED_CONST)</span>
+                != 0)
+            {
+<span class="nc" id="L2318">                vars[indexReg] = stack[stackTop];</span>
+<span class="nc" id="L2319">                varAttributes[indexReg] &amp;= ~ScriptableObject.UNINITIALIZED_CONST;</span>
+<span class="nc" id="L2320">                varDbls[indexReg] = sDbl[stackTop];</span>
+            }
+        } else {
+<span class="nc" id="L2323">            Object val = stack[stackTop];</span>
+<span class="nc bnc" id="L2324" title="All 2 branches missed.">            if (val == DOUBLE_MARK) val = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2325">            String stringReg = frame.idata.argNames[indexReg];</span>
+<span class="nc bnc" id="L2326" title="All 2 branches missed.">            if (frame.scope instanceof ConstProperties) {</span>
+<span class="nc" id="L2327">                ConstProperties cp = (ConstProperties)frame.scope;</span>
+<span class="nc" id="L2328">                cp.putConst(stringReg, frame.scope, val);</span>
+<span class="nc" id="L2329">            } else</span>
+<span class="nc" id="L2330">                throw Kit.codeBug();</span>
+        }
+<span class="nc" id="L2332">        return stackTop;</span>
+    }
+
+    private static int doSetVar(CallFrame frame, Object[] stack,
+                                double[] sDbl, int stackTop,
+                                Object[] vars, double[] varDbls,
+                                int[] varAttributes, int indexReg) {
+<span class="nc bnc" id="L2339" title="All 2 branches missed.">        if (!frame.useActivation) {</span>
+<span class="nc bnc" id="L2340" title="All 2 branches missed.">            if ((varAttributes[indexReg] &amp; ScriptableObject.READONLY) == 0) {</span>
+<span class="nc" id="L2341">                vars[indexReg] = stack[stackTop];</span>
+<span class="nc" id="L2342">                varDbls[indexReg] = sDbl[stackTop];</span>
+            }
+        } else {
+<span class="nc" id="L2345">            Object val = stack[stackTop];</span>
+<span class="nc bnc" id="L2346" title="All 2 branches missed.">            if (val == DOUBLE_MARK) val = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2347">            String stringReg = frame.idata.argNames[indexReg];</span>
+<span class="nc" id="L2348">            frame.scope.put(stringReg, frame.scope, val);</span>
+        }
+<span class="nc" id="L2350">        return stackTop;</span>
+    }
+
+    private static int doGetVar(CallFrame frame, Object[] stack,
+                                double[] sDbl, int stackTop,
+                                Object[] vars, double[] varDbls,
+                                int indexReg) {
+<span class="nc" id="L2357">        ++stackTop;</span>
+<span class="nc bnc" id="L2358" title="All 2 branches missed.">        if (!frame.useActivation) {</span>
+<span class="nc" id="L2359">            stack[stackTop] = vars[indexReg];</span>
+<span class="nc" id="L2360">            sDbl[stackTop] = varDbls[indexReg];</span>
+        } else {
+<span class="nc" id="L2362">            String stringReg = frame.idata.argNames[indexReg];</span>
+<span class="nc" id="L2363">            stack[stackTop] = frame.scope.get(stringReg, frame.scope);</span>
+        }
+<span class="nc" id="L2365">        return stackTop;</span>
+    }
+
+    private static int doVarIncDec(Context cx, CallFrame frame,
+                                   Object[] stack, double[] sDbl,
+                                   int stackTop, Object[] vars,
+                                   double[] varDbls, int[] varAttributes,
+                                   int indexReg) {
+        // indexReg : varindex
+<span class="nc" id="L2374">        ++stackTop;</span>
+<span class="nc" id="L2375">        int incrDecrMask = frame.idata.itsICode[frame.pc];</span>
+<span class="nc bnc" id="L2376" title="All 2 branches missed.">        if (!frame.useActivation) {</span>
+<span class="nc" id="L2377">            Object varValue = vars[indexReg];</span>
+            double d;
+<span class="nc bnc" id="L2379" title="All 2 branches missed.">            if (varValue == DOUBLE_MARK) {</span>
+<span class="nc" id="L2380">                d = varDbls[indexReg];</span>
+            } else {
+<span class="nc" id="L2382">                d = ScriptRuntime.toNumber(varValue);</span>
+            }
+<span class="nc bnc" id="L2384" title="All 2 branches missed.">            double d2 = ((incrDecrMask &amp; Node.DECR_FLAG) == 0)</span>
+                        ? d + 1.0 : d - 1.0;
+<span class="nc bnc" id="L2386" title="All 2 branches missed.">            boolean post = ((incrDecrMask &amp; Node.POST_FLAG) != 0);</span>
+<span class="nc bnc" id="L2387" title="All 2 branches missed.">            if ((varAttributes[indexReg] &amp; ScriptableObject.READONLY) == 0) {</span>
+<span class="nc bnc" id="L2388" title="All 2 branches missed.">                if (varValue != DOUBLE_MARK) {</span>
+<span class="nc" id="L2389">                    vars[indexReg] = DOUBLE_MARK;</span>
+                }
+<span class="nc" id="L2391">                varDbls[indexReg] = d2;</span>
+<span class="nc" id="L2392">                stack[stackTop] = DOUBLE_MARK;</span>
+<span class="nc bnc" id="L2393" title="All 2 branches missed.">                sDbl[stackTop] = post ? d : d2;</span>
+            } else {
+<span class="nc bnc" id="L2395" title="All 4 branches missed.">                if (post &amp;&amp; varValue != DOUBLE_MARK) {</span>
+<span class="nc" id="L2396">                    stack[stackTop] = varValue;</span>
+                } else {
+<span class="nc" id="L2398">                    stack[stackTop] = DOUBLE_MARK;</span>
+<span class="nc bnc" id="L2399" title="All 2 branches missed.">                    sDbl[stackTop] = post ? d : d2;</span>
+                }
+            }
+<span class="nc" id="L2402">        } else {</span>
+<span class="nc" id="L2403">            String varName = frame.idata.argNames[indexReg];</span>
+<span class="nc" id="L2404">            stack[stackTop] = ScriptRuntime.nameIncrDecr(frame.scope, varName,</span>
+                                                         cx, incrDecrMask);
+        }
+<span class="nc" id="L2407">        ++frame.pc;</span>
+<span class="nc" id="L2408">        return stackTop;</span>
+    }
+
+    private static int doRefMember(Context cx, Object[] stack, double[] sDbl,
+                                   int stackTop, int flags) {
+<span class="nc" id="L2413">        Object elem = stack[stackTop];</span>
+<span class="nc bnc" id="L2414" title="All 2 branches missed.">        if (elem == DOUBLE_MARK) elem = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2415">        --stackTop;</span>
+<span class="nc" id="L2416">        Object obj = stack[stackTop];</span>
+<span class="nc bnc" id="L2417" title="All 2 branches missed.">        if (obj == DOUBLE_MARK) obj = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2418">        stack[stackTop] = ScriptRuntime.memberRef(obj, elem, cx, flags);</span>
+<span class="nc" id="L2419">        return stackTop;</span>
+    }
+
+    private static int doRefNsMember(Context cx, Object[] stack, double[] sDbl,
+                                     int stackTop, int flags) {
+<span class="nc" id="L2424">        Object elem = stack[stackTop];</span>
+<span class="nc bnc" id="L2425" title="All 2 branches missed.">        if (elem == DOUBLE_MARK) elem = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2426">        --stackTop;</span>
+<span class="nc" id="L2427">        Object ns = stack[stackTop];</span>
+<span class="nc bnc" id="L2428" title="All 2 branches missed.">        if (ns == DOUBLE_MARK) ns = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2429">        --stackTop;</span>
+<span class="nc" id="L2430">        Object obj = stack[stackTop];</span>
+<span class="nc bnc" id="L2431" title="All 2 branches missed.">        if (obj == DOUBLE_MARK) obj = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2432">        stack[stackTop] = ScriptRuntime.memberRef(obj, ns, elem, cx, flags);</span>
+<span class="nc" id="L2433">        return stackTop;</span>
+    }
+
+    private static int doRefNsName(Context cx, CallFrame frame,
+                                   Object[] stack, double[] sDbl,
+                                   int stackTop, int flags) {
+<span class="nc" id="L2439">        Object name = stack[stackTop];</span>
+<span class="nc bnc" id="L2440" title="All 2 branches missed.">        if (name == DOUBLE_MARK) name = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2441">        --stackTop;</span>
+<span class="nc" id="L2442">        Object ns = stack[stackTop];</span>
+<span class="nc bnc" id="L2443" title="All 2 branches missed.">        if (ns == DOUBLE_MARK) ns = ScriptRuntime.wrapNumber(sDbl[stackTop]);</span>
+<span class="nc" id="L2444">        stack[stackTop] = ScriptRuntime.nameRef(ns, name, cx, frame.scope, flags);</span>
+<span class="nc" id="L2445">        return stackTop;</span>
+    }
+
+    /**
+     * Call __noSuchMethod__.
+     */
+    private static CallFrame initFrameForNoSuchMethod(Context cx,
+            CallFrame frame, int indexReg, Object[] stack, double[] sDbl,
+            int stackTop, int op, Scriptable funThisObj, Scriptable calleeScope,
+            NoSuchMethodShim noSuchMethodShim, InterpretedFunction ifun)
+    {
+        // create an args array from the stack
+<span class="nc" id="L2457">        Object[] argsArray = null;</span>
+        // exactly like getArgsArray except that the first argument
+        // is the method name from the shim
+<span class="nc" id="L2460">        int shift = stackTop + 2;</span>
+<span class="nc" id="L2461">        Object[] elements = new Object[indexReg];</span>
+<span class="nc bnc" id="L2462" title="All 2 branches missed.">        for (int i=0; i &lt; indexReg; ++i, ++shift) {</span>
+<span class="nc" id="L2463">            Object val = stack[shift];</span>
+<span class="nc bnc" id="L2464" title="All 2 branches missed.">            if (val == DOUBLE_MARK) {</span>
+<span class="nc" id="L2465">                val = ScriptRuntime.wrapNumber(sDbl[shift]);</span>
+            }
+<span class="nc" id="L2467">            elements[i] = val;</span>
+        }
+<span class="nc" id="L2469">        argsArray = new Object[2];</span>
+<span class="nc" id="L2470">        argsArray[0] = noSuchMethodShim.methodName;</span>
+<span class="nc" id="L2471">        argsArray[1] = cx.newArray(calleeScope, elements);</span>
+
+        // exactly the same as if it's a regular InterpretedFunction
+<span class="nc" id="L2474">        CallFrame callParentFrame = frame;</span>
+<span class="nc" id="L2475">        CallFrame calleeFrame = new CallFrame();</span>
+<span class="nc bnc" id="L2476" title="All 2 branches missed.">        if (op == Icode_TAIL_CALL) {</span>
+<span class="nc" id="L2477">            callParentFrame = frame.parentFrame;</span>
+<span class="nc" id="L2478">            exitFrame(cx, frame, null);</span>
+        }
+        // init the frame with the underlying method with the
+        // adjusted args array and shim's function
+<span class="nc" id="L2482">        initFrame(cx, calleeScope, funThisObj, argsArray, null,</span>
+          0, 2, ifun, callParentFrame, calleeFrame);
+<span class="nc bnc" id="L2484" title="All 2 branches missed.">        if (op != Icode_TAIL_CALL) {</span>
+<span class="nc" id="L2485">            frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L2486">            frame.savedCallOp = op;</span>
+        }
+<span class="nc" id="L2488">        return calleeFrame;</span>
+    }
+
+    private static boolean doEquals(Object[] stack, double[] sDbl,
+                                    int stackTop) {
+<span class="nc" id="L2493">        Object rhs = stack[stackTop + 1];</span>
+<span class="nc" id="L2494">        Object lhs = stack[stackTop];</span>
+<span class="nc bnc" id="L2495" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) {</span>
+<span class="nc bnc" id="L2496" title="All 2 branches missed.">            if (lhs == DOUBLE_MARK) {</span>
+<span class="nc bnc" id="L2497" title="All 2 branches missed.">                return (sDbl[stackTop] == sDbl[stackTop + 1]);</span>
+            } else {
+<span class="nc" id="L2499">                return ScriptRuntime.eqNumber(sDbl[stackTop + 1], lhs);</span>
+            }
+        } else {
+<span class="nc bnc" id="L2502" title="All 2 branches missed.">            if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L2503">                return ScriptRuntime.eqNumber(sDbl[stackTop], rhs);</span>
+            } else {
+<span class="nc" id="L2505">                return ScriptRuntime.eq(lhs, rhs);</span>
+            }
+        }
+    }
+
+    private static boolean doShallowEquals(Object[] stack, double[] sDbl,
+                                           int stackTop)
+    {
+<span class="nc" id="L2513">        Object rhs = stack[stackTop + 1];</span>
+<span class="nc" id="L2514">        Object lhs = stack[stackTop];</span>
+<span class="nc" id="L2515">        final Object DBL_MRK = DOUBLE_MARK;</span>
+        double rdbl, ldbl;
+<span class="nc bnc" id="L2517" title="All 2 branches missed.">        if (rhs == DBL_MRK) {</span>
+<span class="nc" id="L2518">            rdbl = sDbl[stackTop + 1];</span>
+<span class="nc bnc" id="L2519" title="All 2 branches missed.">            if (lhs == DBL_MRK) {</span>
+<span class="nc" id="L2520">                ldbl = sDbl[stackTop];</span>
+<span class="nc bnc" id="L2521" title="All 2 branches missed.">            } else if (lhs instanceof Number) {</span>
+<span class="nc" id="L2522">                ldbl = ((Number)lhs).doubleValue();</span>
+            } else {
+<span class="nc" id="L2524">                return false;</span>
+            }
+<span class="nc bnc" id="L2526" title="All 2 branches missed.">        } else if (lhs == DBL_MRK) {</span>
+<span class="nc" id="L2527">            ldbl = sDbl[stackTop];</span>
+<span class="nc bnc" id="L2528" title="All 2 branches missed.">            if (rhs instanceof Number) {</span>
+<span class="nc" id="L2529">                rdbl = ((Number)rhs).doubleValue();</span>
+            } else {
+<span class="nc" id="L2531">                return false;</span>
+            }
+        } else {
+<span class="nc" id="L2534">            return ScriptRuntime.shallowEq(lhs, rhs);</span>
+        }
+<span class="nc bnc" id="L2536" title="All 2 branches missed.">        return (ldbl == rdbl);</span>
+    }
+
+    private static CallFrame processThrowable(Context cx, Object throwable,
+                                              CallFrame frame, int indexReg,
+                                              boolean instructionCounting)
+    {
+        // Recovering from exception, indexReg contains
+        // the index of handler
+
+<span class="nc bnc" id="L2546" title="All 2 branches missed.">        if (indexReg &gt;= 0) {</span>
+            // Normal exception handler, transfer
+            // control appropriately
+
+<span class="nc bnc" id="L2550" title="All 2 branches missed.">            if (frame.frozen) {</span>
+                // XXX Deal with exceptios!!!
+<span class="nc" id="L2552">                frame = frame.cloneFrozen();</span>
+            }
+
+<span class="nc" id="L2555">            int[] table = frame.idata.itsExceptionTable;</span>
+
+<span class="nc" id="L2557">            frame.pc = table[indexReg + EXCEPTION_HANDLER_SLOT];</span>
+<span class="nc bnc" id="L2558" title="All 2 branches missed.">            if (instructionCounting) {</span>
+<span class="nc" id="L2559">                frame.pcPrevBranch = frame.pc;</span>
+            }
+
+<span class="nc" id="L2562">            frame.savedStackTop = frame.emptyStackTop;</span>
+<span class="nc" id="L2563">            int scopeLocal = frame.localShift</span>
+                             + table[indexReg
+                                     + EXCEPTION_SCOPE_SLOT];
+<span class="nc" id="L2566">            int exLocal = frame.localShift</span>
+                             + table[indexReg
+                                     + EXCEPTION_LOCAL_SLOT];
+<span class="nc" id="L2569">            frame.scope = (Scriptable)frame.stack[scopeLocal];</span>
+<span class="nc" id="L2570">            frame.stack[exLocal] = throwable;</span>
+
+<span class="nc" id="L2572">            throwable = null;</span>
+<span class="nc" id="L2573">        } else {</span>
+            // Continuation restoration
+<span class="nc" id="L2575">            ContinuationJump cjump = (ContinuationJump)throwable;</span>
+
+            // Clear throwable to indicate that exceptions are OK
+<span class="nc" id="L2578">            throwable = null;</span>
+
+<span class="nc bnc" id="L2580" title="All 2 branches missed.">            if (cjump.branchFrame != frame) Kit.codeBug();</span>
+
+            // Check that we have at least one frozen frame
+            // in the case of detached continuation restoration:
+            // unwind code ensure that
+<span class="nc bnc" id="L2585" title="All 2 branches missed.">            if (cjump.capturedFrame == null) Kit.codeBug();</span>
+
+            // Need to rewind branchFrame, capturedFrame
+            // and all frames in between
+<span class="nc" id="L2589">            int rewindCount = cjump.capturedFrame.frameIndex + 1;</span>
+<span class="nc bnc" id="L2590" title="All 2 branches missed.">            if (cjump.branchFrame != null) {</span>
+<span class="nc" id="L2591">                rewindCount -= cjump.branchFrame.frameIndex;</span>
+            }
+
+<span class="nc" id="L2594">            int enterCount = 0;</span>
+<span class="nc" id="L2595">            CallFrame[] enterFrames = null;</span>
+
+<span class="nc" id="L2597">            CallFrame x = cjump.capturedFrame;</span>
+<span class="nc bnc" id="L2598" title="All 2 branches missed.">            for (int i = 0; i != rewindCount; ++i) {</span>
+<span class="nc bnc" id="L2599" title="All 2 branches missed.">                if (!x.frozen) Kit.codeBug();</span>
+<span class="nc bnc" id="L2600" title="All 2 branches missed.">                if (isFrameEnterExitRequired(x)) {</span>
+<span class="nc bnc" id="L2601" title="All 2 branches missed.">                    if (enterFrames == null) {</span>
+                        // Allocate enough space to store the rest
+                        // of rewind frames in case all of them
+                        // would require to enter
+<span class="nc" id="L2605">                        enterFrames = new CallFrame[rewindCount</span>
+                                                    - i];
+                    }
+<span class="nc" id="L2608">                    enterFrames[enterCount] = x;</span>
+<span class="nc" id="L2609">                    ++enterCount;</span>
+                }
+<span class="nc" id="L2611">                x = x.parentFrame;</span>
+            }
+
+<span class="nc bnc" id="L2614" title="All 2 branches missed.">            while (enterCount != 0) {</span>
+                // execute enter: walk enterFrames in the reverse
+                // order since they were stored starting from
+                // the capturedFrame, not branchFrame
+<span class="nc" id="L2618">                --enterCount;</span>
+<span class="nc" id="L2619">                x = enterFrames[enterCount];</span>
+<span class="nc" id="L2620">                enterFrame(cx, x, ScriptRuntime.emptyArgs, true);</span>
+            }
+
+            // Continuation jump is almost done: capturedFrame
+            // points to the call to the function that captured
+            // continuation, so clone capturedFrame and
+            // emulate return that function with the suplied result
+<span class="nc" id="L2627">            frame = cjump.capturedFrame.cloneFrozen();</span>
+<span class="nc" id="L2628">            setCallResult(frame, cjump.result, cjump.resultDbl);</span>
+            // restart the execution
+        }
+<span class="nc" id="L2631">        frame.throwable = throwable;</span>
+<span class="nc" id="L2632">        return frame;</span>
+    }
+
+    private static Object freezeGenerator(Context cx, CallFrame frame,
+                                          int stackTop,
+                                          GeneratorState generatorState)
+    {
+<span class="nc bnc" id="L2639" title="All 2 branches missed.">          if (generatorState.operation == NativeGenerator.GENERATOR_CLOSE) {</span>
+              // Error: no yields when generator is closing
+<span class="nc" id="L2641">              throw ScriptRuntime.typeError0(&quot;msg.yield.closing&quot;);</span>
+          }
+          // return to our caller (which should be a method of NativeGenerator)
+<span class="nc" id="L2644">          frame.frozen = true;</span>
+<span class="nc" id="L2645">          frame.result = frame.stack[stackTop];</span>
+<span class="nc" id="L2646">          frame.resultDbl = frame.sDbl[stackTop];</span>
+<span class="nc" id="L2647">          frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L2648">          frame.pc--; // we want to come back here when we resume</span>
+<span class="nc" id="L2649">          ScriptRuntime.exitActivationFunction(cx);</span>
+<span class="nc bnc" id="L2650" title="All 2 branches missed.">          return (frame.result != DOUBLE_MARK)</span>
+              ? frame.result
+<span class="nc" id="L2652">              : ScriptRuntime.wrapNumber(frame.resultDbl);</span>
+    }
+
+    private static Object thawGenerator(CallFrame frame, int stackTop,
+                                        GeneratorState generatorState, int op)
+    {
+          // we are resuming execution
+<span class="nc" id="L2659">          frame.frozen = false;</span>
+<span class="nc" id="L2660">          int sourceLine = getIndex(frame.idata.itsICode, frame.pc);</span>
+<span class="nc" id="L2661">          frame.pc += 2; // skip line number data</span>
+<span class="nc bnc" id="L2662" title="All 2 branches missed.">          if (generatorState.operation == NativeGenerator.GENERATOR_THROW) {</span>
+              // processing a call to &lt;generator&gt;.throw(exception): must
+              // act as if exception was thrown from resumption point
+<span class="nc" id="L2665">              return new JavaScriptException(generatorState.value,</span>
+                                                  frame.idata.itsSourceFile,
+                                                  sourceLine);
+          }
+<span class="nc bnc" id="L2669" title="All 2 branches missed.">          if (generatorState.operation == NativeGenerator.GENERATOR_CLOSE) {</span>
+<span class="nc" id="L2670">              return generatorState.value;</span>
+          }
+<span class="nc bnc" id="L2672" title="All 2 branches missed.">          if (generatorState.operation != NativeGenerator.GENERATOR_SEND)</span>
+<span class="nc" id="L2673">              throw Kit.codeBug();</span>
+<span class="nc bnc" id="L2674" title="All 2 branches missed.">          if (op == Token.YIELD)</span>
+<span class="nc" id="L2675">              frame.stack[stackTop] = generatorState.value;</span>
+<span class="nc" id="L2676">          return Scriptable.NOT_FOUND;</span>
+    }
+
+    private static CallFrame initFrameForApplyOrCall(Context cx, CallFrame frame,
+            int indexReg, Object[] stack, double[] sDbl, int stackTop, int op,
+            Scriptable calleeScope, IdFunctionObject ifun,
+            InterpretedFunction iApplyCallable)
+    {
+        Scriptable applyThis;
+<span class="nc bnc" id="L2685" title="All 2 branches missed.">        if (indexReg != 0) {</span>
+<span class="nc" id="L2686">            Object obj = stack[stackTop + 2];</span>
+<span class="nc bnc" id="L2687" title="All 2 branches missed.">            if (obj == DOUBLE_MARK)</span>
+<span class="nc" id="L2688">                obj = ScriptRuntime.wrapNumber(sDbl[stackTop + 2]);</span>
+<span class="nc" id="L2689">            applyThis = ScriptRuntime.toObjectOrNull(cx, obj, frame.scope);</span>
+<span class="nc" id="L2690">        }</span>
+        else {
+<span class="nc" id="L2692">            applyThis = null;</span>
+        }
+<span class="nc bnc" id="L2694" title="All 2 branches missed.">        if (applyThis == null) {</span>
+            // This covers the case of args[0] == (null|undefined) as well.
+<span class="nc" id="L2696">            applyThis = ScriptRuntime.getTopCallScope(cx);</span>
+        }
+<span class="nc bnc" id="L2698" title="All 2 branches missed.">        if(op == Icode_TAIL_CALL) {</span>
+<span class="nc" id="L2699">            exitFrame(cx, frame, null);</span>
+<span class="nc" id="L2700">            frame = frame.parentFrame;</span>
+        }
+        else {
+<span class="nc" id="L2703">            frame.savedStackTop = stackTop;</span>
+<span class="nc" id="L2704">            frame.savedCallOp = op;</span>
+        }
+<span class="nc" id="L2706">        CallFrame calleeFrame = new CallFrame();</span>
+<span class="nc bnc" id="L2707" title="All 2 branches missed.">        if(BaseFunction.isApply(ifun)) {</span>
+<span class="nc bnc" id="L2708" title="All 2 branches missed.">            Object[] callArgs = indexReg &lt; 2 ? ScriptRuntime.emptyArgs :</span>
+<span class="nc" id="L2709">                ScriptRuntime.getApplyArguments(cx, stack[stackTop + 3]);</span>
+<span class="nc" id="L2710">            initFrame(cx, calleeScope, applyThis, callArgs, null, 0,</span>
+                    callArgs.length, iApplyCallable, frame, calleeFrame);
+<span class="nc" id="L2712">        }</span>
+        else {
+            // Shift args left
+<span class="nc bnc" id="L2715" title="All 2 branches missed.">            for(int i = 1; i &lt; indexReg; ++i) {</span>
+<span class="nc" id="L2716">                stack[stackTop + 1 + i] = stack[stackTop + 2 + i];</span>
+<span class="nc" id="L2717">                sDbl[stackTop + 1 + i] = sDbl[stackTop + 2 + i];</span>
+            }
+<span class="nc bnc" id="L2719" title="All 2 branches missed.">            int argCount = indexReg &lt; 2 ? 0 : indexReg - 1;</span>
+<span class="nc" id="L2720">            initFrame(cx, calleeScope, applyThis, stack, sDbl, stackTop + 2,</span>
+                    argCount, iApplyCallable, frame, calleeFrame);
+        }
+
+<span class="nc" id="L2724">        frame = calleeFrame;</span>
+<span class="nc" id="L2725">        return frame;</span>
+    }
+
+    private static void initFrame(Context cx, Scriptable callerScope,
+                                  Scriptable thisObj,
+                                  Object[] args, double[] argsDbl,
+                                  int argShift, int argCount,
+                                  InterpretedFunction fnOrScript,
+                                  CallFrame parentFrame, CallFrame frame)
+    {
+<span class="nc" id="L2735">        InterpreterData idata = fnOrScript.idata;</span>
+
+<span class="nc" id="L2737">        boolean useActivation = idata.itsNeedsActivation;</span>
+<span class="nc" id="L2738">        DebugFrame debuggerFrame = null;</span>
+<span class="nc bnc" id="L2739" title="All 2 branches missed.">        if (cx.debugger != null) {</span>
+<span class="nc" id="L2740">            debuggerFrame = cx.debugger.getFrame(cx, idata);</span>
+<span class="nc bnc" id="L2741" title="All 2 branches missed.">            if (debuggerFrame != null) {</span>
+<span class="nc" id="L2742">                useActivation = true;</span>
+            }
+        }
+
+<span class="nc bnc" id="L2746" title="All 2 branches missed.">        if (useActivation) {</span>
+            // Copy args to new array to pass to enterActivationFunction
+            // or debuggerFrame.onEnter
+<span class="nc bnc" id="L2749" title="All 2 branches missed.">            if (argsDbl != null) {</span>
+<span class="nc" id="L2750">                args = getArgsArray(args, argsDbl, argShift, argCount);</span>
+            }
+<span class="nc" id="L2752">            argShift = 0;</span>
+<span class="nc" id="L2753">            argsDbl = null;</span>
+        }
+
+        Scriptable scope;
+<span class="nc bnc" id="L2757" title="All 2 branches missed.">        if (idata.itsFunctionType != 0) {</span>
+<span class="nc" id="L2758">            scope = fnOrScript.getParentScope();</span>
+
+<span class="nc bnc" id="L2760" title="All 2 branches missed.">            if (useActivation) {</span>
+<span class="nc bnc" id="L2761" title="All 2 branches missed.">                if (idata.itsFunctionType == FunctionNode.ARROW_FUNCTION) {</span>
+<span class="nc" id="L2762">                    scope = ScriptRuntime.createArrowFunctionActivation(fnOrScript, scope, args, idata.isStrict);</span>
+                } else {
+<span class="nc" id="L2764">                    scope = ScriptRuntime.createFunctionActivation(fnOrScript, scope, args, idata.isStrict);</span>
+                }
+            }
+        } else {
+<span class="nc" id="L2768">            scope = callerScope;</span>
+<span class="nc" id="L2769">            ScriptRuntime.initScript(fnOrScript, thisObj, cx, scope,</span>
+                                     fnOrScript.idata.evalScriptFlag);
+        }
+
+<span class="nc bnc" id="L2773" title="All 2 branches missed.">        if (idata.itsNestedFunctions != null) {</span>
+<span class="nc bnc" id="L2774" title="All 4 branches missed.">            if (idata.itsFunctionType != 0 &amp;&amp; !idata.itsNeedsActivation)</span>
+<span class="nc" id="L2775">                Kit.codeBug();</span>
+<span class="nc bnc" id="L2776" title="All 2 branches missed.">            for (int i = 0; i &lt; idata.itsNestedFunctions.length; i++) {</span>
+<span class="nc" id="L2777">                InterpreterData fdata = idata.itsNestedFunctions[i];</span>
+<span class="nc bnc" id="L2778" title="All 2 branches missed.">                if (fdata.itsFunctionType == FunctionNode.FUNCTION_STATEMENT) {</span>
+<span class="nc" id="L2779">                    initFunction(cx, scope, fnOrScript, i);</span>
+                }
+            }
+        }
+
+        // Initialize args, vars, locals and stack
+
+<span class="nc" id="L2786">        int emptyStackTop = idata.itsMaxVars + idata.itsMaxLocals - 1;</span>
+<span class="nc" id="L2787">        int maxFrameArray = idata.itsMaxFrameArray;</span>
+<span class="nc bnc" id="L2788" title="All 2 branches missed.">        if (maxFrameArray != emptyStackTop + idata.itsMaxStack + 1)</span>
+<span class="nc" id="L2789">            Kit.codeBug();</span>
+
+        Object[] stack;
+        int[] stackAttributes;
+        double[] sDbl;
+        boolean stackReuse;
+<span class="nc bnc" id="L2795" title="All 4 branches missed.">        if (frame.stack != null &amp;&amp; maxFrameArray &lt;= frame.stack.length) {</span>
+            // Reuse stacks from old frame
+<span class="nc" id="L2797">            stackReuse = true;</span>
+<span class="nc" id="L2798">            stack = frame.stack;</span>
+<span class="nc" id="L2799">            stackAttributes = frame.stackAttributes;</span>
+<span class="nc" id="L2800">            sDbl = frame.sDbl;</span>
+        } else {
+<span class="nc" id="L2802">            stackReuse = false;</span>
+<span class="nc" id="L2803">            stack = new Object[maxFrameArray];</span>
+<span class="nc" id="L2804">            stackAttributes = new int[maxFrameArray];</span>
+<span class="nc" id="L2805">            sDbl = new double[maxFrameArray];</span>
+        }
+
+<span class="nc" id="L2808">        int varCount = idata.getParamAndVarCount();</span>
+<span class="nc bnc" id="L2809" title="All 2 branches missed.">        for (int i = 0; i &lt; varCount; i++) {</span>
+<span class="nc bnc" id="L2810" title="All 2 branches missed.">            if (idata.getParamOrVarConst(i))</span>
+<span class="nc" id="L2811">                stackAttributes[i] = ScriptableObject.CONST;</span>
+        }
+<span class="nc" id="L2813">        int definedArgs = idata.argCount;</span>
+<span class="nc bnc" id="L2814" title="All 2 branches missed.">        if (definedArgs &gt; argCount) { definedArgs = argCount; }</span>
+
+        // Fill the frame structure
+
+<span class="nc" id="L2818">        frame.parentFrame = parentFrame;</span>
+<span class="nc bnc" id="L2819" title="All 2 branches missed.">        frame.frameIndex = (parentFrame == null)</span>
+                           ? 0 : parentFrame.frameIndex + 1;
+<span class="nc bnc" id="L2821" title="All 2 branches missed.">        if(frame.frameIndex &gt; cx.getMaximumInterpreterStackDepth())</span>
+        {
+<span class="nc" id="L2823">            throw Context.reportRuntimeError(&quot;Exceeded maximum stack depth&quot;);</span>
+        }
+<span class="nc" id="L2825">        frame.frozen = false;</span>
+
+<span class="nc" id="L2827">        frame.fnOrScript = fnOrScript;</span>
+<span class="nc" id="L2828">        frame.idata = idata;</span>
+
+<span class="nc" id="L2830">        frame.stack = stack;</span>
+<span class="nc" id="L2831">        frame.stackAttributes = stackAttributes;</span>
+<span class="nc" id="L2832">        frame.sDbl = sDbl;</span>
+<span class="nc" id="L2833">        frame.varSource = frame;</span>
+<span class="nc" id="L2834">        frame.localShift = idata.itsMaxVars;</span>
+<span class="nc" id="L2835">        frame.emptyStackTop = emptyStackTop;</span>
+
+<span class="nc" id="L2837">        frame.debuggerFrame = debuggerFrame;</span>
+<span class="nc" id="L2838">        frame.useActivation = useActivation;</span>
+
+<span class="nc" id="L2840">        frame.thisObj = thisObj;</span>
+
+        // Initialize initial values of variables that change during
+        // interpretation.
+<span class="nc" id="L2844">        frame.result = Undefined.instance;</span>
+<span class="nc" id="L2845">        frame.pc = 0;</span>
+<span class="nc" id="L2846">        frame.pcPrevBranch = 0;</span>
+<span class="nc" id="L2847">        frame.pcSourceLineStart = idata.firstLinePC;</span>
+<span class="nc" id="L2848">        frame.scope = scope;</span>
+
+<span class="nc" id="L2850">        frame.savedStackTop = emptyStackTop;</span>
+<span class="nc" id="L2851">        frame.savedCallOp = 0;</span>
+
+<span class="nc" id="L2853">        System.arraycopy(args, argShift, stack, 0, definedArgs);</span>
+<span class="nc bnc" id="L2854" title="All 2 branches missed.">        if (argsDbl != null) {</span>
+<span class="nc" id="L2855">            System.arraycopy(argsDbl, argShift, sDbl, 0, definedArgs);</span>
+        }
+<span class="nc bnc" id="L2857" title="All 2 branches missed.">        for (int i = definedArgs; i != idata.itsMaxVars; ++i) {</span>
+<span class="nc" id="L2858">            stack[i] = Undefined.instance;</span>
+        }
+<span class="nc bnc" id="L2860" title="All 2 branches missed.">        if (stackReuse) {</span>
+            // Clean the stack part and space beyond stack if any
+            // of the old array to allow to GC objects there
+<span class="nc bnc" id="L2863" title="All 2 branches missed.">            for (int i = emptyStackTop + 1; i != stack.length; ++i) {</span>
+<span class="nc" id="L2864">                stack[i] = null;</span>
+            }
+        }
+
+<span class="nc" id="L2868">        enterFrame(cx, frame, args, false);</span>
+<span class="nc" id="L2869">    }</span>
+
+    private static boolean isFrameEnterExitRequired(CallFrame frame)
+    {
+<span class="nc bnc" id="L2873" title="All 4 branches missed.">        return frame.debuggerFrame != null || frame.idata.itsNeedsActivation;</span>
+    }
+
+    private static void enterFrame(Context cx, CallFrame frame, Object[] args,
+                                   boolean continuationRestart)
+    {
+<span class="nc" id="L2879">        boolean usesActivation = frame.idata.itsNeedsActivation;</span>
+<span class="nc bnc" id="L2880" title="All 2 branches missed.">        boolean isDebugged = frame.debuggerFrame != null;</span>
+<span class="nc bnc" id="L2881" title="All 4 branches missed.">        if(usesActivation || isDebugged) {</span>
+<span class="nc" id="L2882">            Scriptable scope = frame.scope;</span>
+<span class="nc bnc" id="L2883" title="All 2 branches missed.">            if(scope == null) {</span>
+<span class="nc" id="L2884">                Kit.codeBug();</span>
+<span class="nc bnc" id="L2885" title="All 2 branches missed.">            } else if (continuationRestart) {</span>
+                // Walk the parent chain of frame.scope until a NativeCall is
+                // found. Normally, frame.scope is a NativeCall when called
+                // from initFrame() for a debugged or activatable function.
+                // However, when called from interpretLoop() as part of
+                // restarting a continuation, it can also be a NativeWith if
+                // the continuation was captured within a &quot;with&quot; or &quot;catch&quot;
+                // block (&quot;catch&quot; implicitly uses NativeWith to create a scope
+                // to expose the exception variable).
+                for(;;) {
+<span class="nc bnc" id="L2895" title="All 2 branches missed.">                    if(scope instanceof NativeWith) {</span>
+<span class="nc" id="L2896">                        scope = scope.getParentScope();</span>
+<span class="nc bnc" id="L2897" title="All 6 branches missed.">                        if (scope == null || (frame.parentFrame != null &amp;&amp;</span>
+                                              frame.parentFrame.scope == scope))
+                        {
+                            // If we get here, we didn't find a NativeCall in
+                            // the call chain before reaching parent frame's
+                            // scope. This should not be possible.
+<span class="nc" id="L2903">                            Kit.codeBug();</span>
+<span class="nc" id="L2904">                            break; // Never reached, but keeps the static analyzer</span>
+                            // happy about &quot;scope&quot; not being null 5 lines above.
+                        }
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+<span class="nc bnc" id="L2913" title="All 2 branches missed.">            if (isDebugged) {</span>
+<span class="nc" id="L2914">                frame.debuggerFrame.onEnter(cx, scope, frame.thisObj, args);</span>
+            }
+            // Enter activation only when itsNeedsActivation true,
+            // since debugger should not interfere with activation
+            // chaining
+<span class="nc bnc" id="L2919" title="All 2 branches missed.">            if (usesActivation) {</span>
+<span class="nc" id="L2920">                ScriptRuntime.enterActivationFunction(cx, scope);</span>
+            }
+        }
+<span class="nc" id="L2923">    }</span>
+
+    private static void exitFrame(Context cx, CallFrame frame,
+                                  Object throwable)
+    {
+<span class="nc bnc" id="L2928" title="All 2 branches missed.">        if (frame.idata.itsNeedsActivation) {</span>
+<span class="nc" id="L2929">            ScriptRuntime.exitActivationFunction(cx);</span>
+        }
+
+<span class="nc bnc" id="L2932" title="All 2 branches missed.">        if (frame.debuggerFrame != null) {</span>
+            try {
+<span class="nc bnc" id="L2934" title="All 2 branches missed.">                if (throwable instanceof Throwable) {</span>
+<span class="nc" id="L2935">                    frame.debuggerFrame.onExit(cx, true, throwable);</span>
+                } else {
+                    Object result;
+<span class="nc" id="L2938">                    ContinuationJump cjump = (ContinuationJump)throwable;</span>
+<span class="nc bnc" id="L2939" title="All 2 branches missed.">                    if (cjump == null) {</span>
+<span class="nc" id="L2940">                        result = frame.result;</span>
+                    } else {
+<span class="nc" id="L2942">                        result = cjump.result;</span>
+                    }
+<span class="nc bnc" id="L2944" title="All 2 branches missed.">                    if (result == DOUBLE_MARK) {</span>
+                        double resultDbl;
+<span class="nc bnc" id="L2946" title="All 2 branches missed.">                        if (cjump == null) {</span>
+<span class="nc" id="L2947">                            resultDbl = frame.resultDbl;</span>
+                        } else {
+<span class="nc" id="L2949">                            resultDbl = cjump.resultDbl;</span>
+                        }
+<span class="nc" id="L2951">                        result = ScriptRuntime.wrapNumber(resultDbl);</span>
+                    }
+<span class="nc" id="L2953">                    frame.debuggerFrame.onExit(cx, false, result);</span>
+                }
+<span class="nc" id="L2955">            } catch (Throwable ex) {</span>
+<span class="nc" id="L2956">                System.err.println(</span>
+&quot;RHINO USAGE WARNING: onExit terminated with exception&quot;);
+<span class="nc" id="L2958">                ex.printStackTrace(System.err);</span>
+<span class="nc" id="L2959">            }</span>
+        }
+<span class="nc" id="L2961">    }</span>
+
+    private static void setCallResult(CallFrame frame,
+                                      Object callResult,
+                                      double callResultDbl)
+    {
+<span class="nc bnc" id="L2967" title="All 2 branches missed.">        if (frame.savedCallOp == Token.CALL) {</span>
+<span class="nc" id="L2968">            frame.stack[frame.savedStackTop] = callResult;</span>
+<span class="nc" id="L2969">            frame.sDbl[frame.savedStackTop] = callResultDbl;</span>
+<span class="nc bnc" id="L2970" title="All 2 branches missed.">        } else if (frame.savedCallOp == Token.NEW) {</span>
+            // If construct returns scriptable,
+            // then it replaces on stack top saved original instance
+            // of the object.
+<span class="nc bnc" id="L2974" title="All 2 branches missed.">            if (callResult instanceof Scriptable) {</span>
+<span class="nc" id="L2975">                frame.stack[frame.savedStackTop] = callResult;</span>
+            }
+        } else {
+<span class="nc" id="L2978">            Kit.codeBug();</span>
+        }
+<span class="nc" id="L2980">        frame.savedCallOp = 0;</span>
+<span class="nc" id="L2981">    }</span>
+
+    public static NativeContinuation captureContinuation(Context cx) {
+<span class="nc bnc" id="L2984" title="All 4 branches missed.">        if (cx.lastInterpreterFrame == null ||</span>
+            !(cx.lastInterpreterFrame instanceof CallFrame))
+        {
+<span class="nc" id="L2987">            throw new IllegalStateException(&quot;Interpreter frames not found&quot;);</span>
+        }
+<span class="nc" id="L2989">        return captureContinuation(cx, (CallFrame)cx.lastInterpreterFrame, true);</span>
+    }
+
+    private static NativeContinuation captureContinuation(Context cx, CallFrame frame,
+        boolean requireContinuationsTopFrame)
+    {
+<span class="nc" id="L2995">        NativeContinuation c = new NativeContinuation();</span>
+<span class="nc" id="L2996">        ScriptRuntime.setObjectProtoAndParent(</span>
+<span class="nc" id="L2997">            c, ScriptRuntime.getTopCallScope(cx));</span>
+
+        // Make sure that all frames are frozen
+<span class="nc" id="L3000">        CallFrame x = frame;</span>
+<span class="nc" id="L3001">        CallFrame outermost = frame;</span>
+<span class="nc bnc" id="L3002" title="All 4 branches missed.">        while (x != null &amp;&amp; !x.frozen) {</span>
+<span class="nc" id="L3003">            x.frozen = true;</span>
+            // Allow to GC unused stack space
+<span class="nc bnc" id="L3005" title="All 2 branches missed.">            for (int i = x.savedStackTop + 1; i != x.stack.length; ++i) {</span>
+                // Allow to GC unused stack space
+<span class="nc" id="L3007">                x.stack[i] = null;</span>
+<span class="nc" id="L3008">                x.stackAttributes[i] = ScriptableObject.EMPTY;</span>
+            }
+<span class="nc bnc" id="L3010" title="All 2 branches missed.">            if (x.savedCallOp == Token.CALL) {</span>
+                // the call will always overwrite the stack top with the result
+<span class="nc" id="L3012">                x.stack[x.savedStackTop] = null;</span>
+            } else {
+<span class="nc bnc" id="L3014" title="All 2 branches missed.">                if (x.savedCallOp != Token.NEW) Kit.codeBug();</span>
+                // the new operator uses stack top to store the constructed
+                // object so it shall not be cleared: see comments in
+                // setCallResult
+            }
+<span class="nc" id="L3019">            outermost = x;</span>
+<span class="nc" id="L3020">            x = x.parentFrame;</span>
+        }
+
+<span class="nc bnc" id="L3023" title="All 2 branches missed.">        if (requireContinuationsTopFrame) {</span>
+<span class="nc bnc" id="L3024" title="All 2 branches missed.">            while (outermost.parentFrame != null)</span>
+<span class="nc" id="L3025">                outermost = outermost.parentFrame;</span>
+
+<span class="nc bnc" id="L3027" title="All 2 branches missed.">            if (!outermost.isContinuationsTopFrame) {</span>
+<span class="nc" id="L3028">                throw new IllegalStateException(&quot;Cannot capture continuation &quot; +</span>
+                        &quot;from JavaScript code not called directly by &quot; +
+                        &quot;executeScriptWithContinuations or &quot; +
+                        &quot;callFunctionWithContinuations&quot;);
+            }
+        }
+
+<span class="nc" id="L3035">        c.initImplementation(frame);</span>
+<span class="nc" id="L3036">        return c;</span>
+    }
+
+    private static int stack_int32(CallFrame frame, int i)
+    {
+<span class="nc" id="L3041">        Object x = frame.stack[i];</span>
+<span class="nc bnc" id="L3042" title="All 2 branches missed.">        if (x == UniqueTag.DOUBLE_MARK) {</span>
+<span class="nc" id="L3043">            return ScriptRuntime.toInt32(frame.sDbl[i]);</span>
+        } else {
+<span class="nc" id="L3045">            return ScriptRuntime.toInt32(x);</span>
+        }
+    }
+
+    private static double stack_double(CallFrame frame, int i)
+    {
+<span class="nc" id="L3051">        Object x = frame.stack[i];</span>
+<span class="nc bnc" id="L3052" title="All 2 branches missed.">        if (x != UniqueTag.DOUBLE_MARK) {</span>
+<span class="nc" id="L3053">            return ScriptRuntime.toNumber(x);</span>
+        } else {
+<span class="nc" id="L3055">            return frame.sDbl[i];</span>
+        }
+    }
+
+    private static boolean stack_boolean(CallFrame frame, int i)
+    {
+<span class="nc" id="L3061">        Object x = frame.stack[i];</span>
+<span class="nc bnc" id="L3062" title="All 2 branches missed.">        if (x == Boolean.TRUE) {</span>
+<span class="nc" id="L3063">            return true;</span>
+<span class="nc bnc" id="L3064" title="All 2 branches missed.">        } else if (x == Boolean.FALSE) {</span>
+<span class="nc" id="L3065">            return false;</span>
+<span class="nc bnc" id="L3066" title="All 2 branches missed.">        } else if (x == UniqueTag.DOUBLE_MARK) {</span>
+<span class="nc" id="L3067">            double d = frame.sDbl[i];</span>
+<span class="nc bnc" id="L3068" title="All 4 branches missed.">            return d == d &amp;&amp; d != 0.0;</span>
+<span class="nc bnc" id="L3069" title="All 4 branches missed.">        } else if (x == null || x == Undefined.instance) {</span>
+<span class="nc" id="L3070">            return false;</span>
+<span class="nc bnc" id="L3071" title="All 2 branches missed.">        } else if (x instanceof Number) {</span>
+<span class="nc" id="L3072">            double d = ((Number)x).doubleValue();</span>
+<span class="nc bnc" id="L3073" title="All 4 branches missed.">            return (d == d &amp;&amp; d != 0.0);</span>
+<span class="nc bnc" id="L3074" title="All 2 branches missed.">        } else if (x instanceof Boolean) {</span>
+<span class="nc" id="L3075">            return ((Boolean)x).booleanValue();</span>
+        } else {
+<span class="nc" id="L3077">            return ScriptRuntime.toBoolean(x);</span>
+        }
+    }
+
+    private static void doAdd(Object[] stack, double[] sDbl, int stackTop,
+                              Context cx)
+    {
+<span class="nc" id="L3084">        Object rhs = stack[stackTop + 1];</span>
+<span class="nc" id="L3085">        Object lhs = stack[stackTop];</span>
+        double d;
+        boolean leftRightOrder;
+<span class="nc bnc" id="L3088" title="All 2 branches missed.">        if (rhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L3089">            d = sDbl[stackTop + 1];</span>
+<span class="nc bnc" id="L3090" title="All 2 branches missed.">            if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L3091">                sDbl[stackTop] += d;</span>
+<span class="nc" id="L3092">                return;</span>
+            }
+<span class="nc" id="L3094">            leftRightOrder = true;</span>
+            // fallthrough to object + number code
+<span class="nc bnc" id="L3096" title="All 2 branches missed.">        } else if (lhs == DOUBLE_MARK) {</span>
+<span class="nc" id="L3097">            d = sDbl[stackTop];</span>
+<span class="nc" id="L3098">            lhs = rhs;</span>
+<span class="nc" id="L3099">            leftRightOrder = false;</span>
+            // fallthrough to object + number code
+        } else {
+<span class="nc bnc" id="L3102" title="All 4 branches missed.">            if (lhs instanceof Scriptable || rhs instanceof Scriptable) {</span>
+<span class="nc" id="L3103">                stack[stackTop] = ScriptRuntime.add(lhs, rhs, cx);</span>
+<span class="nc bnc" id="L3104" title="All 4 branches missed.">            } else if (lhs instanceof CharSequence || rhs instanceof CharSequence) {</span>
+<span class="nc" id="L3105">                CharSequence lstr = ScriptRuntime.toCharSequence(lhs);</span>
+<span class="nc" id="L3106">                CharSequence rstr = ScriptRuntime.toCharSequence(rhs);</span>
+<span class="nc" id="L3107">                stack[stackTop] = new ConsString(lstr, rstr);</span>
+<span class="nc" id="L3108">            } else {</span>
+<span class="nc bnc" id="L3109" title="All 2 branches missed.">                double lDbl = (lhs instanceof Number)</span>
+<span class="nc" id="L3110">                    ? ((Number)lhs).doubleValue() : ScriptRuntime.toNumber(lhs);</span>
+<span class="nc bnc" id="L3111" title="All 2 branches missed.">                double rDbl = (rhs instanceof Number)</span>
+<span class="nc" id="L3112">                    ? ((Number)rhs).doubleValue() : ScriptRuntime.toNumber(rhs);</span>
+<span class="nc" id="L3113">                stack[stackTop] = DOUBLE_MARK;</span>
+<span class="nc" id="L3114">                sDbl[stackTop] = lDbl + rDbl;</span>
+            }
+<span class="nc" id="L3116">            return;</span>
+        }
+
+        // handle object(lhs) + number(d) code
+<span class="nc bnc" id="L3120" title="All 2 branches missed.">        if (lhs instanceof Scriptable) {</span>
+<span class="nc" id="L3121">            rhs = ScriptRuntime.wrapNumber(d);</span>
+<span class="nc bnc" id="L3122" title="All 2 branches missed.">            if (!leftRightOrder) {</span>
+<span class="nc" id="L3123">                Object tmp = lhs;</span>
+<span class="nc" id="L3124">                lhs = rhs;</span>
+<span class="nc" id="L3125">                rhs = tmp;</span>
+            }
+<span class="nc" id="L3127">            stack[stackTop] = ScriptRuntime.add(lhs, rhs, cx);</span>
+<span class="nc bnc" id="L3128" title="All 2 branches missed.">        } else if (lhs instanceof CharSequence) {</span>
+<span class="nc" id="L3129">            CharSequence lstr = (CharSequence)lhs;</span>
+<span class="nc" id="L3130">            CharSequence rstr = ScriptRuntime.toCharSequence(d);</span>
+<span class="nc bnc" id="L3131" title="All 2 branches missed.">            if (leftRightOrder) {</span>
+<span class="nc" id="L3132">                stack[stackTop] = new ConsString(lstr, rstr);</span>
+            } else {
+<span class="nc" id="L3134">                stack[stackTop] = new ConsString(rstr, lstr);</span>
+            }
+<span class="nc" id="L3136">        } else {</span>
+<span class="nc bnc" id="L3137" title="All 2 branches missed.">            double lDbl = (lhs instanceof Number)</span>
+<span class="nc" id="L3138">                ? ((Number)lhs).doubleValue() : ScriptRuntime.toNumber(lhs);</span>
+<span class="nc" id="L3139">            stack[stackTop] = DOUBLE_MARK;</span>
+<span class="nc" id="L3140">            sDbl[stackTop] = lDbl + d;</span>
+        }
+<span class="nc" id="L3142">    }</span>
+
+    private static int doArithmetic(CallFrame frame, int op, Object[] stack,
+                                    double[] sDbl, int stackTop) {
+<span class="nc" id="L3146">        double rDbl = stack_double(frame, stackTop);</span>
+<span class="nc" id="L3147">        --stackTop;</span>
+<span class="nc" id="L3148">        double lDbl = stack_double(frame, stackTop);</span>
+<span class="nc" id="L3149">        stack[stackTop] = DOUBLE_MARK;</span>
+<span class="nc bnc" id="L3150" title="All 5 branches missed.">        switch (op) {</span>
+          case Token.SUB:
+<span class="nc" id="L3152">            lDbl -= rDbl;</span>
+<span class="nc" id="L3153">            break;</span>
+          case Token.MUL:
+<span class="nc" id="L3155">            lDbl *= rDbl;</span>
+<span class="nc" id="L3156">            break;</span>
+          case Token.DIV:
+<span class="nc" id="L3158">            lDbl /= rDbl;</span>
+<span class="nc" id="L3159">            break;</span>
+          case Token.MOD:
+<span class="nc" id="L3161">            lDbl %= rDbl;</span>
+            break;
+        }
+<span class="nc" id="L3164">        sDbl[stackTop] = lDbl;</span>
+<span class="nc" id="L3165">        return stackTop;</span>
+    }
+
+    private static Object[] getArgsArray(Object[] stack, double[] sDbl,
+                                         int shift, int count)
+    {
+<span class="nc bnc" id="L3171" title="All 2 branches missed.">        if (count == 0) {</span>
+<span class="nc" id="L3172">            return ScriptRuntime.emptyArgs;</span>
+        }
+<span class="nc" id="L3174">        Object[] args = new Object[count];</span>
+<span class="nc bnc" id="L3175" title="All 2 branches missed.">        for (int i = 0; i != count; ++i, ++shift) {</span>
+<span class="nc" id="L3176">            Object val = stack[shift];</span>
+<span class="nc bnc" id="L3177" title="All 2 branches missed.">            if (val == UniqueTag.DOUBLE_MARK) {</span>
+<span class="nc" id="L3178">                val = ScriptRuntime.wrapNumber(sDbl[shift]);</span>
+            }
+<span class="nc" id="L3180">            args[i] = val;</span>
+        }
+<span class="nc" id="L3182">        return args;</span>
+    }
+
+    private static void addInstructionCount(Context cx, CallFrame frame,
+                                            int extra)
+    {
+<span class="nc" id="L3188">        cx.instructionCount += frame.pc - frame.pcPrevBranch + extra;</span>
+<span class="nc bnc" id="L3189" title="All 2 branches missed.">        if (cx.instructionCount &gt; cx.instructionThreshold) {</span>
+<span class="nc" id="L3190">            cx.observeInstructionCount(cx.instructionCount);</span>
+<span class="nc" id="L3191">            cx.instructionCount = 0;</span>
+        }
+<span class="nc" id="L3193">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

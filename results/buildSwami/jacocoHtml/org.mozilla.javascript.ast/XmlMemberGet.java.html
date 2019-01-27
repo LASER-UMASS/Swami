@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>XmlMemberGet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">XmlMemberGet.java</span></div><h1>XmlMemberGet.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for E4X &quot;.@&quot; and &quot;..&quot; expressions, such as
+ * {@code foo..bar}, {@code foo..@bar}, {@code @foo.@bar}, and
+ * {@code foo..@ns::*}.  The right-hand node is always an
+ * {@link XmlRef}. &lt;p&gt;
+ *
+ * Node type is {@link Token#DOT} or {@link Token#DOTDOT}.
+ */
+public class XmlMemberGet extends InfixExpression {
+
+    {
+<span class="nc" id="L22">        type = Token.DOTDOT;</span>
+    }
+
+<span class="nc" id="L25">    public XmlMemberGet() {</span>
+<span class="nc" id="L26">    }</span>
+
+    public XmlMemberGet(int pos) {
+<span class="nc" id="L29">        super(pos);</span>
+<span class="nc" id="L30">    }</span>
+
+    public XmlMemberGet(int pos, int len) {
+<span class="nc" id="L33">        super(pos, len);</span>
+<span class="nc" id="L34">    }</span>
+
+    public XmlMemberGet(int pos, int len, AstNode target, XmlRef ref) {
+<span class="nc" id="L37">        super(pos, len, target, ref);</span>
+<span class="nc" id="L38">    }</span>
+
+    /**
+     * Constructs a new {@code XmlMemberGet} node.
+     * Updates bounds to include {@code target} and {@code ref} nodes.
+     */
+    public XmlMemberGet(AstNode target, XmlRef ref) {
+<span class="nc" id="L45">        super(target, ref);</span>
+<span class="nc" id="L46">    }</span>
+
+    public XmlMemberGet(AstNode target, XmlRef ref, int opPos) {
+<span class="nc" id="L49">        super(Token.DOTDOT, target, ref, opPos);</span>
+<span class="nc" id="L50">    }</span>
+
+    /**
+     * Returns the object on which the XML member-ref expression
+     * is being evaluated.  Should never be {@code null}.
+     */
+    public AstNode getTarget() {
+<span class="nc" id="L57">        return getLeft();</span>
+    }
+
+    /**
+     * Sets target object, and sets its parent to this node.
+     * @throws IllegalArgumentException if {@code target} is {@code null}
+     */
+    public void setTarget(AstNode target) {
+<span class="nc" id="L65">        setLeft(target);</span>
+<span class="nc" id="L66">    }</span>
+
+    /**
+     * Returns the right-side XML member ref expression.
+     * Should never be {@code null} unless the code is malformed.
+     */
+    public XmlRef getMemberRef() {
+<span class="nc" id="L73">        return (XmlRef)getRight();</span>
+    }
+
+    /**
+     * Sets the XML member-ref expression, and sets its parent
+     * to this node.
+     * @throws IllegalArgumentException if property is {@code null}
+     */
+    public void setProperty(XmlRef ref) {
+<span class="nc" id="L82">        setRight(ref);</span>
+<span class="nc" id="L83">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L87">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L88">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L89">        sb.append(getLeft().toSource(0));</span>
+<span class="nc" id="L90">        sb.append(operatorToString(getType()));</span>
+<span class="nc" id="L91">        sb.append(getRight().toSource(0));</span>
+<span class="nc" id="L92">        return sb.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

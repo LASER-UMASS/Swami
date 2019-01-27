@@ -1,0 +1,1033 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdScriptableObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">IdScriptableObject.java</span></div><h1>IdScriptableObject.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 4; indent-tabs-mode: 1; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+
+/**
+Base class for native object implementation that uses IdFunctionObject to export its methods to script via &lt;class-name&gt;.prototype object.
+
+Any descendant should implement at least the following methods:
+    findInstanceIdInfo
+    getInstanceIdName
+    execIdCall
+    methodArity
+
+To define non-function properties, the descendant should override
+    getInstanceIdValue
+    setInstanceIdValue
+to get/set property value and provide its default attributes.
+
+
+To customize initialization of constructor and prototype objects, descendant
+may override scopeInit or fillConstructorProperties methods.
+
+*/
+public abstract class IdScriptableObject extends ScriptableObject
+    implements IdFunctionCall
+{
+    private transient PrototypeValues prototypeValues;
+
+    private static final class PrototypeValues implements Serializable
+    {
+        static final long serialVersionUID = 3038645279153854371L;
+
+        private static final int NAME_SLOT = 1;
+        private static final int SLOT_SPAN = 2;
+
+        private IdScriptableObject obj;
+        private int maxId;
+        private Object[] valueArray;
+        private short[] attributeArray;
+
+        // The following helps to avoid creation of valueArray during runtime
+        // initialization for common case of &quot;constructor&quot; property
+        int constructorId;
+        private IdFunctionObject constructor;
+        private short constructorAttrs;
+
+        PrototypeValues(IdScriptableObject obj, int maxId)
+<span class="fc" id="L57">        {</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">            if (obj == null) throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (maxId &lt; 1) throw new IllegalArgumentException();</span>
+<span class="fc" id="L60">            this.obj = obj;</span>
+<span class="fc" id="L61">            this.maxId = maxId;</span>
+<span class="fc" id="L62">        }</span>
+
+        final int getMaxId()
+        {
+<span class="nc" id="L66">            return maxId;</span>
+        }
+
+        final void initValue(int id, String name, Object value, int attributes)
+        {
+<span class="pc bpc" id="L71" title="2 of 4 branches missed.">            if (!(1 &lt;= id &amp;&amp; id &lt;= maxId))</span>
+<span class="nc" id="L72">                throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">            if (name == null)</span>
+<span class="nc" id="L74">                throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">            if (value == NOT_FOUND)</span>
+<span class="nc" id="L76">                throw new IllegalArgumentException();</span>
+<span class="fc" id="L77">            ScriptableObject.checkValidAttributes(attributes);</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">            if (obj.findPrototypeId(name) != id)</span>
+<span class="nc" id="L79">                throw new IllegalArgumentException(name);</span>
+
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            if (id == constructorId) {</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">                if (!(value instanceof IdFunctionObject)) {</span>
+<span class="nc" id="L83">                    throw new IllegalArgumentException(&quot;consructor should be initialized with IdFunctionObject&quot;);</span>
+                }
+<span class="fc" id="L85">                constructor = (IdFunctionObject)value;</span>
+<span class="fc" id="L86">                constructorAttrs = (short)attributes;</span>
+<span class="fc" id="L87">                return;</span>
+            }
+
+<span class="fc" id="L90">            initSlot(id, name, value, attributes);</span>
+<span class="fc" id="L91">        }</span>
+
+        final void initValue(int id, Symbol key, Object value, int attributes)
+        {
+<span class="nc bnc" id="L95" title="All 4 branches missed.">            if (!(1 &lt;= id &amp;&amp; id &lt;= maxId))</span>
+<span class="nc" id="L96">                throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (key == null)</span>
+<span class="nc" id="L98">                throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if (value == NOT_FOUND)</span>
+<span class="nc" id="L100">                throw new IllegalArgumentException();</span>
+<span class="nc" id="L101">            ScriptableObject.checkValidAttributes(attributes);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            if (obj.findPrototypeId(key) != id)</span>
+<span class="nc" id="L103">                throw new IllegalArgumentException(key.toString());</span>
+
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            if (id == constructorId) {</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                if (!(value instanceof IdFunctionObject)) {</span>
+<span class="nc" id="L107">                    throw new IllegalArgumentException(&quot;consructor should be initialized with IdFunctionObject&quot;);</span>
+                }
+<span class="nc" id="L109">                constructor = (IdFunctionObject)value;</span>
+<span class="nc" id="L110">                constructorAttrs = (short)attributes;</span>
+<span class="nc" id="L111">                return;</span>
+            }
+
+<span class="nc" id="L114">            initSlot(id, &quot;&quot;, value, attributes);</span>
+<span class="nc" id="L115">        }</span>
+
+        private void initSlot(int id, String name, Object value,
+                              int attributes)
+        {
+<span class="fc" id="L120">            Object[] array = valueArray;</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">            if (array == null)</span>
+<span class="nc" id="L122">                throw new IllegalStateException();</span>
+
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L125">                value = UniqueTag.NULL_VALUE;</span>
+            }
+<span class="fc" id="L127">            int index = (id - 1) * SLOT_SPAN;</span>
+<span class="fc" id="L128">            synchronized (this) {</span>
+<span class="fc" id="L129">                Object value2 = array[index];</span>
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">                if (value2 == null) {</span>
+<span class="fc" id="L131">                    array[index] = value;</span>
+<span class="fc" id="L132">                    array[index + NAME_SLOT] = name;</span>
+<span class="fc" id="L133">                    attributeArray[id - 1] = (short)attributes;</span>
+                } else {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                    if (!name.equals(array[index + NAME_SLOT]))</span>
+<span class="nc" id="L136">                         throw new IllegalStateException();</span>
+                }
+<span class="pc" id="L138">            }</span>
+<span class="fc" id="L139">        }</span>
+
+        final IdFunctionObject createPrecachedConstructor()
+        {
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            if (constructorId != 0) throw new IllegalStateException();</span>
+<span class="fc" id="L144">            constructorId = obj.findPrototypeId(&quot;constructor&quot;);</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            if (constructorId == 0) {</span>
+<span class="nc" id="L146">                throw new IllegalStateException(</span>
+                    &quot;No id for constructor property&quot;);
+            }
+<span class="fc" id="L149">            obj.initPrototypeId(constructorId);</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">            if (constructor == null) {</span>
+<span class="nc" id="L151">                throw new IllegalStateException(</span>
+<span class="nc" id="L152">                    obj.getClass().getName()+&quot;.initPrototypeId() did not &quot;</span>
+                    +&quot;initialize id=&quot;+constructorId);
+            }
+<span class="fc" id="L155">            constructor.initFunction(obj.getClassName(),</span>
+<span class="fc" id="L156">                                     ScriptableObject.getTopLevelScope(obj));</span>
+<span class="fc" id="L157">            constructor.markAsConstructor(obj);</span>
+<span class="fc" id="L158">            return constructor;</span>
+        }
+
+        final int findId(String name)
+        {
+<span class="fc" id="L163">            return obj.findPrototypeId(name);</span>
+        }
+
+        final int findId(Symbol key)
+        {
+<span class="nc" id="L168">            return obj.findPrototypeId(key);</span>
+        }
+
+        final boolean has(int id)
+        {
+<span class="nc" id="L173">            Object[] array = valueArray;</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (array == null) {</span>
+                // Not yet initialized, assume all exists
+<span class="nc" id="L176">                return true;</span>
+            }
+<span class="nc" id="L178">            int valueSlot = (id  - 1) * SLOT_SPAN;</span>
+<span class="nc" id="L179">            Object value = array[valueSlot];</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            if (value == null) {</span>
+                // The particular entry has not been yet initialized
+<span class="nc" id="L182">                return true;</span>
+            }
+<span class="nc bnc" id="L184" title="All 2 branches missed.">            return value != NOT_FOUND;</span>
+        }
+
+        final Object get(int id)
+        {
+<span class="fc" id="L189">            Object value = ensureId(id);</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">            if (value == UniqueTag.NULL_VALUE) {</span>
+<span class="nc" id="L191">                value = null;</span>
+            }
+<span class="fc" id="L193">            return value;</span>
+        }
+
+        final void set(int id, Scriptable start, Object value)
+        {
+<span class="nc bnc" id="L198" title="All 2 branches missed.">            if (value == NOT_FOUND) throw new IllegalArgumentException();</span>
+<span class="nc" id="L199">            ensureId(id);</span>
+<span class="nc" id="L200">            int attr = attributeArray[id - 1];</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            if ((attr &amp; READONLY) == 0) {</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                if (start == obj) {</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                    if (value == null) {</span>
+<span class="nc" id="L204">                        value = UniqueTag.NULL_VALUE;</span>
+                    }
+<span class="nc" id="L206">                    int valueSlot = (id  - 1) * SLOT_SPAN;</span>
+<span class="nc" id="L207">                    synchronized (this) {</span>
+<span class="nc" id="L208">                        valueArray[valueSlot] = value;</span>
+<span class="nc" id="L209">                    }</span>
+<span class="nc" id="L210">                }</span>
+                else {
+<span class="nc" id="L212">                    int nameSlot = (id  - 1) * SLOT_SPAN + NAME_SLOT;</span>
+<span class="nc" id="L213">                    String name = (String)valueArray[nameSlot];</span>
+<span class="nc" id="L214">                    start.put(name, start, value);</span>
+                }
+            }
+<span class="nc" id="L217">        }</span>
+
+        final void delete(int id)
+        {
+<span class="fc" id="L221">            ensureId(id);</span>
+<span class="fc" id="L222">            int attr = attributeArray[id - 1];</span>
+            // non-configurable
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">            if ((attr &amp; PERMANENT) != 0) {</span>
+<span class="nc" id="L225">                Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                if (cx.isStrictMode()) {</span>
+<span class="nc" id="L227">                    int nameSlot = (id  - 1) * SLOT_SPAN + NAME_SLOT;</span>
+<span class="nc" id="L228">                    String name = (String)valueArray[nameSlot];</span>
+<span class="nc" id="L229">                    throw ScriptRuntime.typeError1(&quot;msg.delete.property.with.configurable.false&quot;, name);</span>
+                }
+<span class="nc" id="L231">            } else {</span>
+<span class="fc" id="L232">                int valueSlot = (id  - 1) * SLOT_SPAN;</span>
+<span class="fc" id="L233">                synchronized (this) {</span>
+<span class="fc" id="L234">                    valueArray[valueSlot] = NOT_FOUND;</span>
+<span class="fc" id="L235">                    attributeArray[id - 1] = EMPTY;</span>
+<span class="pc" id="L236">                }</span>
+            }
+<span class="fc" id="L238">        }</span>
+
+        final int getAttributes(int id)
+        {
+<span class="nc" id="L242">            ensureId(id);</span>
+<span class="nc" id="L243">            return attributeArray[id - 1];</span>
+        }
+
+        final void setAttributes(int id, int attributes)
+        {
+<span class="nc" id="L248">            ScriptableObject.checkValidAttributes(attributes);</span>
+<span class="nc" id="L249">            ensureId(id);</span>
+<span class="nc" id="L250">            synchronized (this) {</span>
+<span class="nc" id="L251">                attributeArray[id - 1] = (short)attributes;</span>
+<span class="nc" id="L252">            }</span>
+<span class="nc" id="L253">        }</span>
+
+        final Object[] getNames(boolean getAll, Object[] extraEntries)
+        {
+<span class="nc" id="L257">            Object[] names = null;</span>
+<span class="nc" id="L258">            int count = 0;</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">            for (int id = 1; id &lt;= maxId; ++id) {</span>
+<span class="nc" id="L260">                Object value = ensureId(id);</span>
+<span class="nc bnc" id="L261" title="All 4 branches missed.">                if (getAll || (attributeArray[id - 1] &amp; DONTENUM) == 0) {</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                    if (value != NOT_FOUND) {</span>
+<span class="nc" id="L263">                        int nameSlot = (id  - 1) * SLOT_SPAN + NAME_SLOT;</span>
+<span class="nc" id="L264">                        String name = (String)valueArray[nameSlot];</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                        if (names == null) {</span>
+<span class="nc" id="L266">                            names = new Object[maxId];</span>
+                        }
+<span class="nc" id="L268">                        names[count++] = name;</span>
+                    }
+                }
+            }
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            if (count == 0) {</span>
+<span class="nc" id="L273">                return extraEntries;</span>
+<span class="nc bnc" id="L274" title="All 4 branches missed.">            } else if (extraEntries == null || extraEntries.length == 0) {</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">                if (count != names.length) {</span>
+<span class="nc" id="L276">                    Object[] tmp = new Object[count];</span>
+<span class="nc" id="L277">                    System.arraycopy(names, 0, tmp, 0, count);</span>
+<span class="nc" id="L278">                    names = tmp;</span>
+                }
+<span class="nc" id="L280">                return names;</span>
+            } else {
+<span class="nc" id="L282">                int extra = extraEntries.length;</span>
+<span class="nc" id="L283">                Object[] tmp = new Object[extra + count];</span>
+<span class="nc" id="L284">                System.arraycopy(extraEntries, 0, tmp, 0, extra);</span>
+<span class="nc" id="L285">                System.arraycopy(names, 0, tmp, extra, count);</span>
+<span class="nc" id="L286">                return tmp;</span>
+            }
+        }
+
+        private Object ensureId(int id)
+        {
+<span class="fc" id="L292">            Object[] array = valueArray;</span>
+<span class="fc bfc" id="L293" title="All 2 branches covered.">            if (array == null) {</span>
+<span class="fc" id="L294">                synchronized (this) {</span>
+<span class="fc" id="L295">                    array = valueArray;</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">                    if (array == null) {</span>
+<span class="fc" id="L297">                        array = new Object[maxId * SLOT_SPAN];</span>
+<span class="fc" id="L298">                        valueArray = array;</span>
+<span class="fc" id="L299">                        attributeArray = new short[maxId];</span>
+                    }
+<span class="pc" id="L301">                }</span>
+            }
+<span class="fc" id="L303">            int valueSlot = (id  - 1) * SLOT_SPAN;</span>
+<span class="fc" id="L304">            Object value = array[valueSlot];</span>
+<span class="fc bfc" id="L305" title="All 2 branches covered.">            if (value == null) {</span>
+<span class="fc bfc" id="L306" title="All 2 branches covered.">                if (id == constructorId) {</span>
+<span class="fc" id="L307">                    initSlot(constructorId, &quot;constructor&quot;,</span>
+                             constructor, constructorAttrs);
+<span class="fc" id="L309">                    constructor = null; // no need to refer it any longer</span>
+                } else {
+<span class="fc" id="L311">                    obj.initPrototypeId(id);</span>
+                }
+<span class="fc" id="L313">                value = array[valueSlot];</span>
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">                if (value == null) {</span>
+<span class="nc" id="L315">                    throw new IllegalStateException(</span>
+<span class="nc" id="L316">                        obj.getClass().getName()+&quot;.initPrototypeId(int id) &quot;</span>
+                        +&quot;did not initialize id=&quot;+id);
+                }
+            }
+<span class="fc" id="L320">            return value;</span>
+        }
+    }
+
+    public IdScriptableObject()
+<span class="fc" id="L325">    {</span>
+<span class="fc" id="L326">    }</span>
+
+    public IdScriptableObject(Scriptable scope, Scriptable prototype)
+    {
+<span class="fc" id="L330">        super(scope, prototype);</span>
+<span class="fc" id="L331">    }</span>
+
+    protected final boolean defaultHas(String name)
+    {
+<span class="nc" id="L335">        return super.has(name, this);</span>
+    }
+
+    protected final Object defaultGet(String name)
+    {
+<span class="nc" id="L340">        return super.get(name, this);</span>
+    }
+
+    protected final void defaultPut(String name, Object value)
+    {
+<span class="nc" id="L345">        super.put(name, this, value);</span>
+<span class="nc" id="L346">    }</span>
+
+    @Override
+    public boolean has(String name, Scriptable start)
+    {
+<span class="fc" id="L351">        int info = findInstanceIdInfo(name);</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L353">            int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            if ((attr &amp; PERMANENT) != 0) {</span>
+<span class="nc" id="L355">                return true;</span>
+            }
+<span class="nc" id="L357">            int id = (info &amp; 0xFFFF);</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            return NOT_FOUND != getInstanceIdValue(id);</span>
+        }
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        if (prototypeValues != null) {</span>
+<span class="fc" id="L361">            int id = prototypeValues.findId(name);</span>
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">            if (id != 0) {</span>
+<span class="nc" id="L363">                return prototypeValues.has(id);</span>
+            }
+        }
+<span class="fc" id="L366">        return super.has(name, start);</span>
+    }
+
+
+    @Override
+    public boolean has(Symbol key, Scriptable start)
+    {
+<span class="nc" id="L373">        int info = findInstanceIdInfo(key);</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L375">            int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">            if ((attr &amp; PERMANENT) != 0) {</span>
+<span class="nc" id="L377">                return true;</span>
+            }
+<span class="nc" id="L379">            int id = (info &amp; 0xFFFF);</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">            return NOT_FOUND != getInstanceIdValue(id);</span>
+        }
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L383">            int id = prototypeValues.findId(key);</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc" id="L385">                return prototypeValues.has(id);</span>
+            }
+        }
+<span class="nc" id="L388">        return super.has(key, start);</span>
+    }
+
+    @Override
+    public Object get(String name, Scriptable start)
+    {
+        // Check for slot first for performance. This is a very hot code
+        // path that should be further optimized.
+<span class="fc" id="L396">        Object value = super.get(name, start);</span>
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        if (value != NOT_FOUND) {</span>
+<span class="fc" id="L398">            return value;</span>
+        }
+<span class="fc" id="L400">        int info = findInstanceIdInfo(name);</span>
+<span class="fc bfc" id="L401" title="All 2 branches covered.">        if (info != 0) {</span>
+<span class="fc" id="L402">            int id = (info &amp; 0xFFFF);</span>
+<span class="fc" id="L403">            value = getInstanceIdValue(id);</span>
+<span class="pc bpc" id="L404" title="1 of 2 branches missed.">            if (value != NOT_FOUND) return value;</span>
+        }
+<span class="fc bfc" id="L406" title="All 2 branches covered.">        if (prototypeValues != null) {</span>
+<span class="fc" id="L407">            int id = prototypeValues.findId(name);</span>
+<span class="fc bfc" id="L408" title="All 2 branches covered.">            if (id != 0) {</span>
+<span class="fc" id="L409">                value = prototypeValues.get(id);</span>
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">                if (value != NOT_FOUND) return value;</span>
+            }
+        }
+<span class="fc" id="L413">        return NOT_FOUND;</span>
+    }
+
+    @Override
+    public Object get(Symbol key, Scriptable start)
+    {
+<span class="nc" id="L419">        Object value = super.get(key, start);</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">        if (value != NOT_FOUND) {</span>
+<span class="nc" id="L421">            return value;</span>
+        }
+<span class="nc" id="L423">        int info = findInstanceIdInfo(key);</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L425">            int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L426">            value = getInstanceIdValue(id);</span>
+<span class="nc bnc" id="L427" title="All 2 branches missed.">            if (value != NOT_FOUND) return value;</span>
+        }
+<span class="nc bnc" id="L429" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L430">            int id = prototypeValues.findId(key);</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc" id="L432">                value = prototypeValues.get(id);</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">                if (value != NOT_FOUND) return value;</span>
+            }
+        }
+<span class="nc" id="L436">        return NOT_FOUND;</span>
+    }
+
+    @Override
+    public void put(String name, Scriptable start, Object value)
+    {
+<span class="fc" id="L442">        int info = findInstanceIdInfo(name);</span>
+<span class="pc bpc" id="L443" title="1 of 2 branches missed.">        if (info != 0) {</span>
+<span class="nc bnc" id="L444" title="All 4 branches missed.">            if (start == this &amp;&amp; isSealed()) {</span>
+<span class="nc" id="L445">                throw Context.reportRuntimeError1(&quot;msg.modify.sealed&quot;,</span>
+                                                  name);
+            }
+<span class="nc" id="L448">            int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L449" title="All 2 branches missed.">            if ((attr &amp; READONLY) == 0) {</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                if (start == this) {</span>
+<span class="nc" id="L451">                    int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L452">                    setInstanceIdValue(id, value);</span>
+<span class="nc" id="L453">                }</span>
+                else {
+<span class="nc" id="L455">                    start.put(name, start, value);</span>
+                }
+            }
+<span class="nc" id="L458">            return;</span>
+        }
+<span class="fc bfc" id="L460" title="All 2 branches covered.">        if (prototypeValues != null) {</span>
+<span class="fc" id="L461">            int id = prototypeValues.findId(name);</span>
+<span class="pc bpc" id="L462" title="1 of 2 branches missed.">            if (id != 0) {</span>
+<span class="nc bnc" id="L463" title="All 4 branches missed.">                if (start == this &amp;&amp; isSealed()) {</span>
+<span class="nc" id="L464">                    throw Context.reportRuntimeError1(&quot;msg.modify.sealed&quot;,</span>
+                                                      name);
+                }
+<span class="nc" id="L467">                prototypeValues.set(id, start, value);</span>
+<span class="nc" id="L468">                return;</span>
+            }
+        }
+<span class="fc" id="L471">        super.put(name, start, value);</span>
+<span class="fc" id="L472">    }</span>
+
+    @Override
+    public void put(Symbol key, Scriptable start, Object value)
+    {
+<span class="fc" id="L477">        int info = findInstanceIdInfo(key);</span>
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">        if (info != 0) {</span>
+<span class="nc bnc" id="L479" title="All 4 branches missed.">            if (start == this &amp;&amp; isSealed()) {</span>
+<span class="nc" id="L480">                throw Context.reportRuntimeError0(&quot;msg.modify.sealed&quot;);</span>
+            }
+<span class="nc" id="L482">            int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">            if ((attr &amp; READONLY) == 0) {</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">                if (start == this) {</span>
+<span class="nc" id="L485">                    int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L486">                    setInstanceIdValue(id, value);</span>
+<span class="nc" id="L487">                }</span>
+                else {
+<span class="nc" id="L489">                    ensureSymbolScriptable(start).put(key, start, value);</span>
+                }
+            }
+<span class="nc" id="L492">            return;</span>
+        }
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L495">            int id = prototypeValues.findId(key);</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc bnc" id="L497" title="All 4 branches missed.">                if (start == this &amp;&amp; isSealed()) {</span>
+<span class="nc" id="L498">                    throw Context.reportRuntimeError0(&quot;msg.modify.sealed&quot;);</span>
+                }
+<span class="nc" id="L500">                prototypeValues.set(id, start, value);</span>
+<span class="nc" id="L501">                return;</span>
+            }
+        }
+<span class="fc" id="L504">        super.put(key, start, value);</span>
+<span class="fc" id="L505">    }</span>
+
+    @Override
+    public void delete(String name)
+    {
+<span class="fc" id="L510">        int info = findInstanceIdInfo(name);</span>
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">        if (info != 0) {</span>
+            // Let the super class to throw exceptions for sealed objects
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            if (!isSealed()) {</span>
+<span class="nc" id="L514">                int attr = (info &gt;&gt;&gt; 16);</span>
+                // non-configurable
+<span class="nc bnc" id="L516" title="All 2 branches missed.">                if ((attr &amp; PERMANENT) != 0) {</span>
+<span class="nc" id="L517">                    Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L518" title="All 2 branches missed.">                    if (cx.isStrictMode()) {</span>
+<span class="nc" id="L519">                        throw ScriptRuntime.typeError1(&quot;msg.delete.property.with.configurable.false&quot;, name);</span>
+                    }
+<span class="nc" id="L521">                } else {</span>
+<span class="nc" id="L522">                    int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L523">                    setInstanceIdValue(id, NOT_FOUND);</span>
+                }
+<span class="nc" id="L525">                return;</span>
+            }
+        }
+<span class="pc bpc" id="L528" title="1 of 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="fc" id="L529">            int id = prototypeValues.findId(name);</span>
+<span class="pc bpc" id="L530" title="1 of 2 branches missed.">            if (id != 0) {</span>
+<span class="pc bpc" id="L531" title="1 of 2 branches missed.">                if (!isSealed()) {</span>
+<span class="fc" id="L532">                    prototypeValues.delete(id);</span>
+                }
+<span class="fc" id="L534">                return;</span>
+            }
+        }
+<span class="nc" id="L537">        super.delete(name);</span>
+<span class="nc" id="L538">    }</span>
+
+    @Override
+    public void delete(Symbol key)
+    {
+<span class="nc" id="L543">        int info = findInstanceIdInfo(key);</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">        if (info != 0) {</span>
+            // Let the super class to throw exceptions for sealed objects
+<span class="nc bnc" id="L546" title="All 2 branches missed.">            if (!isSealed()) {</span>
+<span class="nc" id="L547">                int attr = (info &gt;&gt;&gt; 16);</span>
+                // non-configurable
+<span class="nc bnc" id="L549" title="All 2 branches missed.">                if ((attr &amp; PERMANENT) != 0) {</span>
+<span class="nc" id="L550">                    Context cx = Context.getContext();</span>
+<span class="nc bnc" id="L551" title="All 2 branches missed.">                    if (cx.isStrictMode()) {</span>
+<span class="nc" id="L552">                        throw ScriptRuntime.typeError0(&quot;msg.delete.property.with.configurable.false&quot;);</span>
+                    }
+<span class="nc" id="L554">                } else {</span>
+<span class="nc" id="L555">                    int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L556">                    setInstanceIdValue(id, NOT_FOUND);</span>
+                }
+<span class="nc" id="L558">                return;</span>
+            }
+        }
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L562">            int id = prototypeValues.findId(key);</span>
+<span class="nc bnc" id="L563" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">                if (!isSealed()) {</span>
+<span class="nc" id="L565">                    prototypeValues.delete(id);</span>
+                }
+<span class="nc" id="L567">                return;</span>
+            }
+        }
+<span class="nc" id="L570">        super.delete(key);</span>
+<span class="nc" id="L571">    }</span>
+
+    @Override
+    public int getAttributes(String name)
+    {
+<span class="nc" id="L576">        int info = findInstanceIdInfo(name);</span>
+<span class="nc bnc" id="L577" title="All 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L578">            int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc" id="L579">            return attr;</span>
+        }
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L582">            int id = prototypeValues.findId(name);</span>
+<span class="nc bnc" id="L583" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc" id="L584">                return prototypeValues.getAttributes(id);</span>
+            }
+        }
+<span class="nc" id="L587">        return super.getAttributes(name);</span>
+    }
+
+    @Override
+    public void setAttributes(String name, int attributes)
+    {
+<span class="fc" id="L593">        ScriptableObject.checkValidAttributes(attributes);</span>
+<span class="fc" id="L594">        int info = findInstanceIdInfo(name);</span>
+<span class="pc bpc" id="L595" title="1 of 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L596">            int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L597">            int currentAttributes = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L598" title="All 2 branches missed.">            if (attributes != currentAttributes) {</span>
+<span class="nc" id="L599">                setInstanceIdAttributes(id, attributes);</span>
+            }
+<span class="nc" id="L601">            return;</span>
+        }
+<span class="fc bfc" id="L603" title="All 2 branches covered.">        if (prototypeValues != null) {</span>
+<span class="fc" id="L604">            int id = prototypeValues.findId(name);</span>
+<span class="pc bpc" id="L605" title="1 of 2 branches missed.">            if (id != 0) {</span>
+<span class="nc" id="L606">                prototypeValues.setAttributes(id, attributes);</span>
+<span class="nc" id="L607">                return;</span>
+            }
+        }
+<span class="fc" id="L610">        super.setAttributes(name, attributes);</span>
+<span class="fc" id="L611">    }</span>
+
+    @Override
+    Object[] getIds(boolean getNonEnumerable, boolean getSymbols)
+    {
+<span class="nc" id="L616">        Object[] result = super.getIds(getNonEnumerable, getSymbols);</span>
+
+<span class="nc bnc" id="L618" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L619">            result = prototypeValues.getNames(getNonEnumerable, result);</span>
+        }
+
+<span class="nc" id="L622">        int maxInstanceId = getMaxInstanceId();</span>
+<span class="nc bnc" id="L623" title="All 2 branches missed.">        if (maxInstanceId != 0) {</span>
+<span class="nc" id="L624">            Object[] ids = null;</span>
+<span class="nc" id="L625">            int count = 0;</span>
+
+<span class="nc bnc" id="L627" title="All 2 branches missed.">            for (int id = maxInstanceId; id != 0; --id) {</span>
+<span class="nc" id="L628">                String name = getInstanceIdName(id);</span>
+<span class="nc" id="L629">                int info = findInstanceIdInfo(name);</span>
+<span class="nc bnc" id="L630" title="All 2 branches missed.">                if (info != 0) {</span>
+<span class="nc" id="L631">                    int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">                    if ((attr &amp; PERMANENT) == 0) {</span>
+<span class="nc bnc" id="L633" title="All 2 branches missed.">                        if (NOT_FOUND == getInstanceIdValue(id)) {</span>
+<span class="nc" id="L634">                            continue;</span>
+                        }
+                    }
+<span class="nc bnc" id="L637" title="All 4 branches missed.">                    if (getNonEnumerable || (attr &amp; DONTENUM) == 0) {</span>
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                        if (count == 0) {</span>
+                            // Need extra room for no more then [1..id] names
+<span class="nc" id="L640">                            ids = new Object[id];</span>
+                        }
+<span class="nc" id="L642">                        ids[count++] = name;</span>
+                    }
+                }
+            }
+<span class="nc bnc" id="L646" title="All 2 branches missed.">            if (count != 0) {</span>
+<span class="nc bnc" id="L647" title="All 4 branches missed.">                if (result.length == 0 &amp;&amp; ids.length == count) {</span>
+<span class="nc" id="L648">                    result = ids;</span>
+                }
+                else {
+<span class="nc" id="L651">                    Object[] tmp = new Object[result.length + count];</span>
+<span class="nc" id="L652">                    System.arraycopy(result, 0, tmp, 0, result.length);</span>
+<span class="nc" id="L653">                    System.arraycopy(ids, 0, tmp, result.length, count);</span>
+<span class="nc" id="L654">                    result = tmp;</span>
+                }
+            }
+        }
+<span class="nc" id="L658">        return result;</span>
+    }
+
+    /**
+     * Get maximum id findInstanceIdInfo can generate.
+     */
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L666">        return 0;</span>
+    }
+
+    protected static int instanceIdInfo(int attributes, int id)
+    {
+<span class="fc" id="L671">        return (attributes &lt;&lt; 16) | id;</span>
+    }
+
+    /**
+     * Map name to id of instance property.
+     * Should return 0 if not found or the result of
+     * {@link #instanceIdInfo(int, int)}.
+     */
+    protected int findInstanceIdInfo(String name)
+    {
+<span class="fc" id="L681">        return 0;</span>
+    }
+
+    /**
+     * Map name to id of instance property.
+     * Should return 0 if not found or the result of
+     * {@link #instanceIdInfo(int, int)}.
+     */
+    protected int findInstanceIdInfo(Symbol key)
+    {
+<span class="fc" id="L691">        return 0;</span>
+    }
+
+    /** Map id back to property name it defines.
+     */
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc" id="L698">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    /** Get id value.
+     ** If id value is constant, descendant can call cacheIdValue to store
+     ** value in the permanent cache.
+     ** Default implementation creates IdFunctionObject instance for given id
+     ** and cache its value
+     */
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="nc" id="L709">        throw new IllegalStateException(String.valueOf(id));</span>
+    }
+
+    /**
+     * Set or delete id value. If value == NOT_FOUND , the implementation
+     * should make sure that the following getInstanceIdValue return NOT_FOUND.
+     */
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="nc" id="L718">        throw new IllegalStateException(String.valueOf(id));</span>
+    }
+
+    /**
+     * Update the attributes of the given instance property. Classes which
+     * want to support changing property attributes via Object.defineProperty
+     * must override this method. The default implementation throws
+     * InternalError.
+     * @param id the instance property id
+     * @param attr the new attribute bitset
+     */
+    protected void setInstanceIdAttributes(int id, int attr) {
+<span class="nc" id="L730">        throw ScriptRuntime.constructError(&quot;InternalError&quot;,</span>
+<span class="nc" id="L731">                &quot;Changing attributes not supported for &quot; + getClassName()</span>
+<span class="nc" id="L732">                + &quot; &quot; + getInstanceIdName(id) + &quot; property&quot;);</span>
+    }
+
+    /** 'thisObj' will be null if invoked as constructor, in which case
+     ** instance of Scriptable should be returned. */
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc" id="L740">        throw f.unknown();</span>
+    }
+
+    public final IdFunctionObject exportAsJSClass(int maxPrototypeId,
+                                                  Scriptable scope,
+                                                  boolean sealed)
+    {
+        // Set scope and prototype unless this is top level scope itself
+<span class="pc bpc" id="L748" title="1 of 4 branches missed.">        if (scope != this &amp;&amp; scope != null) {</span>
+<span class="fc" id="L749">            setParentScope(scope);</span>
+<span class="fc" id="L750">            setPrototype(getObjectPrototype(scope));</span>
+        }
+
+<span class="fc" id="L753">        activatePrototypeMap(maxPrototypeId);</span>
+<span class="fc" id="L754">        IdFunctionObject ctor = prototypeValues.createPrecachedConstructor();</span>
+<span class="pc bpc" id="L755" title="1 of 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L756">            sealObject();</span>
+        }
+<span class="fc" id="L758">        fillConstructorProperties(ctor);</span>
+<span class="pc bpc" id="L759" title="1 of 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L760">            ctor.sealObject();</span>
+        }
+<span class="fc" id="L762">        ctor.exportAsScopeProperty();</span>
+<span class="fc" id="L763">        return ctor;</span>
+    }
+
+    public final boolean hasPrototypeMap()
+    {
+<span class="nc bnc" id="L768" title="All 2 branches missed.">        return prototypeValues != null;</span>
+    }
+
+    public final void activatePrototypeMap(int maxPrototypeId)
+    {
+<span class="fc" id="L773">        PrototypeValues values = new PrototypeValues(this, maxPrototypeId);</span>
+<span class="fc" id="L774">        synchronized (this) {</span>
+<span class="pc bpc" id="L775" title="1 of 2 branches missed.">            if (prototypeValues != null)</span>
+<span class="nc" id="L776">                throw new IllegalStateException();</span>
+<span class="fc" id="L777">            prototypeValues = values;</span>
+<span class="pc" id="L778">        }</span>
+<span class="fc" id="L779">    }</span>
+
+    public final IdFunctionObject initPrototypeMethod(Object tag, int id, String name,
+                                          int arity)
+    {
+<span class="fc" id="L784">        return initPrototypeMethod(tag, id, name, name, arity);</span>
+    }
+
+    public final IdFunctionObject initPrototypeMethod(Object tag, int id, String propertyName, String functionName,
+                                          int arity)
+    {
+<span class="fc" id="L790">        Scriptable scope = ScriptableObject.getTopLevelScope(this);</span>
+<span class="fc bfc" id="L791" title="All 2 branches covered.">        IdFunctionObject function = newIdFunction(tag, id,</span>
+            functionName != null ? functionName : propertyName,
+            arity, scope);
+<span class="fc" id="L794">        prototypeValues.initValue(id, propertyName, function, DONTENUM);</span>
+<span class="fc" id="L795">        return function;</span>
+    }
+
+    public final IdFunctionObject initPrototypeMethod(Object tag, int id, Symbol key, String functionName,
+                                          int arity)
+    {
+<span class="nc" id="L801">        Scriptable scope = ScriptableObject.getTopLevelScope(this);</span>
+<span class="nc" id="L802">        IdFunctionObject function = newIdFunction(tag, id, functionName, arity, scope);</span>
+<span class="nc" id="L803">        prototypeValues.initValue(id, key, function, DONTENUM);</span>
+<span class="nc" id="L804">        return function;</span>
+    }
+
+    public final void initPrototypeConstructor(IdFunctionObject f)
+    {
+<span class="nc" id="L809">        int id = prototypeValues.constructorId;</span>
+<span class="nc bnc" id="L810" title="All 2 branches missed.">        if (id == 0)</span>
+<span class="nc" id="L811">            throw new IllegalStateException();</span>
+<span class="nc bnc" id="L812" title="All 2 branches missed.">        if (f.methodId() != id)</span>
+<span class="nc" id="L813">            throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L814" title="All 2 branches missed.">        if (isSealed()) { f.sealObject(); }</span>
+<span class="nc" id="L815">        prototypeValues.initValue(id, &quot;constructor&quot;, f, DONTENUM);</span>
+<span class="nc" id="L816">    }</span>
+
+    public final void initPrototypeValue(int id, String name, Object value,
+                                         int attributes)
+    {
+<span class="nc" id="L821">        prototypeValues.initValue(id, name, value, attributes);</span>
+<span class="nc" id="L822">    }</span>
+
+    public final void initPrototypeValue(int id, Symbol key, Object value,
+                                         int attributes)
+    {
+<span class="nc" id="L827">        prototypeValues.initValue(id, key, value, attributes);</span>
+<span class="nc" id="L828">    }</span>
+
+    protected void initPrototypeId(int id)
+    {
+<span class="nc" id="L832">        throw new IllegalStateException(String.valueOf(id));</span>
+    }
+
+    protected int findPrototypeId(String name)
+    {
+<span class="nc" id="L837">        throw new IllegalStateException(name);</span>
+    }
+
+    protected int findPrototypeId(Symbol key)
+    {
+<span class="nc" id="L842">        return 0;</span>
+    }
+
+    protected void fillConstructorProperties(IdFunctionObject ctor)
+    {
+<span class="fc" id="L847">    }</span>
+
+    protected void addIdFunctionProperty(Scriptable obj, Object tag, int id,
+                                         String name, int arity)
+    {
+<span class="fc" id="L852">        Scriptable scope = ScriptableObject.getTopLevelScope(obj);</span>
+<span class="fc" id="L853">        IdFunctionObject f = newIdFunction(tag, id, name, arity, scope);</span>
+<span class="fc" id="L854">        f.addAsProperty(obj);</span>
+<span class="fc" id="L855">    }</span>
+
+    /**
+     * Utility method to construct type error to indicate incompatible call
+     * when converting script thisObj to a particular type is not possible.
+     * Possible usage would be to have a private function like realThis:
+     * &lt;pre&gt;
+     *  private static NativeSomething realThis(Scriptable thisObj,
+     *                                          IdFunctionObject f)
+     *  {
+     *      if (!(thisObj instanceof NativeSomething))
+     *          throw incompatibleCallError(f);
+     *      return (NativeSomething)thisObj;
+     * }
+     * &lt;/pre&gt;
+     * Note that although such function can be implemented universally via
+     * java.lang.Class.isInstance(), it would be much more slower.
+     * @param f function that is attempting to convert 'this'
+     * object.
+     * @return Scriptable object suitable for a check by the instanceof
+     * operator.
+     * @throws RuntimeException if no more instanceof target can be found
+     */
+    protected static EcmaError incompatibleCallError(IdFunctionObject f)
+    {
+<span class="nc" id="L880">        throw ScriptRuntime.typeError1(&quot;msg.incompat.call&quot;,</span>
+<span class="nc" id="L881">                                       f.getFunctionName());</span>
+    }
+
+    private IdFunctionObject newIdFunction(Object tag, int id, String name,
+                                           int arity, Scriptable scope)
+    {
+<span class="fc" id="L887">        IdFunctionObject function = null;</span>
+<span class="pc bpc" id="L888" title="1 of 2 branches missed.">        if (Context.getContext().getLanguageVersion() &lt; Context.VERSION_ES6) {</span>
+<span class="fc" id="L889">            function = new IdFunctionObject(this, tag, id, name, arity, scope);</span>
+        } else {
+<span class="nc" id="L891">            function = new IdFunctionObjectES6(this, tag, id, name, arity, scope);</span>
+        }
+
+<span class="pc bpc" id="L894" title="1 of 2 branches missed.">        if (isSealed()) { function.sealObject(); }</span>
+<span class="fc" id="L895">        return function;</span>
+    }
+
+    @Override
+    public void defineOwnProperty(Context cx, Object key, ScriptableObject desc) {
+<span class="nc bnc" id="L900" title="All 2 branches missed.">      if (key instanceof String) {</span>
+<span class="nc" id="L901">        String name = (String) key;</span>
+<span class="nc" id="L902">        int info = findInstanceIdInfo(name);</span>
+<span class="nc bnc" id="L903" title="All 2 branches missed.">        if (info != 0) {</span>
+<span class="nc" id="L904">            int id = (info &amp; 0xFFFF);</span>
+<span class="nc bnc" id="L905" title="All 2 branches missed.">            if (isAccessorDescriptor(desc)) {</span>
+<span class="nc" id="L906">              delete(id); // it will be replaced with a slot</span>
+            } else {
+<span class="nc" id="L908">              checkPropertyDefinition(desc);</span>
+<span class="nc" id="L909">              ScriptableObject current = getOwnPropertyDescriptor(cx, key);</span>
+<span class="nc" id="L910">              checkPropertyChange(name, current, desc);</span>
+<span class="nc" id="L911">              int attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc" id="L912">              Object value = getProperty(desc, &quot;value&quot;);</span>
+<span class="nc bnc" id="L913" title="All 4 branches missed.">              if (value != NOT_FOUND &amp;&amp; (attr &amp; READONLY) == 0) {</span>
+<span class="nc" id="L914">                Object currentValue = getInstanceIdValue(id);</span>
+<span class="nc bnc" id="L915" title="All 2 branches missed.">                if (!sameValue(value, currentValue)) {</span>
+<span class="nc" id="L916">                  setInstanceIdValue(id, value);</span>
+                }
+              }
+<span class="nc" id="L919">              setAttributes(name, applyDescriptorToAttributeBitset(attr, desc));</span>
+<span class="nc" id="L920">              return;</span>
+            }
+        }
+<span class="nc bnc" id="L923" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L924">            int id = prototypeValues.findId(name);</span>
+<span class="nc bnc" id="L925" title="All 2 branches missed.">            if (id != 0) {</span>
+<span class="nc bnc" id="L926" title="All 2 branches missed.">              if (isAccessorDescriptor(desc)) {</span>
+<span class="nc" id="L927">                prototypeValues.delete(id); // it will be replaced with a slot</span>
+              } else {
+<span class="nc" id="L929">                checkPropertyDefinition(desc);</span>
+<span class="nc" id="L930">                ScriptableObject current = getOwnPropertyDescriptor(cx, key);</span>
+<span class="nc" id="L931">                checkPropertyChange(name, current, desc);</span>
+<span class="nc" id="L932">                int attr = prototypeValues.getAttributes(id);</span>
+<span class="nc" id="L933">                Object value = getProperty(desc, &quot;value&quot;);</span>
+<span class="nc bnc" id="L934" title="All 4 branches missed.">                if (value != NOT_FOUND &amp;&amp; (attr &amp; READONLY) == 0) {</span>
+<span class="nc" id="L935">                  Object currentValue = prototypeValues.get(id);</span>
+<span class="nc bnc" id="L936" title="All 2 branches missed.">                  if (!sameValue(value, currentValue)) {</span>
+<span class="nc" id="L937">                    prototypeValues.set(id, this, value);</span>
+                  }
+                }
+<span class="nc" id="L940">                prototypeValues.setAttributes(id, applyDescriptorToAttributeBitset(attr, desc));</span>
+<span class="nc" id="L941">                return;</span>
+              }
+            }
+        }
+      }
+<span class="nc" id="L946">      super.defineOwnProperty(cx, key, desc);</span>
+<span class="nc" id="L947">    }</span>
+
+
+    @Override
+    protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+<span class="nc" id="L952">      ScriptableObject desc = super.getOwnPropertyDescriptor(cx, id);</span>
+<span class="nc bnc" id="L953" title="All 2 branches missed.">      if (desc == null) {</span>
+<span class="nc bnc" id="L954" title="All 2 branches missed.">          if (id instanceof String) {</span>
+<span class="nc" id="L955">              desc = getBuiltInDescriptor((String) id);</span>
+<span class="nc bnc" id="L956" title="All 2 branches missed.">          } else if (ScriptRuntime.isSymbol(id)) {</span>
+<span class="nc" id="L957">              desc = getBuiltInDescriptor(((NativeSymbol)id).getKey());</span>
+          }
+      }
+<span class="nc" id="L960">      return desc;</span>
+    }
+
+    private ScriptableObject getBuiltInDescriptor(String name) {
+<span class="nc" id="L964">      Object value = null;</span>
+<span class="nc" id="L965">      int attr = EMPTY;</span>
+
+<span class="nc" id="L967">      Scriptable scope = getParentScope();</span>
+<span class="nc bnc" id="L968" title="All 2 branches missed.">      if (scope == null) {</span>
+<span class="nc" id="L969">        scope = this;</span>
+      }
+
+<span class="nc" id="L972">      int info = findInstanceIdInfo(name);</span>
+<span class="nc bnc" id="L973" title="All 2 branches missed.">      if (info != 0) {</span>
+<span class="nc" id="L974">        int id = (info &amp; 0xFFFF);</span>
+<span class="nc" id="L975">        value = getInstanceIdValue(id);</span>
+<span class="nc" id="L976">        attr = (info &gt;&gt;&gt; 16);</span>
+<span class="nc" id="L977">        return buildDataDescriptor(scope, value, attr);</span>
+      }
+<span class="nc bnc" id="L979" title="All 2 branches missed.">      if (prototypeValues != null) {</span>
+<span class="nc" id="L980">        int id = prototypeValues.findId(name);</span>
+<span class="nc bnc" id="L981" title="All 2 branches missed.">        if (id != 0) {</span>
+<span class="nc" id="L982">          value = prototypeValues.get(id);</span>
+<span class="nc" id="L983">          attr = prototypeValues.getAttributes(id);</span>
+<span class="nc" id="L984">          return buildDataDescriptor(scope, value, attr);</span>
+        }
+      }
+<span class="nc" id="L987">      return null;</span>
+    }
+
+    private ScriptableObject getBuiltInDescriptor(Symbol key) {
+<span class="nc" id="L991">      Object value = null;</span>
+<span class="nc" id="L992">      int attr = EMPTY;</span>
+
+<span class="nc" id="L994">      Scriptable scope = getParentScope();</span>
+<span class="nc bnc" id="L995" title="All 2 branches missed.">      if (scope == null) {</span>
+<span class="nc" id="L996">        scope = this;</span>
+      }
+
+<span class="nc bnc" id="L999" title="All 2 branches missed.">      if (prototypeValues != null) {</span>
+<span class="nc" id="L1000">        int id = prototypeValues.findId(key);</span>
+<span class="nc bnc" id="L1001" title="All 2 branches missed.">        if (id != 0) {</span>
+<span class="nc" id="L1002">          value = prototypeValues.get(id);</span>
+<span class="nc" id="L1003">          attr = prototypeValues.getAttributes(id);</span>
+<span class="nc" id="L1004">          return buildDataDescriptor(scope, value, attr);</span>
+        }
+      }
+<span class="nc" id="L1007">      return null;</span>
+    }
+
+    private void readObject(ObjectInputStream stream)
+        throws IOException, ClassNotFoundException
+    {
+<span class="nc" id="L1013">        stream.defaultReadObject();</span>
+<span class="nc" id="L1014">        int maxPrototypeId = stream.readInt();</span>
+<span class="nc bnc" id="L1015" title="All 2 branches missed.">        if (maxPrototypeId != 0) {</span>
+<span class="nc" id="L1016">            activatePrototypeMap(maxPrototypeId);</span>
+        }
+<span class="nc" id="L1018">    }</span>
+
+    private void writeObject(ObjectOutputStream stream)
+        throws IOException
+    {
+<span class="nc" id="L1023">        stream.defaultWriteObject();</span>
+<span class="nc" id="L1024">        int maxPrototypeId = 0;</span>
+<span class="nc bnc" id="L1025" title="All 2 branches missed.">        if (prototypeValues != null) {</span>
+<span class="nc" id="L1026">            maxPrototypeId = prototypeValues.getMaxId();</span>
+        }
+<span class="nc" id="L1028">        stream.writeInt(maxPrototypeId);</span>
+<span class="nc" id="L1029">    }</span>
+
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

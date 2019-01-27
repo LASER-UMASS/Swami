@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InfixExpression.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">InfixExpression.java</span></div><h1>InfixExpression.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node representing an infix (binary operator) expression.
+ * The operator is the node's {@link Token} type.
+ */
+public class InfixExpression extends AstNode {
+
+    protected AstNode left;
+    protected AstNode right;
+<span class="pc" id="L19">    protected int operatorPosition = -1;</span>
+
+<span class="fc" id="L21">    public InfixExpression() {</span>
+<span class="fc" id="L22">    }</span>
+
+    public InfixExpression(int pos) {
+<span class="nc" id="L25">        super(pos);</span>
+<span class="nc" id="L26">    }</span>
+
+    public InfixExpression(int pos, int len) {
+<span class="nc" id="L29">        super(pos, len);</span>
+<span class="nc" id="L30">    }</span>
+
+    public InfixExpression(int pos, int len,
+                           AstNode left,
+                           AstNode right) {
+<span class="nc" id="L35">        super(pos, len);</span>
+<span class="nc" id="L36">        setLeft(left);</span>
+<span class="nc" id="L37">        setRight(right);</span>
+<span class="nc" id="L38">    }</span>
+
+    /**
+     * Constructs a new {@code InfixExpression}.  Updates bounds to include
+     * left and right nodes.
+     */
+<span class="nc" id="L44">    public InfixExpression(AstNode left, AstNode right) {</span>
+<span class="nc" id="L45">        setLeftAndRight(left, right);</span>
+<span class="nc" id="L46">    }</span>
+
+    /**
+     * Constructs a new {@code InfixExpression}.
+     * @param operatorPos the &lt;em&gt;absolute&lt;/em&gt; position of the operator
+     */
+    public InfixExpression(int operator, AstNode left,
+<span class="fc" id="L53">                           AstNode right, int operatorPos) {</span>
+<span class="fc" id="L54">        setType(operator);</span>
+<span class="fc" id="L55">        setOperatorPosition(operatorPos - left.getPosition());</span>
+<span class="fc" id="L56">        setLeftAndRight(left, right);</span>
+<span class="fc" id="L57">    }</span>
+
+    public void setLeftAndRight(AstNode left, AstNode right) {
+<span class="fc" id="L60">        assertNotNull(left);</span>
+<span class="fc" id="L61">        assertNotNull(right);</span>
+        // compute our bounds while children have absolute positions
+<span class="fc" id="L63">        int beg = left.getPosition();</span>
+<span class="fc" id="L64">        int end = right.getPosition() + right.getLength();</span>
+<span class="fc" id="L65">        setBounds(beg, end);</span>
+
+        // this updates their positions to be parent-relative
+<span class="fc" id="L68">        setLeft(left);</span>
+<span class="fc" id="L69">        setRight(right);</span>
+<span class="fc" id="L70">    }</span>
+
+    /**
+     * Returns operator token &amp;ndash; alias for {@link #getType}
+     */
+    public int getOperator() {
+<span class="nc" id="L76">        return getType();</span>
+    }
+
+    /**
+     * Sets operator token &amp;ndash; like {@link #setType}, but throws
+     * an exception if the operator is invalid.
+     * @throws IllegalArgumentException if operator is not a valid token
+     * code
+     */
+    public void setOperator(int operator) {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (!Token.isValidToken(operator))</span>
+<span class="nc" id="L87">            throw new IllegalArgumentException(&quot;Invalid token: &quot; + operator);</span>
+<span class="nc" id="L88">        setType(operator);</span>
+<span class="nc" id="L89">    }</span>
+
+    /**
+     * Returns the left-hand side of the expression
+     */
+    public AstNode getLeft() {
+<span class="fc" id="L95">        return left;</span>
+    }
+
+    /**
+     * Sets the left-hand side of the expression, and sets its
+     * parent to this node.
+     * @param left the left-hand side of the expression
+     * @throws IllegalArgumentException} if left is {@code null}
+     */
+    public void setLeft(AstNode left) {
+<span class="fc" id="L105">        assertNotNull(left);</span>
+<span class="fc" id="L106">        this.left = left;</span>
+        // line number should agree with source position
+<span class="fc" id="L108">        setLineno(left.getLineno());</span>
+<span class="fc" id="L109">        left.setParent(this);</span>
+<span class="fc" id="L110">    }</span>
+
+    /**
+     * Returns the right-hand side of the expression
+     * @return the right-hand side.  It's usually an
+     * {@link AstNode} node, but can also be a {@link FunctionNode}
+     * representing Function expressions.
+     */
+    public AstNode getRight() {
+<span class="fc" id="L119">        return right;</span>
+    }
+
+    /**
+     * Sets the right-hand side of the expression, and sets its parent to this
+     * node.
+     * @throws IllegalArgumentException} if right is {@code null}
+     */
+    public void setRight(AstNode right) {
+<span class="fc" id="L128">        assertNotNull(right);</span>
+<span class="fc" id="L129">        this.right = right;</span>
+<span class="fc" id="L130">        right.setParent(this);</span>
+<span class="fc" id="L131">    }</span>
+
+    /**
+     * Returns relative offset of operator token
+     */
+    public int getOperatorPosition() {
+<span class="nc" id="L137">        return operatorPosition;</span>
+    }
+
+    /**
+     * Sets operator token's relative offset
+     * @param operatorPosition offset in parent of operator token
+     */
+    public void setOperatorPosition(int operatorPosition) {
+<span class="fc" id="L145">        this.operatorPosition = operatorPosition;</span>
+<span class="fc" id="L146">    }</span>
+
+    @Override
+    public boolean hasSideEffects() {
+        // the null-checks are for malformed expressions in IDE-mode
+<span class="nc bnc" id="L151" title="All 3 branches missed.">        switch (getType()) {</span>
+          case Token.COMMA:
+<span class="nc bnc" id="L153" title="All 4 branches missed.">              return right != null &amp;&amp; right.hasSideEffects();</span>
+          case Token.AND:
+          case Token.OR:
+<span class="nc bnc" id="L156" title="All 6 branches missed.">              return left != null &amp;&amp; left.hasSideEffects()</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                      || (right != null &amp;&amp; right.hasSideEffects());</span>
+          default:
+<span class="nc" id="L159">              return super.hasSideEffects();</span>
+        }
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L165">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L166">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L167">        sb.append(left.toSource());</span>
+<span class="nc" id="L168">        sb.append(&quot; &quot;);</span>
+<span class="nc" id="L169">        sb.append(operatorToString(getType()));</span>
+<span class="nc" id="L170">        sb.append(&quot; &quot;);</span>
+<span class="nc" id="L171">        sb.append(right.toSource());</span>
+<span class="nc" id="L172">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the left operand, and the right operand.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L181">            left.visit(v);</span>
+<span class="nc" id="L182">            right.visit(v);</span>
+        }
+<span class="nc" id="L184">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

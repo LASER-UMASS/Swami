@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NewExpression.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">NewExpression.java</span></div><h1>NewExpression.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * New expression. Node type is {@link Token#NEW}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;NewExpression&lt;/i&gt; :
+ *      MemberExpression
+ *      &lt;b&gt;new&lt;/b&gt; NewExpression&lt;/pre&gt;
+ *
+ * This node is a subtype of {@link FunctionCall}, mostly for internal code
+ * sharing.  Structurally a {@code NewExpression} node is very similar to a
+ * {@code FunctionCall}, so it made a certain amount of sense.
+ */
+public class NewExpression extends FunctionCall {
+
+    private ObjectLiteral initializer;
+
+    {
+<span class="pc" id="L27">        type = Token.NEW;</span>
+    }
+
+<span class="nc" id="L30">    public NewExpression() {</span>
+<span class="nc" id="L31">    }</span>
+
+    public NewExpression(int pos) {
+<span class="fc" id="L34">        super(pos);</span>
+<span class="fc" id="L35">    }</span>
+
+    public NewExpression(int pos, int len) {
+<span class="nc" id="L38">        super(pos, len);</span>
+<span class="nc" id="L39">    }</span>
+
+    /**
+     * Returns initializer object, if any.
+     * @return extra initializer object-literal expression, or {@code null} if
+     * not specified.
+     */
+    public ObjectLiteral getInitializer() {
+<span class="fc" id="L47">      return initializer;</span>
+    }
+
+    /**
+     * Sets initializer object.  Rhino supports an experimental syntax
+     * of the form {@code new expr [ ( arglist ) ] [initializer]},
+     * in which initializer is an object literal that is used to set
+     * additional properties on the newly-created {@code expr} object.
+     *
+     * @param initializer extra initializer object.
+     * Can be {@code null}.
+     */
+    public void setInitializer(ObjectLiteral initializer) {
+<span class="nc" id="L60">      this.initializer = initializer;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">      if (initializer != null)</span>
+<span class="nc" id="L62">          initializer.setParent(this);</span>
+<span class="nc" id="L63">    }</span>
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L67">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L68">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L69">        sb.append(&quot;new &quot;);</span>
+<span class="nc" id="L70">        sb.append(target.toSource(0));</span>
+<span class="nc" id="L71">        sb.append(&quot;(&quot;);</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (arguments != null) {</span>
+<span class="nc" id="L73">            printList(arguments, sb);</span>
+        }
+<span class="nc" id="L75">        sb.append(&quot;)&quot;);</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (initializer != null) {</span>
+<span class="nc" id="L77">            sb.append(&quot; &quot;);</span>
+<span class="nc" id="L78">            sb.append(initializer.toSource(0));</span>
+        }
+<span class="nc" id="L80">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, the target, and each argument.  If there is
+     * a trailing initializer node, visits that last.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc" id="L90">            target.visit(v);</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            for (AstNode arg : getArguments()) {</span>
+<span class="nc" id="L92">                arg.visit(v);</span>
+<span class="nc" id="L93">            }</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if (initializer != null) {</span>
+<span class="nc" id="L95">                initializer.visit(v);</span>
+            }
+        }
+<span class="nc" id="L98">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

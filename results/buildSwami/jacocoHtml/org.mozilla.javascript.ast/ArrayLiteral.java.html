@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArrayLiteral.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ArrayLiteral.java</span></div><h1>ArrayLiteral.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * AST node for an Array literal.  The elements list will always be
+ * non-{@code null}, although the list will have no elements if the Array literal
+ * is empty.&lt;p&gt;
+ *
+ * Node type is {@link Token#ARRAYLIT}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;ArrayLiteral&lt;/i&gt; :
+ *        &lt;b&gt;[&lt;/b&gt; Elisionopt &lt;b&gt;]&lt;/b&gt;
+ *        &lt;b&gt;[&lt;/b&gt; ElementList &lt;b&gt;]&lt;/b&gt;
+ *        &lt;b&gt;[&lt;/b&gt; ElementList , Elisionopt &lt;b&gt;]&lt;/b&gt;
+ * &lt;i&gt;ElementList&lt;/i&gt; :
+ *        Elisionopt AssignmentExpression
+ *        ElementList , Elisionopt AssignmentExpression
+ * &lt;i&gt;Elision&lt;/i&gt; :
+ *        &lt;b&gt;,&lt;/b&gt;
+ *        Elision &lt;b&gt;,&lt;/b&gt;&lt;/pre&gt;
+ */
+public class ArrayLiteral extends AstNode implements DestructuringForm {
+
+<span class="fc" id="L35">    private static final List&lt;AstNode&gt; NO_ELEMS =</span>
+<span class="fc" id="L36">        Collections.unmodifiableList(new ArrayList&lt;AstNode&gt;());</span>
+
+    private List&lt;AstNode&gt; elements;
+    private int destructuringLength;
+    private int skipCount;
+    private boolean isDestructuring;
+
+    {
+<span class="pc" id="L44">        type = Token.ARRAYLIT;</span>
+    }
+
+<span class="nc" id="L47">    public ArrayLiteral() {</span>
+<span class="nc" id="L48">    }</span>
+
+    public ArrayLiteral(int pos) {
+<span class="fc" id="L51">        super(pos);</span>
+<span class="fc" id="L52">    }</span>
+
+    public ArrayLiteral(int pos, int len) {
+<span class="nc" id="L55">        super(pos, len);</span>
+<span class="nc" id="L56">    }</span>
+
+    /**
+     * Returns the element list
+     * @return the element list.  If there are no elements, returns an immutable
+     *         empty list.  Elisions are represented as {@link EmptyExpression}
+     *         nodes.
+     */
+    public List&lt;AstNode&gt; getElements() {
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        return elements != null ? elements : NO_ELEMS;</span>
+    }
+
+    /**
+     * Sets the element list, and sets each element's parent to this node.
+     * @param elements the element list.  Can be {@code null}.
+     */
+    public void setElements(List&lt;AstNode&gt; elements) {
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        if (elements == null) {</span>
+<span class="nc" id="L74">            this.elements = null;</span>
+        } else {
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (this.elements != null)</span>
+<span class="nc" id="L77">                this.elements.clear();</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">            for (AstNode e : elements)</span>
+<span class="nc" id="L79">                addElement(e);</span>
+        }
+<span class="nc" id="L81">    }</span>
+
+    /**
+     * Adds an element to the list, and sets its parent to this node.
+     * @param element the element to add
+     * @throws IllegalArgumentException if element is {@code null}.  To indicate
+     *         an empty element, use an {@link EmptyExpression} node.
+     */
+    public void addElement(AstNode element) {
+<span class="fc" id="L90">        assertNotNull(element);</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        if (elements == null)</span>
+<span class="fc" id="L92">            elements = new ArrayList&lt;AstNode&gt;();</span>
+<span class="fc" id="L93">        elements.add(element);</span>
+<span class="fc" id="L94">        element.setParent(this);</span>
+<span class="fc" id="L95">    }</span>
+
+    /**
+     * Returns the number of elements in this {@code Array} literal,
+     * including empty elements.
+     */
+    public int getSize() {
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        return elements == null ? 0 : elements.size();</span>
+    }
+
+    /**
+     * Returns element at specified index.
+     * @param index the index of the element to retrieve
+     * @return the element
+     * @throws IndexOutOfBoundsException if the index is invalid
+     */
+    public AstNode getElement(int index) {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (elements == null)</span>
+<span class="nc" id="L113">            throw new IndexOutOfBoundsException(&quot;no elements&quot;);</span>
+<span class="nc" id="L114">        return elements.get(index);</span>
+    }
+
+    /**
+     * Returns destructuring length
+     */
+    public int getDestructuringLength() {
+<span class="fc" id="L121">      return destructuringLength;</span>
+    }
+
+    /**
+     * Sets destructuring length.  This is set by the parser and used
+     * by the code generator.  {@code for ([a,] in obj)} is legal,
+     * but {@code for ([a] in obj)} is not since we have both key and
+     * value supplied.  The difference is only meaningful in array literals
+     * used in destructuring-assignment contexts.
+     */
+    public void setDestructuringLength(int destructuringLength) {
+<span class="fc" id="L132">      this.destructuringLength = destructuringLength;</span>
+<span class="fc" id="L133">    }</span>
+
+    /**
+     * Used by code generator.
+     * @return the number of empty elements
+     */
+    public int getSkipCount() {
+<span class="nc" id="L140">        return skipCount;</span>
+    }
+
+    /**
+     * Used by code generator.
+     * @param count the count of empty elements
+     */
+    public void setSkipCount(int count) {
+<span class="fc" id="L148">        skipCount = count;</span>
+<span class="fc" id="L149">    }</span>
+
+    /**
+     * Marks this node as being a destructuring form - that is, appearing
+     * in a context such as {@code for ([a, b] in ...)} where it's the
+     * target of a destructuring assignment.
+     */
+    public void setIsDestructuring(boolean destructuring) {
+<span class="nc" id="L157">        isDestructuring = destructuring;</span>
+<span class="nc" id="L158">    }</span>
+
+    /**
+     * Returns true if this node is in a destructuring position:
+     * a function parameter, the target of a variable initializer, the
+     * iterator of a for..in loop, etc.
+     */
+    public boolean isDestructuring() {
+<span class="fc" id="L166">        return isDestructuring;</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L171">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L172">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L173">        sb.append(&quot;[&quot;);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        if (elements != null) {</span>
+<span class="nc" id="L175">            printList(elements, sb);</span>
+        }
+<span class="nc" id="L177">        sb.append(&quot;]&quot;);</span>
+<span class="nc" id="L178">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then visits its element expressions in order.
+     * Any empty elements are represented by {@link EmptyExpression}
+     * objects, so the callback will never be passed {@code null}.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            for (AstNode e : getElements()) {</span>
+<span class="nc" id="L190">                e.visit(v);</span>
+<span class="nc" id="L191">            }</span>
+        }
+<span class="nc" id="L193">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ToolErrorReporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.tools</a> &gt; <span class="el_source">ToolErrorReporter.java</span></div><h1>ToolErrorReporter.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.tools;
+
+import org.mozilla.javascript.*;
+
+import java.text.MessageFormat;
+import java.io.*;
+import java.util.*;
+
+/**
+ * Error reporter for tools.
+ *
+ * Currently used by both the shell and the compiler.
+ */
+public class ToolErrorReporter implements ErrorReporter {
+
+    public ToolErrorReporter(boolean reportWarnings) {
+<span class="nc" id="L23">        this(reportWarnings, System.err);</span>
+<span class="nc" id="L24">    }</span>
+
+<span class="nc" id="L26">    public ToolErrorReporter(boolean reportWarnings, PrintStream err) {</span>
+<span class="nc" id="L27">        this.reportWarnings = reportWarnings;</span>
+<span class="nc" id="L28">        this.err = err;</span>
+<span class="nc" id="L29">    }</span>
+
+    /**
+     * Look up the message corresponding to messageId in the
+     * org.mozilla.javascript.tools.shell.resources.Messages property file.
+     * For internationalization support.
+     */
+    public static String getMessage(String messageId) {
+<span class="nc" id="L37">        return getMessage(messageId, (Object []) null);</span>
+    }
+
+    public static String getMessage(String messageId, String argument) {
+<span class="fc" id="L41">        Object[] args = { argument };</span>
+<span class="fc" id="L42">        return getMessage(messageId, args);</span>
+    }
+
+    public static String getMessage(String messageId, Object arg1, Object arg2)
+    {
+<span class="nc" id="L47">        Object[] args = { arg1, arg2 };</span>
+<span class="nc" id="L48">        return getMessage(messageId, args);</span>
+    }
+
+    public static String getMessage(String messageId, Object[] args) {
+<span class="fc" id="L52">        Context cx = Context.getCurrentContext();</span>
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        Locale locale = cx == null ? Locale.getDefault() : cx.getLocale();</span>
+
+        // ResourceBundle does caching.
+<span class="fc" id="L56">        ResourceBundle rb = ResourceBundle.getBundle</span>
+<span class="fc" id="L57">            (&quot;org.mozilla.javascript.tools.resources.Messages&quot;, locale);</span>
+
+        String formatString;
+        try {
+<span class="fc" id="L61">            formatString = rb.getString(messageId);</span>
+<span class="nc" id="L62">        } catch (java.util.MissingResourceException mre) {</span>
+<span class="nc" id="L63">            throw new RuntimeException(&quot;no message resource found for message property &quot;</span>
+                                       + messageId);
+<span class="fc" id="L65">        }</span>
+
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        if (args == null) {</span>
+<span class="nc" id="L68">            return formatString;</span>
+        } else {
+<span class="fc" id="L70">            MessageFormat formatter = new MessageFormat(formatString);</span>
+<span class="fc" id="L71">            return formatter.format(args);</span>
+        }
+    }
+
+    private static String getExceptionMessage(RhinoException ex)
+    {
+        String msg;
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (ex instanceof JavaScriptException) {</span>
+<span class="nc" id="L79">            msg = getMessage(&quot;msg.uncaughtJSException&quot;, ex.details());</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        } else if (ex instanceof EcmaError) {</span>
+<span class="fc" id="L81">            msg = getMessage(&quot;msg.uncaughtEcmaError&quot;, ex.details());</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        } else if (ex instanceof EvaluatorException) {</span>
+<span class="fc" id="L83">            msg = ex.details();</span>
+        } else {
+<span class="nc" id="L85">            msg = ex.toString();</span>
+        }
+<span class="fc" id="L87">        return msg;</span>
+    }
+
+    public void warning(String message, String sourceName, int line,
+                        String lineSource, int lineOffset)
+    {
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (!reportWarnings)</span>
+<span class="nc" id="L94">            return;</span>
+<span class="nc" id="L95">        reportErrorMessage(message, sourceName, line, lineSource, lineOffset,</span>
+                           true);
+<span class="nc" id="L97">    }</span>
+
+    public void error(String message, String sourceName, int line,
+                      String lineSource, int lineOffset)
+    {
+<span class="nc" id="L102">        hasReportedErrorFlag = true;</span>
+<span class="nc" id="L103">        reportErrorMessage(message, sourceName, line, lineSource, lineOffset,</span>
+                           false);
+<span class="nc" id="L105">    }</span>
+
+    public EvaluatorException runtimeError(String message, String sourceName,
+                                           int line, String lineSource,
+                                           int lineOffset)
+    {
+<span class="nc" id="L111">        return new EvaluatorException(message, sourceName, line,</span>
+                                      lineSource, lineOffset);
+    }
+
+    public boolean hasReportedError() {
+<span class="nc" id="L116">        return hasReportedErrorFlag;</span>
+    }
+
+    public boolean isReportingWarnings() {
+<span class="nc" id="L120">        return this.reportWarnings;</span>
+    }
+
+    public void setIsReportingWarnings(boolean reportWarnings) {
+<span class="nc" id="L124">        this.reportWarnings = reportWarnings;</span>
+<span class="nc" id="L125">    }</span>
+
+    public static void reportException(ErrorReporter er, RhinoException ex)
+    {
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">        if (er instanceof ToolErrorReporter) {</span>
+<span class="nc" id="L130">            ((ToolErrorReporter)er).reportException(ex);</span>
+        } else {
+<span class="fc" id="L132">            String msg = getExceptionMessage(ex);</span>
+<span class="fc" id="L133">            er.error(msg, ex.sourceName(), ex.lineNumber(),</span>
+<span class="fc" id="L134">                     ex.lineSource(), ex.columnNumber());</span>
+        }
+<span class="fc" id="L136">    }</span>
+
+    public void reportException(RhinoException ex)
+    {
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (ex instanceof WrappedException) {</span>
+<span class="nc" id="L141">            WrappedException we = (WrappedException)ex;</span>
+<span class="nc" id="L142">            we.printStackTrace(err);</span>
+<span class="nc" id="L143">        } else {</span>
+<span class="nc" id="L144">            String lineSeparator =</span>
+<span class="nc" id="L145">                SecurityUtilities.getSystemProperty(&quot;line.separator&quot;);</span>
+<span class="nc" id="L146">            String msg = getExceptionMessage(ex) + lineSeparator +</span>
+<span class="nc" id="L147">                ex.getScriptStackTrace();</span>
+<span class="nc" id="L148">            reportErrorMessage(msg, ex.sourceName(), ex.lineNumber(),</span>
+<span class="nc" id="L149">                               ex.lineSource(), ex.columnNumber(), false);</span>
+        }
+<span class="nc" id="L151">    }</span>
+
+    private void reportErrorMessage(String message, String sourceName, int line,
+                                    String lineSource, int lineOffset,
+                                    boolean justWarning)
+    {
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (line &gt; 0) {</span>
+<span class="nc" id="L158">            String lineStr = String.valueOf(line);</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            if (sourceName != null) {</span>
+<span class="nc" id="L160">                Object[] args = { sourceName, lineStr, message };</span>
+<span class="nc" id="L161">                message = getMessage(&quot;msg.format3&quot;, args);</span>
+<span class="nc" id="L162">            } else {</span>
+<span class="nc" id="L163">                Object[] args = { lineStr, message };</span>
+<span class="nc" id="L164">                message = getMessage(&quot;msg.format2&quot;, args);</span>
+            }
+<span class="nc" id="L166">        } else {</span>
+<span class="nc" id="L167">            Object[] args = { message };</span>
+<span class="nc" id="L168">            message = getMessage(&quot;msg.format1&quot;, args);</span>
+        }
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        if (justWarning) {</span>
+<span class="nc" id="L171">            message = getMessage(&quot;msg.warning&quot;, message);</span>
+        }
+<span class="nc" id="L173">        err.println(messagePrefix + message);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        if (null != lineSource) {</span>
+<span class="nc" id="L175">            err.println(messagePrefix + lineSource);</span>
+<span class="nc" id="L176">            err.println(messagePrefix + buildIndicator(lineOffset));</span>
+        }
+<span class="nc" id="L178">    }</span>
+
+    private String buildIndicator(int offset){
+<span class="nc" id="L181">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        for (int i = 0; i &lt; offset-1; i++)</span>
+<span class="nc" id="L183">            sb.append(&quot;.&quot;);</span>
+<span class="nc" id="L184">        sb.append(&quot;^&quot;);</span>
+<span class="nc" id="L185">        return sb.toString();</span>
+    }
+
+    private final static String messagePrefix = &quot;js: &quot;;
+    private boolean hasReportedErrorFlag;
+    private boolean reportWarnings;
+    private PrintStream err;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

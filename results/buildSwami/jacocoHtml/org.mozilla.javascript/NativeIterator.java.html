@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeIterator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeIterator.java</span></div><h1>NativeIterator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Iterator;
+
+/**
+ * This class implements iterator objects. See
+ * http://developer.mozilla.org/en/docs/New_in_JavaScript_1.7#Iterators
+ *
+ * @author Norris Boyd
+ */
+public final class NativeIterator extends IdScriptableObject {
+    private static final long serialVersionUID = -4136968203581667681L;
+<span class="fc" id="L19">    private static final Object ITERATOR_TAG = &quot;Iterator&quot;;</span>
+
+    static void init(ScriptableObject scope, boolean sealed) {
+        // Iterator
+<span class="fc" id="L23">        NativeIterator iterator = new NativeIterator();</span>
+<span class="fc" id="L24">        iterator.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+
+        // Generator
+<span class="fc" id="L27">        NativeGenerator.init(scope, sealed);</span>
+
+        // StopIteration
+<span class="fc" id="L30">        NativeObject obj = new StopIteration();</span>
+<span class="fc" id="L31">        obj.setPrototype(getObjectPrototype(scope));</span>
+<span class="fc" id="L32">        obj.setParentScope(scope);</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (sealed) { obj.sealObject(); }</span>
+<span class="fc" id="L34">        ScriptableObject.defineProperty(scope, STOP_ITERATION, obj,</span>
+                                        ScriptableObject.DONTENUM);
+        // Use &quot;associateValue&quot; so that generators can continue to
+        // throw StopIteration even if the property of the global
+        // scope is replaced or deleted.
+<span class="fc" id="L39">        scope.associateValue(ITERATOR_TAG, obj);</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * Only for constructing the prototype object.
+     */
+<span class="fc" id="L45">    private NativeIterator() {</span>
+<span class="fc" id="L46">    }</span>
+
+<span class="nc" id="L48">    private NativeIterator(Object objectIterator) {</span>
+<span class="nc" id="L49">      this.objectIterator = objectIterator;</span>
+<span class="nc" id="L50">    }</span>
+
+    /**
+     * Get the value of the &quot;StopIteration&quot; object. Note that this value
+     * is stored in the top-level scope using &quot;associateValue&quot; so the
+     * value can still be found even if a script overwrites or deletes
+     * the global &quot;StopIteration&quot; property.
+     * @param scope a scope whose parent chain reaches a top-level scope
+     * @return the StopIteration object
+     */
+    public static Object getStopIterationObject(Scriptable scope) {
+<span class="nc" id="L61">        Scriptable top = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="nc" id="L62">        return ScriptableObject.getTopScopeValue(top, ITERATOR_TAG);</span>
+    }
+
+    private static final String STOP_ITERATION = &quot;StopIteration&quot;;
+    public static final String ITERATOR_PROPERTY_NAME = &quot;__iterator__&quot;;
+
+<span class="fc" id="L68">    static class StopIteration extends NativeObject {</span>
+        private static final long serialVersionUID = 2485151085722377663L;
+
+        @Override
+        public String getClassName() {
+<span class="nc" id="L73">            return STOP_ITERATION;</span>
+        }
+
+        /* StopIteration has custom instanceof behavior since it
+         * doesn't have a constructor.
+         */
+        @Override
+        public boolean hasInstance(Scriptable instance) {
+<span class="nc" id="L81">            return instance instanceof StopIteration;</span>
+        }
+    }
+
+    @Override
+    public String getClassName() {
+<span class="fc" id="L87">        return &quot;Iterator&quot;;</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id) {
+        String s;
+        int arity;
+<span class="pc bpc" id="L94" title="3 of 4 branches missed.">        switch (id) {</span>
+<span class="fc" id="L95">          case Id_constructor:    arity=2; s=&quot;constructor&quot;;          break;</span>
+<span class="nc" id="L96">          case Id_next:           arity=0; s=&quot;next&quot;;                 break;</span>
+<span class="nc" id="L97">          case Id___iterator__:   arity=1; s=ITERATOR_PROPERTY_NAME; break;</span>
+<span class="nc" id="L98">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L100">        initPrototypeMethod(ITERATOR_TAG, id, s, arity);</span>
+<span class="fc" id="L101">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (!f.hasTag(ITERATOR_TAG)) {</span>
+<span class="nc" id="L108">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L110">        int id = f.methodId();</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (id == Id_constructor) {</span>
+<span class="nc" id="L113">            return jsConstructor(cx, scope, thisObj, args);</span>
+        }
+
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (!(thisObj instanceof NativeIterator))</span>
+<span class="nc" id="L117">            throw incompatibleCallError(f);</span>
+
+<span class="nc" id="L119">        NativeIterator iterator = (NativeIterator) thisObj;</span>
+
+<span class="nc bnc" id="L121" title="All 3 branches missed.">        switch (id) {</span>
+
+          case Id_next:
+<span class="nc" id="L124">            return iterator.next(cx, scope);</span>
+
+          case Id___iterator__:
+            /// XXX: what about argument? SpiderMonkey apparently ignores it
+<span class="nc" id="L128">            return thisObj;</span>
+
+          default:
+<span class="nc" id="L131">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+    }
+
+    /* The JavaScript constructor */
+    private static Object jsConstructor(Context cx, Scriptable scope,
+                                        Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L139" title="All 6 branches missed.">        if (args.length == 0 || args[0] == null ||</span>
+            args[0] == Undefined.instance)
+        {
+<span class="nc bnc" id="L142" title="All 2 branches missed.">            Object argument = args.length == 0 ? Undefined.instance : args[0];</span>
+<span class="nc" id="L143">            throw ScriptRuntime.typeError1(&quot;msg.no.properties&quot;,</span>
+<span class="nc" id="L144">                                           ScriptRuntime.toString(argument));</span>
+        }
+<span class="nc" id="L146">        Scriptable obj = ScriptRuntime.toObject(cx, scope, args[0]);</span>
+<span class="nc bnc" id="L147" title="All 4 branches missed.">        boolean keyOnly = args.length &gt; 1 &amp;&amp; ScriptRuntime.toBoolean(args[1]);</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (thisObj != null) {</span>
+            // Called as a function. Convert to iterator if possible.
+
+            // For objects that implement java.lang.Iterable or
+            // java.util.Iterator, have JavaScript Iterator call the underlying
+            // iteration methods
+<span class="nc" id="L154">            Iterator&lt;?&gt; iterator =</span>
+<span class="nc" id="L155">                VMBridge.instance.getJavaIterator(cx, scope, obj);</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (iterator != null) {</span>
+<span class="nc" id="L157">                scope = ScriptableObject.getTopLevelScope(scope);</span>
+<span class="nc" id="L158">                return cx.getWrapFactory().wrap(cx, scope,</span>
+                        new WrappedJavaIterator(iterator, scope),
+                        WrappedJavaIterator.class);
+            }
+
+            // Otherwise, just call the runtime routine
+<span class="nc" id="L164">            Scriptable jsIterator = ScriptRuntime.toIterator(cx, scope, obj,</span>
+                                                             keyOnly);
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (jsIterator != null) {</span>
+<span class="nc" id="L167">                return jsIterator;</span>
+            }
+        }
+
+        // Otherwise, just set up to iterate over the properties of the object.
+        // Do not call __iterator__ method.
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        Object objectIterator = ScriptRuntime.enumInit(obj, cx, scope,</span>
+            keyOnly ? ScriptRuntime.ENUMERATE_KEYS_NO_ITERATOR
+                    : ScriptRuntime.ENUMERATE_ARRAY_NO_ITERATOR);
+<span class="nc" id="L176">        ScriptRuntime.setEnumNumbers(objectIterator, true);</span>
+<span class="nc" id="L177">        NativeIterator result = new NativeIterator(objectIterator);</span>
+<span class="nc" id="L178">        result.setPrototype(ScriptableObject.getClassPrototype(scope,</span>
+<span class="nc" id="L179">                                result.getClassName()));</span>
+<span class="nc" id="L180">        result.setParentScope(scope);</span>
+<span class="nc" id="L181">        return result;</span>
+    }
+
+    private Object next(Context cx, Scriptable scope) {
+<span class="nc" id="L185">        Boolean b = ScriptRuntime.enumNext(this.objectIterator);</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if (!b.booleanValue()) {</span>
+            // Out of values. Throw StopIteration.
+<span class="nc" id="L188">            throw new JavaScriptException(</span>
+<span class="nc" id="L189">                NativeIterator.getStopIterationObject(scope), null, 0);</span>
+        }
+<span class="nc" id="L191">        return ScriptRuntime.enumId(this.objectIterator, cx);</span>
+    }
+
+    static public class WrappedJavaIterator
+    {
+<span class="nc" id="L196">        WrappedJavaIterator(Iterator&lt;?&gt; iterator, Scriptable scope) {</span>
+<span class="nc" id="L197">            this.iterator = iterator;</span>
+<span class="nc" id="L198">            this.scope = scope;</span>
+<span class="nc" id="L199">        }</span>
+
+        public Object next() {
+<span class="nc bnc" id="L202" title="All 2 branches missed.">            if (!iterator.hasNext()) {</span>
+                // Out of values. Throw StopIteration.
+<span class="nc" id="L204">                throw new JavaScriptException(</span>
+<span class="nc" id="L205">                    NativeIterator.getStopIterationObject(scope), null, 0);</span>
+            }
+<span class="nc" id="L207">            return iterator.next();</span>
+        }
+
+        public Object __iterator__(boolean b) {
+<span class="nc" id="L211">            return this;</span>
+        }
+
+        private Iterator&lt;?&gt; iterator;
+        private Scriptable scope;
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s) {
+        int id;
+// #generated# Last update: 2007-06-11 09:43:19 EDT
+<span class="fc" id="L224">        L0: { id = 0; String X = null;</span>
+<span class="fc" id="L225">            int s_length = s.length();</span>
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">            if (s_length==4) { X=&quot;next&quot;;id=Id_next; }</span>
+<span class="pc bpc" id="L227" title="1 of 2 branches missed.">            else if (s_length==11) { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            else if (s_length==12) { X=&quot;__iterator__&quot;;id=Id___iterator__; }</span>
+<span class="pc bpc" id="L229" title="4 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L233">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor           = 1,
+        Id_next                  = 2,
+        Id___iterator__          = 3,
+        MAX_PROTOTYPE_ID         = 3;
+
+// #/string_id_map#
+
+    private Object objectIterator;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

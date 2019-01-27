@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ObjectLiteral.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ObjectLiteral.java</span></div><h1>ObjectLiteral.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * AST node for an Object literal (also called an Object initialiser in
+ * Ecma-262).  The elements list will always be non-{@code null}, although
+ * the list will have no elements if the Object literal is empty.&lt;p&gt;
+ *
+ * Node type is {@link Token#OBJECTLIT}.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;ObjectLiteral&lt;/i&gt; :
+ *       &lt;b&gt;{}&lt;/b&gt;
+ *       &lt;b&gt;{&lt;/b&gt; PropertyNameAndValueList &lt;b&gt;}&lt;/b&gt;
+ * &lt;i&gt;PropertyNameAndValueList&lt;/i&gt; :
+ *       PropertyName &lt;b&gt;:&lt;/b&gt; AssignmentExpression
+ *       PropertyNameAndValueList , PropertyName &lt;b&gt;:&lt;/b&gt; AssignmentExpression
+ * &lt;i&gt;PropertyName&lt;/i&gt; :
+ *       Identifier
+ *       StringLiteral
+ *       NumericLiteral&lt;/pre&gt;
+ */
+public class ObjectLiteral extends AstNode implements DestructuringForm {
+
+<span class="fc" id="L35">    private static final List&lt;ObjectProperty&gt; NO_ELEMS =</span>
+<span class="fc" id="L36">        Collections.unmodifiableList(new ArrayList&lt;ObjectProperty&gt;());</span>
+
+    private List&lt;ObjectProperty&gt; elements;
+    boolean isDestructuring;
+
+    {
+<span class="pc" id="L42">        type = Token.OBJECTLIT;</span>
+    }
+
+<span class="nc" id="L45">    public ObjectLiteral() {</span>
+<span class="nc" id="L46">    }</span>
+
+    public ObjectLiteral(int pos) {
+<span class="nc" id="L49">        super(pos);</span>
+<span class="nc" id="L50">    }</span>
+
+    public ObjectLiteral(int pos, int len) {
+<span class="fc" id="L53">        super(pos, len);</span>
+<span class="fc" id="L54">    }</span>
+
+    /**
+     * Returns the element list.  Returns an immutable empty list if there are
+     * no elements.
+     */
+    public List&lt;ObjectProperty&gt; getElements() {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        return elements != null ? elements : NO_ELEMS;</span>
+    }
+
+    /**
+     * Sets the element list, and updates the parent of each element.
+     * Replaces any existing elements.
+     * @param elements the element list.  Can be {@code null}.
+     */
+    public void setElements(List&lt;ObjectProperty&gt; elements) {
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (elements == null) {</span>
+<span class="nc" id="L71">            this.elements = null;</span>
+        } else {
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">            if (this.elements != null)</span>
+<span class="nc" id="L74">                this.elements.clear();</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">            for (ObjectProperty o : elements)</span>
+<span class="fc" id="L76">                addElement(o);</span>
+        }
+<span class="fc" id="L78">    }</span>
+
+    /**
+     * Adds an element to the list, and sets its parent to this node.
+     * @param element the property node to append to the end of the list
+     * @throws IllegalArgumentException} if element is {@code null}
+     */
+    public void addElement(ObjectProperty element) {
+<span class="fc" id="L86">        assertNotNull(element);</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (elements == null) {</span>
+<span class="fc" id="L88">            elements = new ArrayList&lt;ObjectProperty&gt;();</span>
+        }
+<span class="fc" id="L90">        elements.add(element);</span>
+<span class="fc" id="L91">        element.setParent(this);</span>
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Marks this node as being a destructuring form - that is, appearing
+     * in a context such as {@code for ([a, b] in ...)} where it's the
+     * target of a destructuring assignment.
+     */
+    public void setIsDestructuring(boolean destructuring) {
+<span class="nc" id="L100">        isDestructuring = destructuring;</span>
+<span class="nc" id="L101">    }</span>
+
+    /**
+     * Returns true if this node is in a destructuring position:
+     * a function parameter, the target of a variable initializer, the
+     * iterator of a for..in loop, etc.
+     */
+    public boolean isDestructuring() {
+<span class="fc" id="L109">        return isDestructuring;</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L114">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L115">        sb.append(makeIndent(depth));</span>
+<span class="nc" id="L116">        sb.append(&quot;{&quot;);</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (elements != null) {</span>
+<span class="nc" id="L118">            printList(elements, sb);</span>
+        }
+<span class="nc" id="L120">        sb.append(&quot;}&quot;);</span>
+<span class="nc" id="L121">        return sb.toString();</span>
+    }
+
+    /**
+     * Visits this node, then visits each child property node, in lexical
+     * (source) order.
+     */
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            for (ObjectProperty prop : getElements()) {</span>
+<span class="nc" id="L132">                prop.visit(v);</span>
+<span class="nc" id="L133">            }</span>
+        }
+<span class="nc" id="L135">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

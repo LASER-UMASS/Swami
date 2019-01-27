@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassCache.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ClassCache.java</span></div><h1>ClassCache.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.io.Serializable;
+
+/**
+ * Cache of generated classes and data structures to access Java runtime
+ * from JavaScript.
+ *
+ * @author Igor Bukanov
+ *
+ * @since Rhino 1.5 Release 5
+ */
+<span class="fc" id="L21">public class ClassCache implements Serializable</span>
+{
+    private static final long serialVersionUID = -8866246036237312215L;
+<span class="fc" id="L24">    private static final Object AKEY = &quot;ClassCache&quot;;</span>
+<span class="fc" id="L25">    private volatile boolean cachingIsEnabled = true;</span>
+    private transient Map&lt;Class&lt;?&gt;,JavaMembers&gt; classTable;
+    private transient Map&lt;JavaAdapter.JavaAdapterSignature,Class&lt;?&gt;&gt; classAdapterCache;
+    private transient Map&lt;Class&lt;?&gt;,Object&gt; interfaceAdapterCache;
+    private int generatedClassSerial;
+    private Scriptable associatedScope;
+
+    /**
+     * Search for ClassCache object in the given scope.
+     * The method first calls
+     * {@link ScriptableObject#getTopLevelScope(Scriptable scope)}
+     * to get the top most scope and then tries to locate associated
+     * ClassCache object in the prototype chain of the top scope.
+     *
+     * @param scope scope to search for ClassCache object.
+     * @return previously associated ClassCache object or a new instance of
+     *         ClassCache if no ClassCache object was found.
+     *
+     * @see #associate(ScriptableObject topScope)
+     */
+    public static ClassCache get(Scriptable scope)
+    {
+<span class="fc" id="L47">        ClassCache cache = (ClassCache)</span>
+<span class="fc" id="L48">                ScriptableObject.getTopScopeValue(scope, AKEY);</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        if (cache == null) {</span>
+<span class="nc" id="L50">            throw new RuntimeException(&quot;Can't find top level scope for &quot; +</span>
+                    &quot;ClassCache.get&quot;);
+        }
+<span class="fc" id="L53">        return cache;</span>
+    }
+
+    /**
+     * Associate ClassCache object with the given top-level scope.
+     * The ClassCache object can only be associated with the given scope once.
+     *
+     * @param topScope scope to associate this ClassCache object with.
+     * @return true if no previous ClassCache objects were embedded into
+     *         the scope and this ClassCache were successfully associated
+     *         or false otherwise.
+     *
+     * @see #get(Scriptable scope)
+     */
+    public boolean associate(ScriptableObject topScope)
+    {
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (topScope.getParentScope() != null) {</span>
+            // Can only associate cache with top level scope
+<span class="nc" id="L71">            throw new IllegalArgumentException();</span>
+        }
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if (this == topScope.associateValue(AKEY, this)) {</span>
+<span class="fc" id="L74">            associatedScope = topScope;</span>
+<span class="fc" id="L75">            return true;</span>
+        }
+<span class="nc" id="L77">        return false;</span>
+    }
+
+    /**
+     * Empty caches of generated Java classes and Java reflection information.
+     */
+    public synchronized void clearCaches()
+    {
+<span class="nc" id="L85">        classTable = null;</span>
+<span class="nc" id="L86">        classAdapterCache = null;</span>
+<span class="nc" id="L87">        interfaceAdapterCache = null;</span>
+<span class="nc" id="L88">    }</span>
+
+    /**
+     * Check if generated Java classes and Java reflection information
+     * is cached.
+     */
+    public final boolean isCachingEnabled()
+    {
+<span class="fc" id="L96">        return cachingIsEnabled;</span>
+    }
+
+     /**
+     * Set whether to cache some values.
+     * &lt;p&gt;
+     * By default, the engine will cache the results of
+     * &lt;tt&gt;Class.getMethods()&lt;/tt&gt; and similar calls.
+     * This can speed execution dramatically, but increases the memory
+     * footprint. Also, with caching enabled, references may be held to
+     * objects past the lifetime of any real usage.
+     * &lt;p&gt;
+     * If caching is enabled and this method is called with a
+     * &lt;code&gt;false&lt;/code&gt; argument, the caches will be emptied.
+     * &lt;p&gt;
+     * Caching is enabled by default.
+     *
+     * @param enabled if true, caching is enabled
+     *
+     * @see #clearCaches()
+     */
+    public synchronized void setCachingEnabled(boolean enabled)
+    {
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (enabled == cachingIsEnabled)</span>
+<span class="nc" id="L120">            return;</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (!enabled)</span>
+<span class="nc" id="L122">            clearCaches();</span>
+<span class="nc" id="L123">        cachingIsEnabled = enabled;</span>
+<span class="nc" id="L124">    }</span>
+
+    /**
+     * @return a map from classes to associated JavaMembers objects
+     */
+    Map&lt;Class&lt;?&gt;,JavaMembers&gt; getClassCacheMap() {
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        if (classTable == null) {</span>
+            // Use 1 as concurrency level here and for other concurrent hash maps
+            // as we don't expect high levels of sustained concurrent writes.
+<span class="fc" id="L133">            classTable = new ConcurrentHashMap&lt;Class&lt;?&gt;,JavaMembers&gt;(16, 0.75f, 1);</span>
+        }
+<span class="fc" id="L135">        return classTable;</span>
+    }
+
+    Map&lt;JavaAdapter.JavaAdapterSignature,Class&lt;?&gt;&gt; getInterfaceAdapterCacheMap()
+    {
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (classAdapterCache == null) {</span>
+<span class="nc" id="L141">            classAdapterCache = new ConcurrentHashMap&lt;JavaAdapter.JavaAdapterSignature,Class&lt;?&gt;&gt;(16, 0.75f, 1);</span>
+        }
+<span class="nc" id="L143">        return classAdapterCache;</span>
+    }
+
+    /**
+     * @deprecated
+     * The method always returns false.
+     * @see #setInvokerOptimizationEnabled(boolean enabled)
+     */
+    @Deprecated
+    public boolean isInvokerOptimizationEnabled()
+    {
+<span class="nc" id="L154">        return false;</span>
+    }
+
+    /**
+     * @deprecated
+     * The method does nothing.
+     * Invoker optimization is no longer used by Rhino.
+     * On modern JDK like 1.4 or 1.5 the disadvantages of the optimization
+     * like increased memory usage or longer initialization time overweight
+     * small speed increase that can be gained using generated proxy class
+     * to replace reflection.
+     */
+    @Deprecated
+    public synchronized void setInvokerOptimizationEnabled(boolean enabled)
+    {
+<span class="nc" id="L169">    }</span>
+
+    /**
+     * Internal engine method to return serial number for generated classes
+     * to ensure name uniqueness.
+     */
+    public final synchronized int newClassSerialNumber()
+    {
+<span class="nc" id="L177">        return ++generatedClassSerial;</span>
+    }
+
+    Object getInterfaceAdapter(Class&lt;?&gt; cl)
+    {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        return interfaceAdapterCache == null</span>
+                    ? null
+<span class="nc" id="L184">                    : interfaceAdapterCache.get(cl);</span>
+    }
+
+    synchronized void cacheInterfaceAdapter(Class&lt;?&gt; cl, Object iadapter)
+    {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (cachingIsEnabled) {</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">            if (interfaceAdapterCache == null) {</span>
+<span class="nc" id="L191">                interfaceAdapterCache = new ConcurrentHashMap&lt;Class&lt;?&gt;,Object&gt;(16, 0.75f, 1);</span>
+            }
+<span class="nc" id="L193">            interfaceAdapterCache.put(cl, iadapter);</span>
+        }
+<span class="nc" id="L195">    }</span>
+
+    Scriptable getAssociatedScope() {
+<span class="fc" id="L198">        return associatedScope;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

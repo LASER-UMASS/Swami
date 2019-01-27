@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImporterTopLevel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">ImporterTopLevel.java</span></div><h1>ImporterTopLevel.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// API class
+
+package org.mozilla.javascript;
+
+/**
+ * Class ImporterTopLevel
+ *
+ * This class defines a ScriptableObject that can be instantiated
+ * as a top-level (&quot;global&quot;) object to provide functionality similar
+ * to Java's &quot;import&quot; statement.
+ * &lt;p&gt;
+ * This class can be used to create a top-level scope using the following code:
+ * &lt;pre&gt;
+ *  Scriptable scope = new ImporterTopLevel(cx);
+ * &lt;/pre&gt;
+ * Then JavaScript code will have access to the following methods:
+ * &lt;ul&gt;
+ * &lt;li&gt;importClass - will &quot;import&quot; a class by making its unqualified name
+ *                   available as a property of the top-level scope
+ * &lt;li&gt;importPackage - will &quot;import&quot; all the classes of the package by
+ *                     searching for unqualified names as classes qualified
+ *                     by the given package.
+ * &lt;/ul&gt;
+ * The following code from the shell illustrates this use:
+ * &lt;pre&gt;
+ * js&gt; importClass(java.io.File)
+ * js&gt; f = new File('help.txt')
+ * help.txt
+ * js&gt; importPackage(java.util)
+ * js&gt; v = new Vector()
+ * []
+ *
+ * @author Norris Boyd
+ */
+public class ImporterTopLevel extends TopLevel {
+    static final long serialVersionUID = -9095380847465315412L;
+
+<span class="fc" id="L44">    private static final Object IMPORTER_TAG = &quot;Importer&quot;;</span>
+
+<span class="fc" id="L46">    public ImporterTopLevel() { }</span>
+
+    public ImporterTopLevel(Context cx) {
+<span class="nc" id="L49">        this(cx, false);</span>
+<span class="nc" id="L50">    }</span>
+
+    public ImporterTopLevel(Context cx, boolean sealed)
+<span class="nc" id="L53">    {</span>
+<span class="nc" id="L54">        initStandardObjects(cx, sealed);</span>
+<span class="nc" id="L55">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">        return (topScopeFlag) ? &quot;global&quot; : &quot;JavaImporter&quot;;</span>
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L65">        ImporterTopLevel obj = new ImporterTopLevel();</span>
+<span class="nc" id="L66">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="nc" id="L67">    }</span>
+
+    public void initStandardObjects(Context cx, boolean sealed)
+    {
+        // Assume that Context.initStandardObjects initialize JavaImporter
+        // property lazily so the above init call is not yet called
+<span class="fc" id="L73">        cx.initStandardObjects(this, sealed);</span>
+<span class="fc" id="L74">        topScopeFlag = true;</span>
+        // If seal is true then exportAsJSClass(cx, seal) would seal
+        // this obj. Since this is scope as well, it would not allow
+        // to add variables.
+<span class="fc" id="L78">        IdFunctionObject ctor = exportAsJSClass(MAX_PROTOTYPE_ID, this, false);</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L80">            ctor.sealObject();</span>
+        }
+        // delete &quot;constructor&quot; defined by exportAsJSClass so &quot;constructor&quot;
+        // name would refer to Object.constructor
+        // and not to JavaImporter.prototype.constructor.
+<span class="fc" id="L85">        delete(&quot;constructor&quot;);</span>
+<span class="fc" id="L86">    }</span>
+
+    @Override
+    public boolean has(String name, Scriptable start) {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        return super.has(name, start)</span>
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">               || getPackageProperty(name, start) != NOT_FOUND;</span>
+    }
+
+    @Override
+    public Object get(String name, Scriptable start) {
+<span class="fc" id="L96">        Object result = super.get(name, start);</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        if (result != NOT_FOUND)</span>
+<span class="fc" id="L98">            return result;</span>
+<span class="fc" id="L99">        result = getPackageProperty(name, start);</span>
+<span class="fc" id="L100">        return result;</span>
+    }
+
+    private Object getPackageProperty(String name, Scriptable start) {
+<span class="fc" id="L104">        Object result = NOT_FOUND;</span>
+        Object[] elements;
+<span class="fc" id="L106">        synchronized (importedPackages) {</span>
+<span class="fc" id="L107">            elements = importedPackages.toArray();</span>
+<span class="pc" id="L108">        }</span>
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">        for (int i=0; i &lt; elements.length; i++) {</span>
+<span class="nc" id="L110">            NativeJavaPackage p = (NativeJavaPackage) elements[i];</span>
+<span class="nc" id="L111">            Object v = p.getPkgProperty(name, start, false);</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">            if (v != null &amp;&amp; !(v instanceof NativeJavaPackage)) {</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                if (result == NOT_FOUND) {</span>
+<span class="nc" id="L114">                    result = v;</span>
+                } else {
+<span class="nc" id="L116">                    throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L117">                        &quot;msg.ambig.import&quot;, result.toString(), v.toString());</span>
+                }
+            }
+        }
+<span class="fc" id="L121">        return result;</span>
+    }
+
+    /**
+     * @deprecated Kept only for compatibility.
+     */
+    @Deprecated
+    public void importPackage(Context cx, Scriptable thisObj, Object[] args,
+                              Function funObj)
+    {
+<span class="nc" id="L131">        js_importPackage(args);</span>
+<span class="nc" id="L132">    }</span>
+
+    private Object js_construct(Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L136">        ImporterTopLevel result = new ImporterTopLevel();</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        for (int i = 0; i != args.length; ++i) {</span>
+<span class="nc" id="L138">            Object arg = args[i];</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">            if (arg instanceof NativeJavaClass) {</span>
+<span class="nc" id="L140">                result.importClass((NativeJavaClass)arg);</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            } else if (arg instanceof NativeJavaPackage) {</span>
+<span class="nc" id="L142">                result.importPackage((NativeJavaPackage)arg);</span>
+            } else {
+<span class="nc" id="L144">                throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L145">                    &quot;msg.not.class.not.pkg&quot;, Context.toString(arg));</span>
+            }
+        }
+        // set explicitly prototype and scope
+        // as otherwise in top scope mode BaseFunction.construct
+        // would keep them set to null. It also allow to use
+        // JavaImporter without new and still get properly
+        // initialized object.
+<span class="nc" id="L153">        result.setParentScope(scope);</span>
+<span class="nc" id="L154">        result.setPrototype(this);</span>
+<span class="nc" id="L155">        return result;</span>
+    }
+
+    private Object js_importClass(Object[] args)
+    {
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        for (int i = 0; i != args.length; i++) {</span>
+<span class="nc" id="L161">            Object arg = args[i];</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">            if (!(arg instanceof NativeJavaClass)) {</span>
+<span class="nc" id="L163">                throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L164">                    &quot;msg.not.class&quot;, Context.toString(arg));</span>
+            }
+<span class="nc" id="L166">            importClass((NativeJavaClass)arg);</span>
+        }
+<span class="nc" id="L168">        return Undefined.instance;</span>
+    }
+
+    private Object js_importPackage(Object[] args)
+    {
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        for (int i = 0; i != args.length; i++) {</span>
+<span class="nc" id="L174">            Object arg = args[i];</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (!(arg instanceof NativeJavaPackage)) {</span>
+<span class="nc" id="L176">                throw Context.reportRuntimeError1(</span>
+<span class="nc" id="L177">                    &quot;msg.not.pkg&quot;, Context.toString(arg));</span>
+            }
+<span class="nc" id="L179">            importPackage((NativeJavaPackage)arg);</span>
+        }
+<span class="nc" id="L181">        return Undefined.instance;</span>
+    }
+
+    private void importPackage(NativeJavaPackage pkg)
+    {
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if(pkg == null) {</span>
+<span class="nc" id="L187">            return;</span>
+        }
+<span class="nc" id="L189">        synchronized (importedPackages) {</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">            for (int j = 0; j != importedPackages.size(); j++) {</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                if (pkg.equals(importedPackages.get(j))) {</span>
+<span class="nc" id="L192">                    return;</span>
+                }
+            }
+<span class="nc" id="L195">            importedPackages.add(pkg);</span>
+<span class="nc" id="L196">        }</span>
+<span class="nc" id="L197">    }</span>
+
+    private void importClass(NativeJavaClass cl)
+    {
+<span class="nc" id="L201">        String s = cl.getClassObject().getName();</span>
+<span class="nc" id="L202">        String n = s.substring(s.lastIndexOf('.')+1);</span>
+<span class="nc" id="L203">        Object val = get(n, this);</span>
+<span class="nc bnc" id="L204" title="All 4 branches missed.">        if (val != NOT_FOUND &amp;&amp; val != cl) {</span>
+<span class="nc" id="L205">            throw Context.reportRuntimeError1(&quot;msg.prop.defined&quot;, n);</span>
+        }
+        //defineProperty(n, cl, DONTENUM);
+<span class="nc" id="L208">        put(n, this, cl);</span>
+<span class="nc" id="L209">    }</span>
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L216" title="3 of 4 branches missed.">        switch (id) {</span>
+<span class="fc" id="L217">          case Id_constructor:   arity=0; s=&quot;constructor&quot;;   break;</span>
+<span class="nc" id="L218">          case Id_importClass:   arity=1; s=&quot;importClass&quot;;   break;</span>
+<span class="nc" id="L219">          case Id_importPackage: arity=1; s=&quot;importPackage&quot;; break;</span>
+<span class="nc" id="L220">          default: throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L222">        initPrototypeMethod(IMPORTER_TAG, id, s, arity);</span>
+<span class="fc" id="L223">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (!f.hasTag(IMPORTER_TAG)) {</span>
+<span class="nc" id="L230">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L232">        int id = f.methodId();</span>
+<span class="nc bnc" id="L233" title="All 4 branches missed.">        switch (id) {</span>
+          case Id_constructor:
+<span class="nc" id="L235">            return js_construct(scope, args);</span>
+
+          case Id_importClass:
+<span class="nc" id="L238">            return realThis(thisObj, f).js_importClass(args);</span>
+
+          case Id_importPackage:
+<span class="nc" id="L241">            return realThis(thisObj, f).js_importPackage(args);</span>
+        }
+<span class="nc" id="L243">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    private ImporterTopLevel realThis(Scriptable thisObj, IdFunctionObject f)
+    {
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (topScopeFlag) {</span>
+            // when used as top scope importPackage and importClass are global
+            // function that ignore thisObj
+<span class="nc" id="L251">            return this;</span>
+        }
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        if (!(thisObj instanceof ImporterTopLevel))</span>
+<span class="nc" id="L254">            throw incompatibleCallError(f);</span>
+<span class="nc" id="L255">        return (ImporterTopLevel)thisObj;</span>
+    }
+
+// #string_id_map#
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+        int id;
+// #generated# Last update: 2007-05-09 08:15:24 EDT
+<span class="fc" id="L265">        L0: { id = 0; String X = null; int c;</span>
+<span class="fc" id="L266">            int s_length = s.length();</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">            if (s_length==11) {</span>
+<span class="fc" id="L268">                c=s.charAt(0);</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">                if (c=='c') { X=&quot;constructor&quot;;id=Id_constructor; }</span>
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">                else if (c=='i') { X=&quot;importClass&quot;;id=Id_importClass; }</span>
+            }
+<span class="fc bfc" id="L272" title="All 2 branches covered.">            else if (s_length==13) { X=&quot;importPackage&quot;;id=Id_importPackage; }</span>
+<span class="pc bpc" id="L273" title="1 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+            break L0;
+        }
+// #/generated#
+<span class="fc" id="L277">        return id;</span>
+    }
+
+    private static final int
+        Id_constructor          = 1,
+        Id_importClass          = 2,
+        Id_importPackage        = 3,
+        MAX_PROTOTYPE_ID        = 3;
+
+// #/string_id_map#
+
+<span class="pc" id="L288">    private ObjArray importedPackages = new ObjArray();</span>
+    private boolean topScopeFlag;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

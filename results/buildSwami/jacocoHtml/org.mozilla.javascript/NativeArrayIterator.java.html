@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeArrayIterator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeArrayIterator.java</span></div><h1>NativeArrayIterator.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+public final class NativeArrayIterator extends ES6Iterator {
+    private static final long serialVersionUID = 1L;
+    private static final String ITERATOR_TAG = &quot;ArrayIterator&quot;;
+
+    static void init(ScriptableObject scope, boolean sealed) {
+<span class="fc" id="L14">        ES6Iterator.init(scope, sealed, new NativeArrayIterator(), ITERATOR_TAG);</span>
+<span class="fc" id="L15">    }</span>
+
+    /**
+     * Only for constructing the prototype object.
+     */
+    private NativeArrayIterator() {
+<span class="fc" id="L21">        super();</span>
+<span class="fc" id="L22">    }</span>
+
+    public NativeArrayIterator(Scriptable scope, Scriptable arrayLike) {
+<span class="nc" id="L25">        super(scope);</span>
+<span class="nc" id="L26">        this.index = 0;</span>
+<span class="nc" id="L27">        this.arrayLike = arrayLike;</span>
+<span class="nc" id="L28">    }</span>
+
+    @Override
+    public String getClassName() {
+<span class="nc" id="L32">        return &quot;Array Iterator&quot;;</span>
+    }
+
+    @Override
+    protected boolean isDone(Context cx, Scriptable scope) {
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        return index &gt;= NativeArray.getLengthProperty(cx, arrayLike);</span>
+    }
+
+    @Override
+    protected Object nextValue(Context cx, Scriptable scope) {
+<span class="nc" id="L42">        Object value = arrayLike.get(index++, arrayLike);</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (value == ScriptableObject.NOT_FOUND) {</span>
+<span class="nc" id="L44">            value = Undefined.instance;</span>
+        }
+<span class="nc" id="L46">        return value;</span>
+    }
+
+    @Override
+    protected String getTag() {
+<span class="nc" id="L51">        return ITERATOR_TAG;</span>
+    }
+
+    private Scriptable arrayLike;
+    private int index;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

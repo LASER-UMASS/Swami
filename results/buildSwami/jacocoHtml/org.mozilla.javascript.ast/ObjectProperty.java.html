@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ObjectProperty.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ObjectProperty.java</span></div><h1>ObjectProperty.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Token;
+
+/**
+ * AST node for a single name:value entry in an Object literal.
+ * For simple entries, the node type is {@link Token#COLON}, and
+ * the name (left side expression) is either a {@link Name}, a
+ * {@link StringLiteral} or a {@link NumberLiteral}.&lt;p&gt;
+ *
+ * This node type is also used for getter/setter properties in object
+ * literals.  In this case the node bounds include the &quot;get&quot; or &quot;set&quot;
+ * keyword.  The left-hand expression in this case is always a
+ * {@link Name}, and the overall node type is {@link Token#GET} or
+ * {@link Token#SET}, as appropriate.&lt;p&gt;
+ *
+ * The {@code operatorPosition} field is meaningless if the node is
+ * a getter or setter.&lt;p&gt;
+ *
+ * &lt;pre&gt;&lt;i&gt;ObjectProperty&lt;/i&gt; :
+ *       PropertyName &lt;b&gt;:&lt;/b&gt; AssignmentExpression
+ * &lt;i&gt;PropertyName&lt;/i&gt; :
+ *       Identifier
+ *       StringLiteral
+ *       NumberLiteral&lt;/pre&gt;
+ */
+public class ObjectProperty extends InfixExpression {
+
+    {
+<span class="pc" id="L36">        type = Token.COLON;</span>
+    }
+
+    /**
+     * Sets the node type.  Must be one of
+     * {@link Token#COLON}, {@link Token#GET}, or {@link Token#SET}.
+     * @throws IllegalArgumentException if {@code nodeType} is invalid
+     */
+    public void setNodeType(int nodeType) {
+<span class="nc bnc" id="L45" title="All 8 branches missed.">        if (nodeType != Token.COLON</span>
+            &amp;&amp; nodeType != Token.GET
+            &amp;&amp; nodeType != Token.SET
+            &amp;&amp; nodeType != Token.METHOD)
+<span class="nc" id="L49">            throw new IllegalArgumentException(&quot;invalid node type: &quot;</span>
+                                               + nodeType);
+<span class="nc" id="L51">        setType(nodeType);</span>
+<span class="nc" id="L52">    }</span>
+
+<span class="fc" id="L54">    public ObjectProperty() {</span>
+<span class="fc" id="L55">    }</span>
+
+    public ObjectProperty(int pos) {
+<span class="nc" id="L58">        super(pos);</span>
+<span class="nc" id="L59">    }</span>
+
+    public ObjectProperty(int pos, int len) {
+<span class="nc" id="L62">        super(pos, len);</span>
+<span class="nc" id="L63">    }</span>
+
+    /**
+     * Marks this node as a &quot;getter&quot; property.
+     */
+    public void setIsGetterMethod() {
+<span class="nc" id="L69">        type = Token.GET;</span>
+<span class="nc" id="L70">    }</span>
+
+    /**
+     * Returns true if this is a getter function.
+     */
+    public boolean isGetterMethod() {
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        return type == Token.GET;</span>
+    }
+
+    /**
+     * Marks this node as a &quot;setter&quot; property.
+     */
+    public void setIsSetterMethod() {
+<span class="nc" id="L83">        type = Token.SET;</span>
+<span class="nc" id="L84">    }</span>
+
+    /**
+     * Returns true if this is a setter function.
+     */
+    public boolean isSetterMethod() {
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        return type == Token.SET;</span>
+    }
+
+    public void setIsNormalMethod() {
+<span class="nc" id="L94">        type = Token.METHOD;</span>
+<span class="nc" id="L95">    }</span>
+
+    public boolean isNormalMethod() {
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        return type == Token.METHOD;</span>
+    }
+
+    public boolean isMethod() {
+<span class="pc bpc" id="L102" title="3 of 6 branches missed.">        return isGetterMethod() || isSetterMethod() || isNormalMethod();</span>
+    }
+
+    @Override
+    public String toSource(int depth) {
+<span class="nc" id="L107">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L108">        sb.append(&quot;\n&quot;);</span>
+<span class="nc" id="L109">        sb.append(makeIndent(depth+1));</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        if (isGetterMethod()) {</span>
+<span class="nc" id="L111">            sb.append(&quot;get &quot;);</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        } else if (isSetterMethod()) {</span>
+<span class="nc" id="L113">            sb.append(&quot;set &quot;);</span>
+        }
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        sb.append(left.toSource(getType()==Token.COLON ? 0 : depth));</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (type == Token.COLON) {</span>
+<span class="nc" id="L117">            sb.append(&quot;: &quot;);</span>
+        }
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        sb.append(right.toSource(getType()==Token.COLON ? 0 : depth+1));</span>
+<span class="nc" id="L120">        return sb.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

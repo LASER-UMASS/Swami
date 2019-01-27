@@ -1,0 +1,1196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JavaAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">JavaAdapter.java</span></div><h1>JavaAdapter.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.classfile.*;
+import java.lang.reflect.*;
+import java.io.*;
+import java.security.*;
+import java.util.*;
+
+<span class="nc" id="L15">public final class JavaAdapter implements IdFunctionCall</span>
+{
+    /**
+     * Provides a key with which to distinguish previously generated
+     * adapter classes stored in a hash table.
+     */
+    static class JavaAdapterSignature
+    {
+        Class&lt;?&gt; superClass;
+        Class&lt;?&gt;[] interfaces;
+        ObjToIntMap names;
+
+        JavaAdapterSignature(Class&lt;?&gt; superClass, Class&lt;?&gt;[] interfaces,
+                             ObjToIntMap names)
+<span class="nc" id="L29">        {</span>
+<span class="nc" id="L30">            this.superClass = superClass;</span>
+<span class="nc" id="L31">            this.interfaces = interfaces;</span>
+<span class="nc" id="L32">            this.names = names;</span>
+<span class="nc" id="L33">        }</span>
+
+        @Override
+        public boolean equals(Object obj)
+        {
+<span class="nc bnc" id="L38" title="All 2 branches missed.">            if (!(obj instanceof JavaAdapterSignature))</span>
+<span class="nc" id="L39">                return false;</span>
+<span class="nc" id="L40">            JavaAdapterSignature sig = (JavaAdapterSignature) obj;</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">            if (superClass != sig.superClass)</span>
+<span class="nc" id="L42">                return false;</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">            if (interfaces != sig.interfaces) {</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">                if (interfaces.length != sig.interfaces.length)</span>
+<span class="nc" id="L45">                    return false;</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">                for (int i=0; i &lt; interfaces.length; i++)</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                    if (interfaces[i] != sig.interfaces[i])</span>
+<span class="nc" id="L48">                        return false;</span>
+            }
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            if (names.size() != sig.names.size())</span>
+<span class="nc" id="L51">                return false;</span>
+<span class="nc" id="L52">            ObjToIntMap.Iterator iter = new ObjToIntMap.Iterator(names);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            for (iter.start(); !iter.done(); iter.next()) {</span>
+<span class="nc" id="L54">                String name = (String)iter.getKey();</span>
+<span class="nc" id="L55">                int arity = iter.getValue();</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                if (arity != sig.names.get(name, arity + 1))</span>
+<span class="nc" id="L57">                    return false;</span>
+            }
+<span class="nc" id="L59">            return true;</span>
+        }
+
+        @Override
+        public int hashCode()
+        {
+<span class="nc" id="L65">            return (superClass.hashCode() + Arrays.hashCode(interfaces)) ^ names.size();</span>
+        }
+    }
+
+    public static void init(Context cx, Scriptable scope, boolean sealed)
+    {
+<span class="nc" id="L71">        JavaAdapter obj = new JavaAdapter();</span>
+<span class="nc" id="L72">        IdFunctionObject ctor = new IdFunctionObject(obj, FTAG, Id_JavaAdapter,</span>
+                                                     &quot;JavaAdapter&quot;, 1, scope);
+<span class="nc" id="L74">        ctor.markAsConstructor(null);</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (sealed) {</span>
+<span class="nc" id="L76">            ctor.sealObject();</span>
+        }
+<span class="nc" id="L78">        ctor.exportAsScopeProperty();</span>
+<span class="nc" id="L79">    }</span>
+
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (f.hasTag(FTAG)) {</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            if (f.methodId() == Id_JavaAdapter) {</span>
+<span class="nc" id="L86">                return js_createAdapter(cx, scope, args);</span>
+            }
+        }
+<span class="nc" id="L89">        throw f.unknown();</span>
+    }
+
+    public static Object convertResult(Object result, Class&lt;?&gt; c)
+    {
+<span class="nc bnc" id="L94" title="All 6 branches missed.">        if (result == Undefined.instance &amp;&amp;</span>
+            (c != ScriptRuntime.ObjectClass &amp;&amp;
+             c != ScriptRuntime.StringClass))
+        {
+            // Avoid an error for an undefined value; return null instead.
+<span class="nc" id="L99">            return null;</span>
+        }
+<span class="nc" id="L101">        return Context.jsToJava(result, c);</span>
+    }
+
+    public static Scriptable createAdapterWrapper(Scriptable obj, Object adapter)
+    {
+<span class="nc" id="L106">        Scriptable scope = ScriptableObject.getTopLevelScope(obj);</span>
+<span class="nc" id="L107">        NativeJavaObject res = new NativeJavaObject(scope, adapter, null, true);</span>
+<span class="nc" id="L108">        res.setPrototype(obj);</span>
+<span class="nc" id="L109">        return res;</span>
+    }
+
+    public static Object getAdapterSelf(Class&lt;?&gt; adapterClass, Object adapter)
+        throws NoSuchFieldException, IllegalAccessException
+    {
+<span class="nc" id="L115">        Field self = adapterClass.getDeclaredField(&quot;self&quot;);</span>
+<span class="nc" id="L116">        return self.get(adapter);</span>
+    }
+
+    static Object js_createAdapter(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L121">        int N = args.length;</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (N == 0) {</span>
+<span class="nc" id="L123">            throw ScriptRuntime.typeError0(&quot;msg.adapter.zero.args&quot;);</span>
+        }
+
+        // Expected arguments:
+        // Any number of NativeJavaClass objects representing the super-class
+        // and/or interfaces to implement, followed by one NativeObject providing
+        // the implementation, followed by any number of arguments to pass on
+        // to the (super-class) constructor.
+
+        int classCount;
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        for (classCount = 0; classCount &lt; N - 1; classCount++) {</span>
+<span class="nc" id="L134">            Object arg = args[classCount];</span>
+            // We explicitly test for NativeObject here since checking for
+            // instanceof ScriptableObject or !(instanceof NativeJavaClass)
+            // would fail for a Java class that isn't found in the class path
+            // as NativeJavaPackage extends ScriptableObject.
+<span class="nc bnc" id="L139" title="All 2 branches missed.">            if (arg instanceof NativeObject) {</span>
+<span class="nc" id="L140">                break;</span>
+            }
+<span class="nc bnc" id="L142" title="All 2 branches missed.">            if (!(arg instanceof NativeJavaClass)) {</span>
+<span class="nc" id="L143">                throw ScriptRuntime.typeError2(&quot;msg.not.java.class.arg&quot;,</span>
+<span class="nc" id="L144">                                               String.valueOf(classCount),</span>
+<span class="nc" id="L145">                                               ScriptRuntime.toString(arg));</span>
+            }
+        }
+<span class="nc" id="L148">        Class&lt;?&gt; superClass = null;</span>
+<span class="nc" id="L149">        Class&lt;?&gt;[] intfs = new Class[classCount];</span>
+<span class="nc" id="L150">        int interfaceCount = 0;</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">        for (int i = 0; i &lt; classCount; ++i) {</span>
+<span class="nc" id="L152">            Class&lt;?&gt; c = ((NativeJavaClass) args[i]).getClassObject();</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if (!c.isInterface()) {</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (superClass != null) {</span>
+<span class="nc" id="L155">                    throw ScriptRuntime.typeError2(&quot;msg.only.one.super&quot;,</span>
+<span class="nc" id="L156">                              superClass.getName(), c.getName());</span>
+                }
+<span class="nc" id="L158">                superClass = c;</span>
+            } else {
+<span class="nc" id="L160">                intfs[interfaceCount++] = c;</span>
+            }
+        }
+
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if (superClass == null) {</span>
+<span class="nc" id="L165">            superClass = ScriptRuntime.ObjectClass;</span>
+        }
+        
+<span class="nc" id="L168">        Class&lt;?&gt;[] interfaces = new Class[interfaceCount];</span>
+<span class="nc" id="L169">        System.arraycopy(intfs, 0, interfaces, 0, interfaceCount);</span>
+        // next argument is implementation, must be scriptable
+<span class="nc" id="L171">        Scriptable obj = ScriptableObject.ensureScriptable(args[classCount]);</span>
+
+<span class="nc" id="L173">        Class&lt;?&gt; adapterClass = getAdapterClass(scope, superClass, interfaces, obj);</span>
+        Object adapter;
+        
+<span class="nc" id="L176">        int argsCount = N - classCount - 1;</span>
+        try {
+<span class="nc bnc" id="L178" title="All 2 branches missed.">            if (argsCount &gt; 0) {</span>
+                // Arguments contain parameters for super-class constructor.
+                // We use the generic Java method lookup logic to find and
+                // invoke the right constructor.
+<span class="nc" id="L182">                Object[] ctorArgs = new Object[argsCount + 2];</span>
+<span class="nc" id="L183">                ctorArgs[0] = obj;</span>
+<span class="nc" id="L184">                ctorArgs[1] = cx.getFactory();</span>
+<span class="nc" id="L185">                System.arraycopy(args, classCount + 1, ctorArgs, 2, argsCount);</span>
+                // TODO: cache class wrapper?
+<span class="nc" id="L187">                NativeJavaClass classWrapper = new NativeJavaClass(scope,</span>
+                        adapterClass, true);
+<span class="nc" id="L189">                NativeJavaMethod ctors = classWrapper.members.ctors;</span>
+<span class="nc" id="L190">                int index = ctors.findCachedFunction(cx, ctorArgs);</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                if (index &lt; 0) {</span>
+<span class="nc" id="L192">                    String sig = NativeJavaMethod.scriptSignature(args);</span>
+<span class="nc" id="L193">                    throw Context.reportRuntimeError2(</span>
+<span class="nc" id="L194">                            &quot;msg.no.java.ctor&quot;, adapterClass.getName(), sig);</span>
+                }
+
+                // Found the constructor, so try invoking it.
+<span class="nc" id="L198">                adapter = NativeJavaClass.constructInternal(ctorArgs, ctors.methods[index]);</span>
+<span class="nc" id="L199">            } else {</span>
+<span class="nc" id="L200">                Class&lt;?&gt;[] ctorParms = {</span>
+                        ScriptRuntime.ScriptableClass,
+                        ScriptRuntime.ContextFactoryClass
+                };
+<span class="nc" id="L204">                Object[] ctorArgs = { obj, cx.getFactory() };</span>
+<span class="nc" id="L205">                adapter = adapterClass.getConstructor(ctorParms).newInstance(ctorArgs);</span>
+            }
+
+<span class="nc" id="L208">            Object self = getAdapterSelf(adapterClass, adapter);</span>
+            // Return unwrapped JavaAdapter if it implements Scriptable
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            if (self instanceof Wrapper) {</span>
+<span class="nc" id="L211">                Object unwrapped = ((Wrapper) self).unwrap();</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">                if (unwrapped instanceof Scriptable) {</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">                    if (unwrapped instanceof ScriptableObject) {</span>
+<span class="nc" id="L214">                        ScriptRuntime.setObjectProtoAndParent(</span>
+                                (ScriptableObject)unwrapped, scope);
+                    }
+<span class="nc" id="L217">                    return unwrapped;</span>
+                }
+            }
+<span class="nc" id="L220">            return self;</span>
+<span class="nc" id="L221">        } catch (Exception ex) {</span>
+<span class="nc" id="L222">            throw Context.throwAsScriptRuntimeEx(ex);</span>
+        }
+    }
+
+    // Needed by NativeJavaObject serializer
+    public static void writeAdapterObject(Object javaObject,
+                                          ObjectOutputStream out)
+        throws IOException
+    {
+<span class="nc" id="L231">        Class&lt;?&gt; cl = javaObject.getClass();</span>
+<span class="nc" id="L232">        out.writeObject(cl.getSuperclass().getName());</span>
+
+<span class="nc" id="L234">        Class&lt;?&gt;[] interfaces = cl.getInterfaces();</span>
+<span class="nc" id="L235">        String[] interfaceNames = new String[interfaces.length];</span>
+
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for (int i=0; i &lt; interfaces.length; i++)</span>
+<span class="nc" id="L238">            interfaceNames[i] = interfaces[i].getName();</span>
+
+<span class="nc" id="L240">        out.writeObject(interfaceNames);</span>
+
+        try {
+<span class="nc" id="L243">            Object delegee = cl.getField(&quot;delegee&quot;).get(javaObject);</span>
+<span class="nc" id="L244">            out.writeObject(delegee);</span>
+<span class="nc" id="L245">            return;</span>
+<span class="nc" id="L246">        } catch (IllegalAccessException e) {</span>
+<span class="nc" id="L247">        } catch (NoSuchFieldException e) {</span>
+<span class="nc" id="L248">        }</span>
+<span class="nc" id="L249">        throw new IOException();</span>
+    }
+
+    // Needed by NativeJavaObject de-serializer
+    public static Object readAdapterObject(Scriptable self,
+                                           ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+        ContextFactory factory;
+<span class="nc" id="L258">        Context cx = Context.getCurrentContext();</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">        if (cx != null) {</span>
+<span class="nc" id="L260">            factory = cx.getFactory();</span>
+        } else {
+<span class="nc" id="L262">            factory = null;</span>
+        }
+
+<span class="nc" id="L265">        Class&lt;?&gt; superClass = Class.forName((String)in.readObject());</span>
+
+<span class="nc" id="L267">        String[] interfaceNames = (String[])in.readObject();</span>
+<span class="nc" id="L268">        Class&lt;?&gt;[] interfaces = new Class[interfaceNames.length];</span>
+
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        for (int i=0; i &lt; interfaceNames.length; i++)</span>
+<span class="nc" id="L271">            interfaces[i] = Class.forName(interfaceNames[i]);</span>
+
+<span class="nc" id="L273">        Scriptable delegee = (Scriptable)in.readObject();</span>
+
+<span class="nc" id="L275">        Class&lt;?&gt; adapterClass = getAdapterClass(self, superClass, interfaces,</span>
+                                             delegee);
+
+<span class="nc" id="L278">        Class&lt;?&gt;[] ctorParms = {</span>
+            ScriptRuntime.ContextFactoryClass,
+            ScriptRuntime.ScriptableClass,
+            ScriptRuntime.ScriptableClass
+        };
+<span class="nc" id="L283">        Object[] ctorArgs = { factory, delegee, self };</span>
+        try {
+<span class="nc" id="L285">            return adapterClass.getConstructor(ctorParms).newInstance(ctorArgs);</span>
+<span class="nc" id="L286">        } catch(InstantiationException e) {</span>
+<span class="nc" id="L287">        } catch(IllegalAccessException e) {</span>
+<span class="nc" id="L288">        } catch(InvocationTargetException e) {</span>
+<span class="nc" id="L289">        } catch(NoSuchMethodException e) {</span>
+<span class="nc" id="L290">        }</span>
+
+<span class="nc" id="L292">        throw new ClassNotFoundException(&quot;adapter&quot;);</span>
+    }
+
+    private static ObjToIntMap getObjectFunctionNames(Scriptable obj)
+    {
+<span class="nc" id="L297">        Object[] ids = ScriptableObject.getPropertyIds(obj);</span>
+<span class="nc" id="L298">        ObjToIntMap map = new ObjToIntMap(ids.length);</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">        for (int i = 0; i != ids.length; ++i) {</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">            if (!(ids[i] instanceof String))</span>
+<span class="nc" id="L301">                continue;</span>
+<span class="nc" id="L302">            String id = (String) ids[i];</span>
+<span class="nc" id="L303">            Object value = ScriptableObject.getProperty(obj, id);</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">            if (value instanceof Function) {</span>
+<span class="nc" id="L305">                Function f = (Function)value;</span>
+<span class="nc" id="L306">                int length = ScriptRuntime.toInt32(</span>
+<span class="nc" id="L307">                                 ScriptableObject.getProperty(f, &quot;length&quot;));</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                if (length &lt; 0) {</span>
+<span class="nc" id="L309">                    length = 0;</span>
+                }
+<span class="nc" id="L311">                map.put(id, length);</span>
+            }
+        }
+<span class="nc" id="L314">        return map;</span>
+    }
+
+    private static Class&lt;?&gt; getAdapterClass(Scriptable scope, Class&lt;?&gt; superClass,
+                                            Class&lt;?&gt;[] interfaces, Scriptable obj)
+    {
+<span class="nc" id="L320">        ClassCache cache = ClassCache.get(scope);</span>
+<span class="nc" id="L321">        Map&lt;JavaAdapterSignature,Class&lt;?&gt;&gt; generated</span>
+<span class="nc" id="L322">            = cache.getInterfaceAdapterCacheMap();</span>
+
+<span class="nc" id="L324">        ObjToIntMap names = getObjectFunctionNames(obj);</span>
+        JavaAdapterSignature sig;
+<span class="nc" id="L326">        sig = new JavaAdapterSignature(superClass, interfaces, names);</span>
+<span class="nc" id="L327">        Class&lt;?&gt; adapterClass = generated.get(sig);</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if (adapterClass == null) {</span>
+<span class="nc" id="L329">            String adapterName = &quot;adapter&quot; + cache.newClassSerialNumber();</span>
+<span class="nc" id="L330">            byte[] code = createAdapterCode(names, adapterName,</span>
+                                            superClass, interfaces, null);
+
+<span class="nc" id="L333">            adapterClass = loadAdapterClass(adapterName, code);</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            if (cache.isCachingEnabled()) {</span>
+<span class="nc" id="L335">                generated.put(sig, adapterClass);</span>
+            }
+        }
+<span class="nc" id="L338">        return adapterClass;</span>
+    }
+
+    public static byte[] createAdapterCode(ObjToIntMap functionNames,
+                                           String adapterName,
+                                           Class&lt;?&gt; superClass,
+                                           Class&lt;?&gt;[] interfaces,
+                                           String scriptClassName)
+    {
+<span class="nc" id="L347">        ClassFileWriter cfw = new ClassFileWriter(adapterName,</span>
+<span class="nc" id="L348">                                                  superClass.getName(),</span>
+                                                  &quot;&lt;adapter&gt;&quot;);
+<span class="nc" id="L350">        cfw.addField(&quot;factory&quot;, &quot;Lorg/mozilla/javascript/ContextFactory;&quot;,</span>
+                     (short) (ClassFileWriter.ACC_PUBLIC |
+                              ClassFileWriter.ACC_FINAL));
+<span class="nc" id="L353">        cfw.addField(&quot;delegee&quot;, &quot;Lorg/mozilla/javascript/Scriptable;&quot;,</span>
+                     (short) (ClassFileWriter.ACC_PUBLIC |
+                              ClassFileWriter.ACC_FINAL));
+<span class="nc" id="L356">        cfw.addField(&quot;self&quot;, &quot;Lorg/mozilla/javascript/Scriptable;&quot;,</span>
+                     (short) (ClassFileWriter.ACC_PUBLIC |
+                              ClassFileWriter.ACC_FINAL));
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        int interfacesCount = interfaces == null ? 0 : interfaces.length;</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">        for (int i=0; i &lt; interfacesCount; i++) {</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">            if (interfaces[i] != null)</span>
+<span class="nc" id="L362">                cfw.addInterface(interfaces[i].getName());</span>
+        }
+
+<span class="nc" id="L365">        String superName = superClass.getName().replace('.', '/');</span>
+<span class="nc" id="L366">        Constructor&lt;?&gt;[] ctors = superClass.getDeclaredConstructors();</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">        for (Constructor&lt;?&gt; ctor : ctors) {</span>
+<span class="nc" id="L368">            int mod = ctor.getModifiers();</span>
+<span class="nc bnc" id="L369" title="All 4 branches missed.">            if (Modifier.isPublic(mod) || Modifier.isProtected(mod)) {</span>
+<span class="nc" id="L370">                generateCtor(cfw, adapterName, superName, ctor);</span>
+            }
+        }
+<span class="nc" id="L373">        generateSerialCtor(cfw, adapterName, superName);</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">        if (scriptClassName != null) {</span>
+<span class="nc" id="L375">            generateEmptyCtor(cfw, adapterName, superName, scriptClassName);</span>
+        }
+
+<span class="nc" id="L378">        ObjToIntMap generatedOverrides = new ObjToIntMap();</span>
+<span class="nc" id="L379">        ObjToIntMap generatedMethods = new ObjToIntMap();</span>
+
+        // generate methods to satisfy all specified interfaces.
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        for (int i = 0; i &lt; interfacesCount; i++) {</span>
+<span class="nc" id="L383">            Method[] methods = interfaces[i].getMethods();</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">            for (int j = 0; j &lt; methods.length; j++) {</span>
+<span class="nc" id="L385">                Method method = methods[j];</span>
+<span class="nc" id="L386">                int mods = method.getModifiers();</span>
+<span class="nc bnc" id="L387" title="All 4 branches missed.">                if (Modifier.isStatic(mods) || Modifier.isFinal(mods) ||</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                    VMBridge.instance.isDefaultMethod(method)) {</span>
+<span class="nc" id="L389">                    continue;</span>
+                }
+<span class="nc" id="L391">                String methodName = method.getName();</span>
+<span class="nc" id="L392">                Class&lt;?&gt;[] argTypes = method.getParameterTypes();</span>
+<span class="nc bnc" id="L393" title="All 2 branches missed.">                if (!functionNames.has(methodName)) {</span>
+                    try {
+<span class="nc" id="L395">                        superClass.getMethod(methodName, argTypes);</span>
+                        // The class we're extending implements this method and
+                        // the JavaScript object doesn't have an override. See
+                        // bug 61226.
+<span class="nc" id="L399">                        continue;</span>
+<span class="nc" id="L400">                    } catch (NoSuchMethodException e) {</span>
+                        // Not implemented by superclass; fall through
+                    }
+                }
+                // make sure to generate only one instance of a particular
+                // method/signature.
+<span class="nc" id="L406">                String methodSignature = getMethodSignature(method, argTypes);</span>
+<span class="nc" id="L407">                String methodKey = methodName + methodSignature;</span>
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                if (! generatedOverrides.has(methodKey)) {</span>
+<span class="nc" id="L409">                    generateMethod(cfw, adapterName, methodName, argTypes,</span>
+<span class="nc" id="L410">                                   method.getReturnType(), true);</span>
+<span class="nc" id="L411">                    generatedOverrides.put(methodKey, 0);</span>
+<span class="nc" id="L412">                    generatedMethods.put(methodName, 0);</span>
+                }
+            }
+        }
+
+        // Now, go through the superclass's methods, checking for abstract
+        // methods or additional methods to override.
+
+        // generate any additional overrides that the object might contain.
+<span class="nc" id="L421">        Method[] methods = getOverridableMethods(superClass);</span>
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        for (int j = 0; j &lt; methods.length; j++) {</span>
+<span class="nc" id="L423">            Method method = methods[j];</span>
+<span class="nc" id="L424">            int mods = method.getModifiers();</span>
+            // if a method is marked abstract, must implement it or the
+            // resulting class won't be instantiable. otherwise, if the object
+            // has a property of the same name, then an override is intended.
+<span class="nc" id="L428">            boolean isAbstractMethod = Modifier.isAbstract(mods);</span>
+<span class="nc" id="L429">            String methodName = method.getName();</span>
+<span class="nc bnc" id="L430" title="All 4 branches missed.">            if (isAbstractMethod || functionNames.has(methodName)) {</span>
+                // make sure to generate only one instance of a particular
+                // method/signature.
+<span class="nc" id="L433">                Class&lt;?&gt;[] argTypes = method.getParameterTypes();</span>
+<span class="nc" id="L434">                String methodSignature = getMethodSignature(method, argTypes);</span>
+<span class="nc" id="L435">                String methodKey = methodName + methodSignature;</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">                if (! generatedOverrides.has(methodKey)) {</span>
+<span class="nc" id="L437">                    generateMethod(cfw, adapterName, methodName, argTypes,</span>
+<span class="nc" id="L438">                                   method.getReturnType(), true);</span>
+<span class="nc" id="L439">                    generatedOverrides.put(methodKey, 0);</span>
+<span class="nc" id="L440">                    generatedMethods.put(methodName, 0);</span>
+
+                    // if a method was overridden, generate a &quot;super$method&quot;
+                    // which lets the delegate call the superclass' version.
+<span class="nc bnc" id="L444" title="All 2 branches missed.">                    if (!isAbstractMethod) {</span>
+<span class="nc" id="L445">                        generateSuper(cfw, adapterName, superName,</span>
+                                      methodName, methodSignature,
+<span class="nc" id="L447">                                      argTypes, method.getReturnType());</span>
+                    }
+                }
+            }
+        }
+
+        // Generate Java methods for remaining properties that are not
+        // overrides.
+<span class="nc" id="L455">        ObjToIntMap.Iterator iter = new ObjToIntMap.Iterator(functionNames);</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">        for (iter.start(); !iter.done(); iter.next()) {</span>
+<span class="nc" id="L457">            String functionName = (String)iter.getKey();</span>
+<span class="nc bnc" id="L458" title="All 2 branches missed.">            if (generatedMethods.has(functionName))</span>
+<span class="nc" id="L459">                continue;</span>
+<span class="nc" id="L460">            int length = iter.getValue();</span>
+<span class="nc" id="L461">            Class&lt;?&gt;[] parms = new Class[length];</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">            for (int k=0; k &lt; length; k++)</span>
+<span class="nc" id="L463">                parms[k] = ScriptRuntime.ObjectClass;</span>
+<span class="nc" id="L464">            generateMethod(cfw, adapterName, functionName, parms,</span>
+                           ScriptRuntime.ObjectClass, false);
+        }
+<span class="nc" id="L467">        return cfw.toByteArray();</span>
+    }
+
+    static Method[] getOverridableMethods(Class&lt;?&gt; clazz)
+    {
+<span class="nc" id="L472">        ArrayList&lt;Method&gt; list = new ArrayList&lt;Method&gt;();</span>
+<span class="nc" id="L473">        HashSet&lt;String&gt; skip = new HashSet&lt;String&gt;();</span>
+        // Check superclasses before interfaces so we always choose
+        // implemented methods over abstract ones, even if a subclass
+        // re-implements an interface already implemented in a superclass
+        // (e.g. java.util.ArrayList)
+<span class="nc bnc" id="L478" title="All 2 branches missed.">        for (Class&lt;?&gt; c = clazz; c != null; c = c.getSuperclass()) {</span>
+<span class="nc" id="L479">            appendOverridableMethods(c, list, skip);</span>
+        }
+<span class="nc bnc" id="L481" title="All 2 branches missed.">        for (Class&lt;?&gt; c = clazz; c != null; c = c.getSuperclass()) {</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">            for (Class&lt;?&gt; intf: c.getInterfaces())</span>
+<span class="nc" id="L483">                appendOverridableMethods(intf, list, skip);</span>
+        }
+<span class="nc" id="L485">        return list.toArray(new Method[list.size()]);</span>
+    }
+
+    private static void appendOverridableMethods(Class&lt;?&gt; c,
+            ArrayList&lt;Method&gt; list, HashSet&lt;String&gt; skip)
+    {
+<span class="nc" id="L491">        Method[] methods = c.getDeclaredMethods();</span>
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        for (int i = 0; i &lt; methods.length; i++) {</span>
+<span class="nc" id="L493">            String methodKey = methods[i].getName() +</span>
+<span class="nc" id="L494">                getMethodSignature(methods[i],</span>
+<span class="nc" id="L495">                        methods[i].getParameterTypes());</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            if (skip.contains(methodKey))</span>
+<span class="nc" id="L497">                continue; // skip this method</span>
+<span class="nc" id="L498">            int mods = methods[i].getModifiers();</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">            if (Modifier.isStatic(mods))</span>
+<span class="nc" id="L500">                continue;</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">            if (Modifier.isFinal(mods)) {</span>
+                // Make sure we don't add a final method to the list
+                // of overridable methods.
+<span class="nc" id="L504">                skip.add(methodKey);</span>
+<span class="nc" id="L505">                continue;</span>
+            }
+<span class="nc bnc" id="L507" title="All 4 branches missed.">            if (Modifier.isPublic(mods) || Modifier.isProtected(mods)) {</span>
+<span class="nc" id="L508">                list.add(methods[i]);</span>
+<span class="nc" id="L509">                skip.add(methodKey);</span>
+            }
+        }
+<span class="nc" id="L512">    }</span>
+
+    static Class&lt;?&gt; loadAdapterClass(String className, byte[] classBytes)
+    {
+        Object staticDomain;
+<span class="nc" id="L517">        Class&lt;?&gt; domainClass = SecurityController.getStaticSecurityDomainClass();</span>
+<span class="nc bnc" id="L518" title="All 4 branches missed.">        if(domainClass == CodeSource.class || domainClass == ProtectionDomain.class) {</span>
+            // use the calling script's security domain if available
+<span class="nc" id="L520">            ProtectionDomain protectionDomain = SecurityUtilities.getScriptProtectionDomain();</span>
+<span class="nc bnc" id="L521" title="All 2 branches missed.">            if (protectionDomain == null) {</span>
+<span class="nc" id="L522">                protectionDomain = JavaAdapter.class.getProtectionDomain();</span>
+            }
+<span class="nc bnc" id="L524" title="All 2 branches missed.">            if(domainClass == CodeSource.class) {</span>
+<span class="nc bnc" id="L525" title="All 2 branches missed.">                staticDomain = protectionDomain == null ? null : protectionDomain.getCodeSource();</span>
+            }
+            else {
+<span class="nc" id="L528">                staticDomain = protectionDomain;</span>
+            }
+<span class="nc" id="L530">        }</span>
+        else {
+<span class="nc" id="L532">            staticDomain = null;</span>
+        }
+<span class="nc" id="L534">        GeneratedClassLoader loader = SecurityController.createLoader(null,</span>
+                staticDomain);
+<span class="nc" id="L536">        Class&lt;?&gt; result = loader.defineClass(className, classBytes);</span>
+<span class="nc" id="L537">        loader.linkClass(result);</span>
+<span class="nc" id="L538">        return result;</span>
+    }
+
+    public static Function getFunction(Scriptable obj, String functionName)
+    {
+<span class="nc" id="L543">        Object x = ScriptableObject.getProperty(obj, functionName);</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">        if (x == Scriptable.NOT_FOUND) {</span>
+            // This method used to swallow the exception from calling
+            // an undefined method. People have come to depend on this
+            // somewhat dubious behavior. It allows people to avoid
+            // implementing listener methods that they don't care about,
+            // for instance.
+<span class="nc" id="L550">            return null;</span>
+        }
+<span class="nc bnc" id="L552" title="All 2 branches missed.">        if (!(x instanceof Function))</span>
+<span class="nc" id="L553">            throw ScriptRuntime.notFunctionError(x, functionName);</span>
+
+<span class="nc" id="L555">        return (Function)x;</span>
+    }
+
+    /**
+     * Utility method which dynamically binds a Context to the current thread,
+     * if none already exists.
+     */
+    public static Object callMethod(ContextFactory factory,
+                                    final Scriptable thisObj,
+                                    final Function f, final Object[] args,
+                                    final long argsToWrap)
+    {
+<span class="nc bnc" id="L567" title="All 2 branches missed.">        if (f == null) {</span>
+            // See comments in getFunction
+<span class="nc" id="L569">            return null;</span>
+        }
+<span class="nc bnc" id="L571" title="All 2 branches missed.">        if (factory == null) {</span>
+<span class="nc" id="L572">            factory = ContextFactory.getGlobal();</span>
+        }
+
+<span class="nc" id="L575">        final Scriptable scope = f.getParentScope();</span>
+<span class="nc bnc" id="L576" title="All 2 branches missed.">        if (argsToWrap == 0) {</span>
+<span class="nc" id="L577">            return Context.call(factory, f, scope, thisObj, args);</span>
+        }
+
+<span class="nc" id="L580">        Context cx = Context.getCurrentContext();</span>
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        if (cx != null) {</span>
+<span class="nc" id="L582">            return doCall(cx, scope, thisObj, f, args, argsToWrap);</span>
+        } else {
+<span class="nc" id="L584">            return factory.call(new ContextAction() {</span>
+                public Object run(Context cx)
+                {
+<span class="nc" id="L587">                    return doCall(cx, scope, thisObj, f, args, argsToWrap);</span>
+                }
+            });
+        }
+    }
+
+    private static Object doCall(Context cx, Scriptable scope,
+                                 Scriptable thisObj, Function f,
+                                 Object[] args, long argsToWrap)
+    {
+        // Wrap the rest of objects
+<span class="nc bnc" id="L598" title="All 2 branches missed.">        for (int i = 0; i != args.length; ++i) {</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            if (0 != (argsToWrap &amp; (1 &lt;&lt; i))) {</span>
+<span class="nc" id="L600">                Object arg = args[i];</span>
+<span class="nc bnc" id="L601" title="All 2 branches missed.">                if (!(arg instanceof Scriptable)) {</span>
+<span class="nc" id="L602">                    args[i] = cx.getWrapFactory().wrap(cx, scope, arg,</span>
+                                                       null);
+                }
+            }
+        }
+<span class="nc" id="L607">        return f.call(cx, scope, thisObj, args);</span>
+    }
+
+    public static Scriptable runScript(final Script script)
+    {
+<span class="nc" id="L612">        return (Scriptable)ContextFactory.getGlobal().call(</span>
+<span class="nc" id="L613">            new ContextAction() {</span>
+                public Object run(Context cx)
+                {
+<span class="nc" id="L616">                    ScriptableObject global = ScriptRuntime.getGlobal(cx);</span>
+<span class="nc" id="L617">                    script.exec(cx, global);</span>
+<span class="nc" id="L618">                    return global;</span>
+                }
+            });
+    }
+
+    private static void generateCtor(ClassFileWriter cfw, String adapterName,
+                                     String superName, Constructor&lt;?&gt; superCtor)
+    {
+<span class="nc" id="L626">        short locals = 3; // this + factory + delegee</span>
+<span class="nc" id="L627">        Class&lt;?&gt;[] parameters = superCtor.getParameterTypes();</span>
+
+        // Note that we swapped arguments in app-facing constructors to avoid
+        // conflicting signatures with serial constructor defined below.
+<span class="nc bnc" id="L631" title="All 2 branches missed.">        if (parameters.length == 0) {</span>
+<span class="nc" id="L632">            cfw.startMethod(&quot;&lt;init&gt;&quot;,</span>
+                        &quot;(Lorg/mozilla/javascript/Scriptable;&quot;
+                        +&quot;Lorg/mozilla/javascript/ContextFactory;)V&quot;,
+                        ClassFileWriter.ACC_PUBLIC);
+
+            // Invoke base class constructor
+<span class="nc" id="L638">            cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L639">            cfw.addInvoke(ByteCode.INVOKESPECIAL, superName, &quot;&lt;init&gt;&quot;, &quot;()V&quot;);</span>
+        } else {
+<span class="nc" id="L641">            StringBuilder sig = new StringBuilder(</span>
+                    &quot;(Lorg/mozilla/javascript/Scriptable;&quot;
+                    +&quot;Lorg/mozilla/javascript/ContextFactory;&quot;);
+<span class="nc" id="L644">            int marker = sig.length(); // lets us reuse buffer for super signature</span>
+<span class="nc bnc" id="L645" title="All 2 branches missed.">            for (Class&lt;?&gt; c : parameters) {</span>
+<span class="nc" id="L646">                appendTypeString(sig, c);</span>
+            }
+<span class="nc" id="L648">            sig.append(&quot;)V&quot;);</span>
+<span class="nc" id="L649">            cfw.startMethod(&quot;&lt;init&gt;&quot;, sig.toString(), ClassFileWriter.ACC_PUBLIC);</span>
+
+            // Invoke base class constructor
+<span class="nc" id="L652">            cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L653">            short paramOffset = 3;</span>
+<span class="nc bnc" id="L654" title="All 2 branches missed.">            for (Class&lt;?&gt; parameter : parameters) {</span>
+<span class="nc" id="L655">                paramOffset += generatePushParam(cfw, paramOffset, parameter);</span>
+            }
+<span class="nc" id="L657">            locals = paramOffset;</span>
+<span class="nc" id="L658">            sig.delete(1, marker);</span>
+<span class="nc" id="L659">            cfw.addInvoke(ByteCode.INVOKESPECIAL, superName, &quot;&lt;init&gt;&quot;, sig.toString());</span>
+        }
+
+        // Save parameter in instance variable &quot;delegee&quot;
+<span class="nc" id="L663">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L664">        cfw.add(ByteCode.ALOAD_1);  // first arg: Scriptable delegee</span>
+<span class="nc" id="L665">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;delegee&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+        // Save parameter in instance variable &quot;factory&quot;
+<span class="nc" id="L669">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L670">        cfw.add(ByteCode.ALOAD_2);  // second arg: ContextFactory instance</span>
+<span class="nc" id="L671">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;factory&quot;,</span>
+                &quot;Lorg/mozilla/javascript/ContextFactory;&quot;);
+
+<span class="nc" id="L674">        cfw.add(ByteCode.ALOAD_0);  // this for the following PUTFIELD for self</span>
+        // create a wrapper object to be used as &quot;this&quot; in method calls
+<span class="nc" id="L676">        cfw.add(ByteCode.ALOAD_1);  // the Scriptable delegee</span>
+<span class="nc" id="L677">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L678">        cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                      &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                      &quot;createAdapterWrapper&quot;,
+                      &quot;(Lorg/mozilla/javascript/Scriptable;&quot;
+                      +&quot;Ljava/lang/Object;&quot;
+                      +&quot;)Lorg/mozilla/javascript/Scriptable;&quot;);
+<span class="nc" id="L684">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;self&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+<span class="nc" id="L687">        cfw.add(ByteCode.RETURN);</span>
+<span class="nc" id="L688">        cfw.stopMethod(locals);</span>
+<span class="nc" id="L689">    }</span>
+
+    private static void generateSerialCtor(ClassFileWriter cfw,
+                                           String adapterName,
+                                           String superName)
+    {
+<span class="nc" id="L695">        cfw.startMethod(&quot;&lt;init&gt;&quot;,</span>
+                        &quot;(Lorg/mozilla/javascript/ContextFactory;&quot;
+                        +&quot;Lorg/mozilla/javascript/Scriptable;&quot;
+                        +&quot;Lorg/mozilla/javascript/Scriptable;&quot;
+                        +&quot;)V&quot;,
+                        ClassFileWriter.ACC_PUBLIC);
+
+        // Invoke base class constructor
+<span class="nc" id="L703">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L704">        cfw.addInvoke(ByteCode.INVOKESPECIAL, superName, &quot;&lt;init&gt;&quot;, &quot;()V&quot;);</span>
+
+        // Save parameter in instance variable &quot;factory&quot;
+<span class="nc" id="L707">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L708">        cfw.add(ByteCode.ALOAD_1);  // first arg: ContextFactory instance</span>
+<span class="nc" id="L709">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;factory&quot;,</span>
+                &quot;Lorg/mozilla/javascript/ContextFactory;&quot;);
+
+        // Save parameter in instance variable &quot;delegee&quot;
+<span class="nc" id="L713">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L714">        cfw.add(ByteCode.ALOAD_2);  // second arg: Scriptable delegee</span>
+<span class="nc" id="L715">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;delegee&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+        // save self
+<span class="nc" id="L718">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L719">        cfw.add(ByteCode.ALOAD_3);  // third arg: Scriptable self</span>
+<span class="nc" id="L720">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;self&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+<span class="nc" id="L723">        cfw.add(ByteCode.RETURN);</span>
+<span class="nc" id="L724">        cfw.stopMethod((short)4); // 4: this + factory + delegee + self</span>
+<span class="nc" id="L725">    }</span>
+
+    private static void generateEmptyCtor(ClassFileWriter cfw,
+                                          String adapterName,
+                                          String superName,
+                                          String scriptClassName)
+    {
+<span class="nc" id="L732">        cfw.startMethod(&quot;&lt;init&gt;&quot;, &quot;()V&quot;, ClassFileWriter.ACC_PUBLIC);</span>
+
+        // Invoke base class constructor
+<span class="nc" id="L735">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L736">        cfw.addInvoke(ByteCode.INVOKESPECIAL, superName, &quot;&lt;init&gt;&quot;, &quot;()V&quot;);</span>
+
+        // Set factory to null to use current global when necessary
+<span class="nc" id="L739">        cfw.add(ByteCode.ALOAD_0);</span>
+<span class="nc" id="L740">        cfw.add(ByteCode.ACONST_NULL);</span>
+<span class="nc" id="L741">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;factory&quot;,</span>
+                &quot;Lorg/mozilla/javascript/ContextFactory;&quot;);
+
+        // Load script class
+<span class="nc" id="L745">        cfw.add(ByteCode.NEW, scriptClassName);</span>
+<span class="nc" id="L746">        cfw.add(ByteCode.DUP);</span>
+<span class="nc" id="L747">        cfw.addInvoke(ByteCode.INVOKESPECIAL, scriptClassName, &quot;&lt;init&gt;&quot;, &quot;()V&quot;);</span>
+
+        // Run script and save resulting scope
+<span class="nc" id="L750">        cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                      &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                      &quot;runScript&quot;,
+                      &quot;(Lorg/mozilla/javascript/Script;&quot;
+                      +&quot;)Lorg/mozilla/javascript/Scriptable;&quot;);
+<span class="nc" id="L755">        cfw.add(ByteCode.ASTORE_1);</span>
+
+        // Save the Scriptable in instance variable &quot;delegee&quot;
+<span class="nc" id="L758">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L759">        cfw.add(ByteCode.ALOAD_1);  // the Scriptable</span>
+<span class="nc" id="L760">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;delegee&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+<span class="nc" id="L763">        cfw.add(ByteCode.ALOAD_0);  // this for the following PUTFIELD for self</span>
+        // create a wrapper object to be used as &quot;this&quot; in method calls
+<span class="nc" id="L765">        cfw.add(ByteCode.ALOAD_1);  // the Scriptable</span>
+<span class="nc" id="L766">        cfw.add(ByteCode.ALOAD_0);  // this</span>
+<span class="nc" id="L767">        cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                      &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                      &quot;createAdapterWrapper&quot;,
+                      &quot;(Lorg/mozilla/javascript/Scriptable;&quot;
+                      +&quot;Ljava/lang/Object;&quot;
+                      +&quot;)Lorg/mozilla/javascript/Scriptable;&quot;);
+<span class="nc" id="L773">        cfw.add(ByteCode.PUTFIELD, adapterName, &quot;self&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+<span class="nc" id="L776">        cfw.add(ByteCode.RETURN);</span>
+<span class="nc" id="L777">        cfw.stopMethod((short)2); // this + delegee</span>
+<span class="nc" id="L778">    }</span>
+
+    /**
+     * Generates code to wrap Java arguments into Object[].
+     * Non-primitive Java types are left as-is pending conversion
+     * in the helper method. Leaves the array object on the top of the stack.
+     */
+    static void generatePushWrappedArgs(ClassFileWriter cfw,
+                                        Class&lt;?&gt;[] argTypes,
+                                        int arrayLength)
+    {
+        // push arguments
+<span class="nc" id="L790">        cfw.addPush(arrayLength);</span>
+<span class="nc" id="L791">        cfw.add(ByteCode.ANEWARRAY, &quot;java/lang/Object&quot;);</span>
+<span class="nc" id="L792">        int paramOffset = 1;</span>
+<span class="nc bnc" id="L793" title="All 2 branches missed.">        for (int i = 0; i != argTypes.length; ++i) {</span>
+<span class="nc" id="L794">            cfw.add(ByteCode.DUP); // duplicate array reference</span>
+<span class="nc" id="L795">            cfw.addPush(i);</span>
+<span class="nc" id="L796">            paramOffset += generateWrapArg(cfw, paramOffset, argTypes[i]);</span>
+<span class="nc" id="L797">            cfw.add(ByteCode.AASTORE);</span>
+        }
+<span class="nc" id="L799">    }</span>
+
+    /**
+     * Generates code to wrap Java argument into Object.
+     * Non-primitive Java types are left unconverted pending conversion
+     * in the helper method. Leaves the wrapper object on the top of the stack.
+     */
+    private static int generateWrapArg(ClassFileWriter cfw, int paramOffset,
+                                       Class&lt;?&gt; argType)
+    {
+<span class="nc" id="L809">        int size = 1;</span>
+<span class="nc bnc" id="L810" title="All 2 branches missed.">        if (!argType.isPrimitive()) {</span>
+<span class="nc" id="L811">            cfw.add(ByteCode.ALOAD, paramOffset);</span>
+
+<span class="nc bnc" id="L813" title="All 2 branches missed.">        } else if (argType == Boolean.TYPE) {</span>
+            // wrap boolean values with java.lang.Boolean.
+<span class="nc" id="L815">            cfw.add(ByteCode.NEW, &quot;java/lang/Boolean&quot;);</span>
+<span class="nc" id="L816">            cfw.add(ByteCode.DUP);</span>
+<span class="nc" id="L817">            cfw.add(ByteCode.ILOAD, paramOffset);</span>
+<span class="nc" id="L818">            cfw.addInvoke(ByteCode.INVOKESPECIAL, &quot;java/lang/Boolean&quot;,</span>
+                          &quot;&lt;init&gt;&quot;, &quot;(Z)V&quot;);
+
+<span class="nc bnc" id="L821" title="All 2 branches missed.">        } else if (argType == Character.TYPE) {</span>
+            // Create a string of length 1 using the character parameter.
+<span class="nc" id="L823">            cfw.add(ByteCode.ILOAD, paramOffset);</span>
+<span class="nc" id="L824">            cfw.addInvoke(ByteCode.INVOKESTATIC, &quot;java/lang/String&quot;,</span>
+                          &quot;valueOf&quot;, &quot;(C)Ljava/lang/String;&quot;);
+
+        } else {
+            // convert all numeric values to java.lang.Double.
+<span class="nc" id="L829">            cfw.add(ByteCode.NEW, &quot;java/lang/Double&quot;);</span>
+<span class="nc" id="L830">            cfw.add(ByteCode.DUP);</span>
+<span class="nc" id="L831">            String typeName = argType.getName();</span>
+<span class="nc bnc" id="L832" title="All 5 branches missed.">            switch (typeName.charAt(0)) {</span>
+            case 'b':
+            case 's':
+            case 'i':
+                // load an int value, convert to double.
+<span class="nc" id="L837">                cfw.add(ByteCode.ILOAD, paramOffset);</span>
+<span class="nc" id="L838">                cfw.add(ByteCode.I2D);</span>
+<span class="nc" id="L839">                break;</span>
+            case 'l':
+                // load a long, convert to double.
+<span class="nc" id="L842">                cfw.add(ByteCode.LLOAD, paramOffset);</span>
+<span class="nc" id="L843">                cfw.add(ByteCode.L2D);</span>
+<span class="nc" id="L844">                size = 2;</span>
+<span class="nc" id="L845">                break;</span>
+            case 'f':
+                // load a float, convert to double.
+<span class="nc" id="L848">                cfw.add(ByteCode.FLOAD, paramOffset);</span>
+<span class="nc" id="L849">                cfw.add(ByteCode.F2D);</span>
+<span class="nc" id="L850">                break;</span>
+            case 'd':
+<span class="nc" id="L852">                cfw.add(ByteCode.DLOAD, paramOffset);</span>
+<span class="nc" id="L853">                size = 2;</span>
+                break;
+            }
+<span class="nc" id="L856">            cfw.addInvoke(ByteCode.INVOKESPECIAL, &quot;java/lang/Double&quot;,</span>
+                          &quot;&lt;init&gt;&quot;, &quot;(D)V&quot;);
+        }
+<span class="nc" id="L859">        return size;</span>
+    }
+
+    /**
+     * Generates code to convert a wrapped value type to a primitive type.
+     * Handles unwrapping java.lang.Boolean, and java.lang.Number types.
+     * Generates the appropriate RETURN bytecode.
+     */
+    static void generateReturnResult(ClassFileWriter cfw, Class&lt;?&gt; retType,
+                                     boolean callConvertResult)
+    {
+        // wrap boolean values with java.lang.Boolean, convert all other
+        // primitive values to java.lang.Double.
+<span class="nc bnc" id="L872" title="All 2 branches missed.">        if (retType == Void.TYPE) {</span>
+<span class="nc" id="L873">            cfw.add(ByteCode.POP);</span>
+<span class="nc" id="L874">            cfw.add(ByteCode.RETURN);</span>
+
+<span class="nc bnc" id="L876" title="All 2 branches missed.">        } else if (retType == Boolean.TYPE) {</span>
+<span class="nc" id="L877">            cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                          &quot;org/mozilla/javascript/Context&quot;,
+                          &quot;toBoolean&quot;, &quot;(Ljava/lang/Object;)Z&quot;);
+<span class="nc" id="L880">            cfw.add(ByteCode.IRETURN);</span>
+
+<span class="nc bnc" id="L882" title="All 2 branches missed.">        } else if (retType == Character.TYPE) {</span>
+            // characters are represented as strings in JavaScript.
+            // return the first character.
+            // first convert the value to a string if possible.
+<span class="nc" id="L886">            cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                          &quot;org/mozilla/javascript/Context&quot;,
+                          &quot;toString&quot;,
+                          &quot;(Ljava/lang/Object;)Ljava/lang/String;&quot;);
+<span class="nc" id="L890">            cfw.add(ByteCode.ICONST_0);</span>
+<span class="nc" id="L891">            cfw.addInvoke(ByteCode.INVOKEVIRTUAL, &quot;java/lang/String&quot;,</span>
+                          &quot;charAt&quot;, &quot;(I)C&quot;);
+<span class="nc" id="L893">            cfw.add(ByteCode.IRETURN);</span>
+
+<span class="nc bnc" id="L895" title="All 2 branches missed.">        } else if (retType.isPrimitive()) {</span>
+<span class="nc" id="L896">            cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                          &quot;org/mozilla/javascript/Context&quot;,
+                          &quot;toNumber&quot;, &quot;(Ljava/lang/Object;)D&quot;);
+<span class="nc" id="L899">            String typeName = retType.getName();</span>
+<span class="nc bnc" id="L900" title="All 5 branches missed.">            switch (typeName.charAt(0)) {</span>
+            case 'b':
+            case 's':
+            case 'i':
+<span class="nc" id="L904">                cfw.add(ByteCode.D2I);</span>
+<span class="nc" id="L905">                cfw.add(ByteCode.IRETURN);</span>
+<span class="nc" id="L906">                break;</span>
+            case 'l':
+<span class="nc" id="L908">                cfw.add(ByteCode.D2L);</span>
+<span class="nc" id="L909">                cfw.add(ByteCode.LRETURN);</span>
+<span class="nc" id="L910">                break;</span>
+            case 'f':
+<span class="nc" id="L912">                cfw.add(ByteCode.D2F);</span>
+<span class="nc" id="L913">                cfw.add(ByteCode.FRETURN);</span>
+<span class="nc" id="L914">                break;</span>
+            case 'd':
+<span class="nc" id="L916">                cfw.add(ByteCode.DRETURN);</span>
+<span class="nc" id="L917">                break;</span>
+            default:
+<span class="nc" id="L919">                throw new RuntimeException(&quot;Unexpected return type &quot; +</span>
+<span class="nc" id="L920">                                           retType.toString());</span>
+            }
+
+<span class="nc" id="L923">        } else {</span>
+<span class="nc" id="L924">            String retTypeStr = retType.getName();</span>
+<span class="nc bnc" id="L925" title="All 2 branches missed.">            if (callConvertResult) {</span>
+<span class="nc" id="L926">                cfw.addLoadConstant(retTypeStr);</span>
+<span class="nc" id="L927">                cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                              &quot;java/lang/Class&quot;,
+                              &quot;forName&quot;,
+                              &quot;(Ljava/lang/String;)Ljava/lang/Class;&quot;);
+
+<span class="nc" id="L932">                cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                              &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                              &quot;convertResult&quot;,
+                              &quot;(Ljava/lang/Object;&quot;
+                              +&quot;Ljava/lang/Class;&quot;
+                              +&quot;)Ljava/lang/Object;&quot;);
+            }
+            // Now cast to return type
+<span class="nc" id="L940">            cfw.add(ByteCode.CHECKCAST, retTypeStr);</span>
+<span class="nc" id="L941">            cfw.add(ByteCode.ARETURN);</span>
+        }
+<span class="nc" id="L943">    }</span>
+
+    private static void generateMethod(ClassFileWriter cfw, String genName,
+                                       String methodName, Class&lt;?&gt;[] parms,
+                                       Class&lt;?&gt; returnType, boolean convertResult)
+    {
+<span class="nc" id="L949">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L950">        int paramsEnd = appendMethodSignature(parms, returnType, sb);</span>
+<span class="nc" id="L951">        String methodSignature = sb.toString();</span>
+<span class="nc" id="L952">        cfw.startMethod(methodName, methodSignature,</span>
+                        ClassFileWriter.ACC_PUBLIC);
+
+        // Prepare stack to call method
+
+        // push factory
+<span class="nc" id="L958">        cfw.add(ByteCode.ALOAD_0);</span>
+<span class="nc" id="L959">        cfw.add(ByteCode.GETFIELD, genName, &quot;factory&quot;,</span>
+                &quot;Lorg/mozilla/javascript/ContextFactory;&quot;);
+
+        // push self
+<span class="nc" id="L963">        cfw.add(ByteCode.ALOAD_0);</span>
+<span class="nc" id="L964">        cfw.add(ByteCode.GETFIELD, genName, &quot;self&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+
+        // push function
+<span class="nc" id="L968">        cfw.add(ByteCode.ALOAD_0);</span>
+<span class="nc" id="L969">        cfw.add(ByteCode.GETFIELD, genName, &quot;delegee&quot;,</span>
+                &quot;Lorg/mozilla/javascript/Scriptable;&quot;);
+<span class="nc" id="L971">        cfw.addPush(methodName);</span>
+<span class="nc" id="L972">        cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                      &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                      &quot;getFunction&quot;,
+                      &quot;(Lorg/mozilla/javascript/Scriptable;&quot;
+                      +&quot;Ljava/lang/String;&quot;
+                      +&quot;)Lorg/mozilla/javascript/Function;&quot;);
+
+        // push arguments
+<span class="nc" id="L980">        generatePushWrappedArgs(cfw, parms, parms.length);</span>
+
+        // push bits to indicate which parameters should be wrapped
+<span class="nc bnc" id="L983" title="All 2 branches missed.">        if (parms.length &gt; 64) {</span>
+            // If it will be an issue, then passing a static boolean array
+            // can be an option, but for now using simple bitmask
+<span class="nc" id="L986">            throw Context.reportRuntimeError0(</span>
+                &quot;JavaAdapter can not subclass methods with more then&quot;
+                +&quot; 64 arguments.&quot;);
+        }
+<span class="nc" id="L990">        long convertionMask = 0;</span>
+<span class="nc bnc" id="L991" title="All 2 branches missed.">        for (int i = 0; i != parms.length; ++i) {</span>
+<span class="nc bnc" id="L992" title="All 2 branches missed.">            if (!parms[i].isPrimitive()) {</span>
+<span class="nc" id="L993">                convertionMask |= (1 &lt;&lt; i);</span>
+            }
+        }
+<span class="nc" id="L996">        cfw.addPush(convertionMask);</span>
+
+        // go through utility method, which creates a Context to run the
+        // method in.
+<span class="nc" id="L1000">        cfw.addInvoke(ByteCode.INVOKESTATIC,</span>
+                      &quot;org/mozilla/javascript/JavaAdapter&quot;,
+                      &quot;callMethod&quot;,
+                      &quot;(Lorg/mozilla/javascript/ContextFactory;&quot;
+                      +&quot;Lorg/mozilla/javascript/Scriptable;&quot;
+                      +&quot;Lorg/mozilla/javascript/Function;&quot;
+                      +&quot;[Ljava/lang/Object;&quot;
+                      +&quot;J&quot;
+                      +&quot;)Ljava/lang/Object;&quot;);
+
+<span class="nc" id="L1010">        generateReturnResult(cfw, returnType, convertResult);</span>
+
+<span class="nc" id="L1012">        cfw.stopMethod((short)paramsEnd);</span>
+<span class="nc" id="L1013">    }</span>
+
+    /**
+     * Generates code to push typed parameters onto the operand stack
+     * prior to a direct Java method call.
+     */
+    private static int generatePushParam(ClassFileWriter cfw, int paramOffset,
+                                         Class&lt;?&gt; paramType)
+    {
+<span class="nc bnc" id="L1022" title="All 2 branches missed.">        if (!paramType.isPrimitive()) {</span>
+<span class="nc" id="L1023">            cfw.addALoad(paramOffset);</span>
+<span class="nc" id="L1024">            return 1;</span>
+        }
+<span class="nc" id="L1026">        String typeName = paramType.getName();</span>
+<span class="nc bnc" id="L1027" title="All 5 branches missed.">        switch (typeName.charAt(0)) {</span>
+        case 'z':
+        case 'b':
+        case 'c':
+        case 's':
+        case 'i':
+            // load an int value, convert to double.
+<span class="nc" id="L1034">            cfw.addILoad(paramOffset);</span>
+<span class="nc" id="L1035">            return 1;</span>
+        case 'l':
+            // load a long, convert to double.
+<span class="nc" id="L1038">            cfw.addLLoad(paramOffset);</span>
+<span class="nc" id="L1039">            return 2;</span>
+        case 'f':
+            // load a float, convert to double.
+<span class="nc" id="L1042">            cfw.addFLoad(paramOffset);</span>
+<span class="nc" id="L1043">            return 1;</span>
+        case 'd':
+<span class="nc" id="L1045">            cfw.addDLoad(paramOffset);</span>
+<span class="nc" id="L1046">            return 2;</span>
+        }
+<span class="nc" id="L1048">        throw Kit.codeBug();</span>
+    }
+
+    /**
+     * Generates code to return a Java type, after calling a Java method
+     * that returns the same type.
+     * Generates the appropriate RETURN bytecode.
+     */
+    private static void generatePopResult(ClassFileWriter cfw,
+                                          Class&lt;?&gt; retType)
+    {
+<span class="nc bnc" id="L1059" title="All 2 branches missed.">        if (retType.isPrimitive()) {</span>
+<span class="nc" id="L1060">            String typeName = retType.getName();</span>
+<span class="nc bnc" id="L1061" title="All 5 branches missed.">            switch (typeName.charAt(0)) {</span>
+            case 'b':
+            case 'c':
+            case 's':
+            case 'i':
+            case 'z':
+<span class="nc" id="L1067">                cfw.add(ByteCode.IRETURN);</span>
+<span class="nc" id="L1068">                break;</span>
+            case 'l':
+<span class="nc" id="L1070">                cfw.add(ByteCode.LRETURN);</span>
+<span class="nc" id="L1071">                break;</span>
+            case 'f':
+<span class="nc" id="L1073">                cfw.add(ByteCode.FRETURN);</span>
+<span class="nc" id="L1074">                break;</span>
+            case 'd':
+<span class="nc" id="L1076">                cfw.add(ByteCode.DRETURN);</span>
+                break;
+            }
+<span class="nc" id="L1079">        } else {</span>
+<span class="nc" id="L1080">            cfw.add(ByteCode.ARETURN);</span>
+        }
+<span class="nc" id="L1082">    }</span>
+
+    /**
+     * Generates a method called &quot;super$methodName()&quot; which can be called
+     * from JavaScript that is equivalent to calling &quot;super.methodName()&quot;
+     * from Java. Eventually, this may be supported directly in JavaScript.
+     */
+    private static void generateSuper(ClassFileWriter cfw,
+                                      String genName, String superName,
+                                      String methodName, String methodSignature,
+                                      Class&lt;?&gt;[] parms, Class&lt;?&gt; returnType)
+    {
+<span class="nc" id="L1094">        cfw.startMethod(&quot;super$&quot; + methodName, methodSignature,</span>
+                        ClassFileWriter.ACC_PUBLIC);
+
+        // push &quot;this&quot;
+<span class="nc" id="L1098">        cfw.add(ByteCode.ALOAD, 0);</span>
+
+        // push the rest of the parameters.
+<span class="nc" id="L1101">        int paramOffset = 1;</span>
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">        for (Class&lt;?&gt; parm : parms) {</span>
+<span class="nc" id="L1103">            paramOffset += generatePushParam(cfw, paramOffset, parm);</span>
+        }
+
+        // call the superclass implementation of the method.
+<span class="nc" id="L1107">        cfw.addInvoke(ByteCode.INVOKESPECIAL,</span>
+                      superName,
+                      methodName,
+                      methodSignature);
+
+        // now, handle the return type appropriately.
+<span class="nc" id="L1113">        Class&lt;?&gt; retType = returnType;</span>
+<span class="nc bnc" id="L1114" title="All 2 branches missed.">        if (!retType.equals(Void.TYPE)) {</span>
+<span class="nc" id="L1115">            generatePopResult(cfw, retType);</span>
+        } else {
+<span class="nc" id="L1117">            cfw.add(ByteCode.RETURN);</span>
+        }
+<span class="nc" id="L1119">        cfw.stopMethod((short)(paramOffset + 1));</span>
+<span class="nc" id="L1120">    }</span>
+
+    /**
+     * Returns a fully qualified method name concatenated with its signature.
+     */
+    private static String getMethodSignature(Method method, Class&lt;?&gt;[] argTypes)
+    {
+<span class="nc" id="L1127">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L1128">        appendMethodSignature(argTypes, method.getReturnType(), sb);</span>
+<span class="nc" id="L1129">        return sb.toString();</span>
+    }
+
+    static int appendMethodSignature(Class&lt;?&gt;[] argTypes,
+                                     Class&lt;?&gt; returnType,
+                                     StringBuilder sb)
+    {
+<span class="nc" id="L1136">        sb.append('(');</span>
+<span class="nc" id="L1137">        int firstLocal = 1 + argTypes.length; // includes this.</span>
+<span class="nc bnc" id="L1138" title="All 2 branches missed.">        for (Class&lt;?&gt; type : argTypes) {</span>
+<span class="nc" id="L1139">            appendTypeString(sb, type);</span>
+<span class="nc bnc" id="L1140" title="All 4 branches missed.">            if (type == Long.TYPE || type == Double.TYPE) {</span>
+                // adjust for double slot
+<span class="nc" id="L1142">                ++firstLocal;</span>
+            }
+        }
+<span class="nc" id="L1145">        sb.append(')');</span>
+<span class="nc" id="L1146">        appendTypeString(sb, returnType);</span>
+<span class="nc" id="L1147">        return firstLocal;</span>
+    }
+
+    private static StringBuilder appendTypeString(StringBuilder sb, Class&lt;?&gt; type)
+    {
+<span class="nc bnc" id="L1152" title="All 2 branches missed.">        while (type.isArray()) {</span>
+<span class="nc" id="L1153">            sb.append('[');</span>
+<span class="nc" id="L1154">            type = type.getComponentType();</span>
+        }
+<span class="nc bnc" id="L1156" title="All 2 branches missed.">        if (type.isPrimitive()) {</span>
+            char typeLetter;
+<span class="nc bnc" id="L1158" title="All 2 branches missed.">            if (type == Boolean.TYPE) {</span>
+<span class="nc" id="L1159">                typeLetter = 'Z';</span>
+<span class="nc bnc" id="L1160" title="All 2 branches missed.">            } else if (type == Long.TYPE) {</span>
+<span class="nc" id="L1161">                typeLetter = 'J';</span>
+            } else {
+<span class="nc" id="L1163">                String typeName = type.getName();</span>
+<span class="nc" id="L1164">                typeLetter = Character.toUpperCase(typeName.charAt(0));</span>
+            }
+<span class="nc" id="L1166">            sb.append(typeLetter);</span>
+<span class="nc" id="L1167">        } else {</span>
+<span class="nc" id="L1168">            sb.append('L');</span>
+<span class="nc" id="L1169">            sb.append(type.getName().replace('.', '/'));</span>
+<span class="nc" id="L1170">            sb.append(';');</span>
+        }
+<span class="nc" id="L1172">        return sb;</span>
+    }
+
+    static int[] getArgsToConvert(Class&lt;?&gt;[] argTypes)
+    {
+<span class="nc" id="L1177">        int count = 0;</span>
+<span class="nc bnc" id="L1178" title="All 2 branches missed.">        for (int i = 0; i != argTypes.length; ++i) {</span>
+<span class="nc bnc" id="L1179" title="All 2 branches missed.">            if (!argTypes[i].isPrimitive())</span>
+<span class="nc" id="L1180">                ++count;</span>
+        }
+<span class="nc bnc" id="L1182" title="All 2 branches missed.">        if (count == 0)</span>
+<span class="nc" id="L1183">            return null;</span>
+<span class="nc" id="L1184">        int[] array = new int[count];</span>
+<span class="nc" id="L1185">        count = 0;</span>
+<span class="nc bnc" id="L1186" title="All 2 branches missed.">        for (int i = 0; i != argTypes.length; ++i) {</span>
+<span class="nc bnc" id="L1187" title="All 2 branches missed.">            if (!argTypes[i].isPrimitive())</span>
+<span class="nc" id="L1188">                array[count++] = i;</span>
+        }
+<span class="nc" id="L1190">        return array;</span>
+    }
+
+<span class="fc" id="L1193">    private static final Object FTAG = &quot;JavaAdapter&quot;;</span>
+    private static final int Id_JavaAdapter = 1;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

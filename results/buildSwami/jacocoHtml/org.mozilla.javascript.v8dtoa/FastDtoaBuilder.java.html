@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FastDtoaBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.v8dtoa</a> &gt; <span class="el_source">FastDtoaBuilder.java</span></div><h1>FastDtoaBuilder.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.v8dtoa;
+
+import java.util.Arrays;
+
+<span class="fc" id="L11">public class FastDtoaBuilder {</span>
+
+    // allocate buffer for generated digits + extra notation + padding zeroes
+<span class="fc" id="L14">    final char[] chars = new char[FastDtoa.kFastDtoaMaximalLength + 8];</span>
+<span class="fc" id="L15">    int end = 0;</span>
+    int point;
+<span class="fc" id="L17">    boolean formatted = false;</span>
+
+    void append(char c) {
+<span class="fc" id="L20">        chars[end++] = c;</span>
+<span class="fc" id="L21">    }</span>
+
+    void decreaseLast() {
+<span class="fc" id="L24">        chars[end - 1]--;</span>
+<span class="fc" id="L25">    }</span>
+
+    public void reset() {
+<span class="fc" id="L28">        end = 0;</span>
+<span class="fc" id="L29">        formatted = false;</span>
+<span class="fc" id="L30">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L34">        return &quot;[chars:&quot; + new String(chars, 0, end) + &quot;, point:&quot; + point + &quot;]&quot;;</span>
+    }
+
+    public String format() {
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">        if (!formatted) {</span>
+            // check for minus sign
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            int firstDigit = chars[0] == '-' ? 1 : 0;</span>
+<span class="fc" id="L41">            int decPoint = point - firstDigit;</span>
+<span class="pc bpc" id="L42" title="1 of 4 branches missed.">            if (decPoint &lt; -5 || decPoint &gt; 21) {</span>
+<span class="fc" id="L43">                toExponentialFormat(firstDigit, decPoint);</span>
+            } else {
+<span class="fc" id="L45">                toFixedFormat(firstDigit, decPoint);</span>
+            }
+<span class="fc" id="L47">            formatted = true;</span>
+        }
+<span class="fc" id="L49">        return new String(chars, 0, end);</span>
+
+    }
+
+    private void toFixedFormat(int firstDigit, int decPoint) {
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (point &lt; end) {</span>
+            // insert decimal point
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            if (decPoint &gt; 0) {</span>
+                // &gt;= 1, split decimals and insert point
+<span class="nc" id="L58">                System.arraycopy(chars, point, chars, point + 1, end - point);</span>
+<span class="nc" id="L59">                chars[point] = '.';</span>
+<span class="nc" id="L60">                end++;</span>
+            } else {
+                // &lt; 1,
+<span class="nc" id="L63">                int target = firstDigit + 2 - decPoint;</span>
+<span class="nc" id="L64">                System.arraycopy(chars, firstDigit, chars, target, end - firstDigit);</span>
+<span class="nc" id="L65">                chars[firstDigit] = '0';</span>
+<span class="nc" id="L66">                chars[firstDigit + 1] = '.';</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">                if (decPoint &lt; 0) {</span>
+<span class="nc" id="L68">                    Arrays.fill(chars, firstDigit + 2, target, '0');</span>
+                }
+<span class="nc" id="L70">                end += 2 - decPoint;</span>
+<span class="nc" id="L71">            }</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        } else if (point &gt; end) {</span>
+            // large integer, add trailing zeroes
+<span class="fc" id="L74">            Arrays.fill(chars, end, point, '0');</span>
+<span class="fc" id="L75">            end += point - end;</span>
+        }
+<span class="fc" id="L77">    }</span>
+
+    private void toExponentialFormat(int firstDigit, int decPoint) {
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (end - firstDigit &gt; 1) {</span>
+            // insert decimal point if more than one digit was produced
+<span class="fc" id="L82">            int dot = firstDigit + 1;</span>
+<span class="fc" id="L83">            System.arraycopy(chars, dot, chars, dot + 1, end - dot);</span>
+<span class="fc" id="L84">            chars[dot] = '.';</span>
+<span class="fc" id="L85">            end++;</span>
+        }
+<span class="fc" id="L87">        chars[end++] = 'e';</span>
+<span class="fc" id="L88">        char sign = '+';</span>
+<span class="fc" id="L89">        int exp = decPoint - 1;</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (exp &lt; 0) {</span>
+<span class="nc" id="L91">            sign = '-';</span>
+<span class="nc" id="L92">            exp = -exp;</span>
+        }
+<span class="fc" id="L94">        chars[end++] = sign;</span>
+
+<span class="pc bpc" id="L96" title="3 of 4 branches missed.">        int charPos = exp &gt; 99 ? end + 2 : exp &gt; 9 ? end + 1 : end;</span>
+<span class="fc" id="L97">        end = charPos + 1;</span>
+
+        // code below is needed because Integer.getChars() is not public
+        for (;;) {
+<span class="fc" id="L101">            int r = exp % 10;</span>
+<span class="fc" id="L102">            chars[charPos--] = digits[r];</span>
+<span class="fc" id="L103">            exp = exp / 10;</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">            if (exp == 0) break;</span>
+<span class="fc" id="L105">        }</span>
+<span class="fc" id="L106">    }</span>
+
+<span class="fc" id="L108">    final static char[] digits = {</span>
+        '0' , '1' , '2' , '3' , '4' , '5' , '6' , '7' , '8' , '9'
+    };
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScriptNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.ast</a> &gt; <span class="el_source">ScriptNode.java</span></div><h1>ScriptNode.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.ast;
+
+import org.mozilla.javascript.Node;
+import org.mozilla.javascript.Token;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Base type for {@link AstRoot} and {@link FunctionNode} nodes, which need to
+ * collect much of the same information.
+ */
+public class ScriptNode extends Scope {
+
+<span class="pc" id="L22">    private int encodedSourceStart = -1;</span>
+<span class="pc" id="L23">    private int encodedSourceEnd = -1;</span>
+    private String sourceName;
+    private String encodedSource;
+<span class="pc" id="L26">    private int endLineno = -1;</span>
+
+    private List&lt;FunctionNode&gt; functions;
+    private List&lt;RegExpLiteral&gt; regexps;
+<span class="pc" id="L30">    private List&lt;FunctionNode&gt; EMPTY_LIST = Collections.emptyList();</span>
+
+<span class="pc" id="L32">    private List&lt;Symbol&gt; symbols = new ArrayList&lt;Symbol&gt;(4);</span>
+<span class="pc" id="L33">    private int paramCount = 0;</span>
+    private String[] variableNames;
+    private boolean[] isConsts;
+
+    private Object compilerData;
+<span class="pc" id="L38">    private int tempNumber = 0;</span>
+    private boolean inStrictMode;
+
+    {
+        // during parsing, a ScriptNode or FunctionNode's top scope is itself
+<span class="pc" id="L43">        this.top = this;</span>
+<span class="pc" id="L44">        this.type = Token.SCRIPT;</span>
+    }
+
+<span class="nc" id="L47">    public ScriptNode() {</span>
+<span class="nc" id="L48">    }</span>
+
+    public ScriptNode(int pos) {
+<span class="fc" id="L51">        super(pos);</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Returns the URI, path or descriptive text indicating the origin
+     * of this script's source code.
+     */
+    public String getSourceName() {
+<span class="fc" id="L59">        return sourceName;</span>
+    }
+
+    /**
+     * Sets the URI, path or descriptive text indicating the origin
+     * of this script's source code.
+     */
+    public void setSourceName(String sourceName) {
+<span class="fc" id="L67">        this.sourceName = sourceName;</span>
+<span class="fc" id="L68">    }</span>
+
+    /**
+     * Returns the start offset of the encoded source.
+     * Only valid if {@link #getEncodedSource} returns non-{@code null}.
+     */
+    public int getEncodedSourceStart() {
+<span class="fc" id="L75">        return encodedSourceStart;</span>
+    }
+
+    /**
+     * Used by code generator.
+     * @see #getEncodedSource
+     */
+    public void setEncodedSourceStart(int start) {
+<span class="nc" id="L83">        this.encodedSourceStart = start;</span>
+<span class="nc" id="L84">    }</span>
+
+    /**
+     * Returns the end offset of the encoded source.
+     * Only valid if {@link #getEncodedSource} returns non-{@code null}.
+     */
+    public int getEncodedSourceEnd() {
+<span class="fc" id="L91">        return encodedSourceEnd;</span>
+    }
+
+    /**
+     * Used by code generator.
+     * @see #getEncodedSource
+     */
+    public void setEncodedSourceEnd(int end) {
+<span class="nc" id="L99">        this.encodedSourceEnd = end;</span>
+<span class="nc" id="L100">    }</span>
+
+    /**
+     * Used by code generator.
+     * @see #getEncodedSource
+     */
+    public void setEncodedSourceBounds(int start, int end) {
+<span class="fc" id="L107">        this.encodedSourceStart = start;</span>
+<span class="fc" id="L108">        this.encodedSourceEnd = end;</span>
+<span class="fc" id="L109">    }</span>
+
+    /**
+     * Used by the code generator.
+     * @see #getEncodedSource
+     */
+    public void setEncodedSource(String encodedSource) {
+<span class="fc" id="L116">        this.encodedSource = encodedSource;</span>
+<span class="fc" id="L117">    }</span>
+
+    /**
+     * Returns a canonical version of the source for this script or function,
+     * for use in implementing the {@code Object.toSource} method of
+     * JavaScript objects.  This source encoding is only recorded during code
+     * generation.  It must be passed back to
+     * {@link org.mozilla.javascript.Decompiler#decompile} to construct the
+     * human-readable source string.&lt;p&gt;
+     *
+     * Given a parsed AST, you can always convert it to source code using the
+     * {@link AstNode#toSource} method, although it's not guaranteed to produce
+     * exactly the same results as {@code Object.toSource} with respect to
+     * formatting, parenthesization and other details.
+     *
+     * @return the encoded source, or {@code null} if it was not recorded.
+     */
+    public String getEncodedSource() {
+<span class="fc" id="L135">        return encodedSource;</span>
+    }
+
+    public int getBaseLineno() {
+<span class="nc" id="L139">        return lineno;</span>
+    }
+
+    /**
+     * Sets base (starting) line number for this script or function.
+     * This is a one-time operation, and throws an exception if the
+     * line number has already been set.
+     */
+    public void setBaseLineno(int lineno) {
+<span class="pc bpc" id="L148" title="2 of 4 branches missed.">        if (lineno &lt; 0 || this.lineno &gt;= 0) codeBug();</span>
+<span class="fc" id="L149">        this.lineno = lineno;</span>
+<span class="fc" id="L150">    }</span>
+
+    public int getEndLineno() {
+<span class="fc" id="L153">        return endLineno;</span>
+    }
+
+    public void setEndLineno(int lineno) {
+        // One time action
+<span class="pc bpc" id="L158" title="2 of 4 branches missed.">        if (lineno &lt; 0 || endLineno &gt;= 0) codeBug();</span>
+<span class="fc" id="L159">        endLineno = lineno;</span>
+<span class="fc" id="L160">    }</span>
+
+    public int getFunctionCount() {
+<span class="fc bfc" id="L163" title="All 2 branches covered.">        return functions == null ? 0 : functions.size();</span>
+    }
+
+    public FunctionNode getFunctionNode(int i) {
+<span class="fc" id="L167">        return functions.get(i);</span>
+    }
+
+    public List&lt;FunctionNode&gt; getFunctions() {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        return functions == null ? EMPTY_LIST : functions;</span>
+    }
+
+    /**
+     * Adds a {@link FunctionNode} to the functions table for codegen.
+     * Does not set the parent of the node.
+     * @return the index of the function within its parent
+     */
+    public int addFunction(FunctionNode fnNode) {
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (fnNode == null) codeBug();</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">        if (functions == null)</span>
+<span class="fc" id="L182">            functions = new ArrayList&lt;FunctionNode&gt;();</span>
+<span class="fc" id="L183">        functions.add(fnNode);</span>
+<span class="fc" id="L184">        return functions.size() - 1;</span>
+    }
+
+    public int getRegexpCount() {
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        return regexps == null ? 0 : regexps.size();</span>
+    }
+
+    public String getRegexpString(int index) {
+<span class="fc" id="L192">        return regexps.get(index).getValue();</span>
+    }
+
+    public String getRegexpFlags(int index) {
+<span class="fc" id="L196">        return regexps.get(index).getFlags();</span>
+    }
+
+    /**
+     * Called by IRFactory to add a RegExp to the regexp table.
+     */
+    public void addRegExp(RegExpLiteral re) {
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">        if (re == null) codeBug();</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        if (regexps == null)</span>
+<span class="fc" id="L205">            regexps = new ArrayList&lt;RegExpLiteral&gt;();</span>
+<span class="fc" id="L206">        regexps.add(re);</span>
+<span class="fc" id="L207">        re.putIntProp(REGEXP_PROP, regexps.size() - 1);</span>
+<span class="fc" id="L208">    }</span>
+
+    public int getIndexForNameNode(Node nameNode) {
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">        if (variableNames == null) codeBug();</span>
+<span class="fc" id="L212">        Scope node = nameNode.getScope();</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        Symbol symbol = node == null</span>
+            ? null
+<span class="fc" id="L215">            : node.getSymbol(((Name)nameNode).getIdentifier());</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        return (symbol == null) ? -1 : symbol.getIndex();</span>
+    }
+
+    public String getParamOrVarName(int index) {
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (variableNames == null) codeBug();</span>
+<span class="fc" id="L221">        return variableNames[index];</span>
+    }
+
+    public int getParamCount() {
+<span class="fc" id="L225">        return paramCount;</span>
+    }
+
+    public int getParamAndVarCount() {
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        if (variableNames == null) codeBug();</span>
+<span class="fc" id="L230">        return symbols.size();</span>
+    }
+
+    public String[] getParamAndVarNames() {
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        if (variableNames == null) codeBug();</span>
+<span class="nc" id="L235">        return variableNames;</span>
+    }
+
+    public boolean[] getParamAndVarConst() {
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">        if (variableNames == null) codeBug();</span>
+<span class="fc" id="L240">        return isConsts;</span>
+    }
+
+    void addSymbol(Symbol symbol) {
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">        if (variableNames != null) codeBug();</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">        if (symbol.getDeclType() == Token.LP) {</span>
+<span class="fc" id="L246">            paramCount++;</span>
+        }
+<span class="fc" id="L248">        symbols.add(symbol);</span>
+<span class="fc" id="L249">    }</span>
+
+    public List&lt;Symbol&gt; getSymbols() {
+<span class="nc" id="L252">        return symbols;</span>
+    }
+
+    public void setSymbols(List&lt;Symbol&gt; symbols) {
+<span class="nc" id="L256">        this.symbols = symbols;</span>
+<span class="nc" id="L257">    }</span>
+
+    /**
+     * Assign every symbol a unique integer index. Generate arrays of variable
+     * names and constness that can be indexed by those indices.
+     *
+     * @param flattenAllTables if true, flatten all symbol tables,
+     * included nested block scope symbol tables. If false, just flatten the
+     * script's or function's symbol table.
+     */
+    public void flattenSymbolTable(boolean flattenAllTables) {
+<span class="fc bfc" id="L268" title="All 2 branches covered.">        if (!flattenAllTables) {</span>
+<span class="fc" id="L269">            List&lt;Symbol&gt; newSymbols = new ArrayList&lt;Symbol&gt;();</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">            if (this.symbolTable != null) {</span>
+                // Just replace &quot;symbols&quot; with the symbols in this object's
+                // symbol table. Can't just work from symbolTable map since
+                // we need to retain duplicate parameters.
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                for (int i = 0; i &lt; symbols.size(); i++) {</span>
+<span class="fc" id="L275">                    Symbol symbol = symbols.get(i);</span>
+<span class="pc bpc" id="L276" title="1 of 2 branches missed.">                    if (symbol.getContainingTable() == this) {</span>
+<span class="fc" id="L277">                        newSymbols.add(symbol);</span>
+                    }
+                }
+            }
+<span class="fc" id="L281">            symbols = newSymbols;</span>
+        }
+<span class="fc" id="L283">        variableNames = new String[symbols.size()];</span>
+<span class="fc" id="L284">        isConsts = new boolean[symbols.size()];</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">        for (int i = 0; i &lt; symbols.size(); i++) {</span>
+<span class="fc" id="L286">            Symbol symbol = symbols.get(i);</span>
+<span class="fc" id="L287">            variableNames[i] = symbol.getName();</span>
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            isConsts[i] = symbol.getDeclType() == Token.CONST;</span>
+<span class="fc" id="L289">            symbol.setIndex(i);</span>
+        }
+<span class="fc" id="L291">    }</span>
+
+    public Object getCompilerData() {
+<span class="fc" id="L294">        return compilerData;</span>
+    }
+
+    public void setCompilerData(Object data) {
+<span class="fc" id="L298">        assertNotNull(data);</span>
+        // Can only call once
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">        if (compilerData != null)</span>
+<span class="nc" id="L301">            throw new IllegalStateException();</span>
+<span class="fc" id="L302">        compilerData = data;</span>
+<span class="fc" id="L303">    }</span>
+
+    public String getNextTempName() {
+<span class="nc" id="L306">        return &quot;$&quot; + tempNumber++;</span>
+    }
+
+    public void setInStrictMode(boolean inStrictMode) {
+<span class="nc" id="L310">        this.inStrictMode = inStrictMode;</span>
+<span class="nc" id="L311">    }</span>
+
+    public boolean isInStrictMode() {
+<span class="fc" id="L314">        return inStrictMode;</span>
+    }
+
+    @Override
+    public void visit(NodeVisitor v) {
+<span class="nc bnc" id="L319" title="All 2 branches missed.">        if (v.visit(this)) {</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">            for (Node kid : this) {</span>
+<span class="nc" id="L321">                ((AstNode)kid).visit(v);</span>
+<span class="nc" id="L322">            }</span>
+        }
+<span class="nc" id="L324">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

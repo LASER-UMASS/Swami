@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeRegExpCtor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript.regexp</a> &gt; <span class="el_source">NativeRegExpCtor.java</span></div><h1>NativeRegExpCtor.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript.regexp;
+
+import org.mozilla.javascript.*;
+
+/**
+ * This class implements the RegExp constructor native object.
+ *
+ * Revision History:
+ * Implementation in C by Brendan Eich
+ * Initial port to Java by Norris Boyd from jsregexp.c version 1.36
+ * Merged up to version 1.38, which included Unicode support.
+ * Merged bug fixes in version 1.39.
+ * Merged JSFUN13_BRANCH changes up to 1.32.2.11
+ *
+ * @author Brendan Eich
+ * @author Norris Boyd
+ */
+class NativeRegExpCtor extends BaseFunction
+{
+    static final long serialVersionUID = -5733330028285400526L;
+
+    NativeRegExpCtor()
+<span class="fc" id="L29">    {</span>
+<span class="fc" id="L30">    }</span>
+
+    @Override
+    public String getFunctionName()
+    {
+<span class="nc" id="L35">        return &quot;RegExp&quot;;</span>
+    }
+
+    @Override
+    public int getLength() {
+<span class="nc" id="L40">        return 2;</span>
+    }
+
+    @Override
+    public int getArity() {
+<span class="nc" id="L45">        return 2;</span>
+    }
+
+    @Override
+    public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+                       Object[] args)
+    {
+<span class="nc bnc" id="L52" title="All 8 branches missed.">        if (args.length &gt; 0 &amp;&amp; args[0] instanceof NativeRegExp &amp;&amp;</span>
+            (args.length == 1 || args[1] == Undefined.instance))
+        {
+<span class="nc" id="L55">            return args[0];</span>
+        }
+<span class="nc" id="L57">        return construct(cx, scope, args);</span>
+    }
+
+    @Override
+    public Scriptable construct(Context cx, Scriptable scope, Object[] args)
+    {
+<span class="nc" id="L63">        NativeRegExp re = new NativeRegExp();</span>
+<span class="nc" id="L64">        re.compile(cx, scope, args);</span>
+<span class="nc" id="L65">        ScriptRuntime.setBuiltinProtoAndParent(re, scope, TopLevel.Builtins.RegExp);</span>
+<span class="nc" id="L66">        return re;</span>
+    }
+
+    private static RegExpImpl getImpl()
+    {
+<span class="nc" id="L71">        Context cx = Context.getCurrentContext();</span>
+<span class="nc" id="L72">        return (RegExpImpl) ScriptRuntime.getRegExpProxy(cx);</span>
+    }
+
+// #string_id_map#
+
+    private static final int
+        Id_multiline     = 1,
+        Id_STAR          = 2,  // #string=$*#
+
+        Id_input         = 3,
+        Id_UNDERSCORE    = 4,  // #string=$_#
+
+        Id_lastMatch     = 5,
+        Id_AMPERSAND     = 6,  // #string=$&amp;#
+
+        Id_lastParen     = 7,
+        Id_PLUS          = 8,  // #string=$+#
+
+        Id_leftContext   = 9,
+        Id_BACK_QUOTE    = 10, // #string=$`#
+
+        Id_rightContext  = 11,
+        Id_QUOTE         = 12, // #string=$'#
+
+        DOLLAR_ID_BASE   = 12;
+
+    private static final int
+        Id_DOLLAR_1 = DOLLAR_ID_BASE + 1, // #string=$1#
+        Id_DOLLAR_2 = DOLLAR_ID_BASE + 2, // #string=$2#
+        Id_DOLLAR_3 = DOLLAR_ID_BASE + 3, // #string=$3#
+        Id_DOLLAR_4 = DOLLAR_ID_BASE + 4, // #string=$4#
+        Id_DOLLAR_5 = DOLLAR_ID_BASE + 5, // #string=$5#
+        Id_DOLLAR_6 = DOLLAR_ID_BASE + 6, // #string=$6#
+        Id_DOLLAR_7 = DOLLAR_ID_BASE + 7, // #string=$7#
+        Id_DOLLAR_8 = DOLLAR_ID_BASE + 8, // #string=$8#
+        Id_DOLLAR_9 = DOLLAR_ID_BASE + 9, // #string=$9#
+
+        MAX_INSTANCE_ID = DOLLAR_ID_BASE + 9;
+
+    @Override
+    protected int getMaxInstanceId()
+    {
+<span class="nc" id="L114">        return super.getMaxInstanceId() + MAX_INSTANCE_ID;</span>
+    }
+
+    @Override
+    protected int findInstanceIdInfo(String s) {
+        int id;
+// #generated# Last update: 2001-05-24 16:09:31 GMT+02:00
+<span class="fc" id="L121">        L0: { id = 0; String X = null; int c;</span>
+<span class="pc bpc" id="L122" title="5 of 6 branches missed.">            L: switch (s.length()) {</span>
+<span class="nc bnc" id="L123" title="All 16 branches missed.">            case 2: switch (s.charAt(1)) {</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                case '&amp;': if (s.charAt(0)=='$') {id=Id_AMPERSAND; break L0;} break L;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                case '\'': if (s.charAt(0)=='$') {id=Id_QUOTE; break L0;} break L;</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                case '*': if (s.charAt(0)=='$') {id=Id_STAR; break L0;} break L;</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                case '+': if (s.charAt(0)=='$') {id=Id_PLUS; break L0;} break L;</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                case '1': if (s.charAt(0)=='$') {id=Id_DOLLAR_1; break L0;} break L;</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">                case '2': if (s.charAt(0)=='$') {id=Id_DOLLAR_2; break L0;} break L;</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                case '3': if (s.charAt(0)=='$') {id=Id_DOLLAR_3; break L0;} break L;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                case '4': if (s.charAt(0)=='$') {id=Id_DOLLAR_4; break L0;} break L;</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                case '5': if (s.charAt(0)=='$') {id=Id_DOLLAR_5; break L0;} break L;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                case '6': if (s.charAt(0)=='$') {id=Id_DOLLAR_6; break L0;} break L;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                case '7': if (s.charAt(0)=='$') {id=Id_DOLLAR_7; break L0;} break L;</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                case '8': if (s.charAt(0)=='$') {id=Id_DOLLAR_8; break L0;} break L;</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                case '9': if (s.charAt(0)=='$') {id=Id_DOLLAR_9; break L0;} break L;</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                case '_': if (s.charAt(0)=='$') {id=Id_UNDERSCORE; break L0;} break L;</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                case '`': if (s.charAt(0)=='$') {id=Id_BACK_QUOTE; break L0;} break L;</span>
+<span class="nc" id="L139">                } break L;</span>
+<span class="nc" id="L140">            case 5: X=&quot;input&quot;;id=Id_input; break L;</span>
+<span class="fc" id="L141">            case 9: c=s.charAt(4);</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">                if (c=='M') { X=&quot;lastMatch&quot;;id=Id_lastMatch; }</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">                else if (c=='P') { X=&quot;lastParen&quot;;id=Id_lastParen; }</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">                else if (c=='i') { X=&quot;multiline&quot;;id=Id_multiline; }</span>
+                break L;
+<span class="nc" id="L146">            case 11: X=&quot;leftContext&quot;;id=Id_leftContext; break L;</span>
+<span class="nc" id="L147">            case 12: X=&quot;rightContext&quot;;id=Id_rightContext; break L;</span>
+            }
+<span class="pc bpc" id="L149" title="5 of 6 branches missed.">            if (X!=null &amp;&amp; X!=s &amp;&amp; !X.equals(s)) id = 0;</span>
+        }
+// #/generated#
+
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">        if (id == 0) return super.findInstanceIdInfo(s);</span>
+
+        int attr;
+<span class="nc bnc" id="L156" title="All 5 branches missed.">        switch (id) {</span>
+          case Id_multiline:
+<span class="nc" id="L158">            attr = multilineAttr;</span>
+<span class="nc" id="L159">            break;</span>
+          case Id_STAR:
+<span class="nc" id="L161">            attr = starAttr;</span>
+<span class="nc" id="L162">            break;</span>
+          case Id_input:
+<span class="nc" id="L164">            attr = inputAttr;</span>
+<span class="nc" id="L165">            break;</span>
+          case Id_UNDERSCORE:
+<span class="nc" id="L167">            attr = underscoreAttr;</span>
+<span class="nc" id="L168">            break;</span>
+          default:
+<span class="nc" id="L170">            attr = PERMANENT | READONLY;</span>
+            break;
+        }
+
+<span class="nc" id="L174">        return instanceIdInfo(attr, super.getMaxInstanceId() + id);</span>
+    }
+
+// #/string_id_map#
+
+    @Override
+    protected String getInstanceIdName(int id)
+    {
+<span class="nc" id="L182">        int shifted = id - super.getMaxInstanceId();</span>
+<span class="nc bnc" id="L183" title="All 4 branches missed.">        if (1 &lt;= shifted &amp;&amp; shifted &lt;= MAX_INSTANCE_ID) {</span>
+<span class="nc bnc" id="L184" title="All 13 branches missed.">            switch (shifted) {</span>
+<span class="nc" id="L185">                case Id_multiline:    return &quot;multiline&quot;;</span>
+<span class="nc" id="L186">                case Id_STAR:         return &quot;$*&quot;;</span>
+
+<span class="nc" id="L188">                case Id_input:        return &quot;input&quot;;</span>
+<span class="nc" id="L189">                case Id_UNDERSCORE:   return &quot;$_&quot;;</span>
+
+<span class="nc" id="L191">                case Id_lastMatch:    return &quot;lastMatch&quot;;</span>
+<span class="nc" id="L192">                case Id_AMPERSAND:    return &quot;$&amp;&quot;;</span>
+
+<span class="nc" id="L194">                case Id_lastParen:    return &quot;lastParen&quot;;</span>
+<span class="nc" id="L195">                case Id_PLUS:         return &quot;$+&quot;;</span>
+
+<span class="nc" id="L197">                case Id_leftContext:  return &quot;leftContext&quot;;</span>
+<span class="nc" id="L198">                case Id_BACK_QUOTE:   return &quot;$`&quot;;</span>
+
+<span class="nc" id="L200">                case Id_rightContext: return &quot;rightContext&quot;;</span>
+<span class="nc" id="L201">                case Id_QUOTE:        return &quot;$'&quot;;</span>
+            }
+            // Must be one of $1..$9, convert to 0..8
+<span class="nc" id="L204">            int substring_number = shifted - DOLLAR_ID_BASE - 1;</span>
+<span class="nc" id="L205">            char[] buf = { '$', (char)('1' + substring_number) };</span>
+<span class="nc" id="L206">            return new String(buf);</span>
+        }
+<span class="nc" id="L208">        return super.getInstanceIdName(id);</span>
+    }
+
+    @Override
+    protected Object getInstanceIdValue(int id)
+    {
+<span class="fc" id="L214">        int shifted = id - super.getMaxInstanceId();</span>
+<span class="pc bpc" id="L215" title="3 of 4 branches missed.">        if (1 &lt;= shifted &amp;&amp; shifted &lt;= MAX_INSTANCE_ID) {</span>
+<span class="nc" id="L216">            RegExpImpl impl = getImpl();</span>
+            Object stringResult;
+<span class="nc bnc" id="L218" title="All 7 branches missed.">            switch (shifted) {</span>
+              case Id_multiline:
+              case Id_STAR:
+<span class="nc" id="L221">                return ScriptRuntime.wrapBoolean(impl.multiline);</span>
+
+              case Id_input:
+              case Id_UNDERSCORE:
+<span class="nc" id="L225">                stringResult = impl.input;</span>
+<span class="nc" id="L226">                break;</span>
+
+              case Id_lastMatch:
+              case Id_AMPERSAND:
+<span class="nc" id="L230">                stringResult = impl.lastMatch;</span>
+<span class="nc" id="L231">                break;</span>
+
+              case Id_lastParen:
+              case Id_PLUS:
+<span class="nc" id="L235">                stringResult = impl.lastParen;</span>
+<span class="nc" id="L236">                break;</span>
+
+              case Id_leftContext:
+              case Id_BACK_QUOTE:
+<span class="nc" id="L240">                stringResult = impl.leftContext;</span>
+<span class="nc" id="L241">                break;</span>
+
+              case Id_rightContext:
+              case Id_QUOTE:
+<span class="nc" id="L245">                stringResult = impl.rightContext;</span>
+<span class="nc" id="L246">                break;</span>
+
+              default:
+                {
+                    // Must be one of $1..$9, convert to 0..8
+<span class="nc" id="L251">                    int substring_number = shifted - DOLLAR_ID_BASE - 1;</span>
+<span class="nc" id="L252">                    stringResult = impl.getParenSubString(substring_number);</span>
+<span class="nc" id="L253">                    break;</span>
+                }
+            }
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            return (stringResult == null) ? &quot;&quot; : stringResult.toString();</span>
+        }
+<span class="fc" id="L258">        return super.getInstanceIdValue(id);</span>
+    }
+
+    @Override
+    protected void setInstanceIdValue(int id, Object value)
+    {
+<span class="nc" id="L264">        int shifted = id - super.getMaxInstanceId();</span>
+<span class="nc bnc" id="L265" title="All 4 branches missed.">        switch (shifted) {</span>
+            case Id_multiline:
+            case Id_STAR:
+<span class="nc" id="L268">                getImpl().multiline = ScriptRuntime.toBoolean(value);</span>
+<span class="nc" id="L269">                return;</span>
+
+            case Id_input:
+            case Id_UNDERSCORE:
+<span class="nc" id="L273">                getImpl().input = ScriptRuntime.toString(value);</span>
+<span class="nc" id="L274">                return;</span>
+
+            case Id_lastMatch:
+            case Id_AMPERSAND:
+            case Id_lastParen:
+            case Id_PLUS:
+            case Id_leftContext:
+            case Id_BACK_QUOTE:
+            case Id_rightContext:
+            case Id_QUOTE:
+<span class="nc" id="L284">                return;</span>
+            default:
+<span class="nc" id="L286">                int substring_number = shifted - DOLLAR_ID_BASE - 1;</span>
+<span class="nc bnc" id="L287" title="All 4 branches missed.">                if (0 &lt;= substring_number &amp;&amp; substring_number &lt;= 8) {</span>
+<span class="nc" id="L288">                  return;</span>
+                }
+        }
+<span class="nc" id="L291">        super.setInstanceIdValue(id, value);</span>
+<span class="nc" id="L292">    }</span>
+
+    @Override
+    protected void setInstanceIdAttributes(int id, int attr) {
+<span class="nc" id="L296">        int shifted = id - super.getMaxInstanceId();</span>
+<span class="nc bnc" id="L297" title="All 6 branches missed.">        switch (shifted) {</span>
+            case Id_multiline:
+<span class="nc" id="L299">                multilineAttr = attr;</span>
+<span class="nc" id="L300">                return;</span>
+            case Id_STAR:
+<span class="nc" id="L302">                starAttr = attr;</span>
+<span class="nc" id="L303">                return;</span>
+            case Id_input:
+<span class="nc" id="L305">                inputAttr = attr;</span>
+<span class="nc" id="L306">                return;</span>
+            case Id_UNDERSCORE:
+<span class="nc" id="L308">                underscoreAttr = attr;</span>
+<span class="nc" id="L309">                return;</span>
+
+            case Id_lastMatch:
+            case Id_AMPERSAND:
+            case Id_lastParen:
+            case Id_PLUS:
+            case Id_leftContext:
+            case Id_BACK_QUOTE:
+            case Id_rightContext:
+            case Id_QUOTE:
+                // non-configurable + non-writable
+<span class="nc" id="L320">                return;</span>
+            default:
+<span class="nc" id="L322">                int substring_number = shifted - DOLLAR_ID_BASE - 1;</span>
+<span class="nc bnc" id="L323" title="All 4 branches missed.">                if (0 &lt;= substring_number &amp;&amp; substring_number &lt;= 8) {</span>
+                  // non-configurable + non-writable
+<span class="nc" id="L325">                  return;</span>
+                }
+        }
+<span class="nc" id="L328">        super.setInstanceIdAttributes(id, attr);</span>
+<span class="nc" id="L329">    }</span>
+
+<span class="fc" id="L331">    private int multilineAttr = PERMANENT;</span>
+<span class="fc" id="L332">    private int starAttr = PERMANENT;</span>
+<span class="fc" id="L333">    private int inputAttr = PERMANENT;</span>
+<span class="fc" id="L334">    private int underscoreAttr = PERMANENT;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

@@ -1,0 +1,1293 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Node.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">Node.java</span></div><h1>Node.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+import org.mozilla.javascript.ast.Comment;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.Jump;
+import org.mozilla.javascript.ast.Name;
+import org.mozilla.javascript.ast.NumberLiteral;
+import org.mozilla.javascript.ast.Scope;
+import org.mozilla.javascript.ast.ScriptNode;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+/**
+ * This class implements the root of the intermediate representation.
+ *
+ * @author Norris Boyd
+ * @author Mike McCabe
+ */
+public class Node implements Iterable&lt;Node&gt;
+{
+    public static final int
+        FUNCTION_PROP      =  1,
+        LOCAL_PROP         =  2,
+        LOCAL_BLOCK_PROP   =  3,
+        REGEXP_PROP        =  4,
+        CASEARRAY_PROP     =  5,
+
+    //  the following properties are defined and manipulated by the
+    //  optimizer -
+    //  TARGETBLOCK_PROP - the block referenced by a branch node
+    //  VARIABLE_PROP - the variable referenced by a BIND or NAME node
+    //  ISNUMBER_PROP - this node generates code on Number children and
+    //                  delivers a Number result (as opposed to Objects)
+    //  DIRECTCALL_PROP - this call node should emit code to test the function
+    //                    object against the known class and call direct if it
+    //                    matches.
+
+        TARGETBLOCK_PROP     =  6,
+        VARIABLE_PROP        =  7,
+        ISNUMBER_PROP        =  8,
+        DIRECTCALL_PROP      =  9,
+        SPECIALCALL_PROP     = 10,
+        SKIP_INDEXES_PROP    = 11, // array of skipped indexes of array literal
+        OBJECT_IDS_PROP      = 12, // array of properties for object literal
+        INCRDECR_PROP        = 13, // pre or post type of increment/decrement
+        CATCH_SCOPE_PROP     = 14, // index of catch scope block in catch
+        LABEL_ID_PROP        = 15, // label id: code generation uses it
+        MEMBER_TYPE_PROP     = 16, // type of element access operation
+        NAME_PROP            = 17, // property name
+        CONTROL_BLOCK_PROP   = 18, // flags a control block that can drop off
+        PARENTHESIZED_PROP   = 19, // expression is parenthesized
+        GENERATOR_END_PROP   = 20,
+        DESTRUCTURING_ARRAY_LENGTH = 21,
+        DESTRUCTURING_NAMES  = 22,
+        DESTRUCTURING_PARAMS = 23,
+        JSDOC_PROP           = 24,
+        EXPRESSION_CLOSURE_PROP = 25, // JS 1.8 expression closure pseudo-return
+        DESTRUCTURING_SHORTHAND = 26, // JS 1.8 destructuring shorthand
+        ARROW_FUNCTION_PROP  = 27,
+        LAST_PROP            = 27;
+
+    // values of ISNUMBER_PROP to specify
+    // which of the children are Number types
+    public static final int
+        BOTH = 0,
+        LEFT = 1,
+        RIGHT = 2;
+
+    public static final int    // values for SPECIALCALL_PROP
+        NON_SPECIALCALL  = 0,
+        SPECIALCALL_EVAL = 1,
+        SPECIALCALL_WITH = 2;
+
+    public static final int   // flags for INCRDECR_PROP
+        DECR_FLAG = 0x1,
+        POST_FLAG = 0x2;
+
+    public static final int   // flags for MEMBER_TYPE_PROP
+        PROPERTY_FLAG    = 0x1, // property access: element is valid name
+        ATTRIBUTE_FLAG   = 0x2, // x.@y or x..@y
+        DESCENDANTS_FLAG = 0x4; // x..y or x..@i
+
+<span class="fc" id="L90">    private static class PropListItem</span>
+    {
+        PropListItem next;
+        int type;
+        int intValue;
+        Object objectValue;
+    }
+
+<span class="fc" id="L98">    public Node(int nodeType) {</span>
+<span class="fc" id="L99">        type = nodeType;</span>
+<span class="fc" id="L100">    }</span>
+
+<span class="fc" id="L102">    public Node(int nodeType, Node child) {</span>
+<span class="fc" id="L103">        type = nodeType;</span>
+<span class="fc" id="L104">        first = last = child;</span>
+<span class="fc" id="L105">        child.next = null;</span>
+<span class="fc" id="L106">    }</span>
+
+<span class="fc" id="L108">    public Node(int nodeType, Node left, Node right) {</span>
+<span class="fc" id="L109">        type = nodeType;</span>
+<span class="fc" id="L110">        first = left;</span>
+<span class="fc" id="L111">        last = right;</span>
+<span class="fc" id="L112">        left.next = right;</span>
+<span class="fc" id="L113">        right.next = null;</span>
+<span class="fc" id="L114">    }</span>
+
+<span class="fc" id="L116">    public Node(int nodeType, Node left, Node mid, Node right) {</span>
+<span class="fc" id="L117">        type = nodeType;</span>
+<span class="fc" id="L118">        first = left;</span>
+<span class="fc" id="L119">        last = right;</span>
+<span class="fc" id="L120">        left.next = mid;</span>
+<span class="fc" id="L121">        mid.next = right;</span>
+<span class="fc" id="L122">        right.next = null;</span>
+<span class="fc" id="L123">    }</span>
+
+<span class="fc" id="L125">    public Node(int nodeType, int line) {</span>
+<span class="fc" id="L126">        type = nodeType;</span>
+<span class="fc" id="L127">        lineno = line;</span>
+<span class="fc" id="L128">    }</span>
+
+    public Node(int nodeType, Node child, int line) {
+<span class="fc" id="L131">        this(nodeType, child);</span>
+<span class="fc" id="L132">        lineno = line;</span>
+<span class="fc" id="L133">    }</span>
+
+    public Node(int nodeType, Node left, Node right, int line) {
+<span class="nc" id="L136">        this(nodeType, left, right);</span>
+<span class="nc" id="L137">        lineno = line;</span>
+<span class="nc" id="L138">    }</span>
+
+    public Node(int nodeType, Node left, Node mid, Node right, int line) {
+<span class="fc" id="L141">        this(nodeType, left, mid, right);</span>
+<span class="fc" id="L142">        lineno = line;</span>
+<span class="fc" id="L143">    }</span>
+
+    public static Node newNumber(double number) {
+<span class="nc" id="L146">        NumberLiteral n = new NumberLiteral();</span>
+<span class="nc" id="L147">        n.setNumber(number);</span>
+<span class="nc" id="L148">        return n;</span>
+    }
+
+    public static Node newString(String str) {
+<span class="fc" id="L152">        return newString(Token.STRING, str);</span>
+    }
+
+    public static Node newString(int type, String str) {
+<span class="fc" id="L156">        Name name = new Name();</span>
+<span class="fc" id="L157">        name.setIdentifier(str);</span>
+<span class="fc" id="L158">        name.setType(type);</span>
+<span class="fc" id="L159">        return name;</span>
+    }
+
+    public int getType() {
+<span class="fc" id="L163">        return type;</span>
+    }
+
+    /**
+     * Sets the node type and returns this node.
+     */
+    public Node setType(int type) {
+<span class="fc" id="L170">        this.type = type;</span>
+<span class="fc" id="L171">        return this;</span>
+    }
+
+    /**
+     * Gets the JsDoc comment string attached to this node.
+     * @return the comment string or {@code null} if no JsDoc is attached to
+     *     this node
+     */
+    public String getJsDoc() {
+<span class="nc" id="L180">        Comment comment = getJsDocNode();</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (comment != null) {</span>
+<span class="nc" id="L182">          return comment.getValue();</span>
+        }
+<span class="nc" id="L184">        return null;</span>
+    }
+
+    /**
+     * Gets the JsDoc Comment object attached to this node.
+     * @return the Comment or {@code null} if no JsDoc is attached to
+     *     this node
+     */
+    public Comment getJsDocNode() {
+<span class="nc" id="L193">        return (Comment) getProp(JSDOC_PROP);</span>
+    }
+
+    /**
+     * Sets the JsDoc comment string attached to this node.
+     */
+    public void setJsDocNode(Comment jsdocNode) {
+<span class="fc" id="L200">        putProp(JSDOC_PROP, jsdocNode);</span>
+<span class="fc" id="L201">    }</span>
+
+    public boolean hasChildren() {
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        return first != null;</span>
+    }
+
+    public Node getFirstChild() {
+<span class="fc" id="L208">        return first;</span>
+    }
+
+    public Node getLastChild() {
+<span class="fc" id="L212">        return last;</span>
+    }
+
+    public Node getNext() {
+<span class="fc" id="L216">        return next;</span>
+    }
+
+    public Node getChildBefore(Node child) {
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (child == first)</span>
+<span class="fc" id="L221">            return null;</span>
+<span class="nc" id="L222">        Node n = first;</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        while (n.next != child) {</span>
+<span class="nc" id="L224">            n = n.next;</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">            if (n == null)</span>
+<span class="nc" id="L226">                throw new RuntimeException(&quot;node is not a child&quot;);</span>
+        }
+<span class="nc" id="L228">        return n;</span>
+    }
+
+    public Node getLastSibling() {
+<span class="fc" id="L232">        Node n = this;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        while (n.next != null) {</span>
+<span class="fc" id="L234">            n = n.next;</span>
+        }
+<span class="fc" id="L236">        return n;</span>
+    }
+
+    public void addChildToFront(Node child) {
+<span class="fc" id="L240">        child.next = first;</span>
+<span class="fc" id="L241">        first = child;</span>
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        if (last == null) {</span>
+<span class="nc" id="L243">            last = child;</span>
+        }
+<span class="fc" id="L245">    }</span>
+
+    public void addChildToBack(Node child) {
+<span class="fc" id="L248">        child.next = null;</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">        if (last == null) {</span>
+<span class="fc" id="L250">            first = last = child;</span>
+<span class="fc" id="L251">            return;</span>
+        }
+<span class="fc" id="L253">        last.next = child;</span>
+<span class="fc" id="L254">        last = child;</span>
+<span class="fc" id="L255">    }</span>
+
+    public void addChildrenToFront(Node children) {
+<span class="nc" id="L258">        Node lastSib = children.getLastSibling();</span>
+<span class="nc" id="L259">        lastSib.next = first;</span>
+<span class="nc" id="L260">        first = children;</span>
+<span class="nc bnc" id="L261" title="All 2 branches missed.">        if (last == null) {</span>
+<span class="nc" id="L262">            last = lastSib;</span>
+        }
+<span class="nc" id="L264">    }</span>
+
+    public void addChildrenToBack(Node children) {
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        if (last != null) {</span>
+<span class="fc" id="L268">            last.next = children;</span>
+        }
+<span class="fc" id="L270">        last = children.getLastSibling();</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        if (first == null) {</span>
+<span class="fc" id="L272">            first = children;</span>
+        }
+<span class="fc" id="L274">    }</span>
+
+    /**
+     * Add 'child' before 'node'.
+     */
+    public void addChildBefore(Node newChild, Node node) {
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (newChild.next != null)</span>
+<span class="nc" id="L281">            throw new RuntimeException(</span>
+                      &quot;newChild had siblings in addChildBefore&quot;);
+<span class="nc bnc" id="L283" title="All 2 branches missed.">        if (first == node) {</span>
+<span class="nc" id="L284">            newChild.next = first;</span>
+<span class="nc" id="L285">            first = newChild;</span>
+<span class="nc" id="L286">            return;</span>
+        }
+<span class="nc" id="L288">        Node prev = getChildBefore(node);</span>
+<span class="nc" id="L289">        addChildAfter(newChild, prev);</span>
+<span class="nc" id="L290">    }</span>
+
+    /**
+     * Add 'child' after 'node'.
+     */
+    public void addChildAfter(Node newChild, Node node) {
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        if (newChild.next != null)</span>
+<span class="nc" id="L297">            throw new RuntimeException(</span>
+                      &quot;newChild had siblings in addChildAfter&quot;);
+<span class="fc" id="L299">        newChild.next = node.next;</span>
+<span class="fc" id="L300">        node.next = newChild;</span>
+<span class="pc bpc" id="L301" title="1 of 2 branches missed.">        if (last == node)</span>
+<span class="nc" id="L302">            last = newChild;</span>
+<span class="fc" id="L303">    }</span>
+
+    public void removeChild(Node child) {
+<span class="fc" id="L306">        Node prev = getChildBefore(child);</span>
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">        if (prev == null)</span>
+<span class="fc" id="L308">            first = first.next;</span>
+        else
+<span class="nc" id="L310">            prev.next = child.next;</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        if (child == last) last = prev;</span>
+<span class="fc" id="L312">        child.next = null;</span>
+<span class="fc" id="L313">    }</span>
+
+    public void replaceChild(Node child, Node newChild) {
+<span class="fc" id="L316">        newChild.next = child.next;</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        if (child == first) {</span>
+<span class="fc" id="L318">            first = newChild;</span>
+        } else {
+<span class="nc" id="L320">            Node prev = getChildBefore(child);</span>
+<span class="nc" id="L321">            prev.next = newChild;</span>
+        }
+<span class="fc bfc" id="L323" title="All 2 branches covered.">        if (child == last)</span>
+<span class="fc" id="L324">            last = newChild;</span>
+<span class="fc" id="L325">        child.next = null;</span>
+<span class="fc" id="L326">    }</span>
+
+    public void replaceChildAfter(Node prevChild, Node newChild) {
+<span class="fc" id="L329">        Node child = prevChild.next;</span>
+<span class="fc" id="L330">        newChild.next = child.next;</span>
+<span class="fc" id="L331">        prevChild.next = newChild;</span>
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">        if (child == last)</span>
+<span class="nc" id="L333">            last = newChild;</span>
+<span class="fc" id="L334">        child.next = null;</span>
+<span class="fc" id="L335">    }</span>
+
+    public void removeChildren() {
+<span class="fc" id="L338">        first = last = null;</span>
+<span class="fc" id="L339">    }</span>
+
+<span class="fc" id="L341">    private static final Node NOT_SET = new Node(Token.ERROR);</span>
+
+    /**
+     * Iterates over the children of this Node.  Supports child removal.  Not
+     * thread-safe.  If anyone changes the child list before the iterator
+     * finishes, the results are undefined and probably bad.
+     */
+    public class NodeIterator implements Iterator&lt;Node&gt; {
+        private Node cursor;  // points to node to be returned next
+<span class="fc" id="L350">        private Node prev = NOT_SET;</span>
+        private Node prev2;
+<span class="fc" id="L352">        private boolean removed = false;</span>
+
+<span class="fc" id="L354">        public NodeIterator() {</span>
+<span class="fc" id="L355">            cursor = Node.this.first;</span>
+<span class="fc" id="L356">        }</span>
+
+        public boolean hasNext() {
+<span class="fc bfc" id="L359" title="All 2 branches covered.">            return cursor != null;</span>
+        }
+
+        public Node next() {
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">            if (cursor == null) {</span>
+<span class="nc" id="L364">                throw new NoSuchElementException();</span>
+            }
+<span class="fc" id="L366">            removed = false;</span>
+<span class="fc" id="L367">            prev2 = prev;</span>
+<span class="fc" id="L368">            prev = cursor;</span>
+<span class="fc" id="L369">            cursor = cursor.next;</span>
+<span class="fc" id="L370">            return prev;</span>
+        }
+
+        public void remove() {
+<span class="nc bnc" id="L374" title="All 2 branches missed.">            if (prev == NOT_SET) {</span>
+<span class="nc" id="L375">                throw new IllegalStateException(&quot;next() has not been called&quot;);</span>
+            }
+<span class="nc bnc" id="L377" title="All 2 branches missed.">            if (removed) {</span>
+<span class="nc" id="L378">                throw new IllegalStateException(</span>
+                    &quot;remove() already called for current element&quot;);
+            }
+<span class="nc bnc" id="L381" title="All 2 branches missed.">            if (prev == first) {</span>
+<span class="nc" id="L382">                first = prev.next;</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">            } else if (prev == last) {</span>
+<span class="nc" id="L384">                prev2.next = null;</span>
+<span class="nc" id="L385">                last = prev2;</span>
+            } else {
+<span class="nc" id="L387">                prev2.next = cursor;</span>
+            }
+<span class="nc" id="L389">        }</span>
+    }
+
+    /**
+     * Returns an {@link java.util.Iterator} over the node's children.
+     */
+    public Iterator&lt;Node&gt; iterator() {
+<span class="fc" id="L396">        return new NodeIterator();</span>
+    }
+
+    private static final String propToString(int propType)
+    {
+        if (Token.printTrees) {
+            // If Context.printTrees is false, the compiler
+            // can remove all these strings.
+            switch (propType) {
+                case FUNCTION_PROP:        return &quot;function&quot;;
+                case LOCAL_PROP:           return &quot;local&quot;;
+                case LOCAL_BLOCK_PROP:     return &quot;local_block&quot;;
+                case REGEXP_PROP:          return &quot;regexp&quot;;
+                case CASEARRAY_PROP:       return &quot;casearray&quot;;
+
+                case TARGETBLOCK_PROP:     return &quot;targetblock&quot;;
+                case VARIABLE_PROP:        return &quot;variable&quot;;
+                case ISNUMBER_PROP:        return &quot;isnumber&quot;;
+                case DIRECTCALL_PROP:      return &quot;directcall&quot;;
+
+                case SPECIALCALL_PROP:     return &quot;specialcall&quot;;
+                case SKIP_INDEXES_PROP:    return &quot;skip_indexes&quot;;
+                case OBJECT_IDS_PROP:      return &quot;object_ids_prop&quot;;
+                case INCRDECR_PROP:        return &quot;incrdecr_prop&quot;;
+                case CATCH_SCOPE_PROP:     return &quot;catch_scope_prop&quot;;
+                case LABEL_ID_PROP:        return &quot;label_id_prop&quot;;
+                case MEMBER_TYPE_PROP:     return &quot;member_type_prop&quot;;
+                case NAME_PROP:            return &quot;name_prop&quot;;
+                case CONTROL_BLOCK_PROP:   return &quot;control_block_prop&quot;;
+                case PARENTHESIZED_PROP:   return &quot;parenthesized_prop&quot;;
+                case GENERATOR_END_PROP:   return &quot;generator_end&quot;;
+                case DESTRUCTURING_ARRAY_LENGTH:
+                                           return &quot;destructuring_array_length&quot;;
+                case DESTRUCTURING_NAMES:  return &quot;destructuring_names&quot;;
+                case DESTRUCTURING_PARAMS: return &quot;destructuring_params&quot;;
+
+                default: Kit.codeBug();
+            }
+        }
+<span class="nc" id="L435">        return null;</span>
+    }
+
+    private PropListItem lookupProperty(int propType)
+    {
+<span class="fc" id="L440">        PropListItem x = propListHead;</span>
+<span class="fc bfc" id="L441" title="All 4 branches covered.">        while (x != null &amp;&amp; propType != x.type) {</span>
+<span class="fc" id="L442">            x = x.next;</span>
+        }
+<span class="fc" id="L444">        return x;</span>
+    }
+
+    private PropListItem ensureProperty(int propType)
+    {
+<span class="fc" id="L449">        PropListItem item = lookupProperty(propType);</span>
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">        if (item == null) {</span>
+<span class="fc" id="L451">            item = new PropListItem();</span>
+<span class="fc" id="L452">            item.type = propType;</span>
+<span class="fc" id="L453">            item.next = propListHead;</span>
+<span class="fc" id="L454">            propListHead = item;</span>
+        }
+<span class="fc" id="L456">        return item;</span>
+    }
+
+    public void removeProp(int propType)
+    {
+<span class="fc" id="L461">        PropListItem x = propListHead;</span>
+<span class="fc bfc" id="L462" title="All 2 branches covered.">        if (x != null) {</span>
+<span class="fc" id="L463">            PropListItem prev = null;</span>
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">            while (x.type != propType) {</span>
+<span class="nc" id="L465">                prev = x;</span>
+<span class="nc" id="L466">                x = x.next;</span>
+<span class="nc bnc" id="L467" title="All 2 branches missed.">                if (x == null) { return; }</span>
+            }
+<span class="pc bpc" id="L469" title="1 of 2 branches missed.">            if (prev == null) {</span>
+<span class="fc" id="L470">                propListHead = x.next;</span>
+            } else {
+<span class="nc" id="L472">                prev.next = x.next;</span>
+            }
+        }
+<span class="fc" id="L475">    }</span>
+
+    public Object getProp(int propType)
+    {
+<span class="fc" id="L479">        PropListItem item = lookupProperty(propType);</span>
+<span class="fc bfc" id="L480" title="All 2 branches covered.">        if (item == null) { return null; }</span>
+<span class="fc" id="L481">        return item.objectValue;</span>
+    }
+
+    public int getIntProp(int propType, int defaultValue)
+    {
+<span class="fc" id="L486">        PropListItem item = lookupProperty(propType);</span>
+<span class="fc bfc" id="L487" title="All 2 branches covered.">        if (item == null) { return defaultValue; }</span>
+<span class="fc" id="L488">        return item.intValue;</span>
+    }
+
+    public int getExistingIntProp(int propType)
+    {
+<span class="fc" id="L493">        PropListItem item = lookupProperty(propType);</span>
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">        if (item == null) { Kit.codeBug(); }</span>
+<span class="fc" id="L495">        return item.intValue;</span>
+    }
+
+    public void putProp(int propType, Object prop)
+    {
+<span class="fc bfc" id="L500" title="All 2 branches covered.">        if (prop == null) {</span>
+<span class="fc" id="L501">            removeProp(propType);</span>
+        } else {
+<span class="fc" id="L503">            PropListItem item = ensureProperty(propType);</span>
+<span class="fc" id="L504">            item.objectValue = prop;</span>
+        }
+<span class="fc" id="L506">    }</span>
+
+    public void putIntProp(int propType, int prop)
+    {
+<span class="fc" id="L510">        PropListItem item = ensureProperty(propType);</span>
+<span class="fc" id="L511">        item.intValue = prop;</span>
+<span class="fc" id="L512">    }</span>
+
+    /**
+     * Return the line number recorded for this node.
+     * @return the line number
+     */
+    public int getLineno() {
+<span class="fc" id="L519">        return lineno;</span>
+    }
+
+    public void setLineno(int lineno) {
+<span class="fc" id="L523">        this.lineno = lineno;</span>
+<span class="fc" id="L524">    }</span>
+
+    /** Can only be called when &lt;tt&gt;getType() == Token.NUMBER&lt;/tt&gt; */
+    public final double getDouble() {
+<span class="fc" id="L528">        return ((NumberLiteral)this).getNumber();</span>
+    }
+
+    public final void setDouble(double number) {
+<span class="fc" id="L532">        ((NumberLiteral)this).setNumber(number);</span>
+<span class="fc" id="L533">    }</span>
+
+    /** Can only be called when node has String context. */
+    public final String getString() {
+<span class="fc" id="L537">        return ((Name)this).getIdentifier();</span>
+    }
+
+    /** Can only be called when node has String context. */
+    public final void setString(String s) {
+<span class="nc bnc" id="L542" title="All 2 branches missed.">        if (s == null) Kit.codeBug();</span>
+<span class="nc" id="L543">        ((Name)this).setIdentifier(s);</span>
+<span class="nc" id="L544">    }</span>
+
+    /** Can only be called when node has String context. */
+    public Scope getScope() {
+<span class="nc" id="L548">        return ((Name)this).getScope();</span>
+    }
+
+    /** Can only be called when node has String context. */
+    public void setScope(Scope s) {
+<span class="nc bnc" id="L553" title="All 2 branches missed.">        if (s == null) Kit.codeBug();</span>
+<span class="nc bnc" id="L554" title="All 2 branches missed.">        if (!(this instanceof Name)) {</span>
+<span class="nc" id="L555">            throw Kit.codeBug();</span>
+        }
+<span class="nc" id="L557">        ((Name)this).setScope(s);</span>
+<span class="nc" id="L558">    }</span>
+
+    public static Node newTarget()
+    {
+<span class="fc" id="L562">        return new Node(Token.TARGET);</span>
+    }
+
+    public final int labelId()
+    {
+<span class="pc bpc" id="L567" title="3 of 4 branches missed.">        if (type != Token.TARGET &amp;&amp; type != Token.YIELD) Kit.codeBug();</span>
+<span class="fc" id="L568">        return getIntProp(LABEL_ID_PROP, -1);</span>
+    }
+
+    public void labelId(int labelId)
+    {
+<span class="pc bpc" id="L573" title="3 of 4 branches missed.">        if (type != Token.TARGET  &amp;&amp; type != Token.YIELD) Kit.codeBug();</span>
+<span class="fc" id="L574">        putIntProp(LABEL_ID_PROP, labelId);</span>
+<span class="fc" id="L575">    }</span>
+
+
+    /**
+     * Does consistent-return analysis on the function body when strict mode is
+     * enabled.
+     *
+     *   function (x) { return (x+1) }
+     * is ok, but
+     *   function (x) { if (x &amp;lt; 0) return (x+1); }
+     * is not becuase the function can potentially return a value when the
+     * condition is satisfied and if not, the function does not explicitly
+     * return value.
+     *
+     * This extends to checking mismatches such as &quot;return&quot; and &quot;return &lt;value&gt;&quot;
+     * used in the same function. Warnings are not emitted if inconsistent
+     * returns exist in code that can be statically shown to be unreachable.
+     * Ex.
+     * &lt;pre&gt;function (x) { while (true) { ... if (..) { return value } ... } }
+     * &lt;/pre&gt;
+     * emits no warning. However if the loop had a break statement, then a
+     * warning would be emitted.
+     *
+     * The consistency analysis looks at control structures such as loops, ifs,
+     * switch, try-catch-finally blocks, examines the reachable code paths and
+     * warns the user about an inconsistent set of termination possibilities.
+     *
+     * Caveat: Since the parser flattens many control structures into almost
+     * straight-line code with gotos, it makes such analysis hard. Hence this
+     * analyser is written to taken advantage of patterns of code generated by
+     * the parser (for loops, try blocks and such) and does not do a full
+     * control flow analysis of the gotos and break/continue statements.
+     * Future changes to the parser will affect this analysis.
+     */
+
+    /**
+     * These flags enumerate the possible ways a statement/function can
+     * terminate. These flags are used by endCheck() and by the Parser to
+     * detect inconsistent return usage.
+     *
+     * END_UNREACHED is reserved for code paths that are assumed to always be
+     * able to execute (example: throw, continue)
+     *
+     * END_DROPS_OFF indicates if the statement can transfer control to the
+     * next one. Statement such as return dont. A compound statement may have
+     * some branch that drops off control to the next statement.
+     *
+     * END_RETURNS indicates that the statement can return (without arguments)
+     * END_RETURNS_VALUE indicates that the statement can return a value.
+     *
+     * A compound statement such as
+     * if (condition) {
+     *   return value;
+     * }
+     * Will be detected as (END_DROPS_OFF | END_RETURN_VALUE) by endCheck()
+     */
+    public static final int END_UNREACHED = 0;
+    public static final int END_DROPS_OFF = 1;
+    public static final int END_RETURNS = 2;
+    public static final int END_RETURNS_VALUE = 4;
+    public static final int END_YIELDS = 8;
+
+    /**
+     * Checks that every return usage in a function body is consistent with the
+     * requirements of strict-mode.
+     * @return true if the function satisfies strict mode requirement.
+     */
+    public boolean hasConsistentReturnUsage()
+    {
+<span class="nc" id="L644">        int n = endCheck();</span>
+<span class="nc bnc" id="L645" title="All 4 branches missed.">        return (n &amp; END_RETURNS_VALUE) == 0 ||</span>
+               (n &amp; (END_DROPS_OFF|END_RETURNS|END_YIELDS)) == 0;
+    }
+
+    /**
+     * Returns in the then and else blocks must be consistent with each other.
+     * If there is no else block, then the return statement can fall through.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckIf()
+    {
+        Node th, el;
+<span class="nc" id="L657">        int rv = END_UNREACHED;</span>
+
+<span class="nc" id="L659">        th = next;</span>
+<span class="nc" id="L660">        el = ((Jump)this).target;</span>
+
+<span class="nc" id="L662">        rv = th.endCheck();</span>
+
+<span class="nc bnc" id="L664" title="All 2 branches missed.">        if (el != null)</span>
+<span class="nc" id="L665">            rv |= el.endCheck();</span>
+        else
+<span class="nc" id="L667">            rv |= END_DROPS_OFF;</span>
+
+<span class="nc" id="L669">        return rv;</span>
+    }
+
+    /**
+     * Consistency of return statements is checked between the case statements.
+     * If there is no default, then the switch can fall through. If there is a
+     * default,we check to see if all code paths in the default return or if
+     * there is a code path that can fall through.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckSwitch()
+    {
+<span class="nc" id="L681">        int rv = END_UNREACHED;</span>
+
+        // examine the cases
+//         for (n = first.next; n != null; n = n.next)
+//         {
+//             if (n.type == Token.CASE) {
+//                 rv |= ((Jump)n).target.endCheck();
+//             } else
+//                 break;
+//         }
+
+//         // we don't care how the cases drop into each other
+//         rv &amp;= ~END_DROPS_OFF;
+
+//         // examine the default
+//         n = ((Jump)this).getDefault();
+//         if (n != null)
+//             rv |= n.endCheck();
+//         else
+//             rv |= END_DROPS_OFF;
+
+//         // remove the switch block
+//         rv |= getIntProp(CONTROL_BLOCK_PROP, END_UNREACHED);
+
+<span class="nc" id="L705">        return rv;</span>
+    }
+
+    /**
+     * If the block has a finally, return consistency is checked in the
+     * finally block. If all code paths in the finally returns, then the
+     * returns in the try-catch blocks don't matter. If there is a code path
+     * that does not return or if there is no finally block, the returns
+     * of the try and catch blocks are checked for mismatch.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckTry()
+    {
+<span class="nc" id="L718">        int rv = END_UNREACHED;</span>
+
+        // a TryStatement isn't a jump - needs rewriting
+
+        // check the finally if it exists
+//         n = ((Jump)this).getFinally();
+//         if(n != null) {
+//             rv = n.next.first.endCheck();
+//         } else {
+//             rv = END_DROPS_OFF;
+//         }
+
+//         // if the finally block always returns, then none of the returns
+//         // in the try or catch blocks matter
+//         if ((rv &amp; END_DROPS_OFF) != 0) {
+//             rv &amp;= ~END_DROPS_OFF;
+
+//             // examine the try block
+//             rv |= first.endCheck();
+
+//             // check each catch block
+//             n = ((Jump)this).target;
+//             if (n != null)
+//             {
+//                 // point to the first catch_scope
+//                 for (n = n.next.first; n != null; n = n.next.next)
+//                 {
+//                     // check the block of user code in the catch_scope
+//                     rv |= n.next.first.next.first.endCheck();
+//                 }
+//             }
+//         }
+
+<span class="nc" id="L751">        return rv;</span>
+    }
+
+    /**
+     * Return statement in the loop body must be consistent. The default
+     * assumption for any kind of a loop is that it will eventually terminate.
+     * The only exception is a loop with a constant true condition. Code that
+     * follows such a loop is examined only if one can statically determine
+     * that there is a break out of the loop.
+     * &lt;pre&gt;
+     *  for(&amp;lt;&amp;gt; ; &amp;lt;&amp;gt;; &amp;lt;&amp;gt;) {}
+     *  for(&amp;lt;&amp;gt; in &amp;lt;&amp;gt; ) {}
+     *  while(&amp;lt;&amp;gt;) { }
+     *  do { } while(&amp;lt;&amp;gt;)
+     * &lt;/pre&gt;
+     * @return logical OR of END_* flags
+     */
+    private int endCheckLoop()
+    {
+        Node n;
+<span class="nc" id="L771">        int rv = END_UNREACHED;</span>
+
+        // To find the loop body, we look at the second to last node of the
+        // loop node, which should be the predicate that the loop should
+        // satisfy.
+        // The target of the predicate is the loop-body for all 4 kinds of
+        // loops.
+<span class="nc bnc" id="L778" title="All 2 branches missed.">        for (n = first; n.next != last; n = n.next) {</span>
+            /* skip */
+        }
+<span class="nc bnc" id="L781" title="All 2 branches missed.">        if (n.type != Token.IFEQ)</span>
+<span class="nc" id="L782">            return END_DROPS_OFF;</span>
+
+        // The target's next is the loop body block
+<span class="nc" id="L785">        rv = ((Jump)n).target.next.endCheck();</span>
+
+        // check to see if the loop condition is true
+<span class="nc bnc" id="L788" title="All 2 branches missed.">        if (n.first.type == Token.TRUE)</span>
+<span class="nc" id="L789">            rv &amp;= ~END_DROPS_OFF;</span>
+
+        // look for effect of breaks
+<span class="nc" id="L792">        rv |= getIntProp(CONTROL_BLOCK_PROP, END_UNREACHED);</span>
+
+<span class="nc" id="L794">        return rv;</span>
+    }
+
+    /**
+     * A general block of code is examined statement by statement. If any
+     * statement (even compound ones) returns in all branches, then subsequent
+     * statements are not examined.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckBlock()
+    {
+        Node n;
+<span class="nc" id="L806">        int rv = END_DROPS_OFF;</span>
+
+        // check each statment and if the statement can continue onto the next
+        // one, then check the next statement
+<span class="nc bnc" id="L810" title="All 4 branches missed.">        for (n=first; ((rv &amp; END_DROPS_OFF) != 0) &amp;&amp; n != null; n = n.next)</span>
+        {
+<span class="nc" id="L812">            rv &amp;= ~END_DROPS_OFF;</span>
+<span class="nc" id="L813">            rv |= n.endCheck();</span>
+        }
+<span class="nc" id="L815">        return rv;</span>
+    }
+
+    /**
+     * A labelled statement implies that there maybe a break to the label. The
+     * function processes the labelled statement and then checks the
+     * CONTROL_BLOCK_PROP property to see if there is ever a break to the
+     * particular label.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckLabel()
+    {
+<span class="nc" id="L827">        int rv = END_UNREACHED;</span>
+
+<span class="nc" id="L829">        rv = next.endCheck();</span>
+<span class="nc" id="L830">        rv |= getIntProp(CONTROL_BLOCK_PROP, END_UNREACHED);</span>
+
+<span class="nc" id="L832">        return rv;</span>
+    }
+
+    /**
+     * When a break is encountered annotate the statement being broken
+     * out of by setting its CONTROL_BLOCK_PROP property.
+     * @return logical OR of END_* flags
+     */
+    private int endCheckBreak()
+    {
+<span class="nc" id="L842">        Node n = ((Jump) this).getJumpStatement();</span>
+<span class="nc" id="L843">        n.putIntProp(CONTROL_BLOCK_PROP, END_DROPS_OFF);</span>
+<span class="nc" id="L844">        return END_UNREACHED;</span>
+    }
+
+    /**
+     * endCheck() examines the body of a function, doing a basic reachability
+     * analysis and returns a combination of flags END_* flags that indicate
+     * how the function execution can terminate. These constitute only the
+     * pessimistic set of termination conditions. It is possible that at
+     * runtime certain code paths will never be actually taken. Hence this
+     * analysis will flag errors in cases where there may not be errors.
+     * @return logical OR of END_* flags
+     */
+    private int endCheck()
+    {
+<span class="nc bnc" id="L858" title="All 9 branches missed.">        switch(type)</span>
+        {
+            case Token.BREAK:
+<span class="nc" id="L861">                return endCheckBreak();</span>
+
+            case Token.EXPR_VOID:
+<span class="nc bnc" id="L864" title="All 2 branches missed.">                if (this.first != null)</span>
+<span class="nc" id="L865">                    return first.endCheck();</span>
+<span class="nc" id="L866">                return END_DROPS_OFF;</span>
+
+            case Token.YIELD:
+<span class="nc" id="L869">                return END_YIELDS;</span>
+
+            case Token.CONTINUE:
+            case Token.THROW:
+<span class="nc" id="L873">                return END_UNREACHED;</span>
+
+            case Token.RETURN:
+<span class="nc bnc" id="L876" title="All 2 branches missed.">                if (this.first != null)</span>
+<span class="nc" id="L877">                    return END_RETURNS_VALUE;</span>
+                else
+<span class="nc" id="L879">                    return END_RETURNS;</span>
+
+            case Token.TARGET:
+<span class="nc bnc" id="L882" title="All 2 branches missed.">                if (next != null)</span>
+<span class="nc" id="L883">                    return next.endCheck();</span>
+                else
+<span class="nc" id="L885">                    return END_DROPS_OFF;</span>
+
+            case Token.LOOP:
+<span class="nc" id="L888">                return endCheckLoop();</span>
+
+            case Token.LOCAL_BLOCK:
+            case Token.BLOCK:
+                // there are several special kinds of blocks
+<span class="nc bnc" id="L893" title="All 2 branches missed.">                if (first == null)</span>
+<span class="nc" id="L894">                    return END_DROPS_OFF;</span>
+
+<span class="nc bnc" id="L896" title="All 5 branches missed.">                switch(first.type) {</span>
+                    case Token.LABEL:
+<span class="nc" id="L898">                        return first.endCheckLabel();</span>
+
+                    case Token.IFNE:
+<span class="nc" id="L901">                        return first.endCheckIf();</span>
+
+                    case Token.SWITCH:
+<span class="nc" id="L904">                        return first.endCheckSwitch();</span>
+
+                    case Token.TRY:
+<span class="nc" id="L907">                        return first.endCheckTry();</span>
+
+                    default:
+<span class="nc" id="L910">                        return endCheckBlock();</span>
+                }
+
+            default:
+<span class="nc" id="L914">                return END_DROPS_OFF;</span>
+        }
+    }
+
+    public boolean hasSideEffects()
+    {
+<span class="nc bnc" id="L920" title="All 5 branches missed.">        switch (type) {</span>
+          case Token.EXPR_VOID:
+          case Token.COMMA:
+<span class="nc bnc" id="L923" title="All 2 branches missed.">            if (last != null)</span>
+<span class="nc" id="L924">                return last.hasSideEffects();</span>
+            else
+<span class="nc" id="L926">                return true;</span>
+
+          case Token.HOOK:
+<span class="nc bnc" id="L929" title="All 6 branches missed.">            if (first == null ||</span>
+                first.next == null ||
+                first.next.next == null)
+<span class="nc" id="L932">                Kit.codeBug();</span>
+<span class="nc bnc" id="L933" title="All 2 branches missed.">            return first.next.hasSideEffects() &amp;&amp;</span>
+<span class="nc bnc" id="L934" title="All 2 branches missed.">                   first.next.next.hasSideEffects();</span>
+
+          case Token.AND:
+          case Token.OR:
+<span class="nc bnc" id="L938" title="All 4 branches missed.">            if (first == null || last == null)</span>
+<span class="nc" id="L939">                Kit.codeBug();</span>
+<span class="nc bnc" id="L940" title="All 4 branches missed.">            return first.hasSideEffects() || last.hasSideEffects();</span>
+
+          case Token.ERROR:         // Avoid cascaded error messages
+          case Token.EXPR_RESULT:
+          case Token.ASSIGN:
+          case Token.ASSIGN_ADD:
+          case Token.ASSIGN_SUB:
+          case Token.ASSIGN_MUL:
+          case Token.ASSIGN_DIV:
+          case Token.ASSIGN_MOD:
+          case Token.ASSIGN_BITOR:
+          case Token.ASSIGN_BITXOR:
+          case Token.ASSIGN_BITAND:
+          case Token.ASSIGN_LSH:
+          case Token.ASSIGN_RSH:
+          case Token.ASSIGN_URSH:
+          case Token.ENTERWITH:
+          case Token.LEAVEWITH:
+          case Token.RETURN:
+          case Token.GOTO:
+          case Token.IFEQ:
+          case Token.IFNE:
+          case Token.NEW:
+          case Token.DELPROP:
+          case Token.SETNAME:
+          case Token.SETPROP:
+          case Token.SETELEM:
+          case Token.CALL:
+          case Token.THROW:
+          case Token.RETHROW:
+          case Token.SETVAR:
+          case Token.CATCH_SCOPE:
+          case Token.RETURN_RESULT:
+          case Token.SET_REF:
+          case Token.DEL_REF:
+          case Token.REF_CALL:
+          case Token.TRY:
+          case Token.SEMI:
+          case Token.INC:
+          case Token.DEC:
+          case Token.IF:
+          case Token.ELSE:
+          case Token.SWITCH:
+          case Token.WHILE:
+          case Token.DO:
+          case Token.FOR:
+          case Token.BREAK:
+          case Token.CONTINUE:
+          case Token.VAR:
+          case Token.CONST:
+          case Token.LET:
+          case Token.LETEXPR:
+          case Token.WITH:
+          case Token.WITHEXPR:
+          case Token.CATCH:
+          case Token.FINALLY:
+          case Token.BLOCK:
+          case Token.LABEL:
+          case Token.TARGET:
+          case Token.LOOP:
+          case Token.JSR:
+          case Token.SETPROP_OP:
+          case Token.SETELEM_OP:
+          case Token.LOCAL_BLOCK:
+          case Token.SET_REF_OP:
+          case Token.YIELD:
+<span class="nc" id="L1006">            return true;</span>
+
+          default:
+<span class="nc" id="L1009">            return false;</span>
+        }
+    }
+
+    /**
+     * Recursively unlabel every TARGET or YIELD node in the tree.
+     *
+     * This is used and should only be used for inlining finally blocks where
+     * jsr instructions used to be. It is somewhat hackish, but implementing
+     * a clone() operation would take much, much more effort.
+     *
+     * This solution works for inlining finally blocks because you should never
+     * be writing any given block to the class file simultaneously. Therefore,
+     * an unlabeling will never occur in the middle of a block.
+     */
+    public void resetTargets()
+    {
+<span class="nc bnc" id="L1026" title="All 2 branches missed.">        if (type == Token.FINALLY) {</span>
+<span class="nc" id="L1027">            resetTargets_r();</span>
+        } else {
+<span class="nc" id="L1029">            Kit.codeBug();</span>
+        }
+<span class="nc" id="L1031">    }</span>
+
+    private void resetTargets_r()
+    {
+<span class="nc bnc" id="L1035" title="All 4 branches missed.">        if (type == Token.TARGET || type == Token.YIELD) {</span>
+<span class="nc" id="L1036">            labelId(-1);</span>
+        }
+<span class="nc" id="L1038">        Node child = first;</span>
+<span class="nc bnc" id="L1039" title="All 2 branches missed.">        while (child != null) {</span>
+<span class="nc" id="L1040">            child.resetTargets_r();</span>
+<span class="nc" id="L1041">            child = child.next;</span>
+        }
+<span class="nc" id="L1043">    }</span>
+
+    @Override
+    public String toString()
+    {
+        if (Token.printTrees) {
+            StringBuilder sb = new StringBuilder();
+            toString(new ObjToIntMap(), sb);
+            return sb.toString();
+        }
+<span class="nc" id="L1053">        return String.valueOf(type);</span>
+    }
+
+    private void toString(ObjToIntMap printIds, StringBuilder sb)
+    {
+        if (Token.printTrees) {
+            sb.append(Token.name(type));
+            if (this instanceof Name) {
+                sb.append(' ');
+                sb.append(getString());
+                Scope scope = getScope();
+                if (scope != null) {
+                    sb.append(&quot;[scope: &quot;);
+                    appendPrintId(scope, printIds, sb);
+                    sb.append(&quot;]&quot;);
+                }
+            } else if (this instanceof Scope) {
+                if (this instanceof ScriptNode) {
+                    ScriptNode sof = (ScriptNode)this;
+                    if (this instanceof FunctionNode) {
+                        FunctionNode fn = (FunctionNode)this;
+                        sb.append(' ');
+                        sb.append(fn.getName());
+                    }
+                    sb.append(&quot; [source name: &quot;);
+                    sb.append(sof.getSourceName());
+                    sb.append(&quot;] [encoded source length: &quot;);
+                    sb.append(sof.getEncodedSourceEnd()
+                              - sof.getEncodedSourceStart());
+                    sb.append(&quot;] [base line: &quot;);
+                    sb.append(sof.getBaseLineno());
+                    sb.append(&quot;] [end line: &quot;);
+                    sb.append(sof.getEndLineno());
+                    sb.append(']');
+                }
+                if (((Scope)this).getSymbolTable() != null) {
+                    sb.append(&quot; [scope &quot;);
+                    appendPrintId(this, printIds, sb);
+                    sb.append(&quot;: &quot;);
+                    Iterator&lt;String&gt; iter =
+                        ((Scope) this).getSymbolTable().keySet().iterator();
+                    while (iter.hasNext()) {
+                        sb.append(iter.next());
+                        sb.append(&quot; &quot;);
+                    }
+                    sb.append(&quot;]&quot;);
+                }
+            } else if (this instanceof Jump) {
+                Jump jump = (Jump)this;
+                if (type == Token.BREAK || type == Token.CONTINUE) {
+                    sb.append(&quot; [label: &quot;);
+                    appendPrintId(jump.getJumpStatement(), printIds, sb);
+                    sb.append(']');
+                } else if (type == Token.TRY) {
+                    Node catchNode = jump.target;
+                    Node finallyTarget = jump.getFinally();
+                    if (catchNode != null) {
+                        sb.append(&quot; [catch: &quot;);
+                        appendPrintId(catchNode, printIds, sb);
+                        sb.append(']');
+                    }
+                    if (finallyTarget != null) {
+                        sb.append(&quot; [finally: &quot;);
+                        appendPrintId(finallyTarget, printIds, sb);
+                        sb.append(']');
+                    }
+                } else if (type == Token.LABEL || type == Token.LOOP
+                           || type == Token.SWITCH)
+                {
+                    sb.append(&quot; [break: &quot;);
+                    appendPrintId(jump.target, printIds, sb);
+                    sb.append(']');
+                    if (type == Token.LOOP) {
+                        sb.append(&quot; [continue: &quot;);
+                        appendPrintId(jump.getContinue(), printIds, sb);
+                        sb.append(']');
+                    }
+                } else {
+                    sb.append(&quot; [target: &quot;);
+                    appendPrintId(jump.target, printIds, sb);
+                    sb.append(']');
+                }
+            } else if (type == Token.NUMBER) {
+                sb.append(' ');
+                sb.append(getDouble());
+            } else if (type == Token.TARGET) {
+                sb.append(' ');
+                appendPrintId(this, printIds, sb);
+            }
+            if (lineno != -1) {
+                sb.append(' ');
+                sb.append(lineno);
+            }
+
+            for (PropListItem x = propListHead; x != null; x = x.next) {
+                int type = x.type;
+                sb.append(&quot; [&quot;);
+                sb.append(propToString(type));
+                sb.append(&quot;: &quot;);
+                String value;
+                switch (type) {
+                  case TARGETBLOCK_PROP : // can't add this as it recurses
+                    value = &quot;target block property&quot;;
+                    break;
+                  case LOCAL_BLOCK_PROP :     // can't add this as it is dull
+                    value = &quot;last local block&quot;;
+                    break;
+                  case ISNUMBER_PROP:
+                    switch (x.intValue) {
+                      case BOTH:
+                        value = &quot;both&quot;;
+                        break;
+                      case RIGHT:
+                        value = &quot;right&quot;;
+                        break;
+                      case LEFT:
+                        value = &quot;left&quot;;
+                        break;
+                      default:
+                        throw Kit.codeBug();
+                    }
+                    break;
+                  case SPECIALCALL_PROP:
+                    switch (x.intValue) {
+                      case SPECIALCALL_EVAL:
+                        value = &quot;eval&quot;;
+                        break;
+                      case SPECIALCALL_WITH:
+                        value = &quot;with&quot;;
+                        break;
+                      default:
+                        // NON_SPECIALCALL should not be stored
+                        throw Kit.codeBug();
+                    }
+                    break;
+                  case OBJECT_IDS_PROP: {
+                    Object[] a = (Object[]) x.objectValue;
+                    value = &quot;[&quot;;
+                    for (int i=0; i &lt; a.length; i++) {
+                        value += a[i].toString();
+                        if (i+1 &lt; a.length)
+                            value += &quot;, &quot;;
+                    }
+                    value += &quot;]&quot;;
+                    break;
+                  }
+                  default :
+                    Object obj = x.objectValue;
+                    if (obj != null) {
+                        value = obj.toString();
+                    } else {
+                        value = String.valueOf(x.intValue);
+                    }
+                    break;
+                }
+                sb.append(value);
+                sb.append(']');
+            }
+        }
+<span class="nc" id="L1212">    }</span>
+
+    public String toStringTree(ScriptNode treeTop) {
+        if (Token.printTrees) {
+            StringBuilder sb = new StringBuilder();
+            toStringTreeHelper(treeTop, this, null, 0, sb);
+            return sb.toString();
+        }
+<span class="nc" id="L1220">        return null;</span>
+    }
+
+    private static void toStringTreeHelper(ScriptNode treeTop, Node n,
+                                           ObjToIntMap printIds,
+                                           int level, StringBuilder sb)
+    {
+        if (Token.printTrees) {
+            if (printIds == null) {
+                printIds = new ObjToIntMap();
+                generatePrintIds(treeTop, printIds);
+            }
+            for (int i = 0; i != level; ++i) {
+                sb.append(&quot;    &quot;);
+            }
+            n.toString(printIds, sb);
+            sb.append('\n');
+            for (Node cursor = n.getFirstChild(); cursor != null;
+                 cursor = cursor.getNext())
+            {
+                if (cursor.getType() == Token.FUNCTION) {
+                    int fnIndex = cursor.getExistingIntProp(Node.FUNCTION_PROP);
+                    FunctionNode fn = treeTop.getFunctionNode(fnIndex);
+                    toStringTreeHelper(fn, fn, null, level + 1, sb);
+                } else {
+                    toStringTreeHelper(treeTop, cursor, printIds, level+1, sb);
+                }
+            }
+        }
+<span class="nc" id="L1249">    }</span>
+
+    private static void generatePrintIds(Node n, ObjToIntMap map)
+    {
+        if (Token.printTrees) {
+            map.put(n, map.size());
+            for (Node cursor = n.getFirstChild(); cursor != null;
+                 cursor = cursor.getNext())
+            {
+                generatePrintIds(cursor, map);
+            }
+        }
+<span class="nc" id="L1261">    }</span>
+
+    private static void appendPrintId(Node n, ObjToIntMap printIds,
+                                      StringBuilder sb)
+    {
+        if (Token.printTrees) {
+            if (n != null) {
+                int id = printIds.get(n, -1);
+                sb.append('#');
+                if (id != -1) {
+                    sb.append(id + 1);
+                } else {
+                    sb.append(&quot;&lt;not_available&gt;&quot;);
+                }
+            }
+        }
+<span class="nc" id="L1277">    }</span>
+
+<span class="fc" id="L1279">    protected int type = Token.ERROR; // type of the node, e.g. Token.NAME</span>
+    protected Node next;             // next sibling
+    protected Node first;    // first element of a linked list of children
+    protected Node last;     // last element of a linked list of children
+<span class="fc" id="L1283">    protected int lineno = -1;</span>
+
+    /**
+     * Linked list of properties. Since vast majority of nodes would have
+     * no more then 2 properties, linked list saves memory and provides
+     * fast lookup. If this does not holds, propListHead can be replaced
+     * by UintMap.
+     */
+    protected PropListItem propListHead;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

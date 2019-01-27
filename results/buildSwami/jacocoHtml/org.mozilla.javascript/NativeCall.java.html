@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NativeCall.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">rhino-Rhino1_7_9_Release</a> &gt; <a href="index.source.html" class="el_package">org.mozilla.javascript</a> &gt; <span class="el_source">NativeCall.java</span></div><h1>NativeCall.java</h1><pre class="source lang-java linenums">/* -*- Mode: java; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+package org.mozilla.javascript;
+
+/**
+ * This class implements the activation object.
+ *
+ * See ECMA 10.1.6
+ *
+ * @see org.mozilla.javascript.Arguments
+ * @author Norris Boyd
+ */
+public final class NativeCall extends IdScriptableObject
+{
+    static final long serialVersionUID = -7471457301304454454L;
+
+<span class="fc" id="L21">    private static final Object CALL_TAG = &quot;Call&quot;;</span>
+
+    static void init(Scriptable scope, boolean sealed)
+    {
+<span class="fc" id="L25">        NativeCall obj = new NativeCall();</span>
+<span class="fc" id="L26">        obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);</span>
+<span class="fc" id="L27">    }</span>
+
+<span class="fc" id="L29">    NativeCall() { }</span>
+
+    NativeCall(NativeFunction function, Scriptable scope, Object[] args, boolean isArrow, boolean isStrict)
+<span class="fc" id="L32">    {</span>
+<span class="fc" id="L33">        this.function = function;</span>
+
+<span class="fc" id="L35">        setParentScope(scope);</span>
+        // leave prototype null
+
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">        this.originalArgs = (args == null) ? ScriptRuntime.emptyArgs : args;</span>
+<span class="fc" id="L39">        this.isStrict = isStrict;</span>
+
+        // initialize values of arguments
+<span class="fc" id="L42">        int paramAndVarCount = function.getParamAndVarCount();</span>
+<span class="fc" id="L43">        int paramCount = function.getParamCount();</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        if (paramAndVarCount != 0) {</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">            for (int i = 0; i &lt; paramCount; ++i) {</span>
+<span class="fc" id="L46">                String name = function.getParamOrVarName(i);</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">                Object val = i &lt; args.length ? args[i]</span>
+                                             : Undefined.instance;
+<span class="fc" id="L49">                defineProperty(name, val, PERMANENT);</span>
+            }
+        }
+
+        // initialize &quot;arguments&quot; property but only if it was not overridden by
+        // the parameter with the same name
+<span class="pc bpc" id="L55" title="2 of 4 branches missed.">        if (!super.has(&quot;arguments&quot;, this) &amp;&amp; !isArrow) {</span>
+<span class="fc" id="L56">            arguments = new Arguments(this);</span>
+<span class="fc" id="L57">            defineProperty(&quot;arguments&quot;, arguments, PERMANENT);</span>
+        }
+
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (paramAndVarCount != 0) {</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">            for (int i = paramCount; i &lt; paramAndVarCount; ++i) {</span>
+<span class="fc" id="L62">                String name = function.getParamOrVarName(i);</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">                if (!super.has(name, this)) {</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">                    if (function.getParamOrVarConst(i))</span>
+<span class="nc" id="L65">                        defineProperty(name, Undefined.instance, CONST);</span>
+                    else
+<span class="fc" id="L67">                        defineProperty(name, Undefined.instance, PERMANENT);</span>
+                }
+            }
+        }
+<span class="fc" id="L71">    }</span>
+
+    @Override
+    public String getClassName()
+    {
+<span class="fc" id="L76">        return &quot;Call&quot;;</span>
+    }
+
+    @Override
+    protected int findPrototypeId(String s)
+    {
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        return s.equals(&quot;constructor&quot;) ? Id_constructor : 0;</span>
+    }
+
+    @Override
+    protected void initPrototypeId(int id)
+    {
+        String s;
+        int arity;
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (id == Id_constructor) {</span>
+<span class="fc" id="L91">            arity=1; s=&quot;constructor&quot;;</span>
+        } else {
+<span class="nc" id="L93">            throw new IllegalArgumentException(String.valueOf(id));</span>
+        }
+<span class="fc" id="L95">        initPrototypeMethod(CALL_TAG, id, s, arity);</span>
+<span class="fc" id="L96">    }</span>
+
+    @Override
+    public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+                             Scriptable thisObj, Object[] args)
+    {
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (!f.hasTag(CALL_TAG)) {</span>
+<span class="nc" id="L103">            return super.execIdCall(f, cx, scope, thisObj, args);</span>
+        }
+<span class="nc" id="L105">        int id = f.methodId();</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (id == Id_constructor) {</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            if (thisObj != null) {</span>
+<span class="nc" id="L108">                throw Context.reportRuntimeError1(&quot;msg.only.from.new&quot;, &quot;Call&quot;);</span>
+            }
+<span class="nc" id="L110">            ScriptRuntime.checkDeprecated(cx, &quot;Call&quot;);</span>
+<span class="nc" id="L111">            NativeCall result = new NativeCall();</span>
+<span class="nc" id="L112">            result.setPrototype(getObjectPrototype(scope));</span>
+<span class="nc" id="L113">            return result;</span>
+        }
+<span class="nc" id="L115">        throw new IllegalArgumentException(String.valueOf(id));</span>
+    }
+
+    public void defineAttributesForArguments() {
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (arguments != null) {</span>
+<span class="fc" id="L120">            arguments.defineAttributesForStrictMode();</span>
+        }
+<span class="fc" id="L122">    }</span>
+
+    private static final int
+        Id_constructor   = 1,
+        MAX_PROTOTYPE_ID = 1;
+
+    NativeFunction function;
+    Object[] originalArgs;
+    boolean isStrict;
+    private Arguments arguments;
+
+    transient NativeCall parentActivationCall;
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>
