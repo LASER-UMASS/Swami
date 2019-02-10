@@ -48,5 +48,5 @@ Test files generated for Node.js are available in: `<path-to-output-directory>/N
 
 * **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests node 1000`
 
-## How to compare Swami’s outputs to outputs described in the paper.
+## How to compare Swami's outputs to outputs described in the paper.
 Please refer to the README.pdf file inside artifact_documentatin directory to reproduce the results reported in the paper "paper264_icse2019.pdf"
