@@ -10,6 +10,7 @@ by Manish Motwani and Yuriy Brun.
 1. Install [Python version 3.5.2](https://www.python.org/downloads/release/python-352/)
 2. Install [Standford CoreNLP](https://github.com/Lynten/stanford-corenlp) package using command:`pip install stanfordcorenlp`
 3. Clone this repository
+4. Download [Standford API](http://nlp.stanford.edu/software/stanford-corenlp-full-2018-02-27.zip) and unzip the file inside Swami/src/lib/ directory 
 
 ## How to run Swami
 
