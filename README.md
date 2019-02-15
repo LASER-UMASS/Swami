@@ -1,5 +1,7 @@
-# ICSE 2019 Artifact Evaluation Getting Started Guide for Swami
+# Swami
 
+Swami is a tool to automatically generate executable tests for JavaScript language from
+ECMAScript (ECMA-262) specification documents.
 This repository contains the source code, data, and results described in the paper titled: 
 
 **Automatically Generating Precise Oracles from Structured Natural Language Specifications**, in Proceedings of the 41st International Conference on Software Engineering (ICSE), 2019
@@ -22,7 +24,7 @@ by Manish Motwani and Yuriy Brun.
    The implemented Abstract functions source code is available [here](https://bitbucket.org/manishmotwani/swami/src/master/data/abstractFunctions.js)
 3. [Rhino-1.7.9](https://github.com/mozilla/rhino/releases/tag/Rhino1_7_9_Release) and [Node-10.7.0](https://github.com/nodejs/node/releases/tag/v10.7.0) source code.   
 
-### Input/Output specifications for different modules
+### Input/Output specifications for different modules of Swami
 Swami allows you to run in three different modes that correspond to following three modules. 
 
 #### Extracting Relevant Sections
@@ -50,4 +52,4 @@ Test files generated for Node.js are available in: `<path-to-output-directory>/N
 * **Command to run this module:** `python swami.py ../data/ECMA-262_v8.txt ../data/abstractFunctions.js ../results/ genTests node 1000`
 
 ## How to compare Swami's outputs to outputs described in the paper.
-Please refer to the README.pdf file inside artifact_documentatin directory to reproduce the results reported in the paper "paper264_icse2019.pdf"
+Please refer to the README.pdf file inside the artifact_documentation directory to reproduce the results reported in the paper.
