@@ -20,13 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ==============================================================================
-#
-# This is the main driver program that is used to generate tests
-# from natural-language specifications.
-# INPUT: path to ECMA-262 document in text format, path to output directory
-# OUTPUT: executable test-files for JavaScript in the output directory
-# TO RUN: python swami.py <path-to-specification-doc> <path-to-output-directory>
-#
+# This is the main driver program that is used to: (a) extract relevant sections 
+# from ECMA-262 document, (b) generate test templates for extracted secrions, and 
+# (c) generate executable tests by instantiating generated test templates.
 # ==============================================================================
 
 import os
@@ -37,7 +33,6 @@ from extractRelevantSections import RelevantSection
 from generateTestTemplates import TestTemplate 
 from generateExecutableTests import ExecutableTest
 from printprogress import printProgressBar
-#from filterNonCompilableTemplates import checkIfCompiles
 from time import sleep
 
 class Swami(object):
@@ -54,8 +49,8 @@ class Swami(object):
 		self.extracted_sections = {}
 		self.compiler = compiler
 
-	# returns a dictionary of relevant sections (sections that deal 
-	# with exceptions of boundary conditions) where key is the heading 
+	# returns a dictionary of relevant sections (sections that involve 
+	# exceptions or boundary conditions) where key is the section title  
 	# and value is the body of the section
 	def extractRelevantSections(self, okapi=False):
 		print("Extracting relevant sections from: ", self.input_spec)
@@ -85,6 +80,8 @@ class Swami(object):
 		print("Total number of relevant sections extracted = ", len(extracted_sections))
 		print("Output is available in: ", filepath)
 	
+	# method to parse the extracted sections stored in a file 
+	# and load them in the dictonary
 	def readRelevantSections(self):
 		if self.relevant_spec_exists is True:	
 			rel_sec_file = open(self.relevant_spec)
@@ -106,7 +103,9 @@ class Swami(object):
 					startsec = False
 				elif startsec is True and len(line)>1:
 					body += line.strip() + "\n"		
-
+	
+	# method to add the implemented Abstract Functions to the generated 
+	# test files
 	def addAbstractFunctions(self):
 		template_file = open(self.templatefilepath, "w+")
 		abstract_func_file = open(self.abstractfunc_file_path)
@@ -115,7 +114,7 @@ class Swami(object):
 		abstract_func_file.close()
 		template_file.close()
 
-
+	# method to generate test templates from extracted sections 
 	def generateTemplates(self, extracted_sections):
 		self.addAbstractFunctions()
 		templates = self.test_template_generator.generateTestTemplates(extracted_sections)
@@ -140,7 +139,9 @@ class Swami(object):
 		template_file.close()
 		print("Total number of test templates generated = ", count)
 		print("Generated templates are available in file: ", self.templatefilepath)
-
+	
+	# method to instantiate generated test template using random test inputs 
+	# numtests specifies the number of test inputs to be generated
 	def generateTests(self, numtests):
 		self.executable_test_generator.generateExecutableTests(numtests)
 		if self.compiler == "rhino":
