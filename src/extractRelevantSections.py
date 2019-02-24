@@ -43,11 +43,13 @@ class RelevantSection(object):
 	def __init__(self):
 		self.relevant_sections = {}	# dictionary that stores the relevant sections extrated from specification document
 		self.nlp = StanfordCoreNLP(r'lib/stanford-corenlp-full-2018-02-27')
-
+	
+	# method to tokenize a sentence and annotate it with POS tags 
 	def tokenize(self, sentence):
 		postags = self.nlp.pos_tag(sentence)
 		return postags
 	
+	# method to check if the title of the section is relevant (contains method signature) 
 	def checkIfRelevantHeader(self, line, pos_tokens):
 		relsec = False
 		s = 0
@@ -61,7 +63,10 @@ class RelevantSection(object):
 				if "NN" in pos_tokens[i][1] or "NNP" in pos_tokens[i][1] or "NNS" in pos_tokens[i][1]:
 					return True	
 		return relsec
-
+	
+	# main method for this file. It takes the path to the specification document 
+	# and returns a dictonary of extracted sections where key is the section title
+	# and value is the section body
 	def extractSections(self, path_to_spec_doc):
 		headers = []
 		extracted_sections = {}
@@ -108,7 +113,7 @@ class RelevantSection(object):
 		
 		return extracted_sections
 
-	# use more patterns to determine if a section contains boundary condition or exception
+	# method that uses patterns to determine if a section contains a boundary condition or exception
 	def isSectionRelevant(self, header, body):
 		isrelhead = False
 		isrelbody = False
@@ -140,6 +145,8 @@ class RelevantSection(object):
 						return True
 		return isrelhead
 	
+	# This is an driver method that invokes the main method (extractSections). 
+	# The for loop is mostly used for debigging purposes.
 	def getRelevantSections(self, path_to_spec_doc):
 		extracted_sections = self.extractSections(path_to_spec_doc)
 		printProgressBar(0, len(extracted_sections), prefix = 'Extracting Relevant Specifications Progress:', suffix = 'Complete', length = 50)
