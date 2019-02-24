@@ -20,11 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ==============================================================================
-# script to instantiate test templates
-# inputs: #args of test template function, name of test template function, #tests you wanna generate
-# cmd to run: python instanciateTemplates.py 1 test_array 100
-# output: list of function calls to the test template function using random data types and values 
-# ==============================================================================
 import sys
 import string
 import random
@@ -69,10 +64,12 @@ class ExecutableTest(object):
 			else:
 				print("The generated test files already exists! Please delete the directory:", output_test_dir + "/Node_ECMA262_Tests/", " to generate the tests again.")
 				sys.exit(1)
+	
+	# method to generate random strings
 	def stringGenerator(self, size=6, chars=string.ascii_uppercase + string.digits):
 		return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(size))
 
-
+	# method to generate random test inputs of different data types 
 	def IntializeTestInputs(self):
 		# create random strings
 		for i in range(self.numtests):
@@ -97,7 +94,8 @@ class ExecutableTest(object):
 			if randfloat not in self.floats:
 				self.floats.append(randfloat)
 
-
+	# method to generate test inputs for a given method using some heuristics 
+	# about the Class to which the method under test belongs
 	def generateTestInputsForMethod(self, funcname, numargs, numtests):
 		self.IntializeTestInputs()
 		generatedtests = []
@@ -121,7 +119,8 @@ class ExecutableTest(object):
 				generatedtests.append(test)
 		return generatedtests
 
-
+	# method to create executable JS test file which contains implemented Abstract Operations,
+	# generated test template, and `numtests` invocation of test template using generated test inputs
 	def generateExecutableTests(self, numtests):
 		f = open(self.templatefilepath)
 		self.numtests = numtests
