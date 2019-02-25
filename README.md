@@ -7,6 +7,11 @@ This repository contains the source code, data, and results described in the pap
 **Automatically Generating Precise Oracles from Structured Natural Language Specifications**, in Proceedings of the 41st International Conference on Software Engineering (ICSE), 2019
 by Manish Motwani and Yuriy Brun.
 
+## Swami version 1.0.0 release: 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2577355.svg)](https://doi.org/10.5281/zenodo.2577355)
+
+Cite as Manish Motwani and Yuriy Brun. (2019, February 25). LASER-UMASS/Swami: Swami v1.0.0. Zenodo. http://doi.org/10.5281/zenodo.2577355
+
 ## How to install Swami
 
 1. Install [Python version 3.5.2](https://www.python.org/downloads/release/python-352/)
