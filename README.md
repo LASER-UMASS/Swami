@@ -21,7 +21,7 @@ Cite as Manish Motwani and Yuriy Brun. (2019, February 25). LASER-UMASS/Swami: S
 
 ## How to run Swami
 
-### Pre-requisites
+### Prerequisites
 1. Input specification file in **text** format (ECMA-262_v8.txt). We convert [ECMA-262 V8](http://www.ecma-international.org/publications/files/ECMA-ST-ARCH/ECMA-262%208th%20edition%20June%202017.pdf) pdf file 
    into the text format using [pdfminer](https://github.com/euske/pdfminer) and manually validated (and corrected whereever needed) the convered text. 
    The input specification file is available [here](https://bitbucket.org/manishmotwani/swami/src/master/data/ECMA-262_v8.txt).
