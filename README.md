@@ -24,9 +24,9 @@ Cite as Manish Motwani and Yuriy Brun. (2019, February 25). LASER-UMASS/Swami: S
 ### Prerequisites
 1. Input specification file in **text** format (ECMA-262_v8.txt). We convert [ECMA-262 V8](http://www.ecma-international.org/publications/files/ECMA-ST-ARCH/ECMA-262%208th%20edition%20June%202017.pdf) pdf file 
    into the text format using [pdfminer](https://github.com/euske/pdfminer) and manually validated (and corrected whereever needed) the convered text. 
-   The input specification file is available [here](https://bitbucket.org/manishmotwani/swami/src/master/data/ECMA-262_v8.txt).
+   The input specification file is available [here](https://raw.githubusercontent.com/LASER-UMASS/Swami/master/data/ECMA-262_v8.txt).
 2. Source code file implementing Abstract functions. We manually implement some of the abstract functions that are used by the automatically generated test templates. 
-   The implemented Abstract functions source code is available [here](https://bitbucket.org/manishmotwani/swami/src/master/data/abstractFunctions.js)
+   The implemented Abstract functions source code is available [here](https://github.com/LASER-UMASS/Swami/blob/master/data/abstractFunctions.js)
 3. [Rhino-1.7.9](https://github.com/mozilla/rhino/releases/tag/Rhino1_7_9_Release) and [Node-10.7.0](https://github.com/nodejs/node/releases/tag/v10.7.0) source code.   
 
 ### Input/Output specifications for different modules of Swami
